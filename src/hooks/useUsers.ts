@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
+import { profilesApi } from '@/lib/api/profiles';
+import type { Profile } from '@/lib/api/profiles';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface User {
@@ -55,20 +56,11 @@ export function useUsers(roleFilter?: 'admin' | 'professor' | 'gerant' | 'all') 
   return useQuery({
     queryKey: ['users', roleFilter],
     queryFn: async () => {
-      let query = supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (roleFilter && roleFilter !== 'all') {
-        query = query.eq('role', roleFilter);
+      const profiles = await profilesApi.getAll();
+      if (!roleFilter || roleFilter === 'all') {
+        return profiles as User[];
       }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      return data as User[];
+      return profiles.filter(p => p.role === roleFilter) as User[];
     },
   });
 }
@@ -77,17 +69,7 @@ export function useUsers(roleFilter?: 'admin' | 'professor' | 'gerant' | 'all') 
 export function useUser(id: string) {
   return useQuery({
     queryKey: ['user', id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-
-      return data as User;
-    },
+    queryFn: () => profilesApi.getById(id),
     enabled: !!id,
   });
 }
@@ -98,25 +80,11 @@ export function useCreateUser() {
 
   return useMutation({
     mutationFn: async (input: CreateUserInput) => {
-      const newUser = {
-        id: uuidv4(),
-        username: input.username,
-        password: input.password,
-        full_name: input.full_name,
-        role: input.role,
-      };
-
-      const insertData: any = newUser;
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert(insertData)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return data as User;
+      const id = uuidv4();
+      return profilesApi.create({
+        id,
+        ...input,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -129,23 +97,7 @@ export function useUpdateUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: UpdateUserInput) => {
-      const { id, ...updates } = input;
-
-      const updateData: any = updates;
-
-      const query = supabase
-        .from('profiles')
-        .update(updateData as never)
-        .eq('id', id)
-        .select()
-        .single();
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      return data as User;
-    },
+    mutationFn: (input: UpdateUserInput) => profilesApi.update(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
@@ -158,172 +110,45 @@ export function useDeleteUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => profilesApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 }
 
-// Hook pour récupérer les segments d'un utilisateur (professeur ou gérant)
-export function useUserSegments(userId: string, role: 'professor' | 'gerant') {
-  return useQuery({
-    queryKey: ['user-segments', userId, role],
-    queryFn: async () => {
-      const tableName = role === 'professor' ? 'professor_segments' : 'gerant_segments';
-
-      const { data, error } = await supabase
-        .from(tableName)
-        .select(`
-          segment_id,
-          segments:segment_id (id, name, color)
-        `)
-        .eq(`${role}_id`, userId);
-
-      if (error) throw error;
-
-      return (data || [])
-        .map((row: any) => row.segments)
-        .filter(Boolean) as Segment[];
-    },
-    enabled: !!userId && (role === 'professor' || role === 'gerant'),
-  });
-}
-
-// Hook pour récupérer les villes d'un utilisateur (professeur ou gérant)
-export function useUserCities(userId: string, role: 'professor' | 'gerant') {
-  return useQuery({
-    queryKey: ['user-cities', userId, role],
-    queryFn: async () => {
-      const tableName = role === 'professor' ? 'professor_cities' : 'gerant_cities';
-
-      const { data, error } = await supabase
-        .from(tableName)
-        .select(`
-          city_id,
-          cities:city_id (id, name, segment_id)
-        `)
-        .eq(`${role}_id`, userId);
-
-      if (error) throw error;
-
-      return (data || [])
-        .map((row: any) => row.cities)
-        .filter(Boolean) as City[];
-    },
-    enabled: !!userId && (role === 'professor' || role === 'gerant'),
-  });
-}
-
-// Hook pour assigner des segments à un utilisateur
+// Hook pour assigner des segments à un utilisateur (professeur ou gérant)
 export function useAssignSegments() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (input: AssignSegmentsInput) => {
-      const { user_id, segment_ids, role } = input;
-      const tableName = role === 'professor' ? 'professor_segments' : 'gerant_segments';
-      const columnName = role === 'professor' ? 'professor_id' : 'gerant_id';
-
-      // Supprimer les anciens segments
-      await supabase
-        .from(tableName)
-        .delete()
-        .eq(columnName, user_id);
-
-      // Ajouter les nouveaux segments
-      if (segment_ids.length > 0) {
-        const assignments: any = segment_ids.map((segment_id) => ({
-          [columnName]: user_id,
-          segment_id,
-        }));
-
-        const { error } = await supabase
-          .from(tableName)
-          .insert(assignments);
-
-        if (error) throw error;
-      }
+      return profilesApi.update({
+        id: input.user_id,
+        segment_ids: input.segment_ids,
+      });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-segments'] });
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['user', variables.user_id] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 }
 
-// Hook pour assigner des villes à un utilisateur
+// Hook pour assigner des villes à un utilisateur (professeur ou gérant)
 export function useAssignCities() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (input: AssignCitiesInput) => {
-      const { user_id, city_ids, role } = input;
-      const tableName = role === 'professor' ? 'professor_cities' : 'gerant_cities';
-      const columnName = role === 'professor' ? 'professor_id' : 'gerant_id';
-
-      // Supprimer les anciennes villes
-      await supabase
-        .from(tableName)
-        .delete()
-        .eq(columnName, user_id);
-
-      // Ajouter les nouvelles villes
-      if (city_ids.length > 0) {
-        const assignments: any = city_ids.map((city_id) => ({
-          [columnName]: user_id,
-          city_id,
-        }));
-
-        const { error } = await supabase
-          .from(tableName)
-          .insert(assignments);
-
-        if (error) throw error;
-      }
+      return profilesApi.update({
+        id: input.user_id,
+        city_ids: input.city_ids,
+      });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-cities'] });
-    },
-  });
-}
-
-// Hook pour récupérer tous les segments
-export function useAllSegments() {
-  return useQuery({
-    queryKey: ['all-segments'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('segments')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-
-      return data as Segment[];
-    },
-  });
-}
-
-// Hook pour récupérer toutes les villes
-export function useAllCities() {
-  return useQuery({
-    queryKey: ['all-cities'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cities')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-
-      return data as City[];
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['user', variables.user_id] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 }

@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
+import { profilesApi } from '@/lib/api/profiles';
+import type { Profile } from '@/lib/api/profiles';
+import { citiesApi } from '@/lib/api/cities';
+import { segmentsApi } from '@/lib/api/segments';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface Professor {
@@ -33,14 +36,8 @@ export const useProfessors = () => {
   return useQuery<Professor[]>({
     queryKey: ['professors'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'professor')
-        .order('full_name', { ascending: true });
-
-      if (error) throw error;
-      return data || [];
+      const profiles = await profilesApi.getAll();
+      return profiles.filter(p => p.role === 'professor') as Professor[];
     },
   });
 };
@@ -50,33 +47,14 @@ export const useProfessor = (id: string) => {
   return useQuery<ProfessorWithCities | null>({
     queryKey: ['professors', id],
     queryFn: async () => {
-      // Récupérer le professeur
-      const { data: professor, error: profError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', id)
-        .eq('role', 'professor')
-        .single();
-
-      if (profError) {
-        if (profError.code === 'PGRST116') return null;
-        throw profError;
-      }
+      const professor = await profilesApi.getById(id);
+      if (!professor || professor.role !== 'professor') return null;
 
       // Récupérer les villes affectées
-      const { data: cityData, error: cityError } = await supabase
-        .from('professor_cities')
-        .select(`
-          cities:city_id (
-            id,
-            name
-          )
-        `)
-        .eq('professor_id', id);
-
-      if (cityError) throw cityError;
-
-      const cities = (cityData || []).map((item: any) => item.cities).filter(Boolean);
+      const allCities = await citiesApi.getAll();
+      const cities = allCities
+        .filter(city => professor.city_ids?.includes(city.id))
+        .map(city => ({ id: city.id, name: city.name }));
 
       return {
         ...(professor as any),
@@ -94,22 +72,11 @@ export const useCreateProfessor = () => {
   return useMutation({
     mutationFn: async (data: CreateProfessorInput) => {
       const id = uuidv4();
-      const insertData: any = {
+      return profilesApi.create({
         id,
-        username: data.username,
-        password: data.password,
-        full_name: data.full_name,
+        ...data,
         role: 'professor',
-      };
-
-      const { data: professor, error } = await supabase
-        .from('profiles')
-        .insert(insertData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return professor;
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['professors'] });
@@ -122,27 +89,7 @@ export const useUpdateProfessor = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: UpdateProfessorInput) => {
-      const updateData: any = {
-        username: data.username,
-        full_name: data.full_name,
-      };
-
-      if (data.password) {
-        updateData.password = data.password;
-      }
-
-      const query = supabase
-        .from('profiles')
-        .update(updateData as never)
-        .eq('id', data.id)
-        .select()
-        .single();
-      const { data: professor, error } = await query;
-
-      if (error) throw error;
-      return professor;
-    },
+    mutationFn: (data: UpdateProfessorInput) => profilesApi.update(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['professors'] });
     },
@@ -154,15 +101,7 @@ export const useDeleteProfessor = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      return id;
-    },
+    mutationFn: (id: string) => profilesApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['professors'] });
     },
@@ -174,26 +113,17 @@ export const useProfessorCities = (professorId: string) => {
   return useQuery<Array<{ id: string; name: string; segment_name: string }>>({
     queryKey: ['professors', professorId, 'cities'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('professor_cities')
-        .select(`
-          cities:city_id (
-            id,
-            name,
-            segments:segment_id (
-              name
-            )
-          )
-        `)
-        .eq('professor_id', professorId);
+      const professor = await profilesApi.getById(professorId);
+      if (!professor || !professor.city_ids) return [];
 
-      if (error) throw error;
-
-      return (data || []).map((item: any) => ({
-        id: item.cities?.id,
-        name: item.cities?.name,
-        segment_name: item.cities?.segments?.name,
-      })).filter((city: { id?: string; name?: string; segment_name?: string }) => city.id);
+      const allCities = await citiesApi.getAll();
+      return allCities
+        .filter(city => professor.city_ids?.includes(city.id))
+        .map(city => ({
+          id: city.id,
+          name: city.name,
+          segment_name: city.segment_name || '',
+        }));
     },
     enabled: !!professorId,
   });
@@ -205,28 +135,19 @@ export const useAssignCityToProfessor = () => {
 
   return useMutation({
     mutationFn: async ({ professorId, cityId }: { professorId: string; cityId: string }) => {
-      // Vérifier si l'affectation existe déjà
-      const { data: existing } = await supabase
-        .from('professor_cities')
-        .select('professor_id')
-        .eq('professor_id', professorId)
-        .eq('city_id', cityId)
-        .maybeSingle();
+      const professor = await profilesApi.getById(professorId);
+      if (!professor) throw new Error('Professeur non trouvé');
 
-      if (existing) {
+      const currentCityIds = professor.city_ids || [];
+      if (currentCityIds.includes(cityId)) {
         throw new Error('Cette ville est déjà affectée à ce professeur');
       }
 
-      const insertData: any = {
-        professor_id: professorId,
-        city_id: cityId,
-      };
+      await profilesApi.update({
+        id: professorId,
+        city_ids: [...currentCityIds, cityId],
+      });
 
-      const { error } = await supabase
-        .from('professor_cities')
-        .insert(insertData);
-
-      if (error) throw error;
       return { professorId, cityId };
     },
     onSuccess: (_, variables) => {
@@ -242,13 +163,15 @@ export const useUnassignCityFromProfessor = () => {
 
   return useMutation({
     mutationFn: async ({ professorId, cityId }: { professorId: string; cityId: string }) => {
-      const { error } = await supabase
-        .from('professor_cities')
-        .delete()
-        .eq('professor_id', professorId)
-        .eq('city_id', cityId);
+      const professor = await profilesApi.getById(professorId);
+      if (!professor) throw new Error('Professeur non trouvé');
 
-      if (error) throw error;
+      const currentCityIds = professor.city_ids || [];
+      await profilesApi.update({
+        id: professorId,
+        city_ids: currentCityIds.filter(id => id !== cityId),
+      });
+
       return { professorId, cityId };
     },
     onSuccess: (_, variables) => {
@@ -263,20 +186,11 @@ export const useProfessorSegments = (professorId: string) => {
   return useQuery({
     queryKey: ['professors', professorId, 'segments'],
     queryFn: async (): Promise<Array<{ id: string; name: string; color: string }>> => {
-      const { data, error } = await supabase
-        .from('professor_segments')
-        .select(`
-          segments:segment_id (
-            id,
-            name,
-            color
-          )
-        `)
-        .eq('professor_id', professorId);
+      const professor = await profilesApi.getById(professorId);
+      if (!professor || !professor.segment_ids) return [];
 
-      if (error) throw error;
-
-      return (data || []).map((item: any) => item.segments).filter(Boolean);
+      const allSegments = await segmentsApi.getAll();
+      return allSegments.filter(segment => professor.segment_ids?.includes(segment.id));
     },
     enabled: !!professorId,
   });
@@ -288,28 +202,19 @@ export const useAssignSegmentToProfessor = () => {
 
   return useMutation({
     mutationFn: async ({ professorId, segmentId }: { professorId: string; segmentId: string }) => {
-      // Vérifier si l'affectation existe déjà
-      const { data: existing } = await supabase
-        .from('professor_segments')
-        .select('professor_id')
-        .eq('professor_id', professorId)
-        .eq('segment_id', segmentId)
-        .maybeSingle();
+      const professor = await profilesApi.getById(professorId);
+      if (!professor) throw new Error('Professeur non trouvé');
 
-      if (existing) {
+      const currentSegmentIds = professor.segment_ids || [];
+      if (currentSegmentIds.includes(segmentId)) {
         throw new Error('Ce segment est déjà affecté à ce professeur');
       }
 
-      const insertData: any = {
-        professor_id: professorId,
-        segment_id: segmentId,
-      };
+      await profilesApi.update({
+        id: professorId,
+        segment_ids: [...currentSegmentIds, segmentId],
+      });
 
-      const { error } = await supabase
-        .from('professor_segments')
-        .insert(insertData);
-
-      if (error) throw error;
       return { professorId, segmentId };
     },
     onSuccess: (_, variables) => {
@@ -325,13 +230,15 @@ export const useUnassignSegmentFromProfessor = () => {
 
   return useMutation({
     mutationFn: async ({ professorId, segmentId }: { professorId: string; segmentId: string }) => {
-      const { error } = await supabase
-        .from('professor_segments')
-        .delete()
-        .eq('professor_id', professorId)
-        .eq('segment_id', segmentId);
+      const professor = await profilesApi.getById(professorId);
+      if (!professor) throw new Error('Professeur non trouvé');
 
-      if (error) throw error;
+      const currentSegmentIds = professor.segment_ids || [];
+      await profilesApi.update({
+        id: professorId,
+        segment_ids: currentSegmentIds.filter(id => id !== segmentId),
+      });
+
       return { professorId, segmentId };
     },
     onSuccess: (_, variables) => {

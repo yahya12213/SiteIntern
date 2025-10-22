@@ -1,58 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
+import { citiesApi } from '@/lib/api/cities';
+import type { City, CreateCityInput, UpdateCityInput } from '@/lib/api/cities';
 import { v4 as uuidv4 } from 'uuid';
 
-export interface City {
-  id: string;
-  name: string;
-  code: string;
-  segment_id: string;
-  segment_name?: string;
-  created_at: string;
-}
-
-export interface CreateCityInput {
-  name: string;
-  code: string;
-  segment_id: string;
-}
-
-export interface UpdateCityInput {
-  id: string;
-  code: string;
-  name: string;
-  segment_id: string;
-}
+// Ré-exporter les types pour compatibilité
+export type { City, CreateCityInput, UpdateCityInput };
 
 // Récupérer toutes les villes avec les informations du segment
 export const useCities = () => {
   return useQuery<City[]>({
     queryKey: ['cities'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cities')
-        .select(`
-          id,
-          name,
-          code,
-          segment_id,
-          created_at,
-          segments:segment_id (name)
-        `)
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-
-      // Map to include segment_name
-      return (data || []).map((city: any) => ({
-        id: city.id,
-        name: city.name,
-        code: city.code,
-        segment_id: city.segment_id,
-        segment_name: city.segments?.name,
-        created_at: city.created_at,
-      }));
-    },
+    queryFn: () => citiesApi.getAll(),
   });
 };
 
@@ -60,34 +18,7 @@ export const useCities = () => {
 export const useCity = (id: string) => {
   return useQuery<City | null>({
     queryKey: ['cities', id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cities')
-        .select(`
-          id,
-          name,
-          code,
-          segment_id,
-          created_at,
-          segments:segment_id (name)
-        `)
-        .eq('id', id)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') return null; // Not found
-        throw error;
-      }
-
-      return {
-        id: (data as any).id,
-        name: (data as any).name,
-        code: (data as any).code,
-        segment_id: (data as any).segment_id,
-        segment_name: (data as any).segments?.name,
-        created_at: (data as any).created_at,
-      };
-    },
+    queryFn: () => citiesApi.getById(id),
     enabled: !!id,
   });
 };
@@ -96,30 +27,7 @@ export const useCity = (id: string) => {
 export const useCitiesBySegment = (segmentId: string) => {
   return useQuery({
     queryKey: ['cities', 'segment', segmentId],
-    queryFn: async (): Promise<City[]> => {
-      const { data, error } = await supabase
-        .from('cities')
-        .select(`
-          id,
-          name,
-          segment_id,
-          created_at,
-          segments:segment_id (name)
-        `)
-        .eq('segment_id', segmentId)
-        .order('name', { ascending: true });
-
-      if (error) throw error;
-
-      return (data || []).map((city: any) => ({
-        id: city.id,
-        name: city.name,
-        code: city.code,
-        segment_id: city.segment_id,
-        segment_name: city.segments?.name,
-        created_at: city.created_at,
-      })) as City[];
-    },
+    queryFn: (): Promise<City[]> => citiesApi.getBySegment(segmentId),
     enabled: !!segmentId,
   });
 };
@@ -131,21 +39,10 @@ export const useCreateCity = () => {
   return useMutation({
     mutationFn: async (data: CreateCityInput) => {
       const id = uuidv4();
-      const insertData: any = {
+      return citiesApi.create({
         id,
-        name: data.name,
-        code: data.code,
-        segment_id: data.segment_id,
-      };
-
-      const { data: city, error } = await supabase
-        .from('cities')
-        .insert(insertData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return city;
+        ...data,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cities'] });
@@ -158,24 +55,7 @@ export const useUpdateCity = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: UpdateCityInput) => {
-      const updateData: any = {
-        name: data.name,
-        code: data.code,
-        segment_id: data.segment_id,
-      };
-
-      const query = supabase
-        .from('cities')
-        .update(updateData as never)
-        .eq('id', data.id)
-        .select()
-        .single();
-      const { data: city, error } = await query;
-
-      if (error) throw error;
-      return city;
-    },
+    mutationFn: (data: UpdateCityInput) => citiesApi.update(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cities'] });
     },
@@ -187,15 +67,7 @@ export const useDeleteCity = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('cities')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      return id;
-    },
+    mutationFn: (id: string) => citiesApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cities'] });
     },
@@ -219,6 +91,9 @@ export const useImportCities = () => {
         errors: [] as Array<{ row: number; error: string; data: ImportCityData }>,
       };
 
+      // Récupérer toutes les villes existantes pour vérification
+      const existingCities = await citiesApi.getAll();
+
       for (let i = 0; i < cities.length; i++) {
         const city = cities[i];
         try {
@@ -233,12 +108,9 @@ export const useImportCities = () => {
           }
 
           // Vérifier si la ville existe déjà (par nom et segment)
-          const { data: existing } = await supabase
-            .from('cities')
-            .select('id')
-            .eq('name', city.name.trim())
-            .eq('segment_id', city.segment_id)
-            .maybeSingle();
+          const existing = existingCities.find(
+            (c) => c.name.trim() === city.name.trim() && c.segment_id === city.segment_id
+          );
 
           if (existing) {
             results.errors.push({
@@ -251,16 +123,13 @@ export const useImportCities = () => {
 
           // Créer la ville
           const id = uuidv4();
-          const { error } = await supabase
-            .from('cities')
-            .insert({
-              id,
-              name: city.name.trim(),
-              code: city.code.trim(),
-              segment_id: city.segment_id,
-            } as any);
+          await citiesApi.create({
+            id,
+            name: city.name.trim(),
+            code: city.code.trim(),
+            segment_id: city.segment_id,
+          });
 
-          if (error) throw error;
           results.success++;
         } catch (error) {
           results.errors.push({

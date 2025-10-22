@@ -1,12 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase/client';
-
-interface User {
-  id: string;
-  username: string;
-  full_name: string;
-  role: 'admin' | 'professor' | 'gerant';
-}
+import { authApi } from '@/lib/api/auth';
+import type { User } from '@/lib/api/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -32,29 +26,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, role')
-        .eq('username', username)
-        .eq('password', password)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // Not found
-          return false;
-        }
-        throw error;
-      }
-
-      if (data) {
-        const loggedUser = data as User;
-        setUser(loggedUser);
-        localStorage.setItem('current_user', JSON.stringify(loggedUser));
-        return true;
-      }
-
-      return false;
+      const loggedUser = await authApi.login(username, password);
+      setUser(loggedUser);
+      localStorage.setItem('current_user', JSON.stringify(loggedUser));
+      return true;
     } catch (error) {
       console.error('Erreur de connexion:', error);
       return false;

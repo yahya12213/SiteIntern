@@ -70,6 +70,7 @@ const setupDatabase = async () => {
       CREATE TABLE IF NOT EXISTS cities (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
+        code TEXT NOT NULL,
         segment_id TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (segment_id) REFERENCES segments(id) ON DELETE CASCADE

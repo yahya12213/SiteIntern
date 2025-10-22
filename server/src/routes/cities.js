@@ -7,7 +7,8 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT c.*, s.name as segment_name, s.color as segment_color
+      SELECT c.id, c.name, c.code, c.segment_id, c.created_at,
+             s.name as segment_name, s.color as segment_color
       FROM cities c
       LEFT JOIN segments s ON c.segment_id = s.id
       ORDER BY c.name
@@ -37,15 +38,15 @@ router.get('/by-segment/:segmentId', async (req, res) => {
 // POST créer une ville
 router.post('/', async (req, res) => {
   try {
-    const { id, name, segment_id } = req.body;
+    const { id, name, code, segment_id } = req.body;
 
-    if (!id || !name || !segment_id) {
+    if (!id || !name || !code || !segment_id) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const result = await pool.query(
-      'INSERT INTO cities (id, name, segment_id) VALUES ($1, $2, $3) RETURNING *',
-      [id, name, segment_id]
+      'INSERT INTO cities (id, name, code, segment_id) VALUES ($1, $2, $3, $4) RETURNING *',
+      [id, name, code, segment_id]
     );
 
     res.status(201).json(result.rows[0]);
@@ -59,11 +60,11 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, segment_id } = req.body;
+    const { name, code, segment_id } = req.body;
 
     const result = await pool.query(
-      'UPDATE cities SET name = $1, segment_id = $2 WHERE id = $3 RETURNING *',
-      [name, segment_id, id]
+      'UPDATE cities SET name = $1, code = $2, segment_id = $3 WHERE id = $4 RETURNING *',
+      [name, code, segment_id, id]
     );
 
     if (result.rows.length === 0) {

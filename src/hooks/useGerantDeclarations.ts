@@ -1,5 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase/client';
+import { declarationsApi } from '@/lib/api/declarations';
+import { profilesApi } from '@/lib/api/profiles';
+import { calculationSheetsApi } from '@/lib/api/calculationSheets';
+import { segmentsApi } from '@/lib/api/segments';
+import { citiesApi } from '@/lib/api/cities';
+import type { Declaration } from '@/lib/api/declarations';
 import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -28,28 +33,7 @@ export interface PublishedCalculationSheet {
   sheet_date: string;
 }
 
-export interface GerantDeclaration {
-  id: string;
-  professor_id: string;
-  calculation_sheet_id: string;
-  segment_id: string;
-  city_id: string;
-  start_date: string;
-  end_date: string;
-  status: 'brouillon' | 'a_declarer' | 'soumise' | 'en_cours' | 'approuvee' | 'refusee';
-  created_by: string;
-  creator_role: 'professor' | 'gerant' | 'admin';
-  created_at: string;
-  updated_at: string;
-
-  // Données jointes
-  professor_name?: string;
-  segment_name?: string;
-  city_name?: string;
-  sheet_title?: string;
-}
-
-export interface CreateDeclarationForProfessorInput {
+export interface CreateGerantDeclarationInput {
   professor_id: string;
   calculation_sheet_id: string;
   segment_id: string;
@@ -58,262 +42,104 @@ export interface CreateDeclarationForProfessorInput {
   end_date: string;
 }
 
-// Hook pour récupérer les segments assignés au gérant connecté (ou tous les segments si admin)
+// Hook pour récupérer les segments du gérant
 export function useGerantSegments() {
-  const { user, isAdmin } = useAuth();
-
-  return useQuery({
-    queryKey: ['gerant-segments', user?.id, isAdmin],
-    queryFn: async () => {
-      if (!user?.id) throw new Error('User not authenticated');
-
-      // Si admin, retourner tous les segments
-      if (isAdmin) {
-        const { data, error } = await supabase
-          .from('segments')
-          .select('id, name, color')
-          .order('name');
-
-        if (error) throw error;
-        return (data || []) as GerantSegment[];
-      }
-
-      // Si gérant, retourner uniquement les segments assignés
-      const { data, error } = await supabase
-        .from('gerant_segments')
-        .select(`
-          segment_id,
-          segments:segment_id (id, name, color)
-        `)
-        .eq('gerant_id', user.id);
-
-      if (error) throw error;
-
-      return (data || [])
-        .map((row: any) => row.segments)
-        .filter(Boolean) as GerantSegment[];
-    },
-    enabled: !!user?.id,
-  });
-}
-
-// Hook pour récupérer les villes assignées au gérant connecté (ou toutes les villes si admin)
-export function useGerantCities() {
-  const { user, isAdmin } = useAuth();
-
-  return useQuery({
-    queryKey: ['gerant-cities', user?.id, isAdmin],
-    queryFn: async () => {
-      if (!user?.id) throw new Error('User not authenticated');
-
-      // Si admin, retourner toutes les villes
-      if (isAdmin) {
-        const { data, error } = await supabase
-          .from('cities')
-          .select('id, name, segment_id')
-          .order('name');
-
-        if (error) throw error;
-        return (data || []) as GerantCity[];
-      }
-
-      // Si gérant, retourner uniquement les villes assignées
-      const { data, error } = await supabase
-        .from('gerant_cities')
-        .select(`
-          city_id,
-          cities:city_id (id, name, segment_id)
-        `)
-        .eq('gerant_id', user.id);
-
-      if (error) throw error;
-
-      return (data || [])
-        .map((row: any) => row.cities)
-        .filter(Boolean) as GerantCity[];
-    },
-    enabled: !!user?.id,
-  });
-}
-
-// Hook pour récupérer les professeurs ayant un segment et une ville spécifiques
-export function useProfessorsBySegmentCity(segmentId: string, cityId: string) {
-  return useQuery({
-    queryKey: ['professors-by-segment-city', segmentId, cityId],
-    queryFn: async () => {
-      if (!segmentId || !cityId) return [];
-
-      // Trouver les profs qui ont ce segment ET cette ville
-      const { data: profsBySegment, error: error1 } = await supabase
-        .from('professor_segments')
-        .select('professor_id')
-        .eq('segment_id', segmentId);
-
-      if (error1) throw error1;
-
-      const { data: profsByCity, error: error2 } = await supabase
-        .from('professor_cities')
-        .select('professor_id')
-        .eq('city_id', cityId);
-
-      if (error2) throw error2;
-
-      // Intersection des deux listes
-      const profIdsSegment = new Set(profsBySegment?.map((p: { professor_id: string }) => p.professor_id) || []);
-      const profIdsCity = profsByCity?.map((p: { professor_id: string }) => p.professor_id) || [];
-      const commonProfIds = profIdsCity.filter((id: string) => profIdsSegment.has(id));
-
-      if (commonProfIds.length === 0) return [];
-
-      // Récupérer les infos des professeurs
-      const { data: professors, error: error3 } = await supabase
-        .from('profiles')
-        .select('id, full_name, username')
-        .eq('role', 'professor')
-        .in('id', commonProfIds);
-
-      if (error3) throw error3;
-
-      return professors as ProfessorForDeclaration[];
-    },
-    enabled: !!segmentId && !!cityId,
-  });
-}
-
-// Hook pour récupérer la fiche de calcul publiée pour un segment
-export function usePublishedSheetForSegment(segmentId: string) {
-  return useQuery({
-    queryKey: ['published-sheet-for-segment', segmentId],
-    queryFn: async () => {
-      if (!segmentId) return null;
-
-      // Récupérer les fiches publiées assignées à ce segment
-      const { data: sheetSegments, error: error1 } = await supabase
-        .from('calculation_sheet_segments')
-        .select('sheet_id')
-        .eq('segment_id', segmentId);
-
-      if (error1) throw error1;
-
-      const sheetIds = sheetSegments?.map((s: { sheet_id: string }) => s.sheet_id) || [];
-      if (sheetIds.length === 0) return null;
-
-      // Récupérer les fiches publiées parmi ces IDs
-      const { data: sheets, error: error2 } = await supabase
-        .from('calculation_sheets')
-        .select('id, title, template_data, sheet_date')
-        .eq('status', 'published')
-        .in('id', sheetIds)
-        .order('sheet_date', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error2) {
-        if (error2.code === 'PGRST116') return null; // Not found
-        throw error2;
-      }
-
-      return sheets as PublishedCalculationSheet;
-    },
-    enabled: !!segmentId,
-  });
-}
-
-// Hook pour récupérer les déclarations créées par le gérant connecté
-export function useGerantDeclarations() {
   const { user } = useAuth();
 
-  return useQuery({
-    queryKey: ['gerant-declarations', user?.id],
+  return useQuery<GerantSegment[]>({
+    queryKey: ['gerant-segments', user?.id],
     queryFn: async () => {
-      if (!user?.id) throw new Error('User not authenticated');
+      if (!user?.id) return [];
+      const profile = await profilesApi.getById(user.id);
+      if (!profile || !profile.segment_ids) return [];
 
-      const { data, error } = await supabase
-        .from('professor_declarations')
-        .select(`
-          id,
-          professor_id,
-          calculation_sheet_id,
-          segment_id,
-          city_id,
-          start_date,
-          end_date,
-          status,
-          created_by,
-          creator_role,
-          created_at,
-          updated_at,
-          professor:professor_id (full_name),
-          segment:segment_id (name),
-          city:city_id (name),
-          calculation_sheet:calculation_sheet_id (title)
-        `)
-        .eq('created_by', user.id)
-        .eq('creator_role', 'gerant')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      return (data || []).map((row: any) => ({
-        id: row.id,
-        professor_id: row.professor_id,
-        calculation_sheet_id: row.calculation_sheet_id,
-        segment_id: row.segment_id,
-        city_id: row.city_id,
-        start_date: row.start_date,
-        end_date: row.end_date,
-        status: row.status,
-        created_by: row.created_by,
-        creator_role: row.creator_role,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        professor_name: row.professor?.full_name,
-        segment_name: row.segment?.name,
-        city_name: row.city?.name,
-        sheet_title: row.calculation_sheet?.title,
-      })) as GerantDeclaration[];
+      const allSegments = await segmentsApi.getAll();
+      return allSegments.filter(s => profile.segment_ids?.includes(s.id));
     },
     enabled: !!user?.id,
   });
 }
 
-// Hook pour créer une déclaration pour un professeur
-export function useCreateDeclarationForProfessor() {
-  const { user, isAdmin } = useAuth();
+// Hook pour récupérer les villes du gérant
+export function useGerantCities() {
+  const { user } = useAuth();
+
+  return useQuery<GerantCity[]>({
+    queryKey: ['gerant-cities', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const profile = await profilesApi.getById(user.id);
+      if (!profile || !profile.city_ids) return [];
+
+      const allCities = await citiesApi.getAll();
+      return allCities.filter(c => profile.city_ids?.includes(c.id));
+    },
+    enabled: !!user?.id,
+  });
+}
+
+// Hook pour récupérer les professeurs
+export function useAvailableProfessors() {
+  return useQuery<ProfessorForDeclaration[]>({
+    queryKey: ['available-professors'],
+    queryFn: async () => {
+      const profiles = await profilesApi.getAll();
+      return profiles
+        .filter(p => p.role === 'professor')
+        .map(p => ({
+          id: p.id,
+          full_name: p.full_name,
+          username: p.username,
+        }));
+    },
+  });
+}
+
+// Hook pour récupérer les fiches publiées
+export function usePublishedCalculationSheets() {
+  return useQuery<PublishedCalculationSheet[]>({
+    queryKey: ['published-calculation-sheets'],
+    queryFn: async () => {
+      const sheets = await calculationSheetsApi.getAll();
+      return sheets
+        .filter(s => s.status === 'published')
+        .map(s => ({
+          id: s.id,
+          title: s.title,
+          template_data: s.template_data,
+          sheet_date: s.sheet_date,
+        }));
+    },
+  });
+}
+
+// Hook pour créer une déclaration (gérant)
+export function useCreateGerantDeclaration() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: CreateDeclarationForProfessorInput) => {
-      if (!user?.id) throw new Error('User not authenticated');
-
-      const newDeclaration = {
-        id: uuidv4(),
-        professor_id: input.professor_id,
-        calculation_sheet_id: input.calculation_sheet_id,
-        segment_id: input.segment_id,
-        city_id: input.city_id,
-        start_date: input.start_date,
-        end_date: input.end_date,
+    mutationFn: async (input: CreateGerantDeclarationInput) => {
+      const id = uuidv4();
+      return declarationsApi.create({
+        id,
+        ...input,
         form_data: '{}',
-        status: 'a_declarer',
-        created_by: user.id,
-        creator_role: (isAdmin ? 'admin' : 'gerant') as 'professor' | 'gerant' | 'admin',
-      };
-
-      const insertData: any = newDeclaration;
-
-      const { data, error } = await supabase
-        .from('professor_declarations')
-        .insert(insertData)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return data;
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gerant-declarations'] });
+    },
+  });
+}
+
+// Hook pour récupérer les déclarations créées par le gérant
+export function useGerantDeclarations() {
+  return useQuery<Declaration[]>({
+    queryKey: ['gerant-declarations'],
+    queryFn: async () => {
+      const declarations = await declarationsApi.getAll();
+      // Filtrer par statut 'a_declarer' qui sont créées par le gérant
+      return declarations.filter(d => (d.status as string) === 'a_declarer');
     },
   });
 }
