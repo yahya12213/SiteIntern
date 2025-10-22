@@ -39,10 +39,7 @@ export const useCreateCity = () => {
   return useMutation({
     mutationFn: async (data: CreateCityInput) => {
       const id = uuidv4();
-      return citiesApi.create({
-        id,
-        ...data,
-      });
+      return citiesApi.create(id, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cities'] });
@@ -123,8 +120,7 @@ export const useImportCities = () => {
 
           // Créer la ville
           const id = uuidv4();
-          await citiesApi.create({
-            id,
+          await citiesApi.create(id, {
             name: city.name.trim(),
             code: city.code.trim(),
             segment_id: city.segment_id,

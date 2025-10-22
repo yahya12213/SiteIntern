@@ -553,7 +553,7 @@ const AssignSegmentsModal: React.FC<{
   onClose: () => void;
 }> = ({ user, onClose }) => {
   const { data: allSegments } = useAllSegments();
-  const { data: userSegments } = useUserSegments(user.id, user.role as 'professor' | 'gerant');
+  const { data: userSegments } = useUserSegments(user.id);
   const assignSegments = useAssignSegments();
 
   const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
@@ -640,7 +640,7 @@ const AssignCitiesModal: React.FC<{
 }> = ({ user, onClose }) => {
   const { data: allCities } = useAllCities();
   const { data: allSegments } = useAllSegments();
-  const { data: userCities } = useUserCities(user.id, user.role as 'professor' | 'gerant');
+  const { data: userCities } = useUserCities(user.id);
   const assignCities = useAssignCities();
 
   const [selectedCityIds, setSelectedCityIds] = useState<string[]>([]);

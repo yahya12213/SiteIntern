@@ -143,3 +143,70 @@ export function useGerantDeclarations() {
     },
   });
 }
+
+// Hook pour récupérer les professeurs par segment et ville
+export function useProfessorsBySegmentCity(segmentId?: string, cityId?: string) {
+  return useQuery<ProfessorForDeclaration[]>({
+    queryKey: ['professors-by-segment-city', segmentId, cityId],
+    queryFn: async () => {
+      const profiles = await profilesApi.getAll();
+      const professors = profiles.filter(p => p.role === 'professor');
+
+      return professors
+        .filter(prof => {
+          if (segmentId && !prof.segment_ids?.includes(segmentId)) return false;
+          if (cityId && !prof.city_ids?.includes(cityId)) return false;
+          return true;
+        })
+        .map(p => ({
+          id: p.id,
+          full_name: p.full_name,
+          username: p.username,
+        }));
+    },
+    enabled: !!segmentId || !!cityId,
+  });
+}
+
+// Hook pour récupérer les fiches publiées pour un segment spécifique
+export function usePublishedSheetForSegment(segmentId?: string) {
+  return useQuery<PublishedCalculationSheet[]>({
+    queryKey: ['published-sheets-segment', segmentId],
+    queryFn: async () => {
+      const sheets = await calculationSheetsApi.getAll();
+      return sheets
+        .filter(s => {
+          if (s.status !== 'published') return false;
+          if (segmentId && s.segment_ids && !s.segment_ids.includes(segmentId)) return false;
+          return true;
+        })
+        .map(s => ({
+          id: s.id,
+          title: s.title,
+          template_data: s.template_data,
+          sheet_date: s.sheet_date,
+        }));
+    },
+    enabled: !!segmentId,
+  });
+}
+
+// Hook pour créer une déclaration pour un professeur spécifique
+export function useCreateDeclarationForProfessor() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: CreateGerantDeclarationInput) => {
+      const id = uuidv4();
+      return declarationsApi.create({
+        id,
+        ...input,
+        form_data: '{}',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gerant-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['professor-declarations'] });
+    },
+  });
+}

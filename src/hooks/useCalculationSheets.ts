@@ -28,15 +28,17 @@ export const useCreateCalculationSheet = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: Omit<CreateCalculationSheetInput, 'id'>) => {
+    mutationFn: async (data: { title: string; segment_ids?: string[]; city_ids?: string[]; template_data?: string; status?: 'draft' | 'published'; sheet_date?: string }) => {
       const id = uuidv4();
       const currentDate = new Date().toISOString();
       return calculationSheetsApi.create({
         id,
-        ...data,
+        title: data.title,
         template_data: data.template_data || '{}',
-        status: 'draft',
-        sheet_date: currentDate,
+        status: data.status || 'draft',
+        sheet_date: data.sheet_date || currentDate,
+        segment_ids: data.segment_ids,
+        city_ids: data.city_ids,
       });
     },
     onSuccess: () => {
@@ -88,6 +90,35 @@ export const useToggleCalculationSheetStatus = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['calculation-sheets'] });
       queryClient.invalidateQueries({ queryKey: ['calculation-sheet'] });
+    },
+  });
+};
+
+// Alias pour compatibilité avec les composants
+export const useTogglePublishCalculationSheet = useToggleCalculationSheetStatus;
+
+// Hook pour dupliquer une fiche de calcul
+export const useDuplicateCalculationSheet = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const sheet = await calculationSheetsApi.getById(id);
+      if (!sheet) throw new Error('Fiche non trouvée');
+
+      const newId = uuidv4();
+      return calculationSheetsApi.create({
+        id: newId,
+        title: `${sheet.title} (copie)`,
+        template_data: sheet.template_data,
+        status: 'draft',
+        sheet_date: new Date().toISOString(),
+        segment_ids: sheet.segment_ids,
+        city_ids: sheet.city_ids,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calculation-sheets'] });
     },
   });
 };

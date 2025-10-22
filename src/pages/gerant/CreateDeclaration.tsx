@@ -37,9 +37,12 @@ const CreateDeclaration: React.FC = () => {
     selectedCityId
   );
 
-  const { data: calculationSheet, isLoading: loadingSheet } = usePublishedSheetForSegment(
+  const { data: calculationSheets, isLoading: loadingSheet } = usePublishedSheetForSegment(
     selectedSegmentId
   );
+
+  // Prendre la première fiche publiée pour le segment
+  const calculationSheet = calculationSheets && calculationSheets.length > 0 ? calculationSheets[0] : null;
 
   const createDeclaration = useCreateDeclarationForProfessor();
 

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { profilesApi } from '@/lib/api/profiles';
-import type { Profile } from '@/lib/api/profiles';
+import { citiesApi } from '@/lib/api/cities';
+import { segmentsApi } from '@/lib/api/segments';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface User {
@@ -150,5 +151,51 @@ export function useAssignCities() {
       queryClient.invalidateQueries({ queryKey: ['user', variables.user_id] });
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
+  });
+}
+
+// Hook pour récupérer tous les segments (pour affectation)
+export function useAllSegments() {
+  return useQuery({
+    queryKey: ['segments'],
+    queryFn: () => segmentsApi.getAll(),
+  });
+}
+
+// Hook pour récupérer toutes les villes (pour affectation)
+export function useAllCities() {
+  return useQuery({
+    queryKey: ['cities'],
+    queryFn: () => citiesApi.getAll(),
+  });
+}
+
+// Hook pour récupérer les segments d'un utilisateur
+export function useUserSegments(userId: string) {
+  return useQuery({
+    queryKey: ['user', userId, 'segments'],
+    queryFn: async () => {
+      const user = await profilesApi.getById(userId);
+      if (!user || !user.segment_ids) return [];
+
+      const allSegments = await segmentsApi.getAll();
+      return allSegments.filter(segment => user.segment_ids?.includes(segment.id));
+    },
+    enabled: !!userId,
+  });
+}
+
+// Hook pour récupérer les villes d'un utilisateur
+export function useUserCities(userId: string) {
+  return useQuery({
+    queryKey: ['user', userId, 'cities'],
+    queryFn: async () => {
+      const user = await profilesApi.getById(userId);
+      if (!user || !user.city_ids) return [];
+
+      const allCities = await citiesApi.getAll();
+      return allCities.filter(city => user.city_ids?.includes(city.id));
+    },
+    enabled: !!userId,
   });
 }

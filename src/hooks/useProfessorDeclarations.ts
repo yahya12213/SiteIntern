@@ -1,10 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { declarationsApi } from '@/lib/api/declarations';
 import type { Declaration } from '@/lib/api/declarations';
+import { calculationSheetsApi } from '@/lib/api/calculationSheets';
+import { citiesApi } from '@/lib/api/cities';
+import { segmentsApi } from '@/lib/api/segments';
+import { profilesApi } from '@/lib/api/profiles';
 import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 
 export type ProfessorDeclaration = Declaration;
+
+export interface ProfessorCity {
+  id: string;
+  name: string;
+  segment_id: string;
+  segment_name?: string;
+}
 
 export interface CreateDeclarationInput {
   calculation_sheet_id: string;
@@ -109,4 +120,65 @@ export function useDeleteDeclaration() {
       queryClient.invalidateQueries({ queryKey: ['professor-declarations'] });
     },
   });
+}
+
+// Hook pour récupérer les fiches de calcul disponibles (publiées)
+export function useAvailableCalculationSheets() {
+  return useQuery({
+    queryKey: ['available-calculation-sheets'],
+    queryFn: async () => {
+      const sheets = await calculationSheetsApi.getAll();
+      return sheets.filter(sheet => sheet.status === 'published');
+    },
+  });
+}
+
+// Hook pour récupérer les segments du professeur connecté
+export function useProfessorSegments() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['professor-segments', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      const professor = await profilesApi.getById(user.id);
+      if (!professor || !professor.segment_ids) return [];
+
+      const allSegments = await segmentsApi.getAll();
+      return allSegments.filter(segment => professor.segment_ids?.includes(segment.id));
+    },
+    enabled: !!user?.id,
+  });
+}
+
+// Hook pour récupérer les villes du professeur connecté
+export function useProfessorCities(): { data: ProfessorCity[] | undefined; isLoading: boolean } {
+  const { user } = useAuth();
+
+  const query = useQuery({
+    queryKey: ['professor-cities', user?.id],
+    queryFn: async (): Promise<ProfessorCity[]> => {
+      if (!user?.id) return [];
+
+      const professor = await profilesApi.getById(user.id);
+      if (!professor || !professor.city_ids) return [];
+
+      const allCities = await citiesApi.getAll();
+      return allCities
+        .filter(city => professor.city_ids?.includes(city.id))
+        .map(city => ({
+          id: city.id,
+          name: city.name,
+          segment_id: city.segment_id,
+          segment_name: city.segment_name,
+        }));
+    },
+    enabled: !!user?.id,
+  });
+
+  return {
+    data: query.data,
+    isLoading: query.isLoading,
+  };
 }

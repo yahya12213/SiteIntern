@@ -8,7 +8,6 @@ export interface Segment {
 }
 
 export interface CreateSegmentInput {
-  id: string;
   name: string;
   color: string;
 }
@@ -47,8 +46,8 @@ export const segmentsApi = {
   /**
    * Créer un segment
    */
-  async create(segment: CreateSegmentInput): Promise<Segment> {
-    return apiClient.post<Segment>('/segments', segment);
+  async create(id: string, segment: CreateSegmentInput): Promise<Segment> {
+    return apiClient.post<Segment>('/segments', { id, ...segment });
   },
 
   /**

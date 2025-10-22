@@ -85,3 +85,38 @@ export function useAdminDeclaration(id: string) {
     enabled: !!id,
   });
 }
+
+// Alias pour compatibilité avec les composants
+export const useRequestModification = useRequestModifications;
+
+// Hook pour supprimer une déclaration
+export function useDeleteAdminDeclaration() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => declarationsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-declarations'] });
+    },
+  });
+}
+
+// Hook pour récupérer les statistiques des déclarations
+export function useDeclarationStats() {
+  return useQuery({
+    queryKey: ['declaration-stats'],
+    queryFn: async () => {
+      const declarations = await declarationsApi.getAll();
+
+      return {
+        total: declarations.length,
+        soumises: declarations.filter(d => d.status === 'soumise').length,
+        en_cours: declarations.filter(d => d.status === 'en_cours').length,
+        approuvees: declarations.filter(d => d.status === 'approuvee').length,
+        refusees: declarations.filter(d => d.status === 'refusee').length,
+        brouillon: declarations.filter(d => d.status === 'brouillon').length,
+        a_declarer: declarations.filter(d => d.status === 'a_declarer').length,
+      };
+    },
+  });
+}

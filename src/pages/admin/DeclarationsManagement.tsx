@@ -213,7 +213,7 @@ const DeclarationsManagement: React.FC = () => {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">{stats.soumise}</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.soumises}</p>
                   <p className="text-sm text-gray-600">Soumises</p>
                 </div>
               </CardContent>
@@ -229,7 +229,7 @@ const DeclarationsManagement: React.FC = () => {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">{stats.approuvee}</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.approuvees}</p>
                   <p className="text-sm text-gray-600">Approuvées</p>
                 </div>
               </CardContent>
@@ -237,7 +237,7 @@ const DeclarationsManagement: React.FC = () => {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-red-600">{stats.refusee}</p>
+                  <p className="text-2xl font-bold text-red-600">{stats.refusees}</p>
                   <p className="text-sm text-gray-600">Refusées</p>
                 </div>
               </CardContent>

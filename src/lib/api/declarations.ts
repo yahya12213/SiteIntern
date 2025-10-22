@@ -24,6 +24,7 @@ export interface Declaration {
   submitted_at?: string;
   reviewed_at?: string;
   // Champs jointures
+  professor_name?: string;
   segment_name?: string;
   city_name?: string;
   sheet_title?: string;

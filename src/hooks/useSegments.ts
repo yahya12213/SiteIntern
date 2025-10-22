@@ -30,10 +30,7 @@ export const useCreateSegment = () => {
   return useMutation({
     mutationFn: async (data: CreateSegmentInput) => {
       const id = uuidv4();
-      return segmentsApi.create({
-        id,
-        ...data,
-      });
+      return segmentsApi.create(id, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['segments'] });

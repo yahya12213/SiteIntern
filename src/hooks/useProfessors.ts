@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { profilesApi } from '@/lib/api/profiles';
-import type { Profile } from '@/lib/api/profiles';
 import { citiesApi } from '@/lib/api/cities';
 import { segmentsApi } from '@/lib/api/segments';
 import { v4 as uuidv4 } from 'uuid';

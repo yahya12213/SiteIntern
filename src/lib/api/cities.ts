@@ -11,7 +11,6 @@ export interface City {
 }
 
 export interface CreateCityInput {
-  id: string;
   name: string;
   code: string;
   segment_id: string;
@@ -60,8 +59,8 @@ export const citiesApi = {
   /**
    * Créer une ville
    */
-  async create(city: CreateCityInput): Promise<City> {
-    return apiClient.post<City>('/cities', city);
+  async create(id: string, city: CreateCityInput): Promise<City> {
+    return apiClient.post<City>('/cities', { id, ...city });
   },
 
   /**

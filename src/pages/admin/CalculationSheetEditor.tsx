@@ -348,10 +348,8 @@ export default function CalculationSheetEditor() {
 
       await updateSheet.mutateAsync({
         id,
-        data: {
-          title: templateName,
-          template_data: JSON.stringify(template),
-        },
+        title: templateName,
+        template_data: JSON.stringify(template),
       });
 
       setSaveMessage('Fiche sauvegardée avec succès!');
