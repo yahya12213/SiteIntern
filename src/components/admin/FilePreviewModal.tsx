@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { X, Download, ChevronLeft, ChevronRight, FileText, Image as ImageIcon } from 'lucide-react';
+import { X, Download, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 
 interface FileData {
   name: string;

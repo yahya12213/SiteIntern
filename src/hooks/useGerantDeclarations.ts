@@ -159,9 +159,9 @@ export function useProfessorsBySegmentCity(segmentId: string, cityId: string) {
       if (error2) throw error2;
 
       // Intersection des deux listes
-      const profIdsSegment = new Set(profsBySegment?.map(p => p.professor_id) || []);
-      const profIdsCity = profsByCity?.map(p => p.professor_id) || [];
-      const commonProfIds = profIdsCity.filter(id => profIdsSegment.has(id));
+      const profIdsSegment = new Set(profsBySegment?.map((p: { professor_id: string }) => p.professor_id) || []);
+      const profIdsCity = profsByCity?.map((p: { professor_id: string }) => p.professor_id) || [];
+      const commonProfIds = profIdsCity.filter((id: string) => profIdsSegment.has(id));
 
       if (commonProfIds.length === 0) return [];
 
@@ -195,7 +195,7 @@ export function usePublishedSheetForSegment(segmentId: string) {
 
       if (error1) throw error1;
 
-      const sheetIds = sheetSegments?.map(s => s.sheet_id) || [];
+      const sheetIds = sheetSegments?.map((s: { sheet_id: string }) => s.sheet_id) || [];
       if (sheetIds.length === 0) return null;
 
       // Récupérer les fiches publiées parmi ces IDs
@@ -300,9 +300,11 @@ export function useCreateDeclarationForProfessor() {
         creator_role: (isAdmin ? 'admin' : 'gerant') as 'professor' | 'gerant' | 'admin',
       };
 
+      const insertData: any = newDeclaration;
+
       const { data, error } = await supabase
         .from('professor_declarations')
-        .insert(newDeclaration)
+        .insert(insertData)
         .select()
         .single();
 

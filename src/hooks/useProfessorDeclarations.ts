@@ -165,7 +165,7 @@ export function useProfessorDeclaration(id: string) {
       }
 
       return {
-        ...data,
+        ...(data as any),
         segment_name: (data as any).segments?.name,
         city_name: (data as any).cities?.name,
         sheet_title: (data as any).calculation_sheets?.title,
@@ -191,7 +191,7 @@ export function useAvailableCalculationSheets() {
         .select('segment_id')
         .eq('professor_id', user.id);
 
-      const segmentIds = profSegments?.map(ps => ps.segment_id) || [];
+      const segmentIds = profSegments?.map((ps: { segment_id: string }) => ps.segment_id) || [];
 
       if (segmentIds.length === 0) return [];
 
@@ -201,7 +201,7 @@ export function useAvailableCalculationSheets() {
         .select('city_id')
         .eq('professor_id', user.id);
 
-      const cityIds = profCities?.map(pc => pc.city_id) || [];
+      const cityIds = profCities?.map((pc: { city_id: string }) => pc.city_id) || [];
 
       if (cityIds.length === 0) return [];
 
@@ -211,7 +211,7 @@ export function useAvailableCalculationSheets() {
         .select('sheet_id')
         .in('segment_id', segmentIds);
 
-      const sheetIdsFromSegments = [...new Set(sheetSegments?.map(ss => ss.sheet_id) || [])];
+      const sheetIdsFromSegments = [...new Set(sheetSegments?.map((ss: { sheet_id: string }) => ss.sheet_id) || [])];
 
       if (sheetIdsFromSegments.length === 0) return [];
 
@@ -222,7 +222,7 @@ export function useAvailableCalculationSheets() {
         .in('sheet_id', sheetIdsFromSegments)
         .in('city_id', cityIds);
 
-      const sheetIdsFromCities = [...new Set(sheetCities?.map(sc => sc.sheet_id) || [])];
+      const sheetIdsFromCities = [...new Set(sheetCities?.map((sc: { sheet_id: string }) => sc.sheet_id) || [])];
 
       if (sheetIdsFromCities.length === 0) return [];
 
@@ -238,7 +238,7 @@ export function useAvailableCalculationSheets() {
 
       // Enrichir avec segment_ids et city_ids
       const enrichedSheets = await Promise.all(
-        (sheets || []).map(async (sheet) => {
+        (sheets || []).map(async (sheet: any) => {
           const { data: segData } = await supabase
             .from('calculation_sheet_segments')
             .select('segment_id')
@@ -251,8 +251,8 @@ export function useAvailableCalculationSheets() {
 
           return {
             ...sheet,
-            segment_ids: segData?.map(s => s.segment_id) || [],
-            city_ids: cityData?.map(c => c.city_id) || [],
+            segment_ids: segData?.map((s: { segment_id: string }) => s.segment_id) || [],
+            city_ids: cityData?.map((c: { city_id: string }) => c.city_id) || [],
           };
         })
       );
@@ -275,24 +275,26 @@ export function useCreateDeclaration() {
       const id = uuidv4();
       const formData = JSON.stringify(input.form_data || {});
 
+      const insertData: any = {
+        id,
+        professor_id: user.id,
+        calculation_sheet_id: input.calculation_sheet_id,
+        segment_id: input.segment_id,
+        city_id: input.city_id,
+        start_date: input.start_date,
+        end_date: input.end_date,
+        form_data: formData,
+        status: 'brouillon',
+      };
+
       const { data, error } = await supabase
         .from('professor_declarations')
-        .insert({
-          id,
-          professor_id: user.id,
-          calculation_sheet_id: input.calculation_sheet_id,
-          segment_id: input.segment_id,
-          city_id: input.city_id,
-          start_date: input.start_date,
-          end_date: input.end_date,
-          form_data: formData,
-          status: 'brouillon',
-        })
+        .insert(insertData)
         .select()
         .single();
 
       if (error) throw error;
-      return data.id;
+      return (data as any).id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['professor-declarations'] });
@@ -308,10 +310,13 @@ export function useUpdateDeclaration() {
     mutationFn: async (input: UpdateDeclarationInput) => {
       const formData = JSON.stringify(input.form_data);
 
-      const { error } = await supabase
+      const updateData: any = { form_data: formData };
+
+      const query = supabase
         .from('professor_declarations')
-        .update({ form_data: formData })
+        .update(updateData as never)
         .eq('id', input.id);
+      const { error } = await query;
 
       if (error) throw error;
     },
@@ -330,13 +335,16 @@ export function useSubmitDeclaration() {
     mutationFn: async (id: string) => {
       const now = new Date().toISOString();
 
-      const { error } = await supabase
+      const updateData: any = {
+        status: 'soumise',
+        submitted_at: now,
+      };
+
+      const query = supabase
         .from('professor_declarations')
-        .update({
-          status: 'soumise',
-          submitted_at: now,
-        })
+        .update(updateData as never)
         .eq('id', id);
+      const { error } = await query;
 
       if (error) throw error;
     },

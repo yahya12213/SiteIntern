@@ -21,17 +21,17 @@ export default function AssignCitiesModal({ professorId, professorName, onClose 
   const unassignCity = useUnassignCityFromProfessor();
 
   // Filtrer les villes disponibles (non affectées au professeur ET appartenant aux segments affectés)
-  const professorSegmentIds = professorSegments.map(s => s.id);
-  const availableCities = allCities.filter(
-    (city) =>
-      !professorCities.some((pc) => pc.id === city.id) &&
+  const professorSegmentIds = professorSegments.map((s: { id: string; name: string; color: string }) => s.id);
+  const availableCities = (allCities as any[]).filter(
+    (city: { id: string; name: string; segment_id: string; segment_name?: string; created_at: string }) =>
+      !professorCities.some((pc: { id: string; name: string; segment_name: string }) => pc.id === city.id) &&
       professorSegmentIds.includes(city.segment_id)
   );
 
   // Filtrer par recherche et par segment
-  const filteredAvailableCities = availableCities.filter((city) => {
+  const filteredAvailableCities = availableCities.filter((city: { id: string; name: string; segment_id: string; segment_name?: string; created_at: string }) => {
     const matchesSearch = city.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      city.code.toLowerCase().includes(searchTerm.toLowerCase());
+      city.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSegment = filterSegmentId === 'all' || city.segment_id === filterSegmentId;
     return matchesSearch && matchesSegment;
   });
@@ -48,7 +48,7 @@ export default function AssignCitiesModal({ professorId, professorName, onClose 
     if (selectedCityIds.length === filteredAvailableCities.length) {
       setSelectedCityIds([]);
     } else {
-      setSelectedCityIds(filteredAvailableCities.map(c => c.id));
+      setSelectedCityIds(filteredAvailableCities.map((c: { id: string; name: string; segment_id: string; segment_name?: string; created_at: string }) => c.id));
     }
   };
 
@@ -135,7 +135,7 @@ export default function AssignCitiesModal({ professorId, professorName, onClose 
               </div>
             ) : (
               <div className="space-y-2 max-h-60 overflow-y-auto">
-                {professorCities.map((city) => (
+                {professorCities.map((city: { id: string; name: string; segment_name: string }) => (
                   <div
                     key={city.id}
                     className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg"
@@ -145,7 +145,7 @@ export default function AssignCitiesModal({ professorId, professorName, onClose 
                       <div>
                         <p className="font-medium text-gray-900">{city.name}</p>
                         <p className="text-xs text-gray-500">
-                          {city.code} • {city.segment_name}
+                          {city.id} • {city.segment_name}
                         </p>
                       </div>
                     </div>
@@ -199,7 +199,7 @@ export default function AssignCitiesModal({ professorId, professorName, onClose 
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               >
                 <option value="all">Tous les segments</option>
-                {professorSegments.map((segment) => (
+                {professorSegments.map((segment: { id: string; name: string; color: string }) => (
                   <option key={segment.id} value={segment.id}>
                     {segment.name}
                   </option>
@@ -216,7 +216,7 @@ export default function AssignCitiesModal({ professorId, professorName, onClose 
               </div>
             ) : (
               <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg mb-3">
-                {filteredAvailableCities.map((city) => (
+                {filteredAvailableCities.map((city: { id: string; name: string; segment_id: string; segment_name?: string; created_at: string }) => (
                   <label
                     key={city.id}
                     className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
@@ -230,7 +230,7 @@ export default function AssignCitiesModal({ professorId, professorName, onClose 
                     <div className="flex-1">
                       <div className="font-medium text-gray-900">{city.name}</div>
                       <div className="text-sm text-gray-500">
-                        {city.code} • {city.segment_name}
+                        {city.id} • {city.segment_name || 'N/A'}
                       </div>
                     </div>
                   </label>

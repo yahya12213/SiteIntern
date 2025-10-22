@@ -11,7 +11,6 @@ const Declarations: React.FC = () => {
   const submitDeclaration = useSubmitDeclaration();
 
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette déclaration ?')) {
@@ -94,7 +93,7 @@ const Declarations: React.FC = () => {
           <div className="bg-white rounded-lg shadow-sm p-4">
             <p className="text-sm text-gray-600">À déclarer</p>
             <p className="text-2xl font-bold text-orange-600">
-              {declarations?.filter(d => d.status === 'a_declarer').length || 0}
+              {declarations?.filter(d => (d.status as any) === 'a_declarer').length || 0}
             </p>
           </div>
           <div className="bg-white rounded-lg shadow-sm p-4">
@@ -192,12 +191,12 @@ const Declarations: React.FC = () => {
                             to={`/professor/declarations/${declaration.id}/fill`}
                             className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
                             title={
-                              declaration.status === 'brouillon' || declaration.status === 'refusee' || declaration.status === 'a_declarer'
+                              declaration.status === 'brouillon' || declaration.status === 'refusee' || (declaration.status as any) === 'a_declarer'
                                 ? 'Remplir'
                                 : 'Voir'
                             }
                           >
-                            {declaration.status === 'brouillon' || declaration.status === 'refusee' || declaration.status === 'a_declarer' ? (
+                            {declaration.status === 'brouillon' || declaration.status === 'refusee' || (declaration.status as any) === 'a_declarer' ? (
                               <Edit3 className="w-4 h-4" />
                             ) : (
                               <Eye className="w-4 h-4" />
@@ -205,7 +204,7 @@ const Declarations: React.FC = () => {
                           </Link>
 
                           {/* Soumettre */}
-                          {(declaration.status === 'brouillon' || declaration.status === 'a_declarer') && (
+                          {(declaration.status === 'brouillon' || (declaration.status as any) === 'a_declarer') && (
                             <button
                               onClick={() => handleSubmit(declaration.id)}
                               className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded transition-colors"

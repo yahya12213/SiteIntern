@@ -1,6 +1,6 @@
 // Types pour le moteur de formules
 
-export type FormulaValue = number | string | boolean | null;
+export type FormulaValue = number | string | boolean | null | any[];
 
 export type FormulaError =
   | '#REF!' // Référence invalide

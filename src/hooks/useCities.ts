@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 export interface City {
   id: string;
   name: string;
+  code: string;
   segment_id: string;
   segment_name?: string;
   created_at: string;
@@ -12,11 +13,13 @@ export interface City {
 
 export interface CreateCityInput {
   name: string;
+  code: string;
   segment_id: string;
 }
 
 export interface UpdateCityInput {
   id: string;
+  code: string;
   name: string;
   segment_id: string;
 }
@@ -31,6 +34,7 @@ export const useCities = () => {
         .select(`
           id,
           name,
+          code,
           segment_id,
           created_at,
           segments:segment_id (name)
@@ -43,6 +47,7 @@ export const useCities = () => {
       return (data || []).map((city: any) => ({
         id: city.id,
         name: city.name,
+        code: city.code,
         segment_id: city.segment_id,
         segment_name: city.segments?.name,
         created_at: city.created_at,
@@ -61,6 +66,7 @@ export const useCity = (id: string) => {
         .select(`
           id,
           name,
+          code,
           segment_id,
           created_at,
           segments:segment_id (name)
@@ -74,11 +80,12 @@ export const useCity = (id: string) => {
       }
 
       return {
-        id: data.id,
-        name: data.name,
-        segment_id: data.segment_id,
+        id: (data as any).id,
+        name: (data as any).name,
+        code: (data as any).code,
+        segment_id: (data as any).segment_id,
         segment_name: (data as any).segments?.name,
-        created_at: data.created_at,
+        created_at: (data as any).created_at,
       };
     },
     enabled: !!id,
@@ -87,9 +94,9 @@ export const useCity = (id: string) => {
 
 // Récupérer les villes par segment
 export const useCitiesBySegment = (segmentId: string) => {
-  return useQuery<City[]>({
+  return useQuery({
     queryKey: ['cities', 'segment', segmentId],
-    queryFn: async () => {
+    queryFn: async (): Promise<City[]> => {
       const { data, error } = await supabase
         .from('cities')
         .select(`
@@ -107,10 +114,11 @@ export const useCitiesBySegment = (segmentId: string) => {
       return (data || []).map((city: any) => ({
         id: city.id,
         name: city.name,
+        code: city.code,
         segment_id: city.segment_id,
         segment_name: city.segments?.name,
         created_at: city.created_at,
-      }));
+      })) as City[];
     },
     enabled: !!segmentId,
   });
@@ -123,13 +131,16 @@ export const useCreateCity = () => {
   return useMutation({
     mutationFn: async (data: CreateCityInput) => {
       const id = uuidv4();
+      const insertData: any = {
+        id,
+        name: data.name,
+        code: data.code,
+        segment_id: data.segment_id,
+      };
+
       const { data: city, error } = await supabase
         .from('cities')
-        .insert({
-          id,
-          name: data.name,
-          segment_id: data.segment_id,
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -148,15 +159,19 @@ export const useUpdateCity = () => {
 
   return useMutation({
     mutationFn: async (data: UpdateCityInput) => {
-      const { data: city, error } = await supabase
+      const updateData: any = {
+        name: data.name,
+        code: data.code,
+        segment_id: data.segment_id,
+      };
+
+      const query = supabase
         .from('cities')
-        .update({
-          name: data.name,
-          segment_id: data.segment_id,
-        })
+        .update(updateData as never)
         .eq('id', data.id)
         .select()
         .single();
+      const { data: city, error } = await query;
 
       if (error) throw error;
       return city;
@@ -190,6 +205,7 @@ export const useDeleteCity = () => {
 // Import en masse de villes
 export interface ImportCityData {
   name: string;
+  code: string;
   segment_id: string;
 }
 
@@ -207,10 +223,10 @@ export const useImportCities = () => {
         const city = cities[i];
         try {
           // Vérifier que toutes les données sont présentes
-          if (!city.name || !city.segment_id) {
+          if (!city.name || !city.code || !city.segment_id) {
             results.errors.push({
               row: i + 2, // +2 car ligne 1 = header, et index commence à 0
-              error: 'Données manquantes (nom ou segment)',
+              error: 'Données manquantes (nom, code ou segment)',
               data: city,
             });
             continue;
@@ -240,8 +256,9 @@ export const useImportCities = () => {
             .insert({
               id,
               name: city.name.trim(),
+              code: city.code.trim(),
               segment_id: city.segment_id,
-            });
+            } as any);
 
           if (error) throw error;
           results.success++;

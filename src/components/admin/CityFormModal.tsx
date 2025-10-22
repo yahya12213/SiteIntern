@@ -25,9 +25,9 @@ export default function CityFormModal({ cityId, onClose }: CityFormModalProps) {
   useEffect(() => {
     if (city) {
       setFormData({
-        name: city.name,
-        code: city.code,
-        segment_id: city.segment_id,
+        name: (city as any).name,
+        code: (city as any).code,
+        segment_id: (city as any).segment_id,
       });
     }
   }, [city]);
@@ -135,7 +135,7 @@ export default function CityFormModal({ cityId, onClose }: CityFormModalProps) {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none"
               >
                 <option value="">Sélectionnez un segment</option>
-                {segments.map((segment) => (
+                {segments.map((segment: { id: string; name: string; color: string; created_at: string }) => (
                   <option key={segment.id} value={segment.id}>
                     {segment.name}
                   </option>

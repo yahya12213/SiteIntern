@@ -79,7 +79,7 @@ export const useProfessor = (id: string) => {
       const cities = (cityData || []).map((item: any) => item.cities).filter(Boolean);
 
       return {
-        ...professor,
+        ...(professor as any),
         cities,
       };
     },
@@ -94,15 +94,17 @@ export const useCreateProfessor = () => {
   return useMutation({
     mutationFn: async (data: CreateProfessorInput) => {
       const id = uuidv4();
+      const insertData: any = {
+        id,
+        username: data.username,
+        password: data.password,
+        full_name: data.full_name,
+        role: 'professor',
+      };
+
       const { data: professor, error } = await supabase
         .from('profiles')
-        .insert({
-          id,
-          username: data.username,
-          password: data.password,
-          full_name: data.full_name,
-          role: 'professor',
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -130,12 +132,13 @@ export const useUpdateProfessor = () => {
         updateData.password = data.password;
       }
 
-      const { data: professor, error } = await supabase
+      const query = supabase
         .from('profiles')
-        .update(updateData)
+        .update(updateData as never)
         .eq('id', data.id)
         .select()
         .single();
+      const { data: professor, error } = await query;
 
       if (error) throw error;
       return professor;
@@ -190,7 +193,7 @@ export const useProfessorCities = (professorId: string) => {
         id: item.cities?.id,
         name: item.cities?.name,
         segment_name: item.cities?.segments?.name,
-      })).filter(city => city.id);
+      })).filter((city: { id?: string; name?: string; segment_name?: string }) => city.id);
     },
     enabled: !!professorId,
   });
@@ -214,12 +217,14 @@ export const useAssignCityToProfessor = () => {
         throw new Error('Cette ville est déjà affectée à ce professeur');
       }
 
+      const insertData: any = {
+        professor_id: professorId,
+        city_id: cityId,
+      };
+
       const { error } = await supabase
         .from('professor_cities')
-        .insert({
-          professor_id: professorId,
-          city_id: cityId,
-        });
+        .insert(insertData);
 
       if (error) throw error;
       return { professorId, cityId };
@@ -255,9 +260,9 @@ export const useUnassignCityFromProfessor = () => {
 
 // Récupérer les segments d'un professeur
 export const useProfessorSegments = (professorId: string) => {
-  return useQuery<Array<{ id: string; name: string; color: string }>>({
+  return useQuery({
     queryKey: ['professors', professorId, 'segments'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Array<{ id: string; name: string; color: string }>> => {
       const { data, error } = await supabase
         .from('professor_segments')
         .select(`
@@ -295,12 +300,14 @@ export const useAssignSegmentToProfessor = () => {
         throw new Error('Ce segment est déjà affecté à ce professeur');
       }
 
+      const insertData: any = {
+        professor_id: professorId,
+        segment_id: segmentId,
+      };
+
       const { error } = await supabase
         .from('professor_segments')
-        .insert({
-          professor_id: professorId,
-          segment_id: segmentId,
-        });
+        .insert(insertData);
 
       if (error) throw error;
       return { professorId, segmentId };

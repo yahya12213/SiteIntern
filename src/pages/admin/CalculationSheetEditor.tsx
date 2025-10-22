@@ -970,7 +970,7 @@ export default function CalculationSheetEditor() {
                   <input
                     type="number"
                     step="0.01"
-                    value={selectedField.props.default || 0}
+                    value={typeof selectedField.props.default === 'number' || typeof selectedField.props.default === 'string' ? selectedField.props.default : 0}
                     onChange={(e) => updateFieldProperty(selectedField.id, 'props.default', parseFloat(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />

@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
 import {
   useCreateDeclaration,
   useAvailableCalculationSheets,
   useProfessorSegments,
   useProfessorCities,
-  type ProfessorSegment,
   type ProfessorCity,
 } from '@/hooks/useProfessorDeclarations';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +14,6 @@ interface NewDeclarationModalProps {
 }
 
 const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const createDeclaration = useCreateDeclaration();
   const { data: availableSheets } = useAvailableCalculationSheets();
@@ -66,7 +63,7 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
     // Vérifier qu'une fiche publiée existe pour ce segment et cette ville
     // Les fiches ont maintenant segment_ids et city_ids (tableaux)
     const sheet = availableSheets?.find(
-      s => s.segment_ids?.includes(selectedSegment) && s.city_ids?.includes(selectedCity)
+      (s: any) => s.segment_ids?.includes(selectedSegment) && s.city_ids?.includes(selectedCity)
     );
 
     if (!sheet) {

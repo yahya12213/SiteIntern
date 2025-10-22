@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Plus, Calculator, Edit3, Eye, Trash2, FileSpreadsheet, Layers, MapPin, Settings, Upload, XCircle, Copy, Download, ArrowLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useCalculationSheets, useDeleteCalculationSheet, useCreateCalculationSheet, useUpdateCalculationSheet, useTogglePublishCalculationSheet, useDuplicateCalculationSheet } from '@/hooks/useCalculationSheets';
-import { useSegments } from '@/hooks/useSegments';
-import { useCities } from '@/hooks/useCities';
+import { useCalculationSheets, useDeleteCalculationSheet, useCreateCalculationSheet, useUpdateCalculationSheet, useTogglePublishCalculationSheet, useDuplicateCalculationSheet, type CalculationSheetData } from '@/hooks/useCalculationSheets';
+import { useSegments, type Segment } from '@/hooks/useSegments';
+import { useCities, type City } from '@/hooks/useCities';
 
 export default function CalculationSheetsList() {
   const navigate = useNavigate();
@@ -18,10 +18,10 @@ export default function CalculationSheetsList() {
   const duplicateSheet = useDuplicateCalculationSheet();
 
   // Enrichir les sheets avec les données complètes de segments et villes
-  const enrichedSheets = sheets.map(sheet => ({
+  const enrichedSheets = sheets.map((sheet: CalculationSheetData) => ({
     ...sheet,
-    segments: segments.filter(s => sheet.segment_ids?.includes(s.id)),
-    cities: cities.filter(c => sheet.city_ids?.includes(c.id)),
+    segments: segments.filter((s: Segment) => sheet.segment_ids?.includes(s.id)),
+    cities: cities.filter((c: City) => sheet.city_ids?.includes(c.id)),
   }));
 
   const handleDelete = async (id: string, title: string) => {
@@ -333,7 +333,7 @@ function CreateSheetModal({ onClose }: { onClose: () => void }) {
   const { data: segments = [] } = useSegments();
   const { data: cities = [] } = useCities();
 
-  const filteredCities = cities.filter((city) =>
+  const filteredCities = cities.filter((city: City) =>
     selectedSegments.includes(city.segment_id)
   );
 
@@ -413,8 +413,8 @@ function CreateSheetModal({ onClose }: { onClose: () => void }) {
                           setSelectedSegments(selectedSegments.filter((s) => s !== segment.id));
                           // Retirer les villes de ce segment
                           const citiesToRemove = cities
-                            .filter((c) => c.segment_id === segment.id)
-                            .map((c) => c.id);
+                            .filter((c: City) => c.segment_id === segment.id)
+                            .map((c: City) => c.id);
                           setSelectedCities(selectedCities.filter((c) => !citiesToRemove.includes(c)));
                         }
                       }}
@@ -467,7 +467,7 @@ function CreateSheetModal({ onClose }: { onClose: () => void }) {
                       <MapPin className="w-4 h-4 text-green-600" />
                       <span className="flex-1 font-medium text-gray-900">{city.name}</span>
                       <span className="text-sm text-gray-500">
-                        {segments.find((s) => s.id === city.segment_id)?.name}
+                        {segments.find((s: Segment) => s.id === city.segment_id)?.name}
                       </span>
                     </label>
                   ))}
@@ -515,7 +515,7 @@ function EditSheetModal({ sheet, onClose }: { sheet: any; onClose: () => void })
   const { data: segments = [] } = useSegments();
   const { data: cities = [] } = useCities();
 
-  const filteredCities = cities.filter((city) =>
+  const filteredCities = cities.filter((city: City) =>
     selectedSegments.includes(city.segment_id)
   );
 
@@ -596,8 +596,8 @@ function EditSheetModal({ sheet, onClose }: { sheet: any; onClose: () => void })
                           setSelectedSegments(selectedSegments.filter((s) => s !== segment.id));
                           // Retirer les villes de ce segment
                           const citiesToRemove = cities
-                            .filter((c) => c.segment_id === segment.id)
-                            .map((c) => c.id);
+                            .filter((c: City) => c.segment_id === segment.id)
+                            .map((c: City) => c.id);
                           setSelectedCities(selectedCities.filter((c) => !citiesToRemove.includes(c)));
                         }
                       }}
@@ -650,7 +650,7 @@ function EditSheetModal({ sheet, onClose }: { sheet: any; onClose: () => void })
                       <MapPin className="w-4 h-4 text-purple-600" />
                       <span className="flex-1 font-medium text-gray-900">{city.name}</span>
                       <span className="text-sm text-gray-500">
-                        {segments.find((s) => s.id === city.segment_id)?.name}
+                        {segments.find((s: Segment) => s.id === city.segment_id)?.name}
                       </span>
                     </label>
                   ))}

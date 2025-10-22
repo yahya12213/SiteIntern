@@ -2,7 +2,6 @@ import { useState, useRef } from 'react';
 import { X, Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useImportCities } from '@/hooks/useCities';
-import { useSegments } from '@/hooks/useSegments';
 
 // Type local pour les données d'import
 type ImportCityData = {

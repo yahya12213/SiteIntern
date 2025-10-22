@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Filter } from 'lucide-react';
 import { useGerantDeclarations } from '@/hooks/useGerantDeclarations';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import DeclarationStatusBadge from '@/components/professor/DeclarationStatusBadge';
 
 const GerantDeclarations: React.FC = () => {

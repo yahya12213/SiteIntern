@@ -1,4 +1,4 @@
-import { fabric } from 'fabric';
+import * as fabric from 'fabric';
 
 /**
  * Sérialise un objet Fabric.js en JSON

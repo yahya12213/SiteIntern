@@ -19,7 +19,7 @@ export class FormulaEngine {
     this.hf = HyperFormula.buildEmpty({
       licenseKey: 'gpl-v3',
     });
-    this.sheetId = this.hf.addSheet('Sheet1');
+    this.sheetId = this.hf.addSheet('Sheet1') as unknown as number;
   }
 
   /**
@@ -48,7 +48,7 @@ export class FormulaEngine {
   getCellValue(row: number, col: number): string | number {
     try {
       const value = this.hf.getCellValue({ sheet: this.sheetId, row, col });
-      return value ?? '';
+      return (value ?? '') as string | number;
     } catch (error) {
       console.error(`Error getting cell value at (${row}, ${col}):`, error);
       return '';
@@ -108,23 +108,23 @@ export class FormulaEngine {
   evaluateFormula(formula: string, context: Record<string, any>): any {
     try {
       // Créer une feuille temporaire pour l'évaluation
-      const tempSheetId = this.hf.addSheet('temp');
+      const tempSheetId = this.hf.addSheet('temp') as unknown as number;
 
       // Ajouter le contexte
       Object.entries(context).forEach(([cellRef, value]) => {
         const { row, col } = parseCellRef(cellRef);
         this.hf.setCellContents(
-          { sheet: tempSheetId, row, col },
+          { sheet: tempSheetId as number, row, col },
           [[value]]
         );
       });
 
       // Évaluer la formule
-      this.hf.setCellContents({ sheet: tempSheetId, row: 0, col: 0 }, [[formula]]);
-      const result = this.hf.getCellValue({ sheet: tempSheetId, row: 0, col: 0 });
+      this.hf.setCellContents({ sheet: tempSheetId as number, row: 0, col: 0 }, [[formula]]);
+      const result = this.hf.getCellValue({ sheet: tempSheetId as number, row: 0, col: 0 });
 
       // Nettoyer
-      this.hf.removeSheet(tempSheetId);
+      this.hf.removeSheet(tempSheetId as number);
 
       return result;
     } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import ImportCitiesModal from '@/components/admin/ImportCitiesModal';
 import { useSegments, useCreateSegment, useUpdateSegment, useDeleteSegment } from '@/hooks/useSegments';
 import type { Segment } from '@/hooks/useSegments';
 
-const Segments: React.FC = () => {
+export default function Segments() {
   const { data: segments = [], isLoading, error } = useSegments();
   const createSegment = useCreateSegment();
   const updateSegment = useUpdateSegment();
@@ -167,7 +167,7 @@ const Segments: React.FC = () => {
         {/* List */}
         {!isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {segments.map((segment) => (
+            {segments.map((segment: Segment) => (
               <Card key={segment.id} style={{ borderLeft: `4px solid ${segment.color}` }}>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
@@ -232,6 +232,4 @@ const Segments: React.FC = () => {
       )}
     </div>
   );
-};
-
-export default Segments;
+}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getCellRef, parseCellRef, colToLetter } from '@/lib/utils/cellUtils';
-import { getFormulaEngine, CellData } from '@/lib/utils/formulaEngine';
+import { getCellRef, colToLetter } from '@/lib/utils/cellUtils';
+import { getFormulaEngine, type CellData } from '@/lib/utils/formulaEngine';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -33,7 +33,7 @@ const SpreadsheetEditor: React.FC<SpreadsheetEditorProps> = ({
   const [cellData, setCellData] = useState<Record<string, CellData>>(
     initialData?.cellData || {}
   );
-  const [blocks, setBlocks] = useState<Block[]>(initialData?.blocks || []);
+  const [blocks] = useState<Block[]>(initialData?.blocks || []);
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
   const [calculatedValues, setCalculatedValues] = useState<Record<string, any>>({});
 

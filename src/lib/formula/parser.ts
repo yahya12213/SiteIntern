@@ -150,7 +150,7 @@ class FormulaParser {
       this.advance();
       const node = this.parseExpression();
       this.skipWhitespace();
-      if (this.currentChar !== ')') {
+      if ((this.currentChar as string) !== ')') {
         throw new Error('Parenthèse fermante manquante');
       }
       this.advance();

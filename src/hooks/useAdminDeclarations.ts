@@ -82,8 +82,10 @@ export function useAdminDeclaration(id: string) {
         throw error;
       }
 
+      if (!data) throw new Error('Declaration not found');
+
       return {
-        ...data,
+        ...(data as any),
         professor_name: (data as any).profiles?.full_name,
         professor_username: (data as any).profiles?.username,
         segment_name: (data as any).segments?.name,
@@ -109,14 +111,17 @@ export function useApproveDeclaration() {
     mutationFn: async (id: string) => {
       const now = new Date().toISOString();
 
-      const { error } = await supabase
+      const updateData: any = {
+        status: 'approuvee',
+        reviewed_at: now,
+        rejection_reason: null,
+      };
+
+      const query = supabase
         .from('professor_declarations')
-        .update({
-          status: 'approuvee',
-          reviewed_at: now,
-          rejection_reason: null,
-        })
+        .update(updateData as never)
         .eq('id', id);
+      const { error } = await query;
 
       if (error) throw error;
     },
@@ -135,14 +140,17 @@ export function useRejectDeclaration() {
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       const now = new Date().toISOString();
 
-      const { error } = await supabase
+      const updateData: any = {
+        status: 'refusee',
+        reviewed_at: now,
+        rejection_reason: reason,
+      };
+
+      const query = supabase
         .from('professor_declarations')
-        .update({
-          status: 'refusee',
-          reviewed_at: now,
-          rejection_reason: reason,
-        })
+        .update(updateData as never)
         .eq('id', id);
+      const { error } = await query;
 
       if (error) throw error;
     },
@@ -161,14 +169,17 @@ export function useRequestModification() {
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       const now = new Date().toISOString();
 
-      const { error } = await supabase
+      const updateData: any = {
+        status: 'en_cours',
+        reviewed_at: now,
+        rejection_reason: reason,
+      };
+
+      const query = supabase
         .from('professor_declarations')
-        .update({
-          status: 'en_cours',
-          reviewed_at: now,
-          rejection_reason: reason,
-        })
+        .update(updateData as never)
         .eq('id', id);
+      const { error } = await query;
 
       if (error) throw error;
     },
@@ -192,12 +203,12 @@ export function useDeclarationStats() {
 
       const stats = {
         total: data.length,
-        a_declarer: data.filter((d) => d.status === 'a_declarer').length,
-        soumise: data.filter((d) => d.status === 'soumise').length,
-        en_cours: data.filter((d) => d.status === 'en_cours').length,
-        approuvee: data.filter((d) => d.status === 'approuvee').length,
-        refusee: data.filter((d) => d.status === 'refusee').length,
-        brouillon: data.filter((d) => d.status === 'brouillon').length,
+        a_declarer: data.filter((d: { status: string }) => d.status === 'a_declarer').length,
+        soumise: data.filter((d: { status: string }) => d.status === 'soumise').length,
+        en_cours: data.filter((d: { status: string }) => d.status === 'en_cours').length,
+        approuvee: data.filter((d: { status: string }) => d.status === 'approuvee').length,
+        refusee: data.filter((d: { status: string }) => d.status === 'refusee').length,
+        brouillon: data.filter((d: { status: string }) => d.status === 'brouillon').length,
       };
 
       return stats;

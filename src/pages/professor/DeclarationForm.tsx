@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Save, Send, AlertCircle, Eye, EyeOff, Upload, X, FileText, Download, ExternalLink, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, Save, Send, AlertCircle, EyeOff, Upload, X, FileText, Download, ExternalLink, Link as LinkIcon } from 'lucide-react';
 import { useProfessorDeclaration, useUpdateDeclaration, useSubmitDeclaration } from '@/hooks/useProfessorDeclarations';
 import DeclarationStatusBadge from '@/components/professor/DeclarationStatusBadge';
 import { calculateAllValues } from '@/lib/formula/dependency';
@@ -17,7 +17,6 @@ const DeclarationForm: React.FC = () => {
   const [values, setValues] = useState<FormulaContext>({});
   const [calculatedValues, setCalculatedValues] = useState<FormulaContext>({});
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [uploadedFiles, setUploadedFiles] = useState<Record<string, File | null>>({});
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
 
   const isReadOnly = declaration?.status !== 'brouillon' && declaration?.status !== 'refusee' && declaration?.status !== 'en_cours';
@@ -194,7 +193,8 @@ const DeclarationForm: React.FC = () => {
     }
 
     if (field.type === 'text') {
-      const currentValue = values[field.ref!] || '';
+      const currentValue = values[field.ref!];
+      const stringValue = typeof currentValue === 'string' || typeof currentValue === 'number' ? String(currentValue) : '';
 
       return (
         <div
@@ -209,7 +209,7 @@ const DeclarationForm: React.FC = () => {
         >
           <input
             type="text"
-            value={currentValue}
+            value={stringValue}
             onChange={(e) => handleValueChange(field.ref!, e.target.value)}
             className="w-full h-full px-3 py-2 border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             disabled={isReadOnly}
@@ -219,7 +219,8 @@ const DeclarationForm: React.FC = () => {
     }
 
     if (field.type === 'textarea') {
-      const currentValue = values[field.ref!] || '';
+      const currentValue = values[field.ref!];
+      const stringValue = typeof currentValue === 'string' || typeof currentValue === 'number' ? String(currentValue) : '';
 
       return (
         <div
@@ -233,7 +234,7 @@ const DeclarationForm: React.FC = () => {
           }}
         >
           <textarea
-            value={currentValue}
+            value={stringValue}
             onChange={(e) => handleValueChange(field.ref!, e.target.value)}
             placeholder={field.props.label || 'Écrivez vos commentaires ici...'}
             className="w-full h-full px-3 py-2 border-2 border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -245,6 +246,7 @@ const DeclarationForm: React.FC = () => {
 
     if (field.type === 'number') {
       const currentValue = values[field.ref!] !== undefined ? values[field.ref!] : field.props.default || 0;
+      const numberValue = typeof currentValue === 'number' || typeof currentValue === 'string' ? currentValue : '';
 
       return (
         <div
@@ -260,7 +262,7 @@ const DeclarationForm: React.FC = () => {
           <input
             type="number"
             step="0.01"
-            value={currentValue}
+            value={numberValue}
             onChange={(e) => handleValueChange(field.ref!, e.target.value)}
             className="w-full h-full px-3 py-2 border border-green-300 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             disabled={isReadOnly}
@@ -317,8 +319,8 @@ const DeclarationForm: React.FC = () => {
     }
 
     if (field.type === 'file') {
-      const files = Array.isArray(values[field.ref!]) ? values[field.ref!] : [];
-      const hasFiles = files.length > 0;
+      const files = Array.isArray(values[field.ref!]) ? (values[field.ref!] as any[]) : [];
+      const hasFiles = files && files.length > 0;
 
       return (
         <div
@@ -579,7 +581,7 @@ const DeclarationForm: React.FC = () => {
       </div>
 
       {/* Message pour déclaration créée par un gérant */}
-      {declaration.status === 'a_declarer' && (
+      {(declaration.status as any) === 'a_declarer' && (
         <div className="bg-orange-50 border-b border-orange-200 px-6 py-4">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />

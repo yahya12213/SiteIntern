@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Plus, Search, Edit2, Trash2, MapPin, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useCities, useDeleteCity } from '@/hooks/useCities';
-import { useSegments } from '@/hooks/useSegments';
+import { useCities, useDeleteCity, type City } from '@/hooks/useCities';
+import { useSegments, type Segment } from '@/hooks/useSegments';
 import CityFormModal from '@/components/admin/CityFormModal';
 
 export default function Cities() {
@@ -17,7 +17,7 @@ export default function Cities() {
   const { data: segments = [] } = useSegments();
   const deleteCity = useDeleteCity();
 
-  const filteredCities = cities.filter((city) => {
+  const filteredCities = cities.filter((city: City & { code: string }) => {
     const matchesSearch = city.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       city.code.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSegment = filterSegment === 'all' || city.segment_id === filterSegment;
@@ -41,7 +41,7 @@ export default function Cities() {
     if (selectedCityIds.length === filteredCities.length && filteredCities.length > 0) {
       setSelectedCityIds([]);
     } else {
-      setSelectedCityIds(filteredCities.map(c => c.id));
+      setSelectedCityIds(filteredCities.map((c: City & { code: string }) => c.id));
     }
   };
 
@@ -122,7 +122,7 @@ export default function Cities() {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             >
               <option value="all">Tous les segments</option>
-              {segments.map((segment) => (
+              {segments.map((segment: Segment) => (
                 <option key={segment.id} value={segment.id}>
                   {segment.name}
                 </option>
@@ -206,7 +206,7 @@ export default function Cities() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredCities.map((city) => (
+                {filteredCities.map((city: City & { code: string }) => (
                   <tr key={city.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <input

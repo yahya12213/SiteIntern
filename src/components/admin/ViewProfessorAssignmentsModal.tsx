@@ -16,14 +16,15 @@ export default function ViewProfessorAssignmentsModal({
   const { data: professorCities = [], isLoading: loadingCities } = useProfessorCities(professorId);
 
   // Grouper les villes par segment
-  const citiesBySegment = professorCities.reduce((acc, city) => {
+  type ProfessorCity = { id: string; name: string; segment_name: string; code?: string };
+  const citiesBySegment = professorCities.reduce((acc: Record<string, ProfessorCity[]>, city: ProfessorCity) => {
     const segmentName = city.segment_name || 'N/A';
     if (!acc[segmentName]) {
       acc[segmentName] = [];
     }
     acc[segmentName].push(city);
     return acc;
-  }, {} as Record<string, typeof professorCities>);
+  }, {} as Record<string, ProfessorCity[]>);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -66,7 +67,7 @@ export default function ViewProfessorAssignmentsModal({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {professorSegments.map((segment) => (
+                  {professorSegments.map((segment: { id: string; name: string; color: string }) => (
                     <div
                       key={segment.id}
                       className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
@@ -98,7 +99,7 @@ export default function ViewProfessorAssignmentsModal({
                 </div>
               ) : (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {professorCities.map((city) => (
+                  {professorCities.map((city: ProfessorCity) => (
                     <div
                       key={city.id}
                       className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
@@ -107,7 +108,7 @@ export default function ViewProfessorAssignmentsModal({
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-gray-900 truncate">{city.name}</div>
                         <div className="text-sm text-gray-500">
-                          {city.code} • {city.segment_name}
+                          {city.code || city.id} • {city.segment_name}
                         </div>
                       </div>
                     </div>
@@ -126,7 +127,7 @@ export default function ViewProfessorAssignmentsModal({
               </h3>
 
               <div className="space-y-4">
-                {Object.entries(citiesBySegment).map(([segmentName, cities]) => (
+                {Object.entries(citiesBySegment).map(([segmentName, cities]: [string, ProfessorCity[]]) => (
                   <div key={segmentName} className="border border-gray-200 rounded-lg p-4">
                     <div className="font-medium text-gray-900 mb-3 flex items-center gap-2">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -135,14 +136,14 @@ export default function ViewProfessorAssignmentsModal({
                       <span className="text-sm text-gray-500">({cities.length} ville{cities.length > 1 ? 's' : ''})</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {cities.map((city) => (
+                      {cities.map((city: ProfessorCity) => (
                         <div
                           key={city.id}
                           className="flex items-center gap-2 p-2 bg-gray-50 rounded text-sm"
                         >
                           <MapPin className="w-3 h-3 text-green-600 flex-shrink-0" />
                           <span className="truncate">{city.name}</span>
-                          <span className="text-gray-500 text-xs">({city.code})</span>
+                          <span className="text-gray-500 text-xs">({city.code || city.id})</span>
                         </div>
                       ))}
                     </div>

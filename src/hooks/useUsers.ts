@@ -106,9 +106,11 @@ export function useCreateUser() {
         role: input.role,
       };
 
+      const insertData: any = newUser;
+
       const { data, error } = await supabase
         .from('profiles')
-        .insert(newUser)
+        .insert(insertData)
         .select()
         .single();
 
@@ -130,12 +132,15 @@ export function useUpdateUser() {
     mutationFn: async (input: UpdateUserInput) => {
       const { id, ...updates } = input;
 
-      const { data, error } = await supabase
+      const updateData: any = updates;
+
+      const query = supabase
         .from('profiles')
-        .update(updates)
+        .update(updateData as never)
         .eq('id', id)
         .select()
         .single();
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -235,7 +240,7 @@ export function useAssignSegments() {
 
       // Ajouter les nouveaux segments
       if (segment_ids.length > 0) {
-        const assignments = segment_ids.map((segment_id) => ({
+        const assignments: any = segment_ids.map((segment_id) => ({
           [columnName]: user_id,
           segment_id,
         }));
@@ -271,7 +276,7 @@ export function useAssignCities() {
 
       // Ajouter les nouvelles villes
       if (city_ids.length > 0) {
-        const assignments = city_ids.map((city_id) => ({
+        const assignments: any = city_ids.map((city_id) => ({
           [columnName]: user_id,
           city_id,
         }));

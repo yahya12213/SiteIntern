@@ -19,7 +19,7 @@ export default function CalculationSheets() {
   const [calculatedValues, setCalculatedValues] = useState<FormulaContext>({});
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, File | null>>({});
-  const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
+  const [canvasSize] = useState({ width: 1200, height: 800 });
 
   // Charger les données de la fiche
   useEffect(() => {
@@ -131,7 +131,8 @@ export default function CalculationSheets() {
     }
 
     if (field.type === 'text') {
-      const currentValue = values[field.ref!] || '';
+      const currentValue = values[field.ref!];
+      const stringValue = typeof currentValue === 'string' || typeof currentValue === 'number' ? String(currentValue) : '';
 
       return (
         <div
@@ -146,7 +147,7 @@ export default function CalculationSheets() {
         >
           <input
             type="text"
-            value={currentValue}
+            value={stringValue}
             onChange={(e) => handleValueChange(field.ref!, e.target.value)}
             className="w-full h-full px-3 py-2 border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
@@ -155,7 +156,8 @@ export default function CalculationSheets() {
     }
 
     if (field.type === 'textarea') {
-      const currentValue = values[field.ref!] || '';
+      const currentValue = values[field.ref!];
+      const stringValue = typeof currentValue === 'string' || typeof currentValue === 'number' ? String(currentValue) : '';
 
       return (
         <div
@@ -175,7 +177,7 @@ export default function CalculationSheets() {
               </div>
             )}
             <textarea
-              value={currentValue}
+              value={stringValue}
               onChange={(e) => handleValueChange(field.ref!, e.target.value)}
               placeholder={field.props.label || 'Écrivez vos commentaires ici...'}
               className="w-full h-full px-3 py-2 border-2 border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
@@ -187,6 +189,7 @@ export default function CalculationSheets() {
 
     if (field.type === 'number') {
       const currentValue = values[field.ref!] !== undefined ? values[field.ref!] : field.props.default || 0;
+      const numberValue = typeof currentValue === 'number' || typeof currentValue === 'string' ? currentValue : '';
 
       return (
         <div
@@ -208,7 +211,7 @@ export default function CalculationSheets() {
             <input
               type="number"
               step="0.01"
-              value={currentValue}
+              value={numberValue}
               onChange={(e) => handleValueChange(field.ref!, e.target.value)}
               className="w-full h-full px-3 py-2 border border-green-300 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent"
             />

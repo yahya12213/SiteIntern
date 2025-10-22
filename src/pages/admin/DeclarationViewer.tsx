@@ -202,7 +202,8 @@ const DeclarationViewer: React.FC = () => {
     }
 
     if (field.type === 'text') {
-      const currentValue = values[field.ref!] || '';
+      const currentValue = values[field.ref!];
+      const stringValue = typeof currentValue === 'string' || typeof currentValue === 'number' ? String(currentValue) : '';
 
       return (
         <div
@@ -217,7 +218,7 @@ const DeclarationViewer: React.FC = () => {
         >
           <input
             type="text"
-            value={currentValue}
+            value={stringValue}
             onChange={(e) => handleValueChange(field.ref!, e.target.value)}
             className={getAdminOnlyClasses("w-full h-full px-3 py-2 border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent")}
           />
@@ -227,7 +228,8 @@ const DeclarationViewer: React.FC = () => {
     }
 
     if (field.type === 'textarea') {
-      const currentValue = values[field.ref!] || '';
+      const currentValue = values[field.ref!];
+      const stringValue = typeof currentValue === 'string' || typeof currentValue === 'number' ? String(currentValue) : '';
 
       return (
         <div
@@ -241,7 +243,7 @@ const DeclarationViewer: React.FC = () => {
           }}
         >
           <textarea
-            value={currentValue}
+            value={stringValue}
             onChange={(e) => handleValueChange(field.ref!, e.target.value)}
             placeholder={field.props.label || 'Écrivez vos commentaires ici...'}
             className={getAdminOnlyClasses("w-full h-full px-3 py-2 border-2 border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none")}
@@ -253,6 +255,7 @@ const DeclarationViewer: React.FC = () => {
 
     if (field.type === 'number') {
       const currentValue = values[field.ref!] !== undefined ? values[field.ref!] : field.props.default || 0;
+      const numberValue = typeof currentValue === 'number' || typeof currentValue === 'string' ? currentValue : '';
 
       return (
         <div
@@ -268,7 +271,7 @@ const DeclarationViewer: React.FC = () => {
           <input
             type="number"
             step="0.01"
-            value={currentValue}
+            value={numberValue}
             onChange={(e) => handleValueChange(field.ref!, e.target.value)}
             className={getAdminOnlyClasses("w-full h-full px-3 py-2 border border-green-300 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent")}
           />
@@ -365,7 +368,7 @@ const DeclarationViewer: React.FC = () => {
 
       // Fonction pour ouvrir la prévisualisation
       const openPreview = (index: number) => {
-        setPreviewFiles(fileData);
+        setPreviewFiles(fileData as any);
         setCurrentFileIndex(index);
         setShowFilePreview(true);
       };
@@ -546,10 +549,10 @@ const DeclarationViewer: React.FC = () => {
                 <h1 className="text-2xl font-bold text-gray-900">{declaration.sheet_title}</h1>
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    statusConfig[declaration.status].color
+                    (statusConfig as any)[declaration.status].color
                   }`}
                 >
-                  {statusConfig[declaration.status].label}
+                  {(statusConfig as any)[declaration.status].label}
                 </span>
                 <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium flex items-center gap-1">
                   <Eye className="w-3 h-3" />
@@ -738,7 +741,7 @@ const DeclarationViewer: React.FC = () => {
           files={previewFiles}
           currentIndex={currentFileIndex}
           onClose={() => setShowFilePreview(false)}
-          onNavigate={(index) => setCurrentFileIndex(index)}
+          onNavigate={(index: number) => setCurrentFileIndex(index)}
         />
       )}
     </div>

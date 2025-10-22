@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, CheckCircle, XCircle, Clock, AlertCircle, Eye, ExternalLink, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileText, CheckCircle, XCircle, Clock, AlertCircle, ExternalLink, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useAdminDeclarations,
   useDeclarationStats,
-  useApproveDeclaration,
   useRejectDeclaration,
   useRequestModification,
   useDeleteAdminDeclaration,
@@ -26,7 +25,6 @@ const DeclarationsManagement: React.FC = () => {
 
   const { data: allDeclarations = [], isLoading } = useAdminDeclarations(selectedStatus);
   const { data: stats } = useDeclarationStats();
-  const approveDeclaration = useApproveDeclaration();
   const rejectDeclaration = useRejectDeclaration();
   const requestModification = useRequestModification();
   const deleteDeclaration = useDeleteAdminDeclaration();
@@ -108,17 +106,6 @@ const DeclarationsManagement: React.FC = () => {
     },
   };
 
-  const handleApprove = async (id: string) => {
-    if (confirm('Voulez-vous vraiment approuver cette déclaration ?')) {
-      try {
-        await approveDeclaration.mutateAsync(id);
-        setSelectedDeclaration(null);
-      } catch (error) {
-        console.error('Error approving declaration:', error);
-        alert('Erreur lors de l\'approbation');
-      }
-    }
-  };
 
   const handleReject = async () => {
     if (!selectedDeclaration || !rejectionReason.trim()) {
@@ -322,7 +309,7 @@ const DeclarationsManagement: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                 >
                   <option value="all">Tous les professeurs</option>
-                  {professors.map((professor) => (
+                  {professors.filter((p): p is string => p !== undefined).map((professor) => (
                     <option key={professor} value={professor}>
                       {professor}
                     </option>
@@ -341,7 +328,7 @@ const DeclarationsManagement: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                 >
                   <option value="all">Toutes les villes</option>
-                  {cities.map((city) => (
+                  {cities.filter((c): c is string => c !== undefined).map((city) => (
                     <option key={city} value={city}>
                       {city}
                     </option>
@@ -360,7 +347,7 @@ const DeclarationsManagement: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                 >
                   <option value="all">Tous les segments</option>
-                  {segments.map((segment) => (
+                  {segments.filter((s): s is string => s !== undefined).map((segment) => (
                     <option key={segment} value={segment}>
                       {segment}
                     </option>
@@ -391,9 +378,9 @@ const DeclarationsManagement: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {declarations.map((declaration) => {
-                  const StatusIcon = statusConfig[declaration.status].icon;
-                  const config = statusConfig[declaration.status];
+                {declarations.map((declaration: any) => {
+                  const StatusIcon = (statusConfig as any)[declaration.status].icon;
+                  const config = (statusConfig as any)[declaration.status];
 
                   return (
                     <div

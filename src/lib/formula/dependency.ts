@@ -1,4 +1,4 @@
-import type { FieldDefinition, FormulaContext, FormulaError, FormulaValue } from './types';
+import type { FieldDefinition, FormulaContext } from './types';
 import { parseFormula } from './parser';
 import { evaluateFormula } from './evaluator';
 

@@ -36,14 +36,14 @@ export const useCalculationSheets = () => {
 
       // Pour chaque fiche, récupérer les segments et villes associés
       const enrichedSheets = await Promise.all(
-        sheets.map(async (sheet) => {
+        sheets.map(async (sheet: any) => {
           // Récupérer les IDs de segments
           const { data: segmentData } = await supabase
             .from('calculation_sheet_segments')
             .select('segment_id')
             .eq('sheet_id', sheet.id);
 
-          const segment_ids = segmentData?.map(s => s.segment_id) || [];
+          const segment_ids = segmentData?.map((s: { segment_id: string }) => s.segment_id) || [];
 
           // Récupérer les IDs de villes
           const { data: cityData } = await supabase
@@ -51,7 +51,7 @@ export const useCalculationSheets = () => {
             .select('city_id')
             .eq('sheet_id', sheet.id);
 
-          const city_ids = cityData?.map(c => c.city_id) || [];
+          const city_ids = cityData?.map((c: { city_id: string }) => c.city_id) || [];
 
           return {
             ...sheet,
@@ -82,13 +82,15 @@ export const useCalculationSheet = (id: string) => {
         throw error;
       }
 
+      if (!sheet) return null;
+
       // Récupérer les IDs de segments
       const { data: segmentData } = await supabase
         .from('calculation_sheet_segments')
         .select('segment_id')
         .eq('sheet_id', id);
 
-      const segment_ids = segmentData?.map(s => s.segment_id) || [];
+      const segment_ids = segmentData?.map((s: { segment_id: string }) => s.segment_id) || [];
 
       // Récupérer les IDs de villes
       const { data: cityData } = await supabase
@@ -96,10 +98,10 @@ export const useCalculationSheet = (id: string) => {
         .select('city_id')
         .eq('sheet_id', id);
 
-      const city_ids = cityData?.map(c => c.city_id) || [];
+      const city_ids = cityData?.map((c: { city_id: string }) => c.city_id) || [];
 
       return {
-        ...sheet,
+        ...(sheet as any),
         segment_ids,
         city_ids,
       };
@@ -126,7 +128,7 @@ export const useCreateCalculationSheet = () => {
           template_data: JSON.stringify({}),
           status: 'draft',
           sheet_date: now,
-        })
+        } as any)
         .select()
         .single();
 
@@ -137,10 +139,10 @@ export const useCreateCalculationSheet = () => {
         const { error: segError } = await supabase
           .from('calculation_sheet_segments')
           .insert(
-            input.segment_ids.map(segmentId => ({
+            input.segment_ids.map((segmentId: string) => ({
               sheet_id: id,
               segment_id: segmentId,
-            }))
+            })) as any
           );
 
         if (segError) throw segError;
@@ -151,17 +153,17 @@ export const useCreateCalculationSheet = () => {
         const { error: cityError } = await supabase
           .from('calculation_sheet_cities')
           .insert(
-            input.city_ids.map(cityId => ({
+            input.city_ids.map((cityId: string) => ({
               sheet_id: id,
               city_id: cityId,
-            }))
+            })) as any
           );
 
         if (cityError) throw cityError;
       }
 
       return {
-        ...sheet,
+        ...(sheet as any),
         segment_ids: input.segment_ids,
         city_ids: input.city_ids,
       };
@@ -185,10 +187,11 @@ export const useUpdateCalculationSheet = () => {
       if (data.status !== undefined) updateData.status = data.status;
 
       if (Object.keys(updateData).length > 0) {
-        const { error } = await supabase
+        const query = supabase
           .from('calculation_sheets')
-          .update(updateData)
+          .update(updateData as never)
           .eq('id', id);
+        const { error } = await query;
 
         if (error) throw error;
       }
@@ -206,10 +209,10 @@ export const useUpdateCalculationSheet = () => {
           const { error } = await supabase
             .from('calculation_sheet_segments')
             .insert(
-              data.segment_ids.map(segmentId => ({
+              data.segment_ids.map((segmentId: string) => ({
                 sheet_id: id,
                 segment_id: segmentId,
-              }))
+              })) as any
             );
 
           if (error) throw error;
@@ -229,10 +232,10 @@ export const useUpdateCalculationSheet = () => {
           const { error } = await supabase
             .from('calculation_sheet_cities')
             .insert(
-              data.city_ids.map(cityId => ({
+              data.city_ids.map((cityId: string) => ({
                 sheet_id: id,
                 city_id: cityId,
-              }))
+              })) as any
             );
 
           if (error) throw error;
@@ -284,12 +287,14 @@ export const useTogglePublishCalculationSheet = () => {
       if (fetchError) throw fetchError;
       if (!sheet) throw new Error('Fiche non trouvée');
 
-      const newStatus = sheet.status === 'published' ? 'draft' : 'published';
+      const newStatus = (sheet as any).status === 'published' ? 'draft' : 'published';
 
-      const { error: updateError } = await supabase
+      const updateData: any = { status: newStatus };
+      const query = supabase
         .from('calculation_sheets')
-        .update({ status: newStatus })
+        .update(updateData as never)
         .eq('id', id);
+      const { error: updateError } = await query;
 
       if (updateError) throw updateError;
 
@@ -320,15 +325,17 @@ export const useDuplicateCalculationSheet = () => {
       const newId = uuidv4();
 
       // Dupliquer la fiche
+      const insertData: any = {
+        id: newId,
+        title: `${(original as any).title} (Copie)`,
+        template_data: (original as any).template_data,
+        status: 'draft',
+        sheet_date: new Date().toISOString(),
+      };
+
       const { error: insertError } = await supabase
         .from('calculation_sheets')
-        .insert({
-          id: newId,
-          title: `${original.title} (Copie)`,
-          template_data: original.template_data,
-          status: 'draft',
-          sheet_date: new Date().toISOString(),
-        });
+        .insert(insertData);
 
       if (insertError) throw insertError;
 
@@ -342,10 +349,10 @@ export const useDuplicateCalculationSheet = () => {
         await supabase
           .from('calculation_sheet_segments')
           .insert(
-            segments.map(s => ({
+            segments.map((s: { segment_id: string }) => ({
               sheet_id: newId,
               segment_id: s.segment_id,
-            }))
+            })) as any
           );
       }
 
@@ -359,10 +366,10 @@ export const useDuplicateCalculationSheet = () => {
         await supabase
           .from('calculation_sheet_cities')
           .insert(
-            cities.map(c => ({
+            cities.map((c: { city_id: string }) => ({
               sheet_id: newId,
               city_id: c.city_id,
-            }))
+            })) as any
           );
       }
 

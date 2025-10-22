@@ -69,13 +69,15 @@ export const useCreateSegment = () => {
   return useMutation({
     mutationFn: async (data: CreateSegmentInput) => {
       const id = uuidv4();
+      const insertData: any = {
+        id,
+        name: data.name,
+        color: data.color,
+      };
+
       const { data: segment, error } = await supabase
         .from('segments')
-        .insert({
-          id,
-          name: data.name,
-          color: data.color,
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -94,15 +96,18 @@ export const useUpdateSegment = () => {
 
   return useMutation({
     mutationFn: async (data: UpdateSegmentInput) => {
-      const { data: segment, error } = await supabase
+      const updateData: any = {
+        name: data.name,
+        color: data.color,
+      };
+
+      const query = supabase
         .from('segments')
-        .update({
-          name: data.name,
-          color: data.color,
-        })
+        .update(updateData as never)
         .eq('id', data.id)
         .select()
         .single();
+      const { data: segment, error } = await query;
 
       if (error) throw error;
       return segment;
