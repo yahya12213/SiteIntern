@@ -1,0 +1,22 @@
+{
+  "name": "accounting-backend",
+  "version": "1.0.0",
+  "description": "Backend API for accounting system",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "db:setup": "node src/config/setup.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "bcryptjs": "^2.4.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
