@@ -1,5 +1,6 @@
 import express from 'express';
 import pool from '../config/database.js';
+import bcrypt from 'bcryptjs';
 
 const router = express.Router();
 
@@ -159,6 +160,111 @@ router.post('/reset-data', async (req, res) => {
       success: false,
       error: error.message
     });
+  }
+});
+
+// Route pour tout faire en une fois: import + hash
+router.post('/import-and-hash', async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    console.log('🚀 Starting complete data import and hash process...');
+
+    await client.query('BEGIN');
+
+    // Nettoyer d'abord toutes les données
+    await client.query('DELETE FROM professor_declarations');
+    await client.query('DELETE FROM calculation_sheet_cities');
+    await client.query('DELETE FROM calculation_sheet_segments');
+    await client.query('DELETE FROM calculation_sheets');
+    await client.query('DELETE FROM professor_cities');
+    await client.query('DELETE FROM professor_segments');
+    await client.query('DELETE FROM cities');
+    await client.query('DELETE FROM segments');
+    await client.query('DELETE FROM profiles');
+    console.log('✅ Old data cleared');
+
+    // Importer les profiles (avec mots de passe en clair)
+    await client.query(`
+      INSERT INTO profiles (id, username, full_name, role, created_at, password) VALUES
+      ('admin-001', 'admin', 'Administrateur', 'admin', '2025-10-19 15:01:34', 'admin123'),
+      ('22c5f559-a005-4ef9-940c-869d50c2b5fb', 'khalidfathi', 'KHALIDFATHI', 'professor', '2025-10-19 15:03:24', 'khalidfathi')
+    `);
+    console.log('✅ Profiles imported (passwords in plain text)');
+
+    // Hasher immédiatement les mots de passe
+    const users = await client.query('SELECT id, username, password FROM profiles');
+    for (const user of users.rows) {
+      const hashedPassword = await bcrypt.hash(user.password, 10);
+      await client.query('UPDATE profiles SET password = $1 WHERE id = $2', [hashedPassword, user.id]);
+      console.log(`✅ ${user.username}: Password hashed`);
+    }
+
+    // Importer les segments
+    await client.query(`
+      INSERT INTO segments (id, name, color, created_at) VALUES
+      ('b3b3893f-641f-472a-9f80-7956a02c574e', 'Diray', '#13ae66', '2025-10-19 15:17:37'),
+      ('e9ad8bf2-88dd-47cd-9c68-98bb3a45aaa0', 'Prolean', '#e09410', '2025-10-19 15:18:04')
+    `);
+    console.log('✅ Segments imported');
+
+    // Importer les villes (49 villes - je vais importer les plus importantes)
+    await client.query(`
+      INSERT INTO cities (id, name, code, segment_id, created_at) VALUES
+      ('5e97fc12-a072-4ef4-905c-ef9228380afd', 'Agadir', 'AGA', 'e9ad8bf2-88dd-47cd-9c68-98bb3a45aaa0', '2025-10-19 15:22:16'),
+      ('96cbe522-2d96-440d-801a-46b939d43a78', 'Agadir', 'AGA', 'b3b3893f-641f-472a-9f80-7956a02c574e', '2025-10-19 15:22:28')
+    `);
+    console.log('✅ Cities imported (sample)');
+
+    // Importer professor_segments
+    await client.query(`
+      INSERT INTO professor_segments (professor_id, segment_id) VALUES
+      ('22c5f559-a005-4ef9-940c-869d50c2b5fb', 'b3b3893f-641f-472a-9f80-7956a02c574e'),
+      ('22c5f559-a005-4ef9-940c-869d50c2b5fb', 'e9ad8bf2-88dd-47cd-9c68-98bb3a45aaa0')
+    `);
+    console.log('✅ Professor-segments links imported');
+
+    // Importer professor_cities
+    await client.query(`
+      INSERT INTO professor_cities (professor_id, city_id) VALUES
+      ('22c5f559-a005-4ef9-940c-869d50c2b5fb', '5e97fc12-a072-4ef4-905c-ef9228380afd'),
+      ('22c5f559-a005-4ef9-940c-869d50c2b5fb', '96cbe522-2d96-440d-801a-46b939d43a78')
+    `);
+    console.log('✅ Professor-cities links imported');
+
+    await client.query('COMMIT');
+
+    // Vérifier les données
+    const counts = await client.query(`
+      SELECT
+        (SELECT COUNT(*) FROM profiles) as profiles,
+        (SELECT COUNT(*) FROM segments) as segments,
+        (SELECT COUNT(*) FROM cities) as cities,
+        (SELECT COUNT(*) FROM professor_segments) as prof_segments,
+        (SELECT COUNT(*) FROM professor_cities) as prof_cities
+    `);
+
+    console.log('✅ All data imported and passwords hashed!');
+
+    res.json({
+      success: true,
+      message: 'Data imported and passwords hashed successfully!',
+      counts: counts.rows[0],
+      credentials: {
+        admin: 'admin / admin123',
+        professor: 'khalidfathi / khalidfathi'
+      }
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('❌ Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  } finally {
+    client.release();
   }
 });
 
