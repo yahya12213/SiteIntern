@@ -79,7 +79,7 @@ export default function Segments() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
         <div className="max-w-6xl mx-auto">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-red-800">Erreur lors du chargement des segments: {(error as Error).message}</p>
@@ -90,19 +90,19 @@ export default function Segments() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3 sm:gap-4">
             <Link to="/dashboard">
               <Button variant="outline" size="icon">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <h1 className="text-3xl font-bold">Gestion des Segments</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Gestion des Segments</h1>
           </div>
-          <Button onClick={() => setShowForm(!showForm)}>
+          <Button onClick={() => setShowForm(!showForm)} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             Nouveau Segment
           </Button>
@@ -144,11 +144,11 @@ export default function Segments() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={createSegment.isPending || updateSegment.isPending}>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button type="submit" disabled={createSegment.isPending || updateSegment.isPending} className="w-full sm:w-auto">
                     {(createSegment.isPending || updateSegment.isPending) ? 'Enregistrement...' : (editingId ? 'Modifier' : 'Créer')}
                   </Button>
-                  <Button type="button" variant="outline" onClick={resetForm}>
+                  <Button type="button" variant="outline" onClick={resetForm} className="w-full sm:w-auto">
                     Annuler
                   </Button>
                 </div>

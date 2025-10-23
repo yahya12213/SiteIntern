@@ -2,8 +2,8 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { Users, MapPin, FileSpreadsheet, Calculator, LogOut, ClipboardCheck, FilePlus, List } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Users, MapPin, FileSpreadsheet, Calculator, ClipboardCheck, FilePlus, List } from 'lucide-react';
+import { Header } from '@/components/layout/Header';
 
 const Dashboard: React.FC = () => {
   const { user, isAdmin, isGerant, logout } = useAuth();
@@ -85,29 +85,13 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Tableau de Bord
-              </h1>
-              <p className="text-sm text-gray-600">
-                Bienvenue, {user?.full_name} ({isAdmin ? 'Administrateur' : isGerant ? 'Gérant' : 'Professeur'})
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={logout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Déconnexion
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header
+        title="Tableau de Bord"
+        subtitle={`Bienvenue, ${user?.full_name} (${isAdmin() ? 'Administrateur' : isGerant() ? 'Gérant' : 'Professeur'})`}
+      />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
           {cards.map((card, index) => (
             <Link key={index} to={card.link}>
@@ -127,9 +111,9 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* Quick Stats */}
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Statistiques Rapides</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-6 sm:mt-8">
+          <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Statistiques Rapides</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center">

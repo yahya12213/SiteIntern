@@ -416,20 +416,20 @@ export default function CalculationSheets() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* En-tête */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3 sm:gap-4 w-full lg:w-auto">
             <Link
               to="/admin/calculation-sheets"
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
               title="Retour à la liste"
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
             </Link>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-gray-900">{sheetTitle}</h1>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 truncate">{sheetTitle}</h1>
+                <span className={`px-2.5 sm:px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit ${
                   viewMode === 'admin'
                     ? 'bg-purple-100 text-purple-800'
                     : 'bg-blue-100 text-blue-800'
@@ -447,7 +447,7 @@ export default function CalculationSheets() {
                   )}
                 </span>
               </div>
-              <p className="text-sm text-gray-500">
+              <p className="text-xs sm:text-sm text-gray-500 mt-1 hidden sm:block">
                 {viewMode === 'admin'
                   ? 'Tous les champs visibles - Simulation complète'
                   : 'Mode Test - Vérifiez vos calculs'}
@@ -455,55 +455,55 @@ export default function CalculationSheets() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full lg:w-auto">
             {/* Basculer entre les modes */}
             <div className="flex gap-2">
               <button
                 onClick={() => setSearchParams({ mode: 'admin' })}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                className={`flex-1 sm:flex-none px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm ${
                   viewMode === 'admin'
                     ? 'bg-purple-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 <Shield className="w-4 h-4" />
-                Admin
+                <span className="hidden sm:inline">Admin</span>
               </button>
               <button
                 onClick={() => setSearchParams({ mode: 'user' })}
-                className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                className={`flex-1 sm:flex-none px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm ${
                   viewMode === 'user'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 <User className="w-4 h-4" />
-                Utilisateur
+                <span className="hidden sm:inline">Utilisateur</span>
               </button>
             </div>
 
             {/* Message de sauvegarde */}
             {saveMessage && (
-              <div className="flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-lg">
-                <CheckCircle2 className="w-5 h-5" />
-                <span className="text-sm font-medium">{saveMessage}</span>
+              <div className="flex items-center gap-2 bg-green-100 text-green-800 px-3 sm:px-4 py-2 rounded-lg">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium">{saveMessage}</span>
               </div>
             )}
 
             <button
               onClick={handleSave}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
             >
-              <Save className="w-5 h-5" />
-              Sauvegarder Test
+              <Save className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span>Sauvegarder Test</span>
             </button>
 
             <Link
               to={`/admin/calculation-sheets/${id}/editor`}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
             >
-              <Edit3 className="w-5 h-5" />
-              Modifier
+              <Edit3 className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span>Modifier</span>
             </Link>
           </div>
         </div>

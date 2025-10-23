@@ -81,22 +81,22 @@ export default function Cities() {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <div className="flex items-center gap-4 mb-2">
+    <div className="p-4 md:p-6 lg:p-8">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex items-center gap-3 sm:gap-4 mb-2">
           <button
             onClick={() => navigate('/dashboard')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
             title="Retour au tableau de bord"
           >
-            <ArrowLeft className="w-6 h-6 text-gray-600" />
+            <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
           </button>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <MapPin className="w-8 h-8 text-green-600" />
-            Gestion des Villes
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <MapPin className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-green-600" />
+            <span className="truncate">Gestion des Villes</span>
           </h1>
         </div>
-        <p className="text-gray-600 mt-2 ml-14">Gérer les villes et leur affectation</p>
+        <p className="text-sm sm:text-base text-gray-600 mt-2 ml-10 sm:ml-12 md:ml-14">Gérer les villes et leur affectation</p>
       </div>
 
       {/* Barre d'actions */}
@@ -130,25 +130,25 @@ export default function Cities() {
             </select>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
             {/* Bouton Supprimer en masse */}
             {selectedCityIds.length > 0 && (
               <button
                 onClick={handleBulkDelete}
-                className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
               >
-                <Trash2 className="w-5 h-5" />
-                Supprimer ({selectedCityIds.length})
+                <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm sm:text-base">Supprimer ({selectedCityIds.length})</span>
               </button>
             )}
 
             {/* Bouton Ajouter */}
             <button
               onClick={() => setIsFormOpen(true)}
-              className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+              className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
             >
-              <Plus className="w-5 h-5" />
-              Nouvelle Ville
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="text-sm sm:text-base">Nouvelle Ville</span>
             </button>
           </div>
         </div>
