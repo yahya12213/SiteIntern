@@ -7,8 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "start": "serve dist -s -l $PORT"
+    "preview": "serve dist -s -l ${PORT:-8080}",
+    "start": "serve dist -s -l ${PORT:-8080}"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.5",
