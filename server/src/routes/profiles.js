@@ -114,7 +114,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT mettre à jour un profil
+// PUT mettre à jour un profil (support des mises à jour partielles)
 router.put('/:id', async (req, res) => {
   const client = await pool.connect();
 
@@ -124,49 +124,94 @@ router.put('/:id', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // Mettre à jour le profil
-    let query, params;
-    if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      query = 'UPDATE profiles SET username = $1, full_name = $2, role = $3, password = $4 WHERE id = $5 RETURNING id, username, full_name, role, created_at';
-      params = [username, full_name, role, hashedPassword, id];
-    } else {
-      query = 'UPDATE profiles SET username = $1, full_name = $2, role = $3 WHERE id = $4 RETURNING id, username, full_name, role, created_at';
-      params = [username, full_name, role, id];
-    }
-
-    const profileResult = await client.query(query, params);
-
-    if (profileResult.rows.length === 0) {
+    // Vérifier si le profil existe
+    const checkResult = await client.query('SELECT id FROM profiles WHERE id = $1', [id]);
+    if (checkResult.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Profile not found' });
     }
 
+    // Déterminer si on doit mettre à jour la table profiles
+    const hasProfileFields = username !== undefined || full_name !== undefined || role !== undefined || password !== undefined;
+
+    if (hasProfileFields) {
+      // Construire dynamiquement la requête UPDATE avec les champs fournis
+      const fieldsToUpdate = [];
+      const values = [];
+      let paramIndex = 1;
+
+      if (username !== undefined) {
+        fieldsToUpdate.push(`username = $${paramIndex++}`);
+        values.push(username);
+      }
+      if (full_name !== undefined) {
+        fieldsToUpdate.push(`full_name = $${paramIndex++}`);
+        values.push(full_name);
+      }
+      if (role !== undefined) {
+        fieldsToUpdate.push(`role = $${paramIndex++}`);
+        values.push(role);
+      }
+      if (password !== undefined) {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        fieldsToUpdate.push(`password = $${paramIndex++}`);
+        values.push(hashedPassword);
+      }
+
+      // Ajouter l'ID comme dernier paramètre
+      values.push(id);
+
+      const query = `UPDATE profiles SET ${fieldsToUpdate.join(', ')} WHERE id = $${paramIndex} RETURNING id, username, full_name, role, created_at`;
+      await client.query(query, values);
+    }
+
+    // Mettre à jour les segments si fournis
+    if (segment_ids !== undefined) {
+      await client.query('DELETE FROM professor_segments WHERE professor_id = $1', [id]);
+      if (segment_ids.length > 0) {
+        for (const segmentId of segment_ids) {
+          await client.query(
+            'INSERT INTO professor_segments (professor_id, segment_id) VALUES ($1, $2)',
+            [id, segmentId]
+          );
+        }
+      }
+    }
+
+    // Mettre à jour les villes si fournies
+    if (city_ids !== undefined) {
+      await client.query('DELETE FROM professor_cities WHERE professor_id = $1', [id]);
+      if (city_ids.length > 0) {
+        for (const cityId of city_ids) {
+          await client.query(
+            'INSERT INTO professor_cities (professor_id, city_id) VALUES ($1, $2)',
+            [id, cityId]
+          );
+        }
+      }
+    }
+
+    // Récupérer le profil complet avec les segments et villes
+    const profileResult = await client.query(
+      'SELECT id, username, full_name, role, created_at FROM profiles WHERE id = $1',
+      [id]
+    );
+
     const profile = profileResult.rows[0];
 
-    // Mettre à jour les segments
-    await client.query('DELETE FROM professor_segments WHERE professor_id = $1', [id]);
-    if (segment_ids && segment_ids.length > 0) {
-      for (const segmentId of segment_ids) {
-        await client.query(
-          'INSERT INTO professor_segments (professor_id, segment_id) VALUES ($1, $2)',
-          [id, segmentId]
-        );
-      }
-      profile.segment_ids = segment_ids;
-    }
+    // Ajouter les segment_ids
+    const segmentsResult = await client.query(
+      'SELECT segment_id FROM professor_segments WHERE professor_id = $1',
+      [id]
+    );
+    profile.segment_ids = segmentsResult.rows.map(row => row.segment_id);
 
-    // Mettre à jour les villes
-    await client.query('DELETE FROM professor_cities WHERE professor_id = $1', [id]);
-    if (city_ids && city_ids.length > 0) {
-      for (const cityId of city_ids) {
-        await client.query(
-          'INSERT INTO professor_cities (professor_id, city_id) VALUES ($1, $2)',
-          [id, cityId]
-        );
-      }
-      profile.city_ids = city_ids;
-    }
+    // Ajouter les city_ids
+    const citiesResult = await client.query(
+      'SELECT city_id FROM professor_cities WHERE professor_id = $1',
+      [id]
+    );
+    profile.city_ids = citiesResult.rows.map(row => row.city_id);
 
     await client.query('COMMIT');
     res.json(profile);
