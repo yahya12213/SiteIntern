@@ -72,7 +72,7 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
     }
 
     try {
-      const declarationId = await createDeclaration.mutateAsync({
+      const declaration = await createDeclaration.mutateAsync({
         calculation_sheet_id: sheet.id,
         segment_id: selectedSegment,
         city_id: selectedCity,
@@ -81,8 +81,8 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
         form_data: {},
       });
 
-      // Rediriger vers le formulaire de remplissage
-      navigate(`/professor/declarations/${declarationId}/fill`);
+      // Rediriger vers le formulaire de remplissage avec l'ID extrait
+      navigate(`/professor/declarations/${declaration.id}/fill`);
     } catch (err) {
       console.error('Error creating declaration:', err);
       setError('Erreur lors de la création de la déclaration');
