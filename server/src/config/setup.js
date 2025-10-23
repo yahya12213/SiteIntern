@@ -54,7 +54,7 @@ const setupDatabase = async () => {
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         full_name TEXT NOT NULL,
-        role TEXT NOT NULL CHECK(role IN ('admin', 'professor')),
+        role TEXT NOT NULL CHECK(role IN ('admin', 'professor', 'gerant')),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
@@ -133,7 +133,7 @@ const setupDatabase = async () => {
         start_date TEXT NOT NULL,
         end_date TEXT NOT NULL,
         form_data TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'brouillon' CHECK(status IN ('brouillon', 'soumise', 'en_cours', 'approuvee', 'refusee')),
+        status TEXT NOT NULL DEFAULT 'brouillon' CHECK(status IN ('brouillon', 'soumise', 'en_cours', 'approuvee', 'refusee', 'a_declarer')),
         rejection_reason TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
