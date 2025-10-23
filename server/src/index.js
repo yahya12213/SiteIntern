@@ -10,6 +10,7 @@ import profilesRouter from './routes/profiles.js';
 import calculationSheetsRouter from './routes/calculationSheets.js';
 import declarationsRouter from './routes/declarations.js';
 import authRouter from './routes/auth.js';
+import setupTempRouter from './routes/setup-temp.js';
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ app.use('/api/cities', citiesRouter);
 app.use('/api/profiles', profilesRouter);
 app.use('/api/calculation-sheets', calculationSheetsRouter);
 app.use('/api/declarations', declarationsRouter);
+app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 
 // Health check
 app.get('/api/health', async (req, res) => {
