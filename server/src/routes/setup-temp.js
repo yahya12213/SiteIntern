@@ -139,4 +139,27 @@ router.post('/setup-database', async (req, res) => {
   }
 });
 
+// Route pour nettoyer et réimporter les données
+router.post('/reset-data', async (req, res) => {
+  try {
+    console.log('🧹 Cleaning and reimporting data...');
+
+    // Supprimer tous les profils (cascade va supprimer les relations)
+    await pool.query('DELETE FROM profiles');
+    console.log('✅ Profiles cleared');
+
+    res.json({
+      success: true,
+      message: 'Data cleared. Now run migration and hash scripts.'
+    });
+
+  } catch (error) {
+    console.error('❌ Error resetting data:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;
