@@ -3,4 +3,4 @@ builder = "NIXPACKS"
 buildCommand = "npm run build"
 
 [deploy]
-startCommand = "npm run preview -- --host --port $PORT"
+startCommand = "npm start"
