@@ -62,6 +62,24 @@ router.post('/', async (req, res) => {
   try {
     const { id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data } = req.body;
 
+    // Vérifier si une déclaration identique existe déjà
+    const duplicateCheck = await pool.query(
+      `SELECT id FROM professor_declarations
+       WHERE professor_id = $1
+       AND calculation_sheet_id = $2
+       AND segment_id = $3
+       AND city_id = $4
+       AND start_date = $5
+       AND end_date = $6`,
+      [professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(409).json({
+        error: 'Une déclaration existe déjà pour cette période, ville et segment'
+      });
+    }
+
     const result = await pool.query(
       `INSERT INTO professor_declarations (id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'brouillon') RETURNING *`,
