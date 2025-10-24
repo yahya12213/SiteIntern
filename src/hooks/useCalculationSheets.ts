@@ -84,7 +84,12 @@ export const useToggleCalculationSheetStatus = () => {
       const newStatus = sheet.status === 'published' ? 'draft' : 'published';
       return calculationSheetsApi.update({
         id,
+        title: sheet.title,
+        template_data: sheet.template_data,
         status: newStatus as 'draft' | 'published',
+        sheet_date: sheet.sheet_date,
+        segment_ids: sheet.segment_ids,
+        city_ids: sheet.city_ids,
       });
     },
     onSuccess: () => {
