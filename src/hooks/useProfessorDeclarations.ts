@@ -98,8 +98,12 @@ export function useSubmitDeclaration() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      const declaration = await declarationsApi.getById(id);
+      if (!declaration) throw new Error('Déclaration non trouvée');
+
       return declarationsApi.update({
         id,
+        form_data: declaration.form_data,
         status: 'soumise',
       });
     },
