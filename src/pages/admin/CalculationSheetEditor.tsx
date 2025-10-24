@@ -350,6 +350,7 @@ export default function CalculationSheetEditor() {
         id,
         title: templateName,
         template_data: JSON.stringify(template),
+        status: sheetData?.status || 'draft', // Maintenir le status actuel ou définir 'draft' par défaut
       });
 
       setSaveMessage('Fiche sauvegardée avec succès!');
