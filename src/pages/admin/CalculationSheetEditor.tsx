@@ -1,3 +1,4 @@
+// Calculation Sheet Editor - Fixed: Status field now included in save operations
 import { useState, useRef, useEffect } from 'react';
 import { Plus, Save, Eye, Grid3x3, Type, Hash, Calculator, Box, Trash2, Copy, AlignLeft, ArrowUp, ArrowDown, Download, Check, Paperclip, EyeOff, MessageSquare, Link } from 'lucide-react';
 import type { FieldDefinition } from '@/lib/formula/types';
