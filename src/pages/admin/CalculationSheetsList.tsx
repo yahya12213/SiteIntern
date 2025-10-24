@@ -524,6 +524,9 @@ function EditSheetModal({ sheet, onClose }: { sheet: any; onClose: () => void })
       await updateSheet.mutateAsync({
         id: sheet.id,
         title,
+        template_data: sheet.template_data,
+        status: sheet.status,
+        sheet_date: sheet.sheet_date,
         segment_ids: selectedSegments,
         city_ids: selectedCities,
       });
