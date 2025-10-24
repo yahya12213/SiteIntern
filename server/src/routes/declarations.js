@@ -9,8 +9,13 @@ router.get('/', async (req, res) => {
     const { professor_id } = req.query;
 
     let query = `
-      SELECT pd.*, s.name as segment_name, c.name as city_name, cs.title as sheet_title
+      SELECT pd.*,
+             p.full_name as professor_name,
+             s.name as segment_name,
+             c.name as city_name,
+             cs.title as sheet_title
       FROM professor_declarations pd
+      LEFT JOIN profiles p ON pd.professor_id = p.id
       LEFT JOIN segments s ON pd.segment_id = s.id
       LEFT JOIN cities c ON pd.city_id = c.id
       LEFT JOIN calculation_sheets cs ON pd.calculation_sheet_id = cs.id
@@ -38,8 +43,14 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
 
     const result = await pool.query(`
-      SELECT pd.*, s.name as segment_name, c.name as city_name, cs.title as sheet_title, cs.template_data
+      SELECT pd.*,
+             p.full_name as professor_name,
+             s.name as segment_name,
+             c.name as city_name,
+             cs.title as sheet_title,
+             cs.template_data
       FROM professor_declarations pd
+      LEFT JOIN profiles p ON pd.professor_id = p.id
       LEFT JOIN segments s ON pd.segment_id = s.id
       LEFT JOIN cities c ON pd.city_id = c.id
       LEFT JOIN calculation_sheets cs ON pd.calculation_sheet_id = cs.id
