@@ -6,7 +6,7 @@ import { Users, MapPin, FileSpreadsheet, Calculator, ClipboardCheck, FilePlus, L
 import { Header } from '@/components/layout/Header';
 
 const Dashboard: React.FC = () => {
-  const { user, isAdmin, isGerant, logout } = useAuth();
+  const { user, isAdmin, isGerant } = useAuth();
 
   const adminCards = [
     {
@@ -87,7 +87,7 @@ const Dashboard: React.FC = () => {
       {/* Header */}
       <Header
         title="Tableau de Bord"
-        subtitle={`Bienvenue, ${user?.full_name} (${isAdmin() ? 'Administrateur' : isGerant() ? 'Gérant' : 'Professeur'})`}
+        subtitle={`Bienvenue, ${user?.full_name} (${isAdmin ? 'Administrateur' : isGerant ? 'Gérant' : 'Professeur'})`}
       />
 
       {/* Main Content */}

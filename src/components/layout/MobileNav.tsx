@@ -39,7 +39,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
     { to: '/gerant/view-declarations', icon: ClipboardCheck, label: 'Voir déclarations' },
   ];
 
-  const links = isAdmin() ? adminLinks : isGerant() ? gerantLinks : professorLinks;
+  const links = isAdmin ? adminLinks : isGerant ? gerantLinks : professorLinks;
 
   return (
     <>

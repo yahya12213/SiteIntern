@@ -8,11 +8,9 @@ import { MobileNav } from './MobileNav';
 interface HeaderProps {
   title?: string;
   subtitle?: string;
-  showBackButton?: boolean;
-  backTo?: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ title, subtitle, showBackButton = false, backTo = '/dashboard' }) => {
+export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
