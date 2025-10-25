@@ -71,7 +71,7 @@ router.get('/:id', async (req, res) => {
 // POST créer une déclaration
 router.post('/', async (req, res) => {
   try {
-    const { id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data } = req.body;
+    const { id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data, status } = req.body;
 
     // Vérifier si une déclaration identique existe déjà
     const duplicateCheck = await pool.query(
@@ -91,10 +91,13 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Utiliser le statut fourni, ou 'brouillon' par défaut
+    const declarationStatus = status || 'brouillon';
+
     const result = await pool.query(
       `INSERT INTO professor_declarations (id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'brouillon') RETURNING *`,
-      [id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data || '{}']
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data || '{}', declarationStatus]
     );
 
     res.status(201).json(result.rows[0]);

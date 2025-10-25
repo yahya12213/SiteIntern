@@ -216,6 +216,7 @@ export function useCreateDeclarationForProfessor() {
         id,
         ...input,
         form_data: '{}',
+        status: 'a_declarer', // Statut 'a_declarer' pour les déclarations créées par le gérant/admin
       });
     },
     onSuccess: () => {
