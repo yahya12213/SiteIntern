@@ -44,16 +44,23 @@ export interface CreateGerantDeclarationInput {
 
 // Hook pour récupérer les segments du gérant
 export function useGerantSegments() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return useQuery<GerantSegment[]>({
     queryKey: ['gerant-segments', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const profile = await profilesApi.getById(user.id);
-      if (!profile || !profile.segment_ids) return [];
 
       const allSegments = await segmentsApi.getAll();
+
+      // Si admin, retourner TOUS les segments
+      if (isAdmin) {
+        return allSegments;
+      }
+
+      // Sinon, filtrer par segment_ids du profil
+      const profile = await profilesApi.getById(user.id);
+      if (!profile || !profile.segment_ids) return [];
       return allSegments.filter(s => profile.segment_ids?.includes(s.id));
     },
     enabled: !!user?.id,
@@ -62,16 +69,23 @@ export function useGerantSegments() {
 
 // Hook pour récupérer les villes du gérant
 export function useGerantCities() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return useQuery<GerantCity[]>({
     queryKey: ['gerant-cities', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const profile = await profilesApi.getById(user.id);
-      if (!profile || !profile.city_ids) return [];
 
       const allCities = await citiesApi.getAll();
+
+      // Si admin, retourner TOUTES les villes
+      if (isAdmin) {
+        return allCities;
+      }
+
+      // Sinon, filtrer par city_ids du profil
+      const profile = await profilesApi.getById(user.id);
+      if (!profile || !profile.city_ids) return [];
       return allCities.filter(c => profile.city_ids?.includes(c.id));
     },
     enabled: !!user?.id,
