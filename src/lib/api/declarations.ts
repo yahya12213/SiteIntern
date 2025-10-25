@@ -40,6 +40,7 @@ export interface CreateDeclarationInput {
   start_date: string;
   end_date: string;
   form_data?: string;
+  status?: DeclarationStatus;
 }
 
 export interface UpdateDeclarationInput {
