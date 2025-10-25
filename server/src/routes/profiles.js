@@ -12,7 +12,29 @@ router.get('/', async (req, res) => {
       FROM profiles
       ORDER BY full_name
     `);
-    res.json(result.rows);
+
+    // Pour chaque profil, récupérer ses segments et villes
+    const profiles = await Promise.all(
+      result.rows.map(async (profile) => {
+        // Récupérer les segments
+        const segmentsResult = await pool.query(
+          'SELECT segment_id FROM professor_segments WHERE professor_id = $1',
+          [profile.id]
+        );
+        profile.segment_ids = segmentsResult.rows.map(row => row.segment_id);
+
+        // Récupérer les villes
+        const citiesResult = await pool.query(
+          'SELECT city_id FROM professor_cities WHERE professor_id = $1',
+          [profile.id]
+        );
+        profile.city_ids = citiesResult.rows.map(row => row.city_id);
+
+        return profile;
+      })
+    );
+
+    res.json(profiles);
   } catch (error) {
     console.error('Error fetching profiles:', error);
     res.status(500).json({ error: error.message });
