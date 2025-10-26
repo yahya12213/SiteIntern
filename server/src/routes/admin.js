@@ -36,9 +36,9 @@ router.get('/dashboard-stats', async (req, res) => {
     const expiredQuery = await pool.query(`
       SELECT
         COUNT(*) as total_expired,
-        COUNT(*) FILTER (WHERE end_date < (CURRENT_DATE - INTERVAL '30 days')) as expired_critical,
-        COUNT(*) FILTER (WHERE end_date >= (CURRENT_DATE - INTERVAL '30 days') AND end_date < (CURRENT_DATE - INTERVAL '7 days')) as expired_warning,
-        COUNT(*) FILTER (WHERE end_date >= (CURRENT_DATE - INTERVAL '7 days') AND end_date < CURRENT_DATE) as expired_info
+        COUNT(*) FILTER (WHERE end_date::date < (CURRENT_DATE - INTERVAL '30 days')) as expired_critical,
+        COUNT(*) FILTER (WHERE end_date::date >= (CURRENT_DATE - INTERVAL '30 days') AND end_date::date < (CURRENT_DATE - INTERVAL '7 days')) as expired_warning,
+        COUNT(*) FILTER (WHERE end_date::date >= (CURRENT_DATE - INTERVAL '7 days') AND end_date::date < CURRENT_DATE) as expired_info
       FROM professor_declarations
       WHERE end_date::date < CURRENT_DATE
         AND status != 'approuvee'
