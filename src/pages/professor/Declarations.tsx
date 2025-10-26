@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Eye, Edit3, Trash2, Send, FileText } from 'lucide-react';
+import { ArrowLeft, Plus, Eye, Edit3, Trash2, Send, FileText, AlertCircle } from 'lucide-react';
 import { useProfessorDeclarations, useDeleteDeclaration, useSubmitDeclaration } from '@/hooks/useProfessorDeclarations';
 import DeclarationStatusBadge from '@/components/professor/DeclarationStatusBadge';
 import NewDeclarationModal from '@/components/professor/NewDeclarationModal';
@@ -85,10 +85,16 @@ const Declarations: React.FC = () => {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow-sm p-4">
             <p className="text-sm text-gray-600">Total</p>
             <p className="text-2xl font-bold text-gray-900">{declarations?.length || 0}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm p-4">
+            <p className="text-sm text-gray-600">À modifier</p>
+            <p className="text-2xl font-bold text-yellow-600">
+              {declarations?.filter(d => (d.status as any) === 'en_cours').length || 0}
+            </p>
           </div>
           <div className="bg-white rounded-lg shadow-sm p-4">
             <p className="text-sm text-gray-600">À déclarer</p>
@@ -162,7 +168,8 @@ const Declarations: React.FC = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {declarations.map((declaration) => (
-                    <tr key={declaration.id} className="hover:bg-gray-50">
+                    <React.Fragment key={declaration.id}>
+                      <tr className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
                           {declaration.segment_name}
@@ -191,12 +198,12 @@ const Declarations: React.FC = () => {
                             to={`/professor/declarations/${declaration.id}/fill`}
                             className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
                             title={
-                              declaration.status === 'brouillon' || declaration.status === 'refusee' || (declaration.status as any) === 'a_declarer'
+                              declaration.status === 'brouillon' || declaration.status === 'refusee' || (declaration.status as any) === 'a_declarer' || (declaration.status as any) === 'en_cours'
                                 ? 'Remplir'
                                 : 'Voir'
                             }
                           >
-                            {declaration.status === 'brouillon' || declaration.status === 'refusee' || (declaration.status as any) === 'a_declarer' ? (
+                            {declaration.status === 'brouillon' || declaration.status === 'refusee' || (declaration.status as any) === 'a_declarer' || (declaration.status as any) === 'en_cours' ? (
                               <Edit3 className="w-4 h-4" />
                             ) : (
                               <Eye className="w-4 h-4" />
@@ -204,7 +211,7 @@ const Declarations: React.FC = () => {
                           </Link>
 
                           {/* Soumettre */}
-                          {(declaration.status === 'brouillon' || (declaration.status as any) === 'a_declarer') && (
+                          {(declaration.status === 'brouillon' || (declaration.status as any) === 'a_declarer' || (declaration.status as any) === 'en_cours') && (
                             <button
                               onClick={() => handleSubmit(declaration.id)}
                               className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded transition-colors"
@@ -228,6 +235,22 @@ const Declarations: React.FC = () => {
                         </div>
                       </td>
                     </tr>
+
+                    {/* Alerte pour modifications demandées */}
+                    {(declaration.status as any) === 'en_cours' && declaration.rejection_reason && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-3 bg-yellow-50 border-l-4 border-yellow-400">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-semibold text-yellow-900">Modifications demandées par l'administrateur</p>
+                              <p className="text-sm text-yellow-800 mt-1">{declaration.rejection_reason}</p>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                   ))}
                 </tbody>
               </table>

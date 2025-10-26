@@ -124,3 +124,26 @@ export function useDeclarationStats() {
     },
   });
 }
+
+// Hook pour modifier les métadonnées d'une déclaration (admin seulement)
+export function useUpdateDeclarationMetadata() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      id: string;
+      segment_id?: string;
+      city_id?: string;
+      start_date?: string;
+      end_date?: string;
+      status?: Declaration['status'];
+    }) => {
+      return declarationsApi.update(data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-declaration'] });
+      queryClient.invalidateQueries({ queryKey: ['professor-declarations'] });
+    },
+  });
+}

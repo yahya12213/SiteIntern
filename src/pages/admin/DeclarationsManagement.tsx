@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, CheckCircle, XCircle, Clock, AlertCircle, ExternalLink, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileText, CheckCircle, XCircle, Clock, AlertCircle, ExternalLink, Trash2, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -11,6 +11,7 @@ import {
   useDeleteAdminDeclaration,
   type AdminDeclaration,
 } from '@/hooks/useAdminDeclarations';
+import EditDeclarationModal from '@/components/admin/EditDeclarationModal';
 
 const DeclarationsManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -22,6 +23,8 @@ const DeclarationsManagement: React.FC = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showModificationModal, setShowModificationModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [declarationToEdit, setDeclarationToEdit] = useState<AdminDeclaration | null>(null);
 
   const { data: allDeclarations = [], isLoading } = useAdminDeclarations(selectedStatus);
   const { data: stats } = useDeclarationStats();
@@ -428,6 +431,18 @@ const DeclarationsManagement: React.FC = () => {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => {
+                              setDeclarationToEdit(declaration);
+                              setShowEditModal(true);
+                            }}
+                            className="bg-white hover:bg-purple-50 border-purple-300"
+                            title="Modifier les métadonnées"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => navigate(`/admin/declarations/${declaration.id}`)}
                             className="bg-white hover:bg-blue-50 border-blue-300"
                           >
@@ -581,6 +596,17 @@ const DeclarationsManagement: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal Modifier la déclaration */}
+      {showEditModal && declarationToEdit && (
+        <EditDeclarationModal
+          declaration={declarationToEdit}
+          onClose={() => {
+            setShowEditModal(false);
+            setDeclarationToEdit(null);
+          }}
+        />
       )}
     </div>
   );

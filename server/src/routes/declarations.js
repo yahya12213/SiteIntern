@@ -111,19 +111,61 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { form_data, status, rejection_reason } = req.body;
+    const { form_data, status, rejection_reason, segment_id, city_id, start_date, end_date } = req.body;
 
-    let query, params;
-    if (status === 'soumise') {
-      query = 'UPDATE professor_declarations SET form_data = $1, status = $2, submitted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *';
-      params = [form_data, status, id];
-    } else if (status === 'approuvee' || status === 'refusee') {
-      query = 'UPDATE professor_declarations SET status = $1, rejection_reason = $2, reviewed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *';
-      params = [status, rejection_reason || null, id];
-    } else {
-      query = 'UPDATE professor_declarations SET form_data = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *';
-      params = [form_data, id];
+    // Construire dynamiquement la requête SQL en fonction des champs fournis
+    const updates = [];
+    const params = [];
+    let paramCount = 1;
+
+    // Champs de métadonnées modifiables par l'admin
+    if (segment_id !== undefined) {
+      updates.push(`segment_id = $${paramCount++}`);
+      params.push(segment_id);
     }
+    if (city_id !== undefined) {
+      updates.push(`city_id = $${paramCount++}`);
+      params.push(city_id);
+    }
+    if (start_date !== undefined) {
+      updates.push(`start_date = $${paramCount++}`);
+      params.push(start_date);
+    }
+    if (end_date !== undefined) {
+      updates.push(`end_date = $${paramCount++}`);
+      params.push(end_date);
+    }
+
+    // Champs standards
+    if (form_data !== undefined) {
+      updates.push(`form_data = $${paramCount++}`);
+      params.push(form_data);
+    }
+    if (status !== undefined) {
+      updates.push(`status = $${paramCount++}`);
+      params.push(status);
+    }
+    if (rejection_reason !== undefined) {
+      updates.push(`rejection_reason = $${paramCount++}`);
+      params.push(rejection_reason || null);
+    }
+
+    // Timestamps conditionnels
+    if (status === 'soumise') {
+      updates.push('submitted_at = CURRENT_TIMESTAMP');
+    } else if (status === 'approuvee' || status === 'refusee') {
+      updates.push('reviewed_at = CURRENT_TIMESTAMP');
+    }
+
+    // Toujours mettre à jour updated_at
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+
+    if (updates.length === 1) { // Seulement updated_at
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    const query = `UPDATE professor_declarations SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`;
+    params.push(id);
 
     const result = await pool.query(query, params);
 

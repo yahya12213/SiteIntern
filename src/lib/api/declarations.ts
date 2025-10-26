@@ -48,6 +48,10 @@ export interface UpdateDeclarationInput {
   form_data?: string;
   status?: DeclarationStatus;
   rejection_reason?: string;
+  segment_id?: string;
+  city_id?: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 /**
