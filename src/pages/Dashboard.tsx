@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { Users, MapPin, FileSpreadsheet, Calculator, ClipboardCheck, FilePlus, List } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
+import DashboardStats from '@/components/Dashboard/DashboardStats';
 
 const Dashboard: React.FC = () => {
   const { user, isAdmin, isGerant } = useAuth();
@@ -110,38 +111,47 @@ const Dashboard: React.FC = () => {
           ))}
         </div>
 
-        {/* Quick Stats */}
-        <div className="mt-6 sm:mt-8">
-          <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Statistiques Rapides</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-blue-600">0</p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {isAdmin ? 'Total Fiches' : isGerant ? 'Déclarations créées' : 'Mes Fiches'}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-green-600">0 MAD</p>
-                  <p className="text-sm text-gray-600 mt-1">Revenus Total</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-orange-600">0 MAD</p>
-                  <p className="text-sm text-gray-600 mt-1">Charges Total</p>
-                </div>
-              </CardContent>
-            </Card>
+        {/* Dashboard Statistics - Admin Only */}
+        {isAdmin && (
+          <div className="mt-6 sm:mt-8">
+            <DashboardStats />
           </div>
-        </div>
+        )}
+
+        {/* Simple Stats for Gerant & Professor */}
+        {!isAdmin && (
+          <div className="mt-6 sm:mt-8">
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Statistiques Rapides</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-blue-600">0</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {isGerant ? 'Déclarations créées' : 'Mes Fiches'}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-green-600">0 MAD</p>
+                    <p className="text-sm text-gray-600 mt-1">Revenus Total</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-orange-600">0 MAD</p>
+                    <p className="text-sm text-gray-600 mt-1">Charges Total</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
