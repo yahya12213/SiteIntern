@@ -19,7 +19,7 @@ const DeclarationForm: React.FC = () => {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
 
-  const isReadOnly = declaration?.status !== 'brouillon' && declaration?.status !== 'refusee' && declaration?.status !== 'en_cours';
+  const isReadOnly = declaration?.status !== 'brouillon' && declaration?.status !== 'refusee' && declaration?.status !== 'en_cours' && declaration?.status !== 'a_declarer';
 
   // Charger les données de la déclaration
   useEffect(() => {
