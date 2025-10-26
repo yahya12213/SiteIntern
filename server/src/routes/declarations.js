@@ -74,15 +74,15 @@ router.post('/', async (req, res) => {
     const { id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data, status } = req.body;
 
     // Vérifier si une déclaration identique existe déjà
+    // (même professeur, segment, ville et période - peu importe le modèle de fiche)
     const duplicateCheck = await pool.query(
       `SELECT id FROM professor_declarations
        WHERE professor_id = $1
-       AND calculation_sheet_id = $2
-       AND segment_id = $3
-       AND city_id = $4
-       AND start_date = $5
-       AND end_date = $6`,
-      [professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date]
+       AND segment_id = $2
+       AND city_id = $3
+       AND start_date = $4
+       AND end_date = $5`,
+      [professor_id, segment_id, city_id, start_date, end_date]
     );
 
     if (duplicateCheck.rows.length > 0) {
