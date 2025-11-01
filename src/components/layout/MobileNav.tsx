@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, Home, Users, MapPin, FileSpreadsheet, Calculator, LogOut, FilePlus, ClipboardCheck, List } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Menu, X, Home, Users, MapPin, FileSpreadsheet, Calculator, LogOut, FilePlus, ClipboardCheck, List, ChevronDown, ChevronUp, GraduationCap, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -8,10 +8,25 @@ interface MobileNavProps {
   className?: string;
 }
 
+interface NavSection {
+  id: string;
+  title: string;
+  icon: React.ElementType;
+  items: NavItem[];
+}
+
+interface NavItem {
+  to: string;
+  icon: React.ElementType;
+  label: string;
+}
+
 export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation-en-ligne']);
   const { user, isAdmin, isGerant, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
@@ -19,14 +34,37 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
     setIsOpen(false);
   };
 
-  const adminLinks = [
-    { to: '/dashboard', icon: Home, label: 'Tableau de bord' },
-    { to: '/admin/segments', icon: Calculator, label: 'Segments' },
-    { to: '/admin/cities', icon: MapPin, label: 'Villes' },
-    { to: '/admin/users', icon: Users, label: 'Utilisateurs' },
-    { to: '/admin/calculation-sheets', icon: FileSpreadsheet, label: 'Fiches de calcul' },
-    { to: '/admin/create-declaration', icon: FilePlus, label: 'Créer déclaration' },
-    { to: '/admin/declarations-management', icon: ClipboardCheck, label: 'Gérer déclarations' },
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev =>
+      prev.includes(sectionId)
+        ? prev.filter(id => id !== sectionId)
+        : [...prev, sectionId]
+    );
+  };
+
+  const adminSections: NavSection[] = [
+    {
+      id: 'gestion-comptable',
+      title: 'Gestion Comptable',
+      icon: Calculator,
+      items: [
+        { to: '/dashboard', icon: Home, label: 'Tableau de bord' },
+        { to: '/admin/segments', icon: Calculator, label: 'Segments' },
+        { to: '/admin/cities', icon: MapPin, label: 'Villes' },
+        { to: '/admin/users', icon: Users, label: 'Utilisateurs' },
+        { to: '/admin/calculation-sheets', icon: FileSpreadsheet, label: 'Fiches de calcul' },
+        { to: '/admin/create-declaration', icon: FilePlus, label: 'Créer déclaration' },
+        { to: '/admin/declarations', icon: ClipboardCheck, label: 'Gérer déclarations' },
+      ],
+    },
+    {
+      id: 'formation-en-ligne',
+      title: 'Formation en Ligne',
+      icon: GraduationCap,
+      items: [
+        { to: '/admin/formations/sessions', icon: Calendar, label: 'Sessions' },
+      ],
+    },
   ];
 
   const professorLinks = [
@@ -39,7 +77,10 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
     { to: '/gerant/view-declarations', icon: ClipboardCheck, label: 'Voir déclarations' },
   ];
 
-  const links = isAdmin ? adminLinks : isGerant ? gerantLinks : professorLinks;
+  const sections = isAdmin ? adminSections : [];
+  const flatLinks = isAdmin ? [] : isGerant ? gerantLinks : professorLinks;
+
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <>
@@ -88,16 +129,73 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex flex-col p-2 space-y-1">
-          {links.map((link) => (
+        <nav className="flex flex-col p-2 space-y-2 overflow-y-auto flex-1">
+          {/* Admin sections with collapsible groups */}
+          {sections.map((section) => {
+            const isExpanded = expandedSections.includes(section.id);
+            const SectionIcon = section.icon;
+
+            return (
+              <div key={section.id} className="space-y-1">
+                {/* Section Header */}
+                <button
+                  onClick={() => toggleSection(section.id)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <SectionIcon className="h-5 w-5 text-gray-600" />
+                    <span>{section.title}</span>
+                  </div>
+                  {isExpanded ? (
+                    <ChevronUp className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+
+                {/* Section Items */}
+                {isExpanded && (
+                  <div className="ml-6 space-y-0.5">
+                    {section.items.map((item) => {
+                      const ItemIcon = item.icon;
+                      const active = isActive(item.to);
+
+                      return (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setIsOpen(false)}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                            active
+                              ? 'bg-blue-50 text-blue-700 font-medium'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <ItemIcon className={`h-4 w-4 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
+                          <span>{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Flat links for non-admin users */}
+          {flatLinks.map((link) => (
             <Link
               key={link.to}
               to={link.to}
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors ${
+                isActive(link.to)
+                  ? 'bg-blue-50 text-blue-700 font-medium'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
             >
-              <link.icon className="h-5 w-5" />
-              <span className="text-sm font-medium">{link.label}</span>
+              <link.icon className={`h-5 w-5 ${isActive(link.to) ? 'text-blue-600' : 'text-gray-400'}`} />
+              <span className="font-medium">{link.label}</span>
             </Link>
           ))}
         </nav>

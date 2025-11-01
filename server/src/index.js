@@ -12,6 +12,7 @@ import declarationsRouter from './routes/declarations.js';
 import authRouter from './routes/auth.js';
 import setupTempRouter from './routes/setup-temp.js';
 import adminRouter from './routes/admin.js';
+import formationsRouter from './routes/formations.js';
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use('/api/profiles', profilesRouter);
 app.use('/api/calculation-sheets', calculationSheetsRouter);
 app.use('/api/declarations', declarationsRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/formations', formationsRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 
 // Health check

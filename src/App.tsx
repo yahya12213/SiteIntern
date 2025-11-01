@@ -15,6 +15,7 @@ import Declarations from './pages/professor/Declarations';
 import DeclarationForm from './pages/professor/DeclarationForm';
 import GerantDeclarations from './pages/gerant/GerantDeclarations';
 import CreateDeclaration from './pages/gerant/CreateDeclaration';
+import Sessions from './pages/admin/formations/Sessions';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean; gerantOnly?: boolean }> = ({
@@ -165,6 +166,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute adminOnly>
             <CreateDeclaration />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/formations/sessions"
+        element={
+          <ProtectedRoute adminOnly>
+            <Sessions />
           </ProtectedRoute>
         }
       />

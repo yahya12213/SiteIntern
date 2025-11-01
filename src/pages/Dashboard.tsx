@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { Users, MapPin, FileSpreadsheet, Calculator, ClipboardCheck, FilePlus, List } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { AppLayout } from '@/components/layout/AppLayout';
 import DashboardStats from '@/components/Dashboard/DashboardStats';
 
 const Dashboard: React.FC = () => {
@@ -84,15 +84,10 @@ const Dashboard: React.FC = () => {
   const cards = isAdmin ? adminCards : isGerant ? gerantCards : professorCards;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <Header
-        title="Tableau de Bord"
-        subtitle={`Bienvenue, ${user?.full_name} (${isAdmin ? 'Administrateur' : isGerant ? 'Gérant' : 'Professeur'})`}
-      />
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <AppLayout
+      title="Tableau de Bord"
+      subtitle={`Bienvenue, ${user?.full_name} (${isAdmin ? 'Administrateur' : isGerant ? 'Gérant' : 'Professeur'})`}
+    >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
           {cards.map((card, index) => (
             <Link key={index} to={card.link}>
@@ -152,8 +147,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         )}
-      </main>
-    </div>
+    </AppLayout>
   );
 };
 

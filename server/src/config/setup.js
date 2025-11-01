@@ -145,6 +145,34 @@ const setupDatabase = async () => {
         FOREIGN KEY (city_id) REFERENCES cities(id) ON DELETE CASCADE
       );
 
+      -- Table des sessions de formation
+      CREATE TABLE IF NOT EXISTS formation_sessions (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        instructor_id TEXT,
+        max_capacity INTEGER,
+        status TEXT NOT NULL DEFAULT 'planned' CHECK(status IN ('planned', 'active', 'completed', 'cancelled')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (instructor_id) REFERENCES profiles(id) ON DELETE SET NULL
+      );
+
+      -- Table des inscriptions aux sessions de formation
+      CREATE TABLE IF NOT EXISTS formation_enrollments (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        student_id TEXT NOT NULL,
+        enrollment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        status TEXT NOT NULL DEFAULT 'enrolled' CHECK(status IN ('enrolled', 'completed', 'dropped')),
+        notes TEXT,
+        FOREIGN KEY (session_id) REFERENCES formation_sessions(id) ON DELETE CASCADE,
+        FOREIGN KEY (student_id) REFERENCES profiles(id) ON DELETE CASCADE,
+        UNIQUE(session_id, student_id)
+      );
+
       -- Insérer un admin par défaut
       INSERT INTO profiles (id, username, password, full_name, role)
       VALUES ('admin_1', 'admin', '$2a$10$XQZ9cKZJ6rPzN.z5w5vZDeH8YnZ1vQxZJ7XZ7qJzN1vQxZJ7XZ7qJ', 'Administrateur', 'admin')
