@@ -20,6 +20,8 @@ import setupTempRouter from './routes/setup-temp.js';
 import adminRouter from './routes/admin.js';
 import formationsRouter from './routes/formations.js';
 import coursRouter from './routes/cours.js';
+import progressRouter from './routes/progress.js';
+import setupProgressRouter from './routes/setup-progress.js';
 
 dotenv.config();
 
@@ -41,7 +43,9 @@ app.use('/api/declarations', declarationsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/formations', formationsRouter);
 app.use('/api/cours', coursRouter);
+app.use('/api/progress', progressRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
+app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
 
 // Health check
 app.get('/api/health', async (req, res) => {
