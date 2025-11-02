@@ -159,6 +159,9 @@ const Sessions: React.FC = () => {
                       Session
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Formation
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Segment
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -188,6 +191,17 @@ const Sessions: React.FC = () => {
                             <p className="text-xs text-gray-500 mt-1 line-clamp-2">{session.description}</p>
                           )}
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {session.formation_title ? (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                              {session.formation_title}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-400">Aucune formation</p>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <p className="text-sm text-gray-900">{session.segment_name || '-'}</p>

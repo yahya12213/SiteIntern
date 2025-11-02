@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useCreateSession, useUpdateSession } from '@/hooks/useFormations';
 import { useSegments } from '@/hooks/useSegments';
 import { useCities } from '@/hooks/useCities';
+import { useFormations } from '@/hooks/useCours';
 import type { FormationSession, SessionStatus } from '@/types/formations';
 
 interface SessionFormModalProps {
@@ -17,13 +18,15 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
 
-  // Fetch segments and cities
+  // Fetch segments, cities and formations
   const { data: segments = [] } = useSegments();
   const { data: allCities = [] } = useCities();
+  const { data: formations = [] } = useFormations();
 
   const [formData, setFormData] = useState({
     name: session?.name || '',
     description: session?.description || '',
+    formation_id: session?.formation_id || '',
     start_date: session?.start_date ? session.start_date.split('T')[0] : '',
     end_date: session?.end_date ? session.end_date.split('T')[0] : '',
     segment_id: session?.segment_id || '',
@@ -84,6 +87,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
       const submitData = {
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
+        formation_id: formData.formation_id || undefined,
         start_date: formData.start_date,
         end_date: formData.end_date,
         segment_id: formData.segment_id || undefined,
@@ -173,6 +177,28 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
           </div>
 
           {/* Segment and City */}
+          {/* Formation */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Formation
+            </label>
+            <select
+              value={formData.formation_id}
+              onChange={(e) => setFormData({ ...formData, formation_id: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            >
+              <option value="">Sélectionner une formation</option>
+              {formations.map((formation) => (
+                <option key={formation.id} value={formation.id}>
+                  {formation.title}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Optionnel - Liez cette session à une formation spécifique
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Segment */}
             <div>

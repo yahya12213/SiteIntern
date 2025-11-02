@@ -118,6 +118,7 @@ router.post('/setup-database', async (req, res) => {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
+        formation_id TEXT,
         start_date TEXT NOT NULL,
         end_date TEXT NOT NULL,
         segment_id TEXT,
@@ -127,6 +128,7 @@ router.post('/setup-database', async (req, res) => {
         status TEXT NOT NULL DEFAULT 'planned' CHECK(status IN ('planned', 'active', 'completed', 'cancelled')),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (formation_id) REFERENCES formations(id) ON DELETE SET NULL,
         FOREIGN KEY (segment_id) REFERENCES segments(id) ON DELETE SET NULL,
         FOREIGN KEY (city_id) REFERENCES cities(id) ON DELETE SET NULL,
         FOREIGN KEY (instructor_id) REFERENCES profiles(id) ON DELETE SET NULL

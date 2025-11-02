@@ -7,6 +7,8 @@ export interface FormationSession {
   id: string;
   name: string;
   description?: string;
+  formation_id?: string;
+  formation_title?: string;
   start_date: string;
   end_date: string;
   segment_id?: string;
@@ -71,6 +73,7 @@ export interface FormationStats {
 export interface CreateSessionInput {
   name: string;
   description?: string;
+  formation_id?: string;
   start_date: string;
   end_date: string;
   segment_id?: string;
@@ -83,6 +86,7 @@ export interface CreateSessionInput {
 export interface UpdateSessionInput {
   name?: string;
   description?: string;
+  formation_id?: string;
   start_date?: string;
   end_date?: string;
   segment_id?: string;
