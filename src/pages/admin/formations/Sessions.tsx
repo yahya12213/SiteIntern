@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Plus, Edit2, Trash2, Users, AlertCircle } from 'lucide-react';
 import { useSessions, useDeleteSession, useFormationStats } from '@/hooks/useFormations';
 import { SessionFormModal } from '@/components/admin/formations/SessionFormModal';
-import { EnrollStudentsModal } from '@/components/admin/formations/EnrollStudentsModal';
+import { EnrollmentModal } from '@/components/admin/formations/EnrollmentModal';
 import type { FormationSession } from '@/types/formations';
 
 const Sessions: React.FC = () => {
@@ -300,7 +300,7 @@ const Sessions: React.FC = () => {
       )}
 
       {sessionToEnroll && (
-        <EnrollStudentsModal
+        <EnrollmentModal
           session={sessionToEnroll}
           onClose={() => setSessionToEnroll(null)}
         />
