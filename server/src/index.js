@@ -23,6 +23,7 @@ import coursRouter from './routes/cours.js';
 import progressRouter from './routes/progress.js';
 import setupProgressRouter from './routes/setup-progress.js';
 import migrationSessionsRouter from './routes/migration-sessions.js';
+import migrationSessionsCompleteRouter from './routes/migration-sessions-complete.js';
 
 dotenv.config();
 
@@ -48,6 +49,7 @@ app.use('/api/progress', progressRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
 app.use('/api/migration-sessions', migrationSessionsRouter); // TEMPORARY - Migration pour ajouter formation_id
+app.use('/api/migration-sessions-complete', migrationSessionsCompleteRouter); // TEMPORARY - Migration complète sessions
 
 // Health check
 app.get('/api/health', async (req, res) => {
