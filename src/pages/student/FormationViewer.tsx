@@ -12,14 +12,18 @@ import {
   ChevronRight,
   ChevronDown,
   Lock,
+  CheckCircle,
 } from 'lucide-react';
 import { useFormation } from '@/hooks/useCours';
+import { useFormationProgress } from '@/hooks/useProgress';
+import { ProgressBar, ProgressStats } from '@/components/student/ProgressBar';
 import type { FormationModule } from '@/types/cours';
 
 const FormationViewer: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: formation, isLoading, error } = useFormation(id);
+  const { data: progressData } = useFormationProgress(id);
 
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
 
@@ -31,6 +35,20 @@ const FormationViewer: React.FC = () => {
       newExpanded.add(moduleId);
     }
     setExpandedModules(newExpanded);
+  };
+
+  // Check if video is completed
+  const isVideoCompleted = (videoId: string): boolean => {
+    return progressData?.video_progress.some(
+      (vp) => vp.video_id === videoId && vp.completed_at
+    ) || false;
+  };
+
+  // Check if test is passed
+  const isTestPassed = (testId: string): boolean => {
+    return progressData?.test_attempts.some(
+      (ta) => ta.test_id === testId && ta.passed
+    ) || false;
   };
 
   const getLevelBadge = (level?: string) => {
@@ -166,6 +184,39 @@ const FormationViewer: React.FC = () => {
           </div>
         </div>
 
+        {/* Progress Section */}
+        {progressData && (
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Votre progression</h2>
+
+            {/* Overall Progress */}
+            <div className="mb-6">
+              <ProgressBar
+                progress={progressData.summary.overall_progress}
+                label="Progression globale"
+                color="purple"
+                size="lg"
+              />
+            </div>
+
+            {/* Detailed Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ProgressStats
+                completed={progressData.summary.completed_videos}
+                total={progressData.summary.total_videos}
+                label="Vidéos terminées"
+                color="blue"
+              />
+              <ProgressStats
+                completed={progressData.summary.passed_tests}
+                total={progressData.summary.total_tests}
+                label="Tests réussis"
+                color="green"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Content */}
         {modules.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
@@ -250,63 +301,85 @@ const FormationViewer: React.FC = () => {
                     {isExpanded && hasContent && (
                       <div className="bg-gray-50 px-4 py-3 space-y-2">
                         {/* Videos */}
-                        {videos.map((video, vIndex) => (
-                          <div
-                            key={video.id}
-                            className="bg-white rounded-lg border border-purple-200 p-3 hover:shadow-md transition-shadow cursor-pointer"
-                            onClick={() =>
-                              navigate(
-                                `/student/formations/${formation.id}/videos/${video.id}`
-                              )
-                            }
-                          >
-                            <div className="flex items-center gap-3">
-                              <PlayCircle className="h-5 w-5 text-purple-600 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900">
-                                  Vidéo {vIndex + 1}: {video.title}
-                                </p>
-                                {video.duration_seconds && (
-                                  <p className="text-xs text-gray-500">
-                                    Durée: {Math.floor(video.duration_seconds / 60)} min{' '}
-                                    {video.duration_seconds % 60} sec
+                        {videos.map((video, vIndex) => {
+                          const completed = isVideoCompleted(video.id);
+                          return (
+                            <div
+                              key={video.id}
+                              className={`bg-white rounded-lg border p-3 hover:shadow-md transition-shadow cursor-pointer ${
+                                completed ? 'border-green-300 bg-green-50' : 'border-purple-200'
+                              }`}
+                              onClick={() =>
+                                navigate(
+                                  `/student/formations/${formation.id}/videos/${video.id}`
+                                )
+                              }
+                            >
+                              <div className="flex items-center gap-3">
+                                <PlayCircle className={`h-5 w-5 flex-shrink-0 ${
+                                  completed ? 'text-green-600' : 'text-purple-600'
+                                }`} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900">
+                                    Vidéo {vIndex + 1}: {video.title}
                                   </p>
+                                  {video.duration_seconds && (
+                                    <p className="text-xs text-gray-500">
+                                      Durée: {Math.floor(video.duration_seconds / 60)} min{' '}
+                                      {video.duration_seconds % 60} sec
+                                    </p>
+                                  )}
+                                </div>
+                                {completed ? (
+                                  <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                                ) : (
+                                  <ChevronRight className="h-5 w-5 text-gray-400" />
                                 )}
                               </div>
-                              <ChevronRight className="h-5 w-5 text-gray-400" />
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
 
                         {/* Tests */}
-                        {tests.map((test, tIndex) => (
-                          <div
-                            key={test.id}
-                            className="bg-white rounded-lg border border-orange-200 p-3 hover:shadow-md transition-shadow cursor-pointer"
-                            onClick={() =>
-                              navigate(`/student/formations/${formation.id}/tests/${test.id}`)
-                            }
-                          >
-                            <div className="flex items-center gap-3">
-                              <FileQuestion className="h-5 w-5 text-orange-600 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900">
-                                  Test {tIndex + 1}: {test.title}
-                                </p>
-                                <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                                  {test.questions && (
-                                    <span>{test.questions.length} question(s)</span>
-                                  )}
-                                  {test.time_limit_minutes && (
-                                    <span>⏱️ {test.time_limit_minutes} min</span>
-                                  )}
-                                  <span>Score min: {test.passing_score}%</span>
+                        {tests.map((test, tIndex) => {
+                          const passed = isTestPassed(test.id);
+                          return (
+                            <div
+                              key={test.id}
+                              className={`bg-white rounded-lg border p-3 hover:shadow-md transition-shadow cursor-pointer ${
+                                passed ? 'border-green-300 bg-green-50' : 'border-orange-200'
+                              }`}
+                              onClick={() =>
+                                navigate(`/student/formations/${formation.id}/tests/${test.id}`)
+                              }
+                            >
+                              <div className="flex items-center gap-3">
+                                <FileQuestion className={`h-5 w-5 flex-shrink-0 ${
+                                  passed ? 'text-green-600' : 'text-orange-600'
+                                }`} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900">
+                                    Test {tIndex + 1}: {test.title}
+                                  </p>
+                                  <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                                    {test.questions && (
+                                      <span>{test.questions.length} question(s)</span>
+                                    )}
+                                    {test.time_limit_minutes && (
+                                      <span>⏱️ {test.time_limit_minutes} min</span>
+                                    )}
+                                    <span>Score min: {test.passing_score}%</span>
+                                  </div>
                                 </div>
+                                {passed ? (
+                                  <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                                ) : (
+                                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                                )}
                               </div>
-                              <ChevronRight className="h-5 w-5 text-gray-400" />
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
