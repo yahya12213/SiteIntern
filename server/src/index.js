@@ -54,15 +54,23 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Serve static files from the React app (dist folder)
-// The dist folder is copied to server/dist during build
-const distPath = path.join(__dirname, '../dist');
+// Dist folder is at the project root (../../dist from server/src)
+const distPath = path.join(__dirname, '../../dist');
 console.log('📁 __dirname:', __dirname);
+console.log('📁 process.cwd():', process.cwd());
 console.log('📁 Dist path:', distPath);
 console.log('📂 Dist exists?', fs.existsSync(distPath));
 
 if (!fs.existsSync(distPath)) {
   console.error('❌ ERROR: dist folder not found! Build may have failed.');
   console.error('Expected location:', distPath);
+  // List what's actually in the parent directories for debugging
+  try {
+    const parentDir = path.join(__dirname, '../..');
+    console.log('📂 Contents of project root:', fs.readdirSync(parentDir));
+  } catch (e) {
+    console.error('Could not list parent directory');
+  }
 }
 
 app.use(express.static(distPath));
