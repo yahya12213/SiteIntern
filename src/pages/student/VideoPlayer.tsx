@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -9,14 +9,18 @@ import {
   BookOpen,
   ChevronRight,
   ChevronLeft,
+  CheckCircle,
 } from 'lucide-react';
 import { useFormation } from '@/hooks/useCours';
+import { useMarkVideoComplete, useFormationVideoProgress } from '@/hooks/useProgress';
 import type { FormationModule, ModuleVideo } from '@/types/cours';
 
 const VideoPlayer: React.FC = () => {
   const { id: formationId, videoId } = useParams<{ id: string; videoId: string }>();
   const navigate = useNavigate();
   const { data: formation, isLoading, error } = useFormation(formationId);
+  const { data: videoProgress } = useFormationVideoProgress(formationId);
+  const markComplete = useMarkVideoComplete();
 
   // Find current video and its module
   const currentVideo = formation?.modules
@@ -67,9 +71,30 @@ const VideoPlayer: React.FC = () => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  // Handle video completion tracking
-  // In a real app, you would track video progress here using useEffect
-  // For now, this functionality is disabled
+  // Check if current video is completed
+  const isCompleted = videoProgress?.some(
+    (vp) => vp.video_id === videoId && vp.completed_at
+  ) || false;
+
+  // Handle marking video as complete
+  const handleMarkComplete = async () => {
+    if (!videoId || isCompleted) return;
+
+    try {
+      await markComplete.mutateAsync(videoId);
+    } catch (error) {
+      console.error('Erreur lors du marquage de la vidéo:', error);
+    }
+  };
+
+  // Auto-record video watch when component mounts
+  useEffect(() => {
+    // This would be where we track video viewing
+    // For now, we'll just log it
+    if (videoId) {
+      console.log('Vidéo en cours de visionnage:', videoId);
+    }
+  }, [videoId]);
 
   if (isLoading) {
     return (
@@ -113,6 +138,22 @@ const VideoPlayer: React.FC = () => {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour à la formation
           </Button>
+
+          {isCompleted ? (
+            <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
+              <CheckCircle className="h-5 w-5" />
+              <span>Vidéo terminée</span>
+            </div>
+          ) : (
+            <Button
+              onClick={handleMarkComplete}
+              disabled={markComplete.isPending}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              {markComplete.isPending ? 'Enregistrement...' : 'Marquer comme terminé'}
+            </Button>
+          )}
         </div>
 
         {/* Video Player */}

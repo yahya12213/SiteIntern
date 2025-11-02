@@ -13,6 +13,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { useFormation } from '@/hooks/useCours';
+import { useSubmitTestAttempt } from '@/hooks/useProgress';
 
 interface AnswerState {
   [questionId: string]: string; // questionId -> selected choiceId
@@ -22,6 +23,7 @@ const TestTaking: React.FC = () => {
   const { id: formationId, testId } = useParams<{ id: string; testId: string }>();
   const navigate = useNavigate();
   const { data: formation, isLoading, error } = useFormation(formationId);
+  const submitAttempt = useSubmitTestAttempt();
 
   const [answers, setAnswers] = useState<AnswerState>({});
   const [submitted, setSubmitted] = useState(false);
@@ -70,8 +72,8 @@ const TestTaking: React.FC = () => {
     }));
   };
 
-  const handleSubmit = () => {
-    if (submitted) return;
+  const handleSubmit = async () => {
+    if (submitted || !testId) return;
 
     // Check if all questions are answered
     const unansweredCount = questions.filter((q) => !answers[q.id]).length;
@@ -86,6 +88,40 @@ const TestTaking: React.FC = () => {
     }
 
     setSubmitted(true);
+
+    // Calculate score immediately after submission
+    let totalPoints = 0;
+    let earnedPoints = 0;
+
+    questions.forEach((question) => {
+      totalPoints += question.points;
+      const selectedChoiceId = answers[question.id];
+      if (selectedChoiceId) {
+        const selectedChoice = question.choices.find((c) => c.id === selectedChoiceId);
+        if (selectedChoice?.is_correct) {
+          earnedPoints += question.points;
+        }
+      }
+    });
+
+    const pointsPercentage = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
+    const passed = pointsPercentage >= (currentTest?.passing_score || 70);
+
+    // Save attempt to database
+    try {
+      await submitAttempt.mutateAsync({
+        testId,
+        data: {
+          answers,
+          score: earnedPoints,
+          total_points: totalPoints,
+          passed,
+        },
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'enregistrement de la tentative:', error);
+      // Continue even if save fails - user can still see results
+    }
   };
 
   // Calculate score
