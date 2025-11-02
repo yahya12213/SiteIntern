@@ -28,10 +28,10 @@ router.get('/add-formation-id', async (req, res) => {
       });
     }
 
-    // Ajouter la colonne formation_id
+    // Ajouter la colonne formation_id (TEXT pour correspondre à la structure existante)
     await pool.query(`
       ALTER TABLE sessions
-      ADD COLUMN formation_id UUID REFERENCES formations(id) ON DELETE SET NULL
+      ADD COLUMN formation_id TEXT REFERENCES formations(id) ON DELETE SET NULL
     `);
     console.log('✅ Column formation_id added successfully');
 
@@ -101,10 +101,10 @@ router.get('/add-formation-id-alt', async (req, res) => {
       });
     }
 
-    // Ajouter la colonne
+    // Ajouter la colonne (TEXT pour correspondre à la structure existante)
     await pool.query(`
       ALTER TABLE formation_sessions
-      ADD COLUMN formation_id UUID REFERENCES formations(id) ON DELETE SET NULL
+      ADD COLUMN formation_id TEXT REFERENCES formations(id) ON DELETE SET NULL
     `);
     console.log('✅ Column formation_id added to formation_sessions');
 
