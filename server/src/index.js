@@ -1,7 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import pool from './config/database.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Import routes
 import segmentsRouter from './routes/segments.js';
@@ -45,6 +50,16 @@ app.get('/api/health', async (req, res) => {
   } catch (error) {
     res.status(500).json({ status: 'Error', database: 'Disconnected', error: error.message });
   }
+});
+
+// Serve static files from the React app (dist folder)
+const distPath = path.join(__dirname, '../../dist');
+app.use(express.static(distPath));
+
+// The "catchall" handler: for any request that doesn't match API routes,
+// send back React's index.html file.
+app.get('*', (req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 // Error handling middleware

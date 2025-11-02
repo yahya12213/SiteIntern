@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && cd server && npm install",
     "lint": "eslint .",
     "preview": "serve dist -s -l ${PORT:-8080}",
-    "start": "serve dist -s -l ${PORT:-8080}"
+    "start": "cd server && node src/index.js"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.5",
