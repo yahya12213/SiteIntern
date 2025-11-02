@@ -9,6 +9,10 @@ export interface FormationSession {
   description?: string;
   start_date: string;
   end_date: string;
+  segment_id?: string;
+  city_id?: string;
+  segment_name?: string;
+  city_name?: string;
   instructor_id?: string;
   instructor_name?: string;
   instructor_username?: string;
@@ -69,6 +73,8 @@ export interface CreateSessionInput {
   description?: string;
   start_date: string;
   end_date: string;
+  segment_id?: string;
+  city_id?: string;
   instructor_id?: string;
   max_capacity?: number;
   status?: SessionStatus;
@@ -79,6 +85,8 @@ export interface UpdateSessionInput {
   description?: string;
   start_date?: string;
   end_date?: string;
+  segment_id?: string;
+  city_id?: string;
   instructor_id?: string;
   max_capacity?: number;
   status?: SessionStatus;

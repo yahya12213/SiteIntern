@@ -11,11 +11,15 @@ router.get('/sessions', async (req, res) => {
       SELECT
         fs.*,
         p.full_name as instructor_name,
+        s.name as segment_name,
+        c.name as city_name,
         COUNT(DISTINCT fe.id) as enrolled_count
       FROM formation_sessions fs
       LEFT JOIN profiles p ON fs.instructor_id = p.id
+      LEFT JOIN segments s ON fs.segment_id = s.id
+      LEFT JOIN cities c ON fs.city_id = c.id
       LEFT JOIN formation_enrollments fe ON fs.id = fe.session_id AND fe.status = 'enrolled'
-      GROUP BY fs.id, p.full_name
+      GROUP BY fs.id, p.full_name, s.name, c.name
       ORDER BY fs.created_at DESC
     `;
 
@@ -36,9 +40,13 @@ router.get('/sessions/:id', async (req, res) => {
       SELECT
         fs.*,
         p.full_name as instructor_name,
-        p.username as instructor_username
+        p.username as instructor_username,
+        s.name as segment_name,
+        c.name as city_name
       FROM formation_sessions fs
       LEFT JOIN profiles p ON fs.instructor_id = p.id
+      LEFT JOIN segments s ON fs.segment_id = s.id
+      LEFT JOIN cities c ON fs.city_id = c.id
       WHERE fs.id = $1
     `;
 
@@ -79,7 +87,7 @@ router.get('/sessions/:id', async (req, res) => {
 // POST /api/formations/sessions - Créer une session
 router.post('/sessions', async (req, res) => {
   try {
-    const { name, description, start_date, end_date, instructor_id, max_capacity, status } = req.body;
+    const { name, description, start_date, end_date, segment_id, city_id, instructor_id, max_capacity, status } = req.body;
 
     // Validation
     if (!name || !start_date || !end_date) {
@@ -91,8 +99,8 @@ router.post('/sessions', async (req, res) => {
 
     const query = `
       INSERT INTO formation_sessions
-        (id, name, description, start_date, end_date, instructor_id, max_capacity, status, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        (id, name, description, start_date, end_date, segment_id, city_id, instructor_id, max_capacity, status, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
     `;
 
@@ -102,6 +110,8 @@ router.post('/sessions', async (req, res) => {
       description || null,
       start_date,
       end_date,
+      segment_id || null,
+      city_id || null,
       instructor_id || null,
       max_capacity || null,
       status || 'planned',
@@ -121,7 +131,7 @@ router.post('/sessions', async (req, res) => {
 router.put('/sessions/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, start_date, end_date, instructor_id, max_capacity, status } = req.body;
+    const { name, description, start_date, end_date, segment_id, city_id, instructor_id, max_capacity, status } = req.body;
 
     const now = new Date().toISOString();
 
@@ -132,11 +142,13 @@ router.put('/sessions/:id', async (req, res) => {
         description = COALESCE($2, description),
         start_date = COALESCE($3, start_date),
         end_date = COALESCE($4, end_date),
-        instructor_id = $5,
-        max_capacity = $6,
-        status = COALESCE($7, status),
-        updated_at = $8
-      WHERE id = $9
+        segment_id = $5,
+        city_id = $6,
+        instructor_id = $7,
+        max_capacity = $8,
+        status = COALESCE($9, status),
+        updated_at = $10
+      WHERE id = $11
       RETURNING *
     `;
 
@@ -145,6 +157,8 @@ router.put('/sessions/:id', async (req, res) => {
       description,
       start_date,
       end_date,
+      segment_id,
+      city_id,
       instructor_id,
       max_capacity,
       status,
