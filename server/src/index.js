@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import pool from './config/database.js';
 
@@ -53,8 +54,27 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Serve static files from the React app (dist folder)
-const distPath = path.join(__dirname, '../../dist');
-console.log('📁 Dist path:', distPath);
+// Try to find dist folder - it could be in different locations depending on environment
+let distPath = path.join(__dirname, '../../dist');
+console.log('📁 __dirname:', __dirname);
+console.log('📁 process.cwd():', process.cwd());
+console.log('📁 Trying dist path:', distPath);
+
+// If that doesn't exist, try from process.cwd()
+if (!fs.existsSync(distPath)) {
+  console.log('⚠️  First path not found, trying from cwd...');
+  distPath = path.join(process.cwd(), 'dist');
+  console.log('📁 Alternative dist path:', distPath);
+
+  if (!fs.existsSync(distPath)) {
+    console.log('⚠️  Still not found, trying ../dist from cwd...');
+    distPath = path.join(process.cwd(), '../dist');
+    console.log('📁 Third attempt dist path:', distPath);
+  }
+}
+
+console.log('✅ Final dist path:', distPath);
+console.log('📂 Dist exists?', fs.existsSync(distPath));
 app.use(express.static(distPath));
 
 // The "catchall" handler: for any request that doesn't match API routes,
