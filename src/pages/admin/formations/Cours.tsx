@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { BookOpen, Plus, Edit2, Trash2, AlertCircle, Video, FileQuestion, DollarSign, Settings } from 'lucide-react';
 import { useFormations, useDeleteFormation, useCoursStats } from '@/hooks/useCours';
 import { FormationFormModal } from '@/components/admin/formations/FormationFormModal';
+import { formatPrice } from '@/lib/utils/formatPrice';
 import type { Formation } from '@/types/cours';
 
 const Cours: React.FC = () => {
@@ -206,10 +207,10 @@ const Cours: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-1 text-sm text-gray-900">
-                          {formation.price ? (
+                          {formation.price && Number(formation.price) > 0 ? (
                             <>
                               <DollarSign className="h-4 w-4 text-gray-400" />
-                              {formation.price.toFixed(2)} MAD
+                              {formatPrice(formation.price)}
                             </>
                           ) : (
                             <span className="text-gray-400">Gratuit</span>

@@ -23,6 +23,7 @@ import {
 import { ModuleFormModal } from '@/components/admin/formations/ModuleFormModal';
 import { VideoFormModal } from '@/components/admin/formations/VideoFormModal';
 import { TestFormModal } from '@/components/admin/formations/TestFormModal';
+import { formatPrice } from '@/lib/utils/formatPrice';
 import type { FormationModule, ModuleVideo, ModuleTest } from '@/types/cours';
 
 const FormationEditor: React.FC = () => {
@@ -184,7 +185,7 @@ const FormationEditor: React.FC = () => {
                 {formation.duration_hours && (
                   <span>{formation.duration_hours}h de contenu</span>
                 )}
-                {formation.price && <span>{formation.price.toFixed(2)} MAD</span>}
+                {formation.price && Number(formation.price) > 0 && <span>{formatPrice(formation.price)}</span>}
                 <span>{modules.length} module(s)</span>
               </div>
             </div>

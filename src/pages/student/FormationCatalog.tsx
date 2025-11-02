@@ -13,6 +13,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { useFormations } from '@/hooks/useCours';
+import { formatPrice } from '@/lib/utils/formatPrice';
 import type { FormationLevel } from '@/types/cours';
 
 const FormationCatalog: React.FC = () => {
@@ -246,10 +247,10 @@ const FormationCatalog: React.FC = () => {
                   </div>
 
                   {/* Price */}
-                  {formation.price !== undefined && formation.price > 0 && (
+                  {formation.price !== undefined && formation.price !== null && Number(formation.price) > 0 && (
                     <div className="mb-4 pb-4 border-b">
                       <p className="text-2xl font-bold text-blue-600">
-                        {formation.price.toFixed(2)} MAD
+                        {formatPrice(formation.price)}
                       </p>
                     </div>
                   )}

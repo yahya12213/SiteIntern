@@ -10,7 +10,7 @@ export interface Formation {
   id: string;
   title: string;
   description?: string;
-  price?: number;
+  price?: number | string; // PostgreSQL DECIMAL est renvoyé comme string
   duration_hours?: number;
   level?: FormationLevel;
   thumbnail_url?: string;
