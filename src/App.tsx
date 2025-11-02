@@ -19,6 +19,7 @@ import Sessions from './pages/admin/formations/Sessions';
 import Cours from './pages/admin/formations/Cours';
 import FormationEditor from './pages/admin/formations/FormationEditor';
 import StudentDashboard from './pages/student/StudentDashboard';
+import FormationCatalog from './pages/student/FormationCatalog';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean; gerantOnly?: boolean }> = ({
@@ -225,6 +226,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <StudentDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/student/catalog"
+        element={
+          <ProtectedRoute>
+            <FormationCatalog />
           </ProtectedRoute>
         }
       />
