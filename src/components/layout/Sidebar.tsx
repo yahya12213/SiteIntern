@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   GraduationCap,
   Calendar,
+  BookOpen,
 } from 'lucide-react';
 
 interface NavSection {
@@ -59,6 +60,7 @@ export const Sidebar: React.FC = () => {
       title: 'Formation en Ligne',
       icon: GraduationCap,
       items: [
+        { to: '/admin/formations/cours', icon: BookOpen, label: 'Formations' },
         { to: '/admin/formations/sessions', icon: Calendar, label: 'Sessions' },
       ],
     },

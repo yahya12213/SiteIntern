@@ -1,0 +1,113 @@
+import { apiClient } from './client';
+import type {
+  Formation,
+  FormationModule,
+  ModuleVideo,
+  ModuleTest,
+  TestQuestion,
+  QuestionChoice,
+  CoursStats,
+  CreateFormationInput,
+  UpdateFormationInput,
+  CreateModuleInput,
+  UpdateModuleInput,
+  CreateVideoInput,
+  UpdateVideoInput,
+  CreateTestInput,
+  UpdateTestInput,
+  CreateQuestionInput,
+  UpdateQuestionInput,
+  CreateChoiceInput,
+  UpdateChoiceInput,
+} from '@/types/cours';
+
+export const coursApi = {
+  // ============================================
+  // Formations
+  // ============================================
+  getFormations: () => apiClient.get<Formation[]>('/cours/formations'),
+
+  getFormation: (id: string) => apiClient.get<Formation>(`/cours/formations/${id}`),
+
+  createFormation: (data: CreateFormationInput) =>
+    apiClient.post<Formation>('/cours/formations', data),
+
+  updateFormation: (id: string, data: UpdateFormationInput) =>
+    apiClient.put<Formation>(`/cours/formations/${id}`, data),
+
+  deleteFormation: (id: string) =>
+    apiClient.delete<{ message: string; formation: Formation }>(`/cours/formations/${id}`),
+
+  // ============================================
+  // Modules
+  // ============================================
+  getModules: (formationId: string) =>
+    apiClient.get<FormationModule[]>(`/cours/formations/${formationId}/modules`),
+
+  createModule: (formationId: string, data: CreateModuleInput) =>
+    apiClient.post<FormationModule>(`/cours/formations/${formationId}/modules`, data),
+
+  updateModule: (id: string, data: UpdateModuleInput) =>
+    apiClient.put<FormationModule>(`/cours/modules/${id}`, data),
+
+  deleteModule: (id: string) =>
+    apiClient.delete<{ message: string; module: FormationModule }>(`/cours/modules/${id}`),
+
+  reorderModule: (id: string, new_order_index: number) =>
+    apiClient.put<FormationModule>(`/cours/modules/${id}/reorder`, { new_order_index }),
+
+  // ============================================
+  // Vidéos
+  // ============================================
+  createVideo: (moduleId: string, data: CreateVideoInput) =>
+    apiClient.post<ModuleVideo>(`/cours/modules/${moduleId}/videos`, data),
+
+  updateVideo: (id: string, data: UpdateVideoInput) =>
+    apiClient.put<ModuleVideo>(`/cours/videos/${id}`, data),
+
+  deleteVideo: (id: string) =>
+    apiClient.delete<{ message: string; video: ModuleVideo }>(`/cours/videos/${id}`),
+
+  // ============================================
+  // Tests
+  // ============================================
+  createTest: (moduleId: string, data: CreateTestInput) =>
+    apiClient.post<ModuleTest>(`/cours/modules/${moduleId}/tests`, data),
+
+  getTest: (id: string) => apiClient.get<ModuleTest>(`/cours/tests/${id}`),
+
+  updateTest: (id: string, data: UpdateTestInput) =>
+    apiClient.put<ModuleTest>(`/cours/tests/${id}`, data),
+
+  deleteTest: (id: string) =>
+    apiClient.delete<{ message: string; test: ModuleTest }>(`/cours/tests/${id}`),
+
+  // ============================================
+  // Questions
+  // ============================================
+  createQuestion: (testId: string, data: CreateQuestionInput) =>
+    apiClient.post<TestQuestion>(`/cours/tests/${testId}/questions`, data),
+
+  updateQuestion: (id: string, data: UpdateQuestionInput) =>
+    apiClient.put<TestQuestion>(`/cours/questions/${id}`, data),
+
+  deleteQuestion: (id: string) =>
+    apiClient.delete<{ message: string; question: TestQuestion }>(`/cours/questions/${id}`),
+
+  // ============================================
+  // Choix de réponse
+  // ============================================
+  createChoice: (questionId: string, data: CreateChoiceInput) =>
+    apiClient.post<QuestionChoice>(`/cours/questions/${questionId}/choices`, data),
+
+  updateChoice: (id: string, data: UpdateChoiceInput) =>
+    apiClient.put<QuestionChoice>(`/cours/choices/${id}`, data),
+
+  deleteChoice: (id: string) =>
+    apiClient.delete<{ message: string; choice: QuestionChoice }>(`/cours/choices/${id}`),
+
+  // ============================================
+  // Statistiques
+  // ============================================
+  getStats: () => apiClient.get<CoursStats>('/cours/stats'),
+};

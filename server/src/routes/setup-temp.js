@@ -141,6 +141,84 @@ router.post('/setup-database', async (req, res) => {
         UNIQUE(session_id, student_id)
       );
 
+      -- Table des formations en ligne
+      CREATE TABLE IF NOT EXISTS formations (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        price DECIMAL(10, 2),
+        duration_hours INTEGER,
+        level TEXT CHECK(level IN ('debutant', 'intermediaire', 'avance')),
+        thumbnail_url TEXT,
+        status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'published')),
+        passing_score_percentage INTEGER DEFAULT 80,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Table des modules de formation (étapes/chapitres)
+      CREATE TABLE IF NOT EXISTS formation_modules (
+        id TEXT PRIMARY KEY,
+        formation_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        order_index INTEGER NOT NULL,
+        prerequisite_module_id TEXT,
+        module_type TEXT NOT NULL CHECK(module_type IN ('video', 'test', 'document')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (formation_id) REFERENCES formations(id) ON DELETE CASCADE,
+        FOREIGN KEY (prerequisite_module_id) REFERENCES formation_modules(id) ON DELETE SET NULL
+      );
+
+      -- Table des vidéos des modules
+      CREATE TABLE IF NOT EXISTS module_videos (
+        id TEXT PRIMARY KEY,
+        module_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        youtube_url TEXT NOT NULL,
+        duration_seconds INTEGER,
+        description TEXT,
+        order_index INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (module_id) REFERENCES formation_modules(id) ON DELETE CASCADE
+      );
+
+      -- Table des tests des modules
+      CREATE TABLE IF NOT EXISTS module_tests (
+        id TEXT PRIMARY KEY,
+        module_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        passing_score INTEGER DEFAULT 80,
+        time_limit_minutes INTEGER,
+        max_attempts INTEGER,
+        show_correct_answers BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (module_id) REFERENCES formation_modules(id) ON DELETE CASCADE
+      );
+
+      -- Table des questions de test
+      CREATE TABLE IF NOT EXISTS test_questions (
+        id TEXT PRIMARY KEY,
+        test_id TEXT NOT NULL,
+        question_text TEXT NOT NULL,
+        question_type TEXT NOT NULL DEFAULT 'multiple_choice' CHECK(question_type IN ('multiple_choice')),
+        points INTEGER DEFAULT 1,
+        order_index INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (test_id) REFERENCES module_tests(id) ON DELETE CASCADE
+      );
+
+      -- Table des choix de réponse
+      CREATE TABLE IF NOT EXISTS question_choices (
+        id TEXT PRIMARY KEY,
+        question_id TEXT NOT NULL,
+        choice_text TEXT NOT NULL,
+        is_correct BOOLEAN DEFAULT false,
+        order_index INTEGER NOT NULL,
+        FOREIGN KEY (question_id) REFERENCES test_questions(id) ON DELETE CASCADE
+      );
+
       -- Insérer un admin par défaut
       INSERT INTO profiles (id, username, password, full_name, role)
       VALUES ('admin_1', 'admin', '$2a$10$XQZ9cKZJ6rPzN.z5w5vZDeH8YnZ1vQxZJ7XZ7qJzN1vQxZJ7XZ7qJ', 'Administrateur', 'admin')
