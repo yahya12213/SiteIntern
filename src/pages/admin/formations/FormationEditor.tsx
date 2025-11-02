@@ -21,6 +21,7 @@ import {
   useDeleteTest,
 } from '@/hooks/useCours';
 import { ModuleFormModal } from '@/components/admin/formations/ModuleFormModal';
+import { VideoFormModal } from '@/components/admin/formations/VideoFormModal';
 import type { FormationModule, ModuleVideo, ModuleTest } from '@/types/cours';
 
 const FormationEditor: React.FC = () => {
@@ -411,18 +412,15 @@ const FormationEditor: React.FC = () => {
         />
       )}
 
-      {showVideoModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md">
-            <p className="text-center text-gray-600">
-              Le formulaire de vidéo sera implémenté dans la prochaine étape.
-              {selectedModuleId && ` (Module ID: ${selectedModuleId})`}
-            </p>
-            <Button onClick={() => setShowVideoModal(false)} className="mt-4 w-full">
-              Fermer
-            </Button>
-          </div>
-        </div>
+      {/* Video Modal */}
+      {showVideoModal && selectedModuleId && (
+        <VideoFormModal
+          moduleId={selectedModuleId}
+          onClose={() => {
+            setShowVideoModal(false);
+            setSelectedModuleId(null);
+          }}
+        />
       )}
 
       {showTestModal && (
