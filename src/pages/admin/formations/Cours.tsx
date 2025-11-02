@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Plus, Edit2, Trash2, AlertCircle, Video, FileQuestion, DollarSign } from 'lucide-react';
+import { BookOpen, Plus, Edit2, Trash2, AlertCircle, Video, FileQuestion, DollarSign, Settings } from 'lucide-react';
 import { useFormations, useDeleteFormation, useCoursStats } from '@/hooks/useCours';
+import { FormationFormModal } from '@/components/admin/formations/FormationFormModal';
 import type { Formation } from '@/types/cours';
 
 const Cours: React.FC = () => {
+  const navigate = useNavigate();
   const { data: formations, isLoading, error } = useFormations();
   const { data: stats } = useCoursStats();
   const deleteFormation = useDeleteFormation();
@@ -228,9 +231,18 @@ const Cours: React.FC = () => {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => navigate(`/admin/formations/cours/${formation.id}/editor`)}
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                            title="Gérer le contenu (modules, vidéos, tests)"
+                          >
+                            <Settings className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setFormationToEdit(formation)}
                             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            title="Éditer la formation"
+                            title="Éditer les informations"
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
@@ -269,33 +281,18 @@ const Cours: React.FC = () => {
         )}
       </div>
 
-      {/* TODO: Modals pour création/édition à implémenter dans les prochaines étapes */}
+      {/* Modals */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">Créer une formation</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Le formulaire de création sera implémenté dans la prochaine étape.
-            </p>
-            <Button onClick={() => setShowCreateModal(false)}>
-              Fermer
-            </Button>
-          </div>
-        </div>
+        <FormationFormModal
+          onClose={() => setShowCreateModal(false)}
+        />
       )}
 
       {formationToEdit && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">Éditer la formation</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Le formulaire d'édition sera implémenté dans la prochaine étape.
-            </p>
-            <Button onClick={() => setFormationToEdit(null)}>
-              Fermer
-            </Button>
-          </div>
-        </div>
+        <FormationFormModal
+          formation={formationToEdit}
+          onClose={() => setFormationToEdit(null)}
+        />
       )}
     </AppLayout>
   );
