@@ -21,6 +21,7 @@ import FormationEditor from './pages/admin/formations/FormationEditor';
 import StudentDashboard from './pages/student/StudentDashboard';
 import FormationCatalog from './pages/student/FormationCatalog';
 import FormationViewer from './pages/student/FormationViewer';
+import VideoPlayer from './pages/student/VideoPlayer';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean; gerantOnly?: boolean }> = ({
@@ -245,6 +246,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <FormationViewer />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/student/formations/:id/videos/:videoId"
+        element={
+          <ProtectedRoute>
+            <VideoPlayer />
           </ProtectedRoute>
         }
       />
