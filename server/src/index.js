@@ -54,12 +54,24 @@ app.get('/api/health', async (req, res) => {
 
 // Serve static files from the React app (dist folder)
 const distPath = path.join(__dirname, '../../dist');
+console.log('📁 Dist path:', distPath);
 app.use(express.static(distPath));
 
 // The "catchall" handler: for any request that doesn't match API routes,
 // send back React's index.html file.
 app.get('*', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
+  const indexPath = path.join(distPath, 'index.html');
+  console.log('📄 Attempting to serve:', indexPath);
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error('❌ Error serving index.html:', err);
+      res.status(500).json({
+        error: 'Frontend not found',
+        message: 'The frontend build files are missing. Please ensure npm run build was executed.',
+        distPath: distPath
+      });
+    }
+  });
 });
 
 // Error handling middleware
