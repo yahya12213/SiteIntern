@@ -20,6 +20,7 @@ import {
   useDeleteVideo,
   useDeleteTest,
 } from '@/hooks/useCours';
+import { ModuleFormModal } from '@/components/admin/formations/ModuleFormModal';
 import type { FormationModule, ModuleVideo, ModuleTest } from '@/types/cours';
 
 const FormationEditor: React.FC = () => {
@@ -397,19 +398,17 @@ const FormationEditor: React.FC = () => {
         )}
       </div>
 
-      {/* TODO: Add modals here in next phase */}
-      {showModuleModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md">
-            <p className="text-center text-gray-600">
-              Le formulaire de module sera implémenté dans la prochaine étape.
-              {moduleToEdit && ` (Édition: ${moduleToEdit.title})`}
-            </p>
-            <Button onClick={() => setShowModuleModal(false)} className="mt-4 w-full">
-              Fermer
-            </Button>
-          </div>
-        </div>
+      {/* Module Modal */}
+      {showModuleModal && id && (
+        <ModuleFormModal
+          formationId={id}
+          module={moduleToEdit || undefined}
+          modules={modules}
+          onClose={() => {
+            setShowModuleModal(false);
+            setModuleToEdit(null);
+          }}
+        />
       )}
 
       {showVideoModal && (
