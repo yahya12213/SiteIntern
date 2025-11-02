@@ -22,6 +22,7 @@ import {
 } from '@/hooks/useCours';
 import { ModuleFormModal } from '@/components/admin/formations/ModuleFormModal';
 import { VideoFormModal } from '@/components/admin/formations/VideoFormModal';
+import { TestFormModal } from '@/components/admin/formations/TestFormModal';
 import type { FormationModule, ModuleVideo, ModuleTest } from '@/types/cours';
 
 const FormationEditor: React.FC = () => {
@@ -423,18 +424,15 @@ const FormationEditor: React.FC = () => {
         />
       )}
 
-      {showTestModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md">
-            <p className="text-center text-gray-600">
-              Le formulaire de test sera implémenté dans la prochaine étape.
-              {selectedModuleId && ` (Module ID: ${selectedModuleId})`}
-            </p>
-            <Button onClick={() => setShowTestModal(false)} className="mt-4 w-full">
-              Fermer
-            </Button>
-          </div>
-        </div>
+      {/* Test Modal */}
+      {showTestModal && selectedModuleId && (
+        <TestFormModal
+          moduleId={selectedModuleId}
+          onClose={() => {
+            setShowTestModal(false);
+            setSelectedModuleId(null);
+          }}
+        />
       )}
     </AppLayout>
   );
