@@ -21,6 +21,7 @@ import FormationEditor from './pages/admin/formations/FormationEditor';
 import { Analytics } from './pages/admin/Analytics';
 import { StudentReports } from './pages/admin/StudentReports';
 import { CertificatesManagement } from './pages/admin/CertificatesManagement';
+import { CertificateTemplates } from './pages/admin/CertificateTemplates';
 import { ForumModeration } from './pages/admin/ForumModeration';
 import StudentDashboard from './pages/student/StudentDashboard';
 import FormationCatalog from './pages/student/FormationCatalog';
@@ -235,6 +236,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute adminOnly>
             <CertificatesManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/certificate-templates"
+        element={
+          <ProtectedRoute adminOnly>
+            <CertificateTemplates />
           </ProtectedRoute>
         }
       />

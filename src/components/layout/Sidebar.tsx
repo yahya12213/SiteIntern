@@ -17,6 +17,7 @@ import {
   FileText,
   Award,
   MessageSquare,
+  Palette,
 } from 'lucide-react';
 
 interface NavSection {
@@ -69,6 +70,7 @@ export const Sidebar: React.FC = () => {
         { to: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
         { to: '/admin/student-reports', icon: FileText, label: 'Rapports Étudiants' },
         { to: '/admin/certificates', icon: Award, label: 'Certificats' },
+        { to: '/admin/certificate-templates', icon: Palette, label: 'Templates de Certificats' },
         { to: '/admin/forums', icon: MessageSquare, label: 'Forums' },
       ],
     },
