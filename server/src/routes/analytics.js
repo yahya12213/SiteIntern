@@ -274,7 +274,6 @@ router.get('/active-students', async (req, res) => {
       SELECT
         p.id,
         p.full_name,
-        p.email,
         COUNT(DISTINCT e.id) as enrollments_count,
         COUNT(DISTINCT vp.id) as videos_watched,
         COUNT(DISTINCT CASE WHEN vp.completed_at IS NOT NULL THEN vp.id END) as videos_completed,
@@ -285,7 +284,7 @@ router.get('/active-students', async (req, res) => {
       LEFT JOIN video_progress vp ON vp.student_id = p.id
       LEFT JOIN test_attempts ta ON ta.student_id = p.id
       WHERE p.role = 'student'
-      GROUP BY p.id, p.full_name, p.email
+      GROUP BY p.id, p.full_name
       HAVING COUNT(DISTINCT e.id) > 0
       ORDER BY enrollments_count DESC, videos_completed DESC, tests_passed DESC
       LIMIT $1
