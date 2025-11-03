@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, BookOpen, AlertCircle } from 'lucide-react';
+import { X, BookOpen, AlertCircle, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCreateFormation, useUpdateFormation } from '@/hooks/useCours';
+import { useCertificateTemplates } from '@/hooks/useCertificateTemplates';
 import type { Formation, FormationLevel, FormationStatus } from '@/types/cours';
 
 interface FormationFormModalProps {
@@ -14,6 +15,7 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
   const isEdit = !!formation;
   const createFormation = useCreateFormation();
   const updateFormation = useUpdateFormation();
+  const { data: templates } = useCertificateTemplates();
 
   const [formData, setFormData] = useState({
     title: formation?.title || '',
@@ -24,6 +26,7 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
     thumbnail_url: formation?.thumbnail_url || '',
     status: (formation?.status || 'draft') as FormationStatus,
     passing_score_percentage: formation?.passing_score_percentage?.toString() || '80',
+    default_certificate_template_id: formation?.default_certificate_template_id || '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -72,6 +75,7 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
         thumbnail_url: formData.thumbnail_url.trim() || undefined,
         status: formData.status,
         passing_score_percentage: parseInt(formData.passing_score_percentage),
+        default_certificate_template_id: formData.default_certificate_template_id || undefined,
       };
 
       if (isEdit && formation) {
@@ -255,6 +259,29 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
               placeholder="https://example.com/image.jpg"
             />
             <p className="text-xs text-gray-500 mt-1">Image de présentation de la formation (optionnel)</p>
+          </div>
+
+          {/* Certificate Template */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <Award className="h-4 w-4 text-blue-600" />
+              Template de Certificat
+            </label>
+            <select
+              value={formData.default_certificate_template_id}
+              onChange={(e) => setFormData({ ...formData, default_certificate_template_id: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            >
+              <option value="">Utiliser le template par défaut du système</option>
+              {templates?.map(template => (
+                <option key={template.id} value={template.id}>
+                  {template.name} {template.is_default && '(Défaut système)'}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Ce template sera utilisé pour générer les certificats de cette formation
+            </p>
           </div>
 
           {/* Actions */}

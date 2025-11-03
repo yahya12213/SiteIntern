@@ -14,10 +14,12 @@ router.get('/formations', async (req, res) => {
     const query = `
       SELECT
         f.*,
+        ct.name as certificate_template_name,
         COUNT(DISTINCT fm.id) as module_count
       FROM formations f
+      LEFT JOIN certificate_templates ct ON f.default_certificate_template_id = ct.id
       LEFT JOIN formation_modules fm ON f.id = fm.formation_id
-      GROUP BY f.id
+      GROUP BY f.id, ct.name
       ORDER BY f.created_at DESC
     `;
 
@@ -105,7 +107,8 @@ router.post('/formations', async (req, res) => {
       level,
       thumbnail_url,
       status,
-      passing_score_percentage
+      passing_score_percentage,
+      default_certificate_template_id
     } = req.body;
 
     if (!title) {
@@ -119,15 +122,17 @@ router.post('/formations', async (req, res) => {
       INSERT INTO formations (
         id, title, description, price, duration_hours, level,
         thumbnail_url, status, passing_score_percentage,
+        default_certificate_template_id,
         created_at, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
     `;
 
     const values = [
       id, title, description, price, duration_hours, level,
       thumbnail_url, status || 'draft', passing_score_percentage || 80,
+      default_certificate_template_id || null,
       now, now
     ];
 
@@ -151,7 +156,8 @@ router.put('/formations/:id', async (req, res) => {
       level,
       thumbnail_url,
       status,
-      passing_score_percentage
+      passing_score_percentage,
+      default_certificate_template_id
     } = req.body;
 
     const now = new Date().toISOString();
@@ -167,14 +173,16 @@ router.put('/formations/:id', async (req, res) => {
         thumbnail_url = COALESCE($6, thumbnail_url),
         status = COALESCE($7, status),
         passing_score_percentage = COALESCE($8, passing_score_percentage),
-        updated_at = $9
-      WHERE id = $10
+        default_certificate_template_id = COALESCE($9, default_certificate_template_id),
+        updated_at = $10
+      WHERE id = $11
       RETURNING *
     `;
 
     const values = [
       title, description, price, duration_hours, level,
       thumbnail_url, status, passing_score_percentage,
+      default_certificate_template_id,
       now, id
     ];
 

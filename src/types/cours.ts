@@ -16,6 +16,8 @@ export interface Formation {
   thumbnail_url?: string;
   status: FormationStatus;
   passing_score_percentage: number;
+  default_certificate_template_id?: string;
+  certificate_template_name?: string; // Nom du template (depuis JOIN backend)
   created_at: string;
   updated_at: string;
   module_count?: number;
@@ -108,6 +110,7 @@ export interface CreateFormationInput {
   thumbnail_url?: string;
   status?: FormationStatus;
   passing_score_percentage?: number;
+  default_certificate_template_id?: string;
 }
 
 export interface UpdateFormationInput {
@@ -119,6 +122,7 @@ export interface UpdateFormationInput {
   thumbnail_url?: string;
   status?: FormationStatus;
   passing_score_percentage?: number;
+  default_certificate_template_id?: string;
 }
 
 export interface CreateModuleInput {

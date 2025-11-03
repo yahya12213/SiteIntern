@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Plus, Edit2, Trash2, AlertCircle, Video, FileQuestion, DollarSign, Settings } from 'lucide-react';
+import { BookOpen, Plus, Edit2, Trash2, AlertCircle, Video, FileQuestion, DollarSign, Settings, Award } from 'lucide-react';
 import { useFormations, useDeleteFormation, useCoursStats } from '@/hooks/useCours';
 import { FormationFormModal } from '@/components/admin/formations/FormationFormModal';
 import { formatPrice } from '@/lib/utils/formatPrice';
@@ -174,6 +174,9 @@ const Cours: React.FC = () => {
                       Durée
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Template Certificat
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Statut
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -221,6 +224,16 @@ const Cours: React.FC = () => {
                         <span className="text-sm text-gray-900">
                           {formation.duration_hours ? `${formation.duration_hours}h` : '-'}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {formation.certificate_template_name ? (
+                          <div className="flex items-center gap-1 text-sm">
+                            <Award className="h-4 w-4 text-blue-600" />
+                            <span className="text-gray-900">{formation.certificate_template_name}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">Défaut système</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(formation.status)}`}>
