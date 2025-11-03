@@ -14,7 +14,7 @@ type Tab = 'general' | 'colors' | 'fonts' | 'elements';
 const DEFAULT_TEMPLATE: Omit<CertificateTemplate, 'id' | 'created_at' | 'updated_at'> = {
   name: 'Nouveau Template',
   description: '',
-  is_default: false,
+  folder_id: '',
   template_config: {
     layout: {
       orientation: 'landscape',
@@ -359,19 +359,6 @@ export const CertificateTemplateEditor: React.FC = () => {
                           <option value="letter">Letter</option>
                         </select>
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="is_default"
-                        checked={template.is_default}
-                        onChange={(e) => setTemplate({ ...template, is_default: e.target.checked })}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <label htmlFor="is_default" className="text-sm text-gray-700">
-                        Définir comme template par défaut du système
-                      </label>
                     </div>
                   </>
                 )}

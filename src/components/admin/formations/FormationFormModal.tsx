@@ -272,10 +272,10 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
               onChange={(e) => setFormData({ ...formData, default_certificate_template_id: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             >
-              <option value="">Utiliser le template par défaut du système</option>
+              <option value="">Aucun template sélectionné</option>
               {templates?.map(template => (
                 <option key={template.id} value={template.id}>
-                  {template.name} {template.is_default && '(Défaut système)'}
+                  {template.name}
                 </option>
               ))}
             </select>

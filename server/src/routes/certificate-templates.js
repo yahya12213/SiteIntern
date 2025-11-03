@@ -16,9 +16,13 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT *
-      FROM certificate_templates
-      ORDER BY is_default DESC, created_at DESC
+      SELECT
+        ct.*,
+        tf.name as folder_name,
+        tf.parent_id as folder_parent_id
+      FROM certificate_templates ct
+      LEFT JOIN template_folders tf ON tf.id = ct.folder_id
+      ORDER BY ct.created_at DESC
     `);
 
     res.json({
@@ -205,7 +209,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { name, description, template_config, is_default } = req.body;
+    const { name, description, template_config, folder_id } = req.body;
 
     if (!name || !template_config) {
       return res.status(400).json({
@@ -222,16 +226,25 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Si is_default=true, désactiver les autres templates par défaut
-    if (is_default) {
-      await pool.query('UPDATE certificate_templates SET is_default = false');
+    // Valider que le dossier existe (si fourni)
+    if (folder_id) {
+      const folderExists = await pool.query(
+        'SELECT id FROM template_folders WHERE id = $1',
+        [folder_id]
+      );
+      if (folderExists.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Folder not found',
+        });
+      }
     }
 
     const result = await pool.query(
-      `INSERT INTO certificate_templates (name, description, template_config, is_default)
+      `INSERT INTO certificate_templates (name, description, template_config, folder_id)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [name, description, JSON.stringify(template_config), is_default || false]
+      [name, description, JSON.stringify(template_config), folder_id || null]
     );
 
     res.status(201).json({
@@ -254,7 +267,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, template_config, is_default } = req.body;
+    const { name, description, template_config, folder_id } = req.body;
 
     // Vérifier que le template existe
     const existing = await pool.query(
@@ -269,12 +282,18 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    // Si is_default=true, désactiver les autres templates
-    if (is_default) {
-      await pool.query(
-        'UPDATE certificate_templates SET is_default = false WHERE id != $1',
-        [id]
+    // Valider que le dossier existe (si fourni)
+    if (folder_id !== undefined && folder_id !== null) {
+      const folderExists = await pool.query(
+        'SELECT id FROM template_folders WHERE id = $1',
+        [folder_id]
       );
+      if (folderExists.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Folder not found',
+        });
+      }
     }
 
     // Construire la requête UPDATE dynamiquement
@@ -297,9 +316,9 @@ router.put('/:id', async (req, res) => {
       values.push(JSON.stringify(template_config));
     }
 
-    if (is_default !== undefined) {
-      updates.push(`is_default = $${paramCount++}`);
-      values.push(is_default);
+    if (folder_id !== undefined) {
+      updates.push(`folder_id = $${paramCount++}`);
+      values.push(folder_id);
     }
 
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
@@ -335,6 +354,19 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Vérifier si le template existe
+    const templateCheck = await pool.query(
+      'SELECT id FROM certificate_templates WHERE id = $1',
+      [id]
+    );
+
+    if (templateCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Template not found',
+      });
+    }
+
     // Vérifier si le template est utilisé par des certificats
     const usageCheck = await pool.query(
       'SELECT COUNT(*) as count FROM certificates WHERE template_id = $1',
@@ -351,36 +383,8 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    // Vérifier si c'est le template par défaut
-    const templateCheck = await pool.query(
-      'SELECT is_default FROM certificate_templates WHERE id = $1',
-      [id]
-    );
-
-    if (templateCheck.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Template not found',
-      });
-    }
-
-    const isDefault = templateCheck.rows[0].is_default;
-
     // Supprimer le template
     await pool.query('DELETE FROM certificate_templates WHERE id = $1', [id]);
-
-    // Si c'était le template par défaut, définir un autre template comme par défaut
-    if (isDefault) {
-      await pool.query(`
-        UPDATE certificate_templates
-        SET is_default = true
-        WHERE id = (
-          SELECT id FROM certificate_templates
-          ORDER BY created_at ASC
-          LIMIT 1
-        )
-      `);
-    }
 
     res.json({
       success: true,
@@ -418,14 +422,22 @@ router.post('/:id/duplicate', async (req, res) => {
 
     const sourceTemplate = source.rows[0];
 
-    // Créer une copie avec un nouveau nom
+    // Créer une copie avec un nouveau nom et le même dossier
     const newName = `${sourceTemplate.name} (Copie)`;
 
     const result = await pool.query(
-      `INSERT INTO certificate_templates (name, description, template_config, is_default)
-       VALUES ($1, $2, $3, false)
+      `INSERT INTO certificate_templates (name, description, template_config, folder_id, background_image_url, background_image_type, preview_image_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [newName, sourceTemplate.description, sourceTemplate.template_config]
+      [
+        newName,
+        sourceTemplate.description,
+        sourceTemplate.template_config,
+        sourceTemplate.folder_id,
+        sourceTemplate.background_image_url,
+        sourceTemplate.background_image_type,
+        sourceTemplate.preview_image_url,
+      ]
     );
 
     res.status(201).json({
@@ -435,53 +447,6 @@ router.post('/:id/duplicate', async (req, res) => {
     });
   } catch (error) {
     console.error('Error duplicating certificate template:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
-});
-
-/**
- * PATCH /api/certificate-templates/:id/set-default
- * Définir un template comme template par défaut
- */
-router.patch('/:id/set-default', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Vérifier que le template existe
-    const existing = await pool.query(
-      'SELECT id FROM certificate_templates WHERE id = $1',
-      [id]
-    );
-
-    if (existing.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Template not found',
-      });
-    }
-
-    // Désactiver tous les templates par défaut
-    await pool.query('UPDATE certificate_templates SET is_default = false');
-
-    // Activer ce template comme par défaut
-    const result = await pool.query(
-      `UPDATE certificate_templates
-       SET is_default = true, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1
-       RETURNING *`,
-      [id]
-    );
-
-    res.json({
-      success: true,
-      template: result.rows[0],
-      message: 'Template set as default successfully',
-    });
-  } catch (error) {
-    console.error('Error setting default template:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -616,24 +581,29 @@ router.post('/seed-defaults', async (req, res) => {
       ],
     };
 
+    // Get "Général" folder
+    const generalFolder = await pool.query(
+      'SELECT id FROM template_folders WHERE name = $1 AND parent_id IS NULL',
+      ['Général']
+    );
+
+    const generalFolderId = generalFolder.rows.length > 0 ? generalFolder.rows[0].id : null;
+
     const templates = [
       {
         name: 'Classique',
         description: 'Style traditionnel avec bordures décoratives dorées et bleues',
         template_config: classiqueConfig,
-        is_default: true,
       },
       {
         name: 'Moderne',
         description: 'Design minimaliste et professionnel avec lignes épurées',
         template_config: moderneConfig,
-        is_default: false,
       },
       {
         name: 'Élégant',
         description: 'Style luxueux avec dégradés violet et or',
         template_config: elegantConfig,
-        is_default: false,
       },
     ];
 
@@ -648,14 +618,14 @@ router.post('/seed-defaults', async (req, res) => {
 
       if (existing.rows.length === 0) {
         const result = await pool.query(
-          `INSERT INTO certificate_templates (name, description, template_config, is_default)
+          `INSERT INTO certificate_templates (name, description, template_config, folder_id)
            VALUES ($1, $2, $3, $4)
            RETURNING *`,
           [
             template.name,
             template.description,
             JSON.stringify(template.template_config),
-            template.is_default,
+            generalFolderId,
           ]
         );
 

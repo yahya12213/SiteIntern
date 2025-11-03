@@ -97,21 +97,6 @@ export const useDuplicateTemplate = () => {
 };
 
 /**
- * Hook pour définir un template comme template par défaut
- */
-export const useSetDefaultTemplate = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => certificateTemplatesApi.setDefault(id),
-    onSuccess: () => {
-      // Invalider toute la liste car plusieurs templates changent (l'ancien et le nouveau défaut)
-      queryClient.invalidateQueries({ queryKey: templateKeys.all });
-    },
-  });
-};
-
-/**
  * Hook pour créer les templates par défaut (seed)
  */
 export const useSeedDefaultTemplates = () => {

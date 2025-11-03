@@ -29,6 +29,8 @@ import certificatesRouter from './routes/certificates.js';
 import setupCertificatesRouter from './routes/setup-certificates.js';
 import certificateTemplatesRouter from './routes/certificate-templates.js';
 import setupCertificateTemplatesRouter from './routes/setup-certificate-templates.js';
+import templateFoldersRouter from './routes/template-folders.js';
+import setupTemplateFoldersRouter from './routes/setup-template-folders.js';
 import forumsRouter from './routes/forums.js';
 import setupForumsRouter from './routes/setup-forums.js';
 
@@ -56,11 +58,13 @@ app.use('/api/progress', progressRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/certificates', certificatesRouter);
 app.use('/api/certificate-templates', certificateTemplatesRouter);
+app.use('/api/template-folders', templateFoldersRouter);
 app.use('/api/forums', forumsRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
 app.use('/api/setup-certificates', setupCertificatesRouter); // TEMPORARY - Run once to create certificates table
 app.use('/api/setup-certificate-templates', setupCertificateTemplatesRouter); // TEMPORARY - Run once to create certificate templates table
+app.use('/api/setup-template-folders', setupTemplateFoldersRouter); // TEMPORARY - Run once to create template folders table
 app.use('/api/setup-forums', setupForumsRouter); // TEMPORARY - Run once to create forum tables
 app.use('/api/migration-sessions', migrationSessionsRouter); // TEMPORARY - Migration pour ajouter formation_id
 app.use('/api/migration-sessions-complete', migrationSessionsCompleteRouter); // TEMPORARY - Migration complète sessions

@@ -58,15 +58,6 @@ export const certificateTemplatesApi = {
   },
 
   /**
-   * Définir comme template par défaut
-   */
-  setDefault: async (
-    id: string
-  ): Promise<{ success: boolean; template: CertificateTemplate; message: string }> => {
-    return apiClient.patch(`/certificate-templates/${id}/set-default`);
-  },
-
-  /**
    * Créer les templates prédéfinis (seed)
    */
   seedDefaults: async (): Promise<{ success: boolean; message: string; templates: CertificateTemplate[] }> => {

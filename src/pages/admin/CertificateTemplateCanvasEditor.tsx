@@ -13,7 +13,7 @@ import { getCanvasDimensions, FORMAT_LABELS } from '@/lib/utils/canvasDimensions
 const DEFAULT_TEMPLATE: Omit<CertificateTemplate, 'id' | 'created_at' | 'updated_at'> = {
   name: 'Nouveau Template Canvas',
   description: '',
-  is_default: false,
+  folder_id: '',
   template_config: {
     layout: {
       orientation: 'landscape',

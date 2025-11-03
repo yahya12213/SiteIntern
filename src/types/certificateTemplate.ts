@@ -86,26 +86,30 @@ export interface CertificateTemplate {
   name: string;
   description: string;
   template_config: TemplateConfig;
-  is_default: boolean;
+  folder_id: string;
   preview_image_url?: string;
   background_image_url?: string;
   background_image_type?: 'url' | 'upload';
   created_at: string;
   updated_at: string;
+
+  // Frontend uniquement (JOIN avec template_folders)
+  folder_name?: string;
+  folder_parent_id?: string | null;
 }
 
 export interface CreateTemplateInput {
   name: string;
   description?: string;
   template_config: TemplateConfig;
-  is_default?: boolean;
+  folder_id?: string;
 }
 
 export interface UpdateTemplateInput {
   name?: string;
   description?: string;
   template_config?: TemplateConfig;
-  is_default?: boolean;
+  folder_id?: string;
 }
 
 /**
@@ -248,3 +252,41 @@ export const PAGE_ORIENTATIONS = [
   'portrait',
   'landscape',
 ] as const;
+
+/**
+ * Template Folder (dossier hiérarchique)
+ */
+export interface TemplateFolder {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+
+  // Frontend uniquement (calculé)
+  children?: TemplateFolder[];
+  templates?: CertificateTemplate[];
+  template_count?: number;
+  child_folder_count?: number;
+}
+
+/**
+ * Inputs pour créer/modifier des dossiers
+ */
+export interface CreateFolderInput {
+  name: string;
+  parent_id?: string | null;
+}
+
+export interface UpdateFolderInput {
+  name: string;
+}
+
+export interface MoveFolderInput {
+  new_parent_id?: string | null;
+}
+
+export interface MoveTemplateInput {
+  folder_id: string;
+}
