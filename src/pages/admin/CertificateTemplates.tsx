@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import {
   useCertificateTemplates,
@@ -15,10 +16,12 @@ import {
   Star,
   AlertCircle,
   Eye,
+  Edit3,
   Palette,
 } from 'lucide-react';
 
 export const CertificateTemplates: React.FC = () => {
+  const navigate = useNavigate();
   const { data: templates, isLoading, error } = useCertificateTemplates();
   const deleteMutation = useDeleteTemplate();
   const duplicateMutation = useDuplicateTemplate();
@@ -113,7 +116,7 @@ export const CertificateTemplates: React.FC = () => {
               </button>
             )}
             <button
-              onClick={() => alert('Création de template : Fonctionnalité en développement')}
+              onClick={() => navigate('/admin/certificate-templates/new/edit')}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
@@ -241,13 +244,11 @@ export const CertificateTemplates: React.FC = () => {
                     </button>
 
                     <button
-                      onClick={() =>
-                        alert('Aperçu : Fonctionnalité en développement\n\nCe template contient ' + template.template_config.elements.length + ' éléments.')
-                      }
-                      className="px-3 py-2 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-sm font-medium flex items-center justify-center gap-1"
+                      onClick={() => navigate(`/admin/certificate-templates/${template.id}/edit`)}
+                      className="px-3 py-2 bg-purple-50 text-purple-700 rounded border border-purple-300 hover:bg-purple-100 transition-colors text-sm font-medium flex items-center justify-center gap-1"
                     >
-                      <Eye className="h-4 w-4" />
-                      Aperçu
+                      <Edit3 className="h-4 w-4" />
+                      Modifier
                     </button>
 
                     <button
