@@ -374,12 +374,12 @@ router.get('/student-progress/:studentId', async (req, res) => {
         ta.score,
         ta.total_points,
         ta.passed,
-        ta.submitted_at
+        ta.completed_at
       FROM test_attempts ta
       INNER JOIN tests t ON t.id = ta.test_id
       INNER JOIN formations f ON f.id = t.formation_id
       WHERE ta.student_id = $1
-      ORDER BY ta.submitted_at DESC
+      ORDER BY ta.completed_at DESC
     `, [studentId]);
 
     res.json({
@@ -476,7 +476,7 @@ router.get('/period-stats', async (req, res) => {
           COUNT(*) as total,
           COUNT(CASE WHEN passed = true THEN 1 END) as passed
         FROM test_attempts
-        WHERE submitted_at >= CURRENT_DATE - INTERVAL '${days} days'
+        WHERE completed_at >= CURRENT_DATE - INTERVAL '${days} days'
       `),
     ]);
 
