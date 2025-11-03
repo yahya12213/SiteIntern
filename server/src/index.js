@@ -76,11 +76,8 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Serve static files from the React app (dist folder)
-// In Railway: __dirname is /app/src, so ../dist points to /app/dist
-// Locally: __dirname is server/src, so ../../dist points to project root dist
-const distPath = process.env.RAILWAY_ENVIRONMENT
-  ? path.join(__dirname, '../dist')
-  : path.join(__dirname, '../../dist');
+// Use process.cwd() which points to project root in both local and Railway
+const distPath = path.join(process.cwd(), 'dist');
 console.log('📁 __dirname:', __dirname);
 console.log('📁 process.cwd():', process.cwd());
 console.log('📁 Dist path:', distPath);
