@@ -11,6 +11,24 @@ router.get('/run-setup', async (req, res) => {
   try {
     console.log('🔧 Starting progress tracking tables setup...');
 
+    // Create enrollments table (online LMS course enrollments)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS enrollments (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        student_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        formation_id TEXT NOT NULL REFERENCES formations(id) ON DELETE CASCADE,
+        enrolled_at TIMESTAMP DEFAULT NOW(),
+        completed_at TIMESTAMP,
+        last_accessed_at TIMESTAMP,
+        progress_percentage INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'dropped')),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(student_id, formation_id)
+      )
+    `);
+    console.log('✅ enrollments table created');
+
     // Create video_progress table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS video_progress (
@@ -44,6 +62,17 @@ router.get('/run-setup', async (req, res) => {
 
     // Create indexes for better performance
     await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_enrollments_student
+      ON enrollments(student_id);
+
+      CREATE INDEX IF NOT EXISTS idx_enrollments_formation
+      ON enrollments(formation_id);
+
+      CREATE INDEX IF NOT EXISTS idx_enrollments_status
+      ON enrollments(status);
+    `);
+
+    await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_video_progress_student
       ON video_progress(student_id)
     `);
@@ -75,7 +104,7 @@ router.get('/run-setup', async (req, res) => {
     res.json({
       success: true,
       message: 'Progress tracking tables created successfully',
-      tables: ['video_progress', 'test_attempts'],
+      tables: ['enrollments', 'video_progress', 'test_attempts'],
     });
   } catch (error) {
     console.error('❌ Error during progress setup:', error);
