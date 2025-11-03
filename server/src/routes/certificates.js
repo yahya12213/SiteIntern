@@ -47,25 +47,12 @@ router.post('/generate', async (req, res) => {
     // Déterminer le template à utiliser
     let finalTemplateId = template_id;
 
-    // Si pas de template_id fourni, chercher le template par défaut de la formation
+    // Si pas de template_id fourni, template_id est maintenant requis
     if (!finalTemplateId) {
-      const formation = await pool.query(
-        'SELECT default_certificate_template_id FROM formations WHERE id = $1',
-        [formation_id]
-      );
-      if (formation.rows.length > 0) {
-        finalTemplateId = formation.rows[0].default_certificate_template_id;
-      }
-    }
-
-    // Si toujours pas de template, utiliser le template par défaut global
-    if (!finalTemplateId) {
-      const defaultTemplate = await pool.query(
-        'SELECT id FROM certificate_templates WHERE is_default = true LIMIT 1'
-      );
-      if (defaultTemplate.rows.length > 0) {
-        finalTemplateId = defaultTemplate.rows[0].id;
-      }
+      return res.status(400).json({
+        success: false,
+        error: 'template_id is required',
+      });
     }
 
     // Générer le numéro de certificat
