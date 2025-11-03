@@ -121,6 +121,14 @@ export const CertificateTemplates: React.FC = () => {
               <Plus className="h-4 w-4" />
               Nouveau Template
             </button>
+            <button
+              onClick={() => navigate('/admin/certificate-templates/new/canvas-edit')}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+              title="Créer un template avec l'éditeur Canvas"
+            >
+              <Palette className="h-4 w-4" />
+              Nouveau Canvas
+            </button>
           </div>
         </div>
 
@@ -248,6 +256,15 @@ export const CertificateTemplates: React.FC = () => {
                     >
                       <Edit3 className="h-4 w-4" />
                       Modifier
+                    </button>
+
+                    <button
+                      onClick={() => navigate(`/admin/certificate-templates/${template.id}/canvas-edit`)}
+                      className="px-3 py-2 bg-blue-50 text-blue-700 rounded border border-blue-300 hover:bg-blue-100 transition-colors text-sm font-medium flex items-center justify-center gap-1"
+                      title="Éditeur Canvas Drag-and-Drop"
+                    >
+                      <Palette className="h-4 w-4" />
+                      Canvas
                     </button>
 
                     <button

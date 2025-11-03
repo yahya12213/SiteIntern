@@ -43,8 +43,8 @@ export const CertificatesManagement: React.FC = () => {
     );
   });
 
-  const handleDownload = (certificate: any) => {
-    generateCertificatePDF(certificate);
+  const handleDownload = async (certificate: any) => {
+    await generateCertificatePDF(certificate);
   };
 
   const handleDelete = async (certificateId: string) => {

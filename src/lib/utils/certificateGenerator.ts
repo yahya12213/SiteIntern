@@ -11,10 +11,10 @@ import { generateCertificateFromTemplate } from './certificateTemplateEngine';
  * Si un template est fourni, utilise le moteur de templates
  * Sinon, utilise la génération classique (fallback)
  */
-export const generateCertificatePDF = (certificate: Certificate, template?: CertificateTemplate) => {
+export const generateCertificatePDF = async (certificate: Certificate, template?: CertificateTemplate): Promise<void> => {
   // Si un template est fourni, utiliser le moteur de templates
   if (template) {
-    return generateCertificateFromTemplate(certificate, template);
+    return await generateCertificateFromTemplate(certificate, template);
   }
 
   // Sinon, utiliser la génération classique (code existant ci-dessous)

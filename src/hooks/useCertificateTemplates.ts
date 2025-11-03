@@ -8,6 +8,7 @@ import type { CreateTemplateInput, UpdateTemplateInput } from '@/types/certifica
 export const templateKeys = {
   all: ['certificate-templates'] as const,
   detail: (id: string) => ['certificate-templates', id] as const,
+  customFonts: ['custom-fonts'] as const,
 };
 
 /**
@@ -150,6 +151,47 @@ export const useUploadSignature = () => {
       certificateTemplatesApi.uploadSignature(id, file),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: templateKeys.detail(variables.id) });
+    },
+  });
+};
+
+/**
+ * Hook pour récupérer toutes les polices personnalisées
+ */
+export const useCustomFonts = () => {
+  return useQuery({
+    queryKey: templateKeys.customFonts,
+    queryFn: certificateTemplatesApi.getCustomFonts,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    select: (data) => data.fonts, // Retourner directement le tableau des fonts
+  });
+};
+
+/**
+ * Hook pour uploader une police personnalisée
+ */
+export const useUploadCustomFont = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ file, fontName }: { file: File; fontName: string }) =>
+      certificateTemplatesApi.uploadCustomFont(file, fontName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateKeys.customFonts });
+    },
+  });
+};
+
+/**
+ * Hook pour supprimer une police personnalisée
+ */
+export const useDeleteCustomFont = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => certificateTemplatesApi.deleteCustomFont(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateKeys.customFonts });
     },
   });
 };

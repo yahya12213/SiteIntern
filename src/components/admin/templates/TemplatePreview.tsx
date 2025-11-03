@@ -46,7 +46,7 @@ export const TemplatePreview: React.FC<TemplatePreviewProps> = ({ template, onRe
 
     try {
       const engine = new CertificateTemplateEngine(mockCertificateData, template);
-      const pdf = engine.generate();
+      const pdf = await engine.generate();
 
       // Convert PDF to Data URL for preview
       const dataUrl = pdf.output('dataurlstring');
@@ -59,10 +59,10 @@ export const TemplatePreview: React.FC<TemplatePreviewProps> = ({ template, onRe
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     try {
       const engine = new CertificateTemplateEngine(mockCertificateData, template);
-      const pdf = engine.generate();
+      const pdf = await engine.generate();
       pdf.save(`preview-${template.name}-${Date.now()}.pdf`);
     } catch (err: any) {
       console.error('Error downloading preview:', err);

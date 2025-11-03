@@ -17,8 +17,8 @@ export const MyCertificates: React.FC = () => {
   const { user } = useAuth();
   const { data, isLoading, error } = useStudentCertificates(user?.id || null);
 
-  const handleDownload = (certificate: any) => {
-    generateCertificatePDF(certificate);
+  const handleDownload = async (certificate: any) => {
+    await generateCertificatePDF(certificate);
   };
 
   if (isLoading) {

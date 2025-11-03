@@ -8,7 +8,21 @@ import type {
   CertificateTemplate,
   TemplateElement,
   TemplateFont,
+  CustomFont,
 } from '@/types/certificateTemplate';
+import { certificateTemplatesApi } from '@/lib/api/certificateTemplates';
+
+/**
+ * Constantes pour la conversion pixels → mm
+ * Canvas: 1122px x 794px (A4 landscape at 96 DPI)
+ * PDF: 297mm x 210mm
+ */
+const CANVAS_WIDTH_PX = 1122;
+const CANVAS_HEIGHT_PX = 794;
+const PDF_WIDTH_MM = 297;
+const PDF_HEIGHT_MM = 210;
+const PX_TO_MM_X = PDF_WIDTH_MM / CANVAS_WIDTH_PX;
+const PX_TO_MM_Y = PDF_HEIGHT_MM / CANVAS_HEIGHT_PX;
 
 /**
  * Classe principale du moteur de génération de certificats
@@ -19,6 +33,8 @@ export class CertificateTemplateEngine {
   private template: CertificateTemplate;
   private pageWidth: number;
   private pageHeight: number;
+  private customFonts: CustomFont[] = [];
+  private isCustomFontsLoaded: boolean = false;
 
   constructor(certificate: Certificate, template: CertificateTemplate) {
     this.certificate = certificate;
@@ -38,20 +54,156 @@ export class CertificateTemplateEngine {
   }
 
   /**
+   * Charger les polices personnalisées depuis l'API
+   */
+  private async loadCustomFonts(): Promise<void> {
+    if (this.isCustomFontsLoaded) return;
+
+    try {
+      const result = await certificateTemplatesApi.getCustomFonts();
+      this.customFonts = result.fonts || [];
+
+      // Charger chaque police dans jsPDF
+      for (const font of this.customFonts) {
+        try {
+          // Charger le fichier de police
+          const response = await fetch(font.file_url);
+          const blob = await response.blob();
+          const base64 = await this.blobToBase64(blob);
+
+          // Extraire la partie base64 pure (sans "data:...;base64,")
+          const base64Data = base64.split(',')[1];
+
+          // Ajouter le fichier à jsPDF
+          const fontName = `custom-${font.id}`;
+          this.doc.addFileToVFS(`${fontName}.${font.file_format}`, base64Data);
+          this.doc.addFont(
+            `${fontName}.${font.file_format}`,
+            fontName,
+            'normal'
+          );
+        } catch (err) {
+          console.warn(`Failed to load custom font ${font.name}:`, err);
+        }
+      }
+
+      this.isCustomFontsLoaded = true;
+    } catch (error) {
+      console.error('Error loading custom fonts:', error);
+    }
+  }
+
+  /**
+   * Convertir Blob en base64
+   */
+  private blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  /**
+   * Charger et afficher l'image de fond
+   */
+  private async loadBackgroundImage(): Promise<void> {
+    const bgUrl = this.template.background_image_url;
+    if (!bgUrl) return;
+
+    try {
+      const response = await fetch(bgUrl);
+      const blob = await response.blob();
+      const base64 = await this.blobToBase64(blob);
+
+      // Ajouter l'image de fond en pleine page
+      this.doc.addImage(
+        base64,
+        'JPEG', // jsPDF détectera automatiquement le format
+        0,
+        0,
+        this.pageWidth,
+        this.pageHeight,
+        undefined,
+        'FAST'
+      );
+    } catch (error) {
+      console.error('Error loading background image:', error);
+    }
+  }
+
+  /**
+   * Convertir coordonnées canvas (pixels) en mm pour PDF
+   * Supporte les expressions comme "center", "pageWidth - 20", etc.
+   */
+  private pxToMm(value: number | string, axis: 'x' | 'y'): number {
+    let pixelValue: number;
+
+    if (typeof value === 'number') {
+      pixelValue = value;
+    } else {
+      // C'est une expression - la calculer d'abord en pixels
+      pixelValue = this.calculatePixelPosition(value, axis);
+    }
+
+    return axis === 'x' ? pixelValue * PX_TO_MM_X : pixelValue * PX_TO_MM_Y;
+  }
+
+  /**
+   * Calculer une position en pixels depuis une expression
+   * Supporte "center", "CANVAS_WIDTH_PX - 20", etc.
+   */
+  private calculatePixelPosition(expression: string | number, axis: 'x' | 'y' = 'x'): number {
+    if (typeof expression === 'number') {
+      return expression;
+    }
+
+    // Remplacer les mots-clés par leurs valeurs en pixels
+    let expr = expression
+      .replace(/CANVAS_WIDTH_PX|canvasWidth/g, String(CANVAS_WIDTH_PX))
+      .replace(/CANVAS_HEIGHT_PX|canvasHeight/g, String(CANVAS_HEIGHT_PX))
+      .replace(
+        /center/g,
+        axis === 'x' ? String(CANVAS_WIDTH_PX / 2) : String(CANVAS_HEIGHT_PX / 2)
+      );
+
+    // Évaluer l'expression mathématique de manière sécurisée
+    try {
+      // Nettoyer l'expression (autoriser seulement chiffres, opérateurs, parenthèses)
+      if (!/^[\d\s+\-*/().]+$/.test(expr)) {
+        console.warn('Expression non valide:', expr);
+        return 0;
+      }
+      // eslint-disable-next-line no-new-func
+      return Function(`'use strict'; return (${expr})`)();
+    } catch (error) {
+      console.error('Error calculating pixel position:', expr, error);
+      return 0;
+    }
+  }
+
+  /**
    * Générer le PDF complet
    */
-  generate(): jsPDF {
+  async generate(): Promise<jsPDF> {
+    // Charger les polices personnalisées
+    await this.loadCustomFonts();
+
+    // Charger et afficher l'image de fond
+    await this.loadBackgroundImage();
+
     const elements = this.template.template_config.elements;
 
     // Dessiner chaque élément dans l'ordre
-    elements.forEach((element) => {
+    for (const element of elements) {
       // Vérifier la condition si elle existe
       if (element.condition && !this.checkCondition(element.condition)) {
-        return; // Skip cet élément
+        continue; // Skip cet élément
       }
 
-      this.renderElement(element);
-    });
+      await this.renderElement(element);
+    }
 
     return this.doc;
   }
@@ -106,43 +258,6 @@ export class CertificateTemplateEngine {
     return result;
   }
 
-  /**
-   * Calculer une position (supporte "center", "pageWidth - 20", etc.)
-   */
-  private calculatePosition(expression: string | number, context: 'x' | 'y' = 'x'): number {
-    if (typeof expression === 'number') {
-      return expression;
-    }
-
-    // Remplacer les mots-clés
-    let expr = expression
-      .replace(/pageWidth/g, String(this.pageWidth))
-      .replace(/pageHeight/g, String(this.pageHeight))
-      .replace(
-        /center/g,
-        context === 'x' ? String(this.pageWidth / 2) : String(this.pageHeight / 2)
-      );
-
-    // Calculer nameWidth si nécessaire (pour les lignes sous le nom)
-    if (expr.includes('nameWidth')) {
-      const nameWidth = this.doc.getTextWidth(this.certificate.student_name || 'Étudiant');
-      expr = expr.replace(/nameWidth/g, String(nameWidth));
-    }
-
-    // Évaluer l'expression mathématique de manière sécurisée
-    try {
-      // Nettoyer l'expression (autoriser seulement chiffres, opérateurs, parenthèses)
-      if (!/^[\d\s+\-*/().]+$/.test(expr)) {
-        console.warn('Expression non valide:', expr);
-        return 0;
-      }
-      // eslint-disable-next-line no-new-func
-      return Function(`'use strict'; return (${expr})`)();
-    } catch (error) {
-      console.error('Error calculating position:', expr, error);
-      return 0;
-    }
-  }
 
   /**
    * Obtenir une couleur depuis la config ou depuis un hex direct
@@ -199,7 +314,7 @@ export class CertificateTemplateEngine {
   /**
    * Dessiner un élément selon son type
    */
-  private renderElement(element: TemplateElement): void {
+  private async renderElement(element: TemplateElement): Promise<void> {
     try {
       switch (element.type) {
         case 'text':
@@ -216,7 +331,7 @@ export class CertificateTemplateEngine {
           this.renderCircle(element);
           break;
         case 'image':
-          this.renderImage(element);
+          await this.renderImage(element);
           break;
         default:
           console.warn('Unknown element type:', element.type);
@@ -236,11 +351,25 @@ export class CertificateTemplateEngine {
       : { family: 'helvetica', size: 12, style: 'normal', color: 'text' };
 
     // Appliquer la police
-    const fontFamily = element.fontFamily || fontConfig.family;
+    let fontFamily = element.fontFamily || fontConfig.family;
     const fontStyle = element.fontStyle || fontConfig.style;
     const fontSize = element.fontSize || fontConfig.size;
 
-    this.doc.setFont(fontFamily, fontStyle);
+    // Vérifier si c'est une police custom
+    if (fontFamily.startsWith('custom-')) {
+      // Police custom - vérifier qu'elle est chargée
+      const customFont = this.customFonts.find((f) => `custom-${f.id}` === fontFamily);
+      if (customFont) {
+        this.doc.setFont(fontFamily, 'normal');
+      } else {
+        console.warn(`Custom font ${fontFamily} not loaded, falling back to helvetica`);
+        fontFamily = 'helvetica';
+        this.doc.setFont(fontFamily, fontStyle);
+      }
+    } else {
+      this.doc.setFont(fontFamily, fontStyle);
+    }
+
     this.doc.setFontSize(fontSize);
 
     // Appliquer la couleur
@@ -252,21 +381,22 @@ export class CertificateTemplateEngine {
     // Remplacer les variables
     const text = this.replaceVariables(element.content || '');
 
-    // Calculer la position
-    const x = this.calculatePosition(element.x || 0, 'x');
-    const y = this.calculatePosition(element.y || 0, 'y');
+    // Convertir les coordonnées pixels → mm
+    const x = this.pxToMm(element.x || 0, 'x');
+    const y = this.pxToMm(element.y || 0, 'y');
 
     // Gérer le maxWidth (retour à la ligne automatique)
     if (element.maxWidth) {
-      const maxWidth = this.calculatePosition(element.maxWidth, 'x');
-      const lines = this.doc.splitTextToSize(text, maxWidth);
+      const maxWidthMm = this.pxToMm(element.maxWidth, 'x');
+      const lines = this.doc.splitTextToSize(text, maxWidthMm);
 
       if (lines.length === 1) {
         this.doc.text(lines[0], x, y, { align: element.align || 'left' });
       } else {
         // Afficher plusieurs lignes avec un espacement
+        const lineHeightMm = (fontSize * 0.3527) * 1.2; // Conversion points → mm avec espacement
         lines.forEach((line: string, index: number) => {
-          this.doc.text(line, x, y + index * 7, { align: element.align || 'left' });
+          this.doc.text(line, x, y + index * lineHeightMm, { align: element.align || 'left' });
         });
       }
     } else {
@@ -278,10 +408,11 @@ export class CertificateTemplateEngine {
    * Dessiner une ligne
    */
   private renderLine(element: TemplateElement): void {
-    const x1 = this.calculatePosition(element.x1 || 0, 'x');
-    const y1 = this.calculatePosition(element.y1 || 0, 'y');
-    const x2 = this.calculatePosition(element.x2 || 0, 'x');
-    const y2 = this.calculatePosition(element.y2 || 0, 'y');
+    // Convertir coordonnées pixels → mm
+    const x1 = this.pxToMm(element.x1 || 0, 'x');
+    const y1 = this.pxToMm(element.y1 || 0, 'y');
+    const x2 = this.pxToMm(element.x2 || 0, 'x');
+    const y2 = this.pxToMm(element.y2 || 0, 'y');
 
     const color = this.getColor(element.color || 'text');
     this.doc.setDrawColor(...color);
@@ -293,10 +424,11 @@ export class CertificateTemplateEngine {
    * Dessiner un rectangle (bordure)
    */
   private renderRectangle(element: TemplateElement): void {
-    const x = this.calculatePosition(element.x || 0, 'x');
-    const y = this.calculatePosition(element.y || 0, 'y');
-    const width = this.calculatePosition(element.width || 0, 'x');
-    const height = this.calculatePosition(element.height || 0, 'y');
+    // Convertir coordonnées pixels → mm
+    const x = this.pxToMm(element.x || 0, 'x');
+    const y = this.pxToMm(element.y || 0, 'y');
+    const width = this.pxToMm(element.width || 0, 'x');
+    const height = this.pxToMm(element.height || 0, 'y');
 
     const color = this.getColor(element.color || 'secondary');
     this.doc.setDrawColor(...color);
@@ -310,26 +442,54 @@ export class CertificateTemplateEngine {
    * Dessiner un cercle
    */
   private renderCircle(element: TemplateElement): void {
-    const x = this.calculatePosition(element.x || 0, 'x');
-    const y = this.calculatePosition(element.y || 0, 'y');
-    const radius = element.radius || 10;
+    // Convertir coordonnées pixels → mm
+    const x = this.pxToMm(element.x || 0, 'x');
+    const y = this.pxToMm(element.y || 0, 'y');
+    const radiusMm = this.pxToMm(element.radius || 10, 'x');
 
     // Couleur de remplissage
     const fillColor = this.getColor(element.fillColor || 'secondary');
     this.doc.setFillColor(...fillColor);
 
     // Dessiner le cercle rempli
-    this.doc.circle(x, y, radius, 'F');
+    this.doc.circle(x, y, radiusMm, 'F');
   }
 
   /**
-   * Dessiner une image (logo, signature)
-   * NOTE: Non implémenté dans cette version - nécessite chargement asynchrone d'images
+   * Dessiner une image (logo, signature, custom)
    */
-  private renderImage(_element: TemplateElement): void {
-    // TODO: Implémenter le chargement et l'affichage d'images
-    // Nécessite conversion en base64 ou chargement d'URL
-    console.warn('Image rendering not yet implemented');
+  private async renderImage(element: TemplateElement): Promise<void> {
+    if (!element.source) {
+      console.warn('Image element has no source');
+      return;
+    }
+
+    try {
+      // Charger l'image
+      const response = await fetch(element.source);
+      const blob = await response.blob();
+      const base64 = await this.blobToBase64(blob);
+
+      // Convertir coordonnées et dimensions pixels → mm
+      const x = this.pxToMm(element.x || 0, 'x');
+      const y = this.pxToMm(element.y || 0, 'y');
+      const width = this.pxToMm(element.width || 100, 'x');
+      const height = this.pxToMm(element.height || 100, 'y');
+
+      // Ajouter l'image au PDF
+      this.doc.addImage(
+        base64,
+        'JPEG', // jsPDF détectera automatiquement le format
+        x,
+        y,
+        width,
+        height,
+        undefined,
+        'FAST'
+      );
+    } catch (error) {
+      console.error('Error loading image:', element.source, error);
+    }
   }
 
   /**
@@ -360,24 +520,24 @@ export class CertificateTemplateEngine {
 /**
  * Fonction principale pour générer et télécharger un certificat
  */
-export const generateCertificateFromTemplate = (
+export const generateCertificateFromTemplate = async (
   certificate: Certificate,
   template: CertificateTemplate
-): void => {
+): Promise<void> => {
   const engine = new CertificateTemplateEngine(certificate, template);
-  engine.generate();
+  await engine.generate();
   engine.download();
 };
 
 /**
  * Fonction pour générer un aperçu PDF (retourne un Blob)
  */
-export const generateCertificatePreviewFromTemplate = (
+export const generateCertificatePreviewFromTemplate = async (
   certificate: Certificate,
   template: CertificateTemplate
-): Blob => {
+): Promise<Blob> => {
   const engine = new CertificateTemplateEngine(certificate, template);
-  engine.generate();
+  await engine.generate();
   return engine.getBlob();
 };
 
