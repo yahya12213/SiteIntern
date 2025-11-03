@@ -21,7 +21,7 @@ function generateCertificateNumber() {
  */
 router.post('/generate', async (req, res) => {
   try {
-    const { student_id, formation_id, completion_date, grade, metadata } = req.body;
+    const { student_id, formation_id, completion_date, grade, metadata, template_id } = req.body;
 
     if (!student_id || !formation_id || !completion_date) {
       return res.status(400).json({
@@ -44,6 +44,30 @@ router.post('/generate', async (req, res) => {
       });
     }
 
+    // Déterminer le template à utiliser
+    let finalTemplateId = template_id;
+
+    // Si pas de template_id fourni, chercher le template par défaut de la formation
+    if (!finalTemplateId) {
+      const formation = await pool.query(
+        'SELECT default_certificate_template_id FROM formations WHERE id = $1',
+        [formation_id]
+      );
+      if (formation.rows.length > 0) {
+        finalTemplateId = formation.rows[0].default_certificate_template_id;
+      }
+    }
+
+    // Si toujours pas de template, utiliser le template par défaut global
+    if (!finalTemplateId) {
+      const defaultTemplate = await pool.query(
+        'SELECT id FROM certificate_templates WHERE is_default = true LIMIT 1'
+      );
+      if (defaultTemplate.rows.length > 0) {
+        finalTemplateId = defaultTemplate.rows[0].id;
+      }
+    }
+
     // Générer le numéro de certificat
     let certificateNumber = generateCertificateNumber();
 
@@ -59,12 +83,20 @@ router.post('/generate', async (req, res) => {
       attempts++;
     }
 
-    // Créer le certificat
+    // Créer le certificat avec template_id
     const result = await pool.query(
-      `INSERT INTO certificates (student_id, formation_id, certificate_number, completion_date, grade, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO certificates (student_id, formation_id, certificate_number, completion_date, grade, metadata, template_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [student_id, formation_id, certificateNumber, completion_date, grade || null, metadata ? JSON.stringify(metadata) : '{}']
+      [
+        student_id,
+        formation_id,
+        certificateNumber,
+        completion_date,
+        grade || null,
+        metadata ? JSON.stringify(metadata) : '{}',
+        finalTemplateId,
+      ]
     );
 
     res.status(201).json({

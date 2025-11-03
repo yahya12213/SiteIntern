@@ -3,11 +3,21 @@
  */
 import jsPDF from 'jspdf';
 import type { Certificate } from '@/lib/api/certificates';
+import type { CertificateTemplate } from '@/types/certificateTemplate';
+import { generateCertificateFromTemplate } from './certificateTemplateEngine';
 
 /**
  * Générer et télécharger un certificat PDF
+ * Si un template est fourni, utilise le moteur de templates
+ * Sinon, utilise la génération classique (fallback)
  */
-export const generateCertificatePDF = (certificate: Certificate) => {
+export const generateCertificatePDF = (certificate: Certificate, template?: CertificateTemplate) => {
+  // Si un template est fourni, utiliser le moteur de templates
+  if (template) {
+    return generateCertificateFromTemplate(certificate, template);
+  }
+
+  // Sinon, utiliser la génération classique (code existant ci-dessous)
   // Créer un nouveau document PDF en mode paysage
   const doc = new jsPDF({
     orientation: 'landscape',
