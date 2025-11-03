@@ -15,7 +15,6 @@ import {
   Trash2,
   Star,
   AlertCircle,
-  Eye,
   Edit3,
   Palette,
 } from 'lucide-react';

@@ -27,7 +27,6 @@ const mockCertificateData: Certificate = {
     organization_name: 'Institut de Formation Professionnelle',
     director_name: 'Dr. Karim Bennani',
   },
-  template_id: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };

@@ -15,9 +15,12 @@ const DEFAULT_TEMPLATE: Omit<CertificateTemplate, 'id' | 'created_at' | 'updated
   name: 'Nouveau Template',
   description: '',
   is_default: false,
-  config: {
-    orientation: 'landscape',
-    format: 'a4',
+  template_config: {
+    layout: {
+      orientation: 'landscape',
+      format: 'a4',
+      margins: { top: 10, right: 10, bottom: 10, left: 10 },
+    },
     colors: {
       primary: '#1e40af',
       secondary: '#3b82f6',
@@ -39,7 +42,7 @@ export const CertificateTemplateEditor: React.FC = () => {
   const navigate = useNavigate();
   const isNewTemplate = id === 'new';
 
-  const { data: existingTemplate, isLoading } = useCertificateTemplate(id || '', { enabled: !isNewTemplate });
+  const { data: existingTemplate, isLoading } = useCertificateTemplate(isNewTemplate ? null : (id || ''));
   const updateTemplate = useUpdateTemplate();
   const createTemplate = useCreateTemplate();
 
@@ -106,9 +109,9 @@ export const CertificateTemplateEditor: React.FC = () => {
 
     setTemplate({
       ...template,
-      config: {
-        ...template.config,
-        elements: [...template.config.elements, newElement],
+      template_config: {
+        ...template.template_config,
+        elements: [...template.template_config.elements, newElement],
       },
     });
 
@@ -120,9 +123,9 @@ export const CertificateTemplateEditor: React.FC = () => {
 
     setTemplate({
       ...template,
-      config: {
-        ...template.config,
-        elements: template.config.elements.map((el) =>
+      template_config: {
+        ...template.template_config,
+        elements: template.template_config.elements.map((el: TemplateElement) =>
           el.id === updatedElement.id ? updatedElement : el
         ),
       },
@@ -134,9 +137,9 @@ export const CertificateTemplateEditor: React.FC = () => {
 
     setTemplate({
       ...template,
-      config: {
-        ...template.config,
-        elements: template.config.elements.filter((el) => el.id !== elementId),
+      template_config: {
+        ...template.template_config,
+        elements: template.template_config.elements.filter((el: TemplateElement) => el.id !== elementId),
       },
     });
 
@@ -148,21 +151,21 @@ export const CertificateTemplateEditor: React.FC = () => {
   const handleDuplicateElement = (elementId: string) => {
     if (!template) return;
 
-    const elementToDuplicate = template.config.elements.find((el) => el.id === elementId);
+    const elementToDuplicate = template.template_config.elements.find((el: TemplateElement) => el.id === elementId);
     if (!elementToDuplicate) return;
 
     const duplicatedElement: TemplateElement = {
       ...elementToDuplicate,
       id: `element-${Date.now()}`,
-      x: elementToDuplicate.x !== undefined ? elementToDuplicate.x + 10 : undefined,
-      y: elementToDuplicate.y !== undefined ? elementToDuplicate.y + 10 : undefined,
+      x: elementToDuplicate.x !== undefined ? (typeof elementToDuplicate.x === 'number' ? elementToDuplicate.x + 10 : elementToDuplicate.x) : undefined,
+      y: elementToDuplicate.y !== undefined ? (typeof elementToDuplicate.y === 'number' ? elementToDuplicate.y + 10 : elementToDuplicate.y) : undefined,
     };
 
     setTemplate({
       ...template,
-      config: {
-        ...template.config,
-        elements: [...template.config.elements, duplicatedElement],
+      template_config: {
+        ...template.template_config,
+        elements: [...template.template_config.elements, duplicatedElement],
       },
     });
   };
@@ -170,16 +173,16 @@ export const CertificateTemplateEditor: React.FC = () => {
   const handleMoveElementUp = (elementId: string) => {
     if (!template) return;
 
-    const index = template.config.elements.findIndex((el) => el.id === elementId);
+    const index = template.template_config.elements.findIndex((el: TemplateElement) => el.id === elementId);
     if (index <= 0) return;
 
-    const newElements = [...template.config.elements];
+    const newElements = [...template.template_config.elements];
     [newElements[index - 1], newElements[index]] = [newElements[index], newElements[index - 1]];
 
     setTemplate({
       ...template,
-      config: {
-        ...template.config,
+      template_config: {
+        ...template.template_config,
         elements: newElements,
       },
     });
@@ -188,16 +191,16 @@ export const CertificateTemplateEditor: React.FC = () => {
   const handleMoveElementDown = (elementId: string) => {
     if (!template) return;
 
-    const index = template.config.elements.findIndex((el) => el.id === elementId);
-    if (index < 0 || index >= template.config.elements.length - 1) return;
+    const index = template.template_config.elements.findIndex((el: TemplateElement) => el.id === elementId);
+    if (index < 0 || index >= template.template_config.elements.length - 1) return;
 
-    const newElements = [...template.config.elements];
+    const newElements = [...template.template_config.elements];
     [newElements[index], newElements[index + 1]] = [newElements[index + 1], newElements[index]];
 
     setTemplate({
       ...template,
-      config: {
-        ...template.config,
+      template_config: {
+        ...template.template_config,
         elements: newElements,
       },
     });
@@ -215,7 +218,7 @@ export const CertificateTemplateEditor: React.FC = () => {
   }
 
   const selectedElement = selectedElementId
-    ? template.config.elements.find((el) => el.id === selectedElementId) || null
+    ? template.template_config.elements.find((el: TemplateElement) => el.id === selectedElementId) || null
     : null;
 
   return (
@@ -320,11 +323,14 @@ export const CertificateTemplateEditor: React.FC = () => {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Orientation</label>
                         <select
-                          value={template.config.orientation}
+                          value={template.template_config.layout.orientation}
                           onChange={(e) =>
                             setTemplate({
                               ...template,
-                              config: { ...template.config, orientation: e.target.value as 'portrait' | 'landscape' },
+                              template_config: {
+                                ...template.template_config,
+                                layout: { ...template.template_config.layout, orientation: e.target.value as 'portrait' | 'landscape' },
+                              },
                             })
                           }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
@@ -337,11 +343,14 @@ export const CertificateTemplateEditor: React.FC = () => {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Format</label>
                         <select
-                          value={template.config.format}
+                          value={template.template_config.layout.format}
                           onChange={(e) =>
                             setTemplate({
                               ...template,
-                              config: { ...template.config, format: e.target.value as 'a4' | 'letter' },
+                              template_config: {
+                                ...template.template_config,
+                                layout: { ...template.template_config.layout, format: e.target.value as 'a4' | 'letter' },
+                              },
                             })
                           }
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
@@ -372,13 +381,13 @@ export const CertificateTemplateEditor: React.FC = () => {
                   <>
                     <ColorPicker
                       label="Couleur principale"
-                      value={template.config.colors.primary}
+                      value={template.template_config.colors.primary}
                       onChange={(color) =>
                         setTemplate({
                           ...template,
-                          config: {
-                            ...template.config,
-                            colors: { ...template.config.colors, primary: color },
+                          template_config: {
+                            ...template.template_config,
+                            colors: { ...template.template_config.colors, primary: color },
                           },
                         })
                       }
@@ -387,13 +396,13 @@ export const CertificateTemplateEditor: React.FC = () => {
 
                     <ColorPicker
                       label="Couleur secondaire"
-                      value={template.config.colors.secondary}
+                      value={template.template_config.colors.secondary}
                       onChange={(color) =>
                         setTemplate({
                           ...template,
-                          config: {
-                            ...template.config,
-                            colors: { ...template.config.colors, secondary: color },
+                          template_config: {
+                            ...template.template_config,
+                            colors: { ...template.template_config.colors, secondary: color },
                           },
                         })
                       }
@@ -402,13 +411,13 @@ export const CertificateTemplateEditor: React.FC = () => {
 
                     <ColorPicker
                       label="Couleur du texte"
-                      value={template.config.colors.text}
+                      value={template.template_config.colors.text}
                       onChange={(color) =>
                         setTemplate({
                           ...template,
-                          config: {
-                            ...template.config,
-                            colors: { ...template.config.colors, text: color },
+                          template_config: {
+                            ...template.template_config,
+                            colors: { ...template.template_config.colors, text: color },
                           },
                         })
                       }
@@ -417,13 +426,13 @@ export const CertificateTemplateEditor: React.FC = () => {
 
                     <ColorPicker
                       label="Couleur de fond"
-                      value={template.config.colors.background}
+                      value={template.template_config.colors.background}
                       onChange={(color) =>
                         setTemplate({
                           ...template,
-                          config: {
-                            ...template.config,
-                            colors: { ...template.config.colors, background: color },
+                          template_config: {
+                            ...template.template_config,
+                            colors: { ...template.template_config.colors, background: color },
                           },
                         })
                       }
@@ -437,13 +446,13 @@ export const CertificateTemplateEditor: React.FC = () => {
                   <>
                     <FontEditor
                       label="Police du titre principal"
-                      font={template.config.fonts.title}
+                      font={template.template_config.fonts.title}
                       onChange={(font) =>
                         setTemplate({
                           ...template,
-                          config: {
-                            ...template.config,
-                            fonts: { ...template.config.fonts, title: font },
+                          template_config: {
+                            ...template.template_config,
+                            fonts: { ...template.template_config.fonts, title: font },
                           },
                         })
                       }
@@ -452,13 +461,13 @@ export const CertificateTemplateEditor: React.FC = () => {
 
                     <FontEditor
                       label="Police du sous-titre"
-                      font={template.config.fonts.subtitle}
+                      font={template.template_config.fonts.subtitle}
                       onChange={(font) =>
                         setTemplate({
                           ...template,
-                          config: {
-                            ...template.config,
-                            fonts: { ...template.config.fonts, subtitle: font },
+                          template_config: {
+                            ...template.template_config,
+                            fonts: { ...template.template_config.fonts, subtitle: font },
                           },
                         })
                       }
@@ -467,13 +476,13 @@ export const CertificateTemplateEditor: React.FC = () => {
 
                     <FontEditor
                       label="Police du corps de texte"
-                      font={template.config.fonts.body}
+                      font={template.template_config.fonts.body}
                       onChange={(font) =>
                         setTemplate({
                           ...template,
-                          config: {
-                            ...template.config,
-                            fonts: { ...template.config.fonts, body: font },
+                          template_config: {
+                            ...template.template_config,
+                            fonts: { ...template.template_config.fonts, body: font },
                           },
                         })
                       }
@@ -482,13 +491,13 @@ export const CertificateTemplateEditor: React.FC = () => {
 
                     <FontEditor
                       label="Police du nom de l'étudiant"
-                      font={template.config.fonts.studentName}
+                      font={template.template_config.fonts.studentName}
                       onChange={(font) =>
                         setTemplate({
                           ...template,
-                          config: {
-                            ...template.config,
-                            fonts: { ...template.config.fonts, studentName: font },
+                          template_config: {
+                            ...template.template_config,
+                            fonts: { ...template.template_config.fonts, studentName: font },
                           },
                         })
                       }
@@ -544,8 +553,8 @@ export const CertificateTemplateEditor: React.FC = () => {
 
                     {/* Element List */}
                     <ElementList
-                      elements={template.config.elements}
-                      selectedElementId={selectedElementId}
+                      elements={template.template_config.elements}
+                      selectedId={selectedElementId}
                       onSelect={setSelectedElementId}
                       onDelete={handleDeleteElement}
                       onDuplicate={handleDuplicateElement}
