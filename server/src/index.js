@@ -17,7 +17,6 @@ import calculationSheetsRouter from './routes/calculationSheets.js';
 import declarationsRouter from './routes/declarations.js';
 import authRouter from './routes/auth.js';
 import setupTempRouter from './routes/setup-temp.js';
-import runMigrationsRouter from './routes/run-migrations.js';
 import adminRouter from './routes/admin.js';
 import formationsRouter from './routes/formations.js';
 import coursRouter from './routes/cours.js';
@@ -59,7 +58,6 @@ app.use('/api/certificates', certificatesRouter);
 app.use('/api/certificate-templates', certificateTemplatesRouter);
 app.use('/api/forums', forumsRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
-app.use('/api/run-migrations', runMigrationsRouter); // TEMPORARY - Remove after migrations!
 app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
 app.use('/api/setup-certificates', setupCertificatesRouter); // TEMPORARY - Run once to create certificates table
 app.use('/api/setup-certificate-templates', setupCertificateTemplatesRouter); // TEMPORARY - Run once to create certificate templates table
