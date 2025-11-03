@@ -125,8 +125,7 @@ router.get('/student/:studentId', async (req, res) => {
         c.*,
         f.title as formation_title,
         f.description as formation_description,
-        p.full_name as student_name,
-        p.email as student_email
+        p.full_name as student_name
       FROM certificates c
       INNER JOIN formations f ON f.id = c.formation_id
       INNER JOIN profiles p ON p.id = c.student_id
@@ -162,8 +161,7 @@ router.get('/:id', async (req, res) => {
         f.title as formation_title,
         f.description as formation_description,
         f.duration_hours,
-        p.full_name as student_name,
-        p.email as student_email
+        p.full_name as student_name
       FROM certificates c
       INNER JOIN formations f ON f.id = c.formation_id
       INNER JOIN profiles p ON p.id = c.student_id
@@ -247,8 +245,7 @@ router.get('/', async (req, res) => {
       SELECT
         c.*,
         f.title as formation_title,
-        p.full_name as student_name,
-        p.email as student_email
+        p.full_name as student_name
       FROM certificates c
       INNER JOIN formations f ON f.id = c.formation_id
       INNER JOIN profiles p ON p.id = c.student_id
