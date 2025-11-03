@@ -10,7 +10,6 @@ import {
 import {
   Award,
   Plus,
-  Edit,
   Copy,
   Trash2,
   Star,
@@ -18,7 +17,6 @@ import {
   Eye,
   Palette,
 } from 'lucide-react';
-import type { CertificateTemplate } from '@/types/certificateTemplate';
 
 export const CertificateTemplates: React.FC = () => {
   const { data: templates, isLoading, error } = useCertificateTemplates();
@@ -27,7 +25,6 @@ export const CertificateTemplates: React.FC = () => {
   const setDefaultMutation = useSetDefaultTemplate();
   const seedMutation = useSeedDefaultTemplates();
 
-  const [selectedTemplate, setSelectedTemplate] = useState<CertificateTemplate | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
