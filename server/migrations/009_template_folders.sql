@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS template_folders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL,
   parent_id UUID REFERENCES template_folders(id) ON DELETE CASCADE,
-  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_by TEXT REFERENCES profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
 
