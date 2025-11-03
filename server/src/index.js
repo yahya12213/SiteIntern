@@ -86,12 +86,12 @@ console.log('📂 Dist exists?', fs.existsSync(distPath));
 if (!fs.existsSync(distPath)) {
   console.error('❌ ERROR: dist folder not found! Build may have failed.');
   console.error('Expected location:', distPath);
-  // List what's actually in the parent directories for debugging
+  // List what's actually in /app directory for debugging
   try {
-    const parentDir = path.join(__dirname, '../..');
-    console.log('📂 Contents of project root:', fs.readdirSync(parentDir));
+    const appDir = process.cwd();
+    console.log('📂 Contents of /app (process.cwd()):', fs.readdirSync(appDir));
   } catch (e) {
-    console.error('Could not list parent directory');
+    console.error('Could not list /app directory:', e.message);
   }
 }
 
