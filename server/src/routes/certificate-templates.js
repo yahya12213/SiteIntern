@@ -35,6 +35,138 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * POST /api/certificate-templates/custom-fonts/upload
+ * Upload une police personnalisée
+ */
+router.post('/custom-fonts/upload', uploadFont, async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded',
+      });
+    }
+
+    const { fontName } = req.body;
+
+    if (!fontName) {
+      deleteFile(req.file.path);
+      return res.status(400).json({
+        success: false,
+        error: 'fontName is required',
+      });
+    }
+
+    // Vérifier si une police avec ce nom existe déjà
+    const existing = await pool.query(
+      'SELECT id FROM custom_fonts WHERE name = $1',
+      [fontName]
+    );
+
+    if (existing.rows.length > 0) {
+      deleteFile(req.file.path);
+      return res.status(409).json({
+        success: false,
+        error: 'A font with this name already exists',
+      });
+    }
+
+    const fileUrl = `/uploads/fonts/${req.file.filename}`;
+    const fileFormat = path.extname(req.file.originalname).substring(1).toLowerCase();
+
+    const result = await pool.query(
+      `INSERT INTO custom_fonts (name, file_url, file_format, file_size)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [fontName, fileUrl, fileFormat, req.file.size]
+    );
+
+    res.status(201).json({
+      success: true,
+      font: result.rows[0],
+      message: 'Font uploaded successfully',
+    });
+  } catch (error) {
+    if (req.file) {
+      deleteFile(req.file.path);
+    }
+    console.error('Error uploading font:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/certificate-templates/custom-fonts
+ * Liste toutes les polices personnalisées
+ */
+router.get('/custom-fonts', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM custom_fonts ORDER BY name ASC'
+    );
+
+    res.json({
+      success: true,
+      fonts: result.rows,
+    });
+  } catch (error) {
+    console.error('Error fetching custom fonts:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * DELETE /api/certificate-templates/custom-fonts/:id
+ * Supprimer une police personnalisée
+ */
+router.delete('/custom-fonts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Récupérer la police
+    const existing = await pool.query(
+      'SELECT file_url FROM custom_fonts WHERE id = $1',
+      [id]
+    );
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Font not found',
+      });
+    }
+
+    const font = existing.rows[0];
+
+    // Supprimer le fichier
+    if (font.file_url) {
+      const filePath = path.join(__dirname, '../../', font.file_url);
+      deleteFile(filePath);
+    }
+
+    // Supprimer de la base de données
+    await pool.query('DELETE FROM custom_fonts WHERE id = $1', [id]);
+
+    res.json({
+      success: true,
+      message: 'Font deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting font:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
  * GET /api/certificate-templates/:id
  * Récupérer un template spécifique par ID
  */
@@ -728,138 +860,6 @@ router.delete('/:id/background', async (req, res) => {
     });
   } catch (error) {
     console.error('Error removing background:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
-});
-
-/**
- * POST /api/certificate-templates/custom-fonts/upload
- * Upload une police personnalisée
- */
-router.post('/custom-fonts/upload', uploadFont, async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'No file uploaded',
-      });
-    }
-
-    const { fontName } = req.body;
-
-    if (!fontName) {
-      deleteFile(req.file.path);
-      return res.status(400).json({
-        success: false,
-        error: 'fontName is required',
-      });
-    }
-
-    // Vérifier si une police avec ce nom existe déjà
-    const existing = await pool.query(
-      'SELECT id FROM custom_fonts WHERE name = $1',
-      [fontName]
-    );
-
-    if (existing.rows.length > 0) {
-      deleteFile(req.file.path);
-      return res.status(409).json({
-        success: false,
-        error: 'A font with this name already exists',
-      });
-    }
-
-    const fileUrl = `/uploads/fonts/${req.file.filename}`;
-    const fileFormat = path.extname(req.file.originalname).substring(1).toLowerCase();
-
-    const result = await pool.query(
-      `INSERT INTO custom_fonts (name, file_url, file_format, file_size)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [fontName, fileUrl, fileFormat, req.file.size]
-    );
-
-    res.status(201).json({
-      success: true,
-      font: result.rows[0],
-      message: 'Font uploaded successfully',
-    });
-  } catch (error) {
-    if (req.file) {
-      deleteFile(req.file.path);
-    }
-    console.error('Error uploading font:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
-});
-
-/**
- * GET /api/certificate-templates/custom-fonts
- * Liste toutes les polices personnalisées
- */
-router.get('/custom-fonts', async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT * FROM custom_fonts ORDER BY name ASC'
-    );
-
-    res.json({
-      success: true,
-      fonts: result.rows,
-    });
-  } catch (error) {
-    console.error('Error fetching custom fonts:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
-  }
-});
-
-/**
- * DELETE /api/certificate-templates/custom-fonts/:id
- * Supprimer une police personnalisée
- */
-router.delete('/custom-fonts/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Récupérer la police
-    const existing = await pool.query(
-      'SELECT file_url FROM custom_fonts WHERE id = $1',
-      [id]
-    );
-
-    if (existing.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Font not found',
-      });
-    }
-
-    const font = existing.rows[0];
-
-    // Supprimer le fichier
-    if (font.file_url) {
-      const filePath = path.join(__dirname, '../../', font.file_url);
-      deleteFile(filePath);
-    }
-
-    // Supprimer de la base de données
-    await pool.query('DELETE FROM custom_fonts WHERE id = $1', [id]);
-
-    res.json({
-      success: true,
-      message: 'Font deleted successfully',
-    });
-  } catch (error) {
-    console.error('Error deleting font:', error);
     res.status(500).json({
       success: false,
       error: error.message,
