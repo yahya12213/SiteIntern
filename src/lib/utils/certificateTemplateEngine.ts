@@ -11,18 +11,7 @@ import type {
   CustomFont,
 } from '@/types/certificateTemplate';
 import { certificateTemplatesApi } from '@/lib/api/certificateTemplates';
-
-/**
- * Constantes pour la conversion pixels → mm
- * Canvas: 1122px x 794px (A4 landscape at 96 DPI)
- * PDF: 297mm x 210mm
- */
-const CANVAS_WIDTH_PX = 1122;
-const CANVAS_HEIGHT_PX = 794;
-const PDF_WIDTH_MM = 297;
-const PDF_HEIGHT_MM = 210;
-const PX_TO_MM_X = PDF_WIDTH_MM / CANVAS_WIDTH_PX;
-const PX_TO_MM_Y = PDF_HEIGHT_MM / CANVAS_HEIGHT_PX;
+import { getCanvasDimensions, FORMAT_DIMENSIONS_MM } from '@/lib/utils/canvasDimensions';
 
 /**
  * Classe principale du moteur de génération de certificats
@@ -35,18 +24,46 @@ export class CertificateTemplateEngine {
   private pageHeight: number;
   private customFonts: CustomFont[] = [];
   private isCustomFontsLoaded: boolean = false;
+  private pxToMmX: number; // Ratio de conversion pixels → mm sur l'axe X
+  private pxToMmY: number; // Ratio de conversion pixels → mm sur l'axe Y
+  private canvasWidthPx: number; // Largeur du canvas en pixels
+  private canvasHeightPx: number; // Hauteur du canvas en pixels
 
   constructor(certificate: Certificate, template: CertificateTemplate) {
     this.certificate = certificate;
     this.template = template;
 
     const config = template.template_config;
+    const { format, orientation } = config.layout;
+
+    // Obtenir les dimensions du canvas en pixels
+    const canvasDimensions = getCanvasDimensions(format, orientation);
+    this.canvasWidthPx = canvasDimensions.width;
+    this.canvasHeightPx = canvasDimensions.height;
+
+    // Obtenir les dimensions PDF en mm
+    const pdfDimensions = FORMAT_DIMENSIONS_MM[format];
+    const pdfWidthMm = orientation === 'landscape' ? pdfDimensions.width : pdfDimensions.height;
+    const pdfHeightMm = orientation === 'landscape' ? pdfDimensions.height : pdfDimensions.width;
+
+    // Calculer les ratios de conversion
+    this.pxToMmX = pdfWidthMm / this.canvasWidthPx;
+    this.pxToMmY = pdfHeightMm / this.canvasHeightPx;
+
+    // Déterminer le format pour jsPDF
+    // Pour 'badge', on passe les dimensions en mm directement
+    let jsPdfFormat: string | number[];
+    if (format === 'badge') {
+      jsPdfFormat = [pdfWidthMm, pdfHeightMm];
+    } else {
+      jsPdfFormat = format; // 'a4' ou 'letter'
+    }
 
     // Créer le document PDF
     this.doc = new jsPDF({
-      orientation: config.layout.orientation || 'landscape',
+      orientation: orientation || 'landscape',
       unit: 'mm',
-      format: config.layout.format || 'a4',
+      format: jsPdfFormat,
     });
 
     this.pageWidth = this.doc.internal.pageSize.getWidth();
@@ -147,7 +164,8 @@ export class CertificateTemplateEngine {
       pixelValue = this.calculatePixelPosition(value, axis);
     }
 
-    return axis === 'x' ? pixelValue * PX_TO_MM_X : pixelValue * PX_TO_MM_Y;
+    // Utiliser les ratios dynamiques calculés dans le constructeur
+    return axis === 'x' ? pixelValue * this.pxToMmX : pixelValue * this.pxToMmY;
   }
 
   /**
@@ -159,13 +177,13 @@ export class CertificateTemplateEngine {
       return expression;
     }
 
-    // Remplacer les mots-clés par leurs valeurs en pixels
+    // Remplacer les mots-clés par leurs valeurs en pixels (utiliser les dimensions dynamiques)
     let expr = expression
-      .replace(/CANVAS_WIDTH_PX|canvasWidth/g, String(CANVAS_WIDTH_PX))
-      .replace(/CANVAS_HEIGHT_PX|canvasHeight/g, String(CANVAS_HEIGHT_PX))
+      .replace(/CANVAS_WIDTH_PX|canvasWidth/g, String(this.canvasWidthPx))
+      .replace(/CANVAS_HEIGHT_PX|canvasHeight/g, String(this.canvasHeightPx))
       .replace(
         /center/g,
-        axis === 'x' ? String(CANVAS_WIDTH_PX / 2) : String(CANVAS_HEIGHT_PX / 2)
+        axis === 'x' ? String(this.canvasWidthPx / 2) : String(this.canvasHeightPx / 2)
       );
 
     // Évaluer l'expression mathématique de manière sécurisée

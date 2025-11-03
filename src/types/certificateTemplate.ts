@@ -4,7 +4,7 @@
 
 export interface TemplateLayout {
   orientation: 'portrait' | 'landscape';
-  format: 'a4' | 'letter';
+  format: 'a4' | 'letter' | 'badge';
   margins: {
     top: number;
     right: number;
@@ -238,6 +238,7 @@ export const FONT_STYLES = [
 export const PAGE_FORMATS = [
   'a4',
   'letter',
+  'badge',
 ] as const;
 
 /**

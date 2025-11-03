@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Upload, Link, X, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import type { CertificateTemplate } from '@/types/certificateTemplate';
 import { certificateTemplatesApi } from '@/lib/api/certificateTemplates';
+import { getRecommendedImageDimensions } from '@/lib/utils/canvasDimensions';
 
 interface BackgroundImageManagerProps {
   template: CertificateTemplate;
@@ -17,6 +18,12 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Obtenir les dimensions recommandées en fonction du format et de l'orientation
+  const recommendedDimensions = getRecommendedImageDimensions(
+    template.template_config.layout.format,
+    template.template_config.layout.orientation
+  );
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -183,8 +190,8 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
               <p className="text-xs text-gray-500 mt-2">
                 JPG, PNG, WEBP ou SVG • Max 5 MB
               </p>
-              <p className="text-xs text-gray-500 mt-1">
-                Dimensions recommandées: 1122 x 794 px (A4 paysage)
+              <p className="text-xs text-blue-600 font-medium mt-1">
+                Dimensions recommandées: {recommendedDimensions}
               </p>
             </div>
           </div>

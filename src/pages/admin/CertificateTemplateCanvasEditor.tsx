@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, X, Grid3x3 } from 'lucide-react';
 import { useCertificateTemplate, useUpdateTemplate, useCreateTemplate } from '@/hooks/useCertificateTemplates';
@@ -8,9 +8,7 @@ import { CanvasEditor } from '@/components/admin/templates/CanvasEditor';
 import { ElementPropertiesPanel } from '@/components/admin/templates/ElementPropertiesPanel';
 import { BackgroundImageManager } from '@/components/admin/templates/BackgroundImageManager';
 import { CustomFontManager } from '@/components/admin/templates/CustomFontManager';
-
-// Taille canvas A4 landscape en pixels (ratio 297mm x 210mm à 96 DPI ≈ 4:3)
-const CANVAS_SIZE = { width: 1122, height: 794 };
+import { getCanvasDimensions, FORMAT_LABELS } from '@/lib/utils/canvasDimensions';
 
 const DEFAULT_TEMPLATE: Omit<CertificateTemplate, 'id' | 'created_at' | 'updated_at'> = {
   name: 'Nouveau Template Canvas',
@@ -54,6 +52,13 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
   const [showGrid, setShowGrid] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'elements' | 'background' | 'fonts'>('elements');
+
+  // Calculer les dimensions du canvas dynamiquement en fonction du format et de l'orientation
+  const canvasSize = useMemo(() => {
+    if (!template) return { width: 1122, height: 794 }; // Fallback A4 landscape
+    const { format, orientation } = template.template_config.layout;
+    return getCanvasDimensions(format, orientation);
+  }, [template?.template_config.layout.format, template?.template_config.layout.orientation]);
 
   // Charger le template existant
   useEffect(() => {
@@ -253,6 +258,36 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
     setTemplate(updatedTemplate);
   };
 
+  // Changer le format du canvas
+  const handleFormatChange = (newFormat: 'a4' | 'letter' | 'badge') => {
+    if (!template) return;
+    setTemplate({
+      ...template,
+      template_config: {
+        ...template.template_config,
+        layout: {
+          ...template.template_config.layout,
+          format: newFormat,
+        },
+      },
+    });
+  };
+
+  // Changer l'orientation du canvas
+  const handleOrientationChange = (newOrientation: 'portrait' | 'landscape') => {
+    if (!template) return;
+    setTemplate({
+      ...template,
+      template_config: {
+        ...template.template_config,
+        layout: {
+          ...template.template_config.layout,
+          orientation: newOrientation,
+        },
+      },
+    });
+  };
+
   if (isLoading || !template) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -292,6 +327,38 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Sélecteur de format */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600 font-medium">Format:</label>
+                <select
+                  value={template.template_config.layout.format}
+                  onChange={(e) => handleFormatChange(e.target.value as 'a4' | 'letter' | 'badge')}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="a4">{FORMAT_LABELS.a4} (297×210mm)</option>
+                  <option value="letter">{FORMAT_LABELS.letter} (279×216mm)</option>
+                  <option value="badge">{FORMAT_LABELS.badge} (86×54mm)</option>
+                </select>
+              </div>
+
+              {/* Sélecteur d'orientation */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600 font-medium">Orientation:</label>
+                <select
+                  value={template.template_config.layout.orientation}
+                  onChange={(e) => handleOrientationChange(e.target.value as 'portrait' | 'landscape')}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="landscape">Paysage</option>
+                  <option value="portrait">Portrait</option>
+                </select>
+              </div>
+
+              {/* Dimension du canvas (affichage info) */}
+              <div className="px-3 py-2 text-xs bg-gray-50 text-gray-600 rounded-lg border border-gray-200">
+                {canvasSize.width} × {canvasSize.height} px
+              </div>
+
               <button
                 onClick={() => setShowGrid(!showGrid)}
                 className={`px-3 py-2 text-sm rounded-lg flex items-center gap-2 transition-colors ${
@@ -357,7 +424,7 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
             elements={elements}
             selectedId={selectedId}
             backgroundImage={template.background_image_url || null}
-            canvasSize={CANVAS_SIZE}
+            canvasSize={canvasSize}
             showGrid={showGrid && !template.background_image_url}
             onElementMove={handleElementMove}
             onElementResize={handleElementResize}
