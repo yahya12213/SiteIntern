@@ -1,5 +1,11 @@
 import express from 'express';
 import pool from '../config/database.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { uploadBackground, uploadFont, deleteFile } from '../middleware/upload.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
@@ -537,6 +543,323 @@ router.post('/seed-defaults', async (req, res) => {
     });
   } catch (error) {
     console.error('Error seeding default templates:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/certificate-templates/:id/upload-background
+ * Upload une image d'arrière-plan pour un template
+ */
+router.post('/:id/upload-background', uploadBackground, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded',
+      });
+    }
+
+    // Vérifier que le template existe
+    const existing = await pool.query(
+      'SELECT background_image_url, background_image_type FROM certificate_templates WHERE id = $1',
+      [id]
+    );
+
+    if (existing.rows.length === 0) {
+      // Supprimer le fichier uploadé
+      deleteFile(req.file.path);
+      return res.status(404).json({
+        success: false,
+        error: 'Template not found',
+      });
+    }
+
+    // Supprimer l'ancien fichier s'il existe et s'il est de type 'upload'
+    const oldTemplate = existing.rows[0];
+    if (oldTemplate.background_image_url && oldTemplate.background_image_type === 'upload') {
+      const oldFilePath = path.join(__dirname, '../../', oldTemplate.background_image_url);
+      deleteFile(oldFilePath);
+    }
+
+    // Construire l'URL du fichier
+    const fileUrl = `/uploads/backgrounds/${req.file.filename}`;
+
+    // Mettre à jour le template
+    const result = await pool.query(
+      `UPDATE certificate_templates
+       SET background_image_url = $1,
+           background_image_type = 'upload',
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING *`,
+      [fileUrl, id]
+    );
+
+    res.json({
+      success: true,
+      template: result.rows[0],
+      background_url: fileUrl,
+      message: 'Background image uploaded successfully',
+    });
+  } catch (error) {
+    // Supprimer le fichier uploadé en cas d'erreur
+    if (req.file) {
+      deleteFile(req.file.path);
+    }
+    console.error('Error uploading background image:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/certificate-templates/:id/background-url
+ * Définir une URL d'arrière-plan pour un template
+ */
+router.post('/:id/background-url', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { url } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'url is required',
+      });
+    }
+
+    // Vérifier que le template existe
+    const existing = await pool.query(
+      'SELECT background_image_url, background_image_type FROM certificate_templates WHERE id = $1',
+      [id]
+    );
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Template not found',
+      });
+    }
+
+    // Supprimer l'ancien fichier s'il existe et s'il est de type 'upload'
+    const oldTemplate = existing.rows[0];
+    if (oldTemplate.background_image_url && oldTemplate.background_image_type === 'upload') {
+      const oldFilePath = path.join(__dirname, '../../', oldTemplate.background_image_url);
+      deleteFile(oldFilePath);
+    }
+
+    // Mettre à jour le template
+    const result = await pool.query(
+      `UPDATE certificate_templates
+       SET background_image_url = $1,
+           background_image_type = 'url',
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING *`,
+      [url, id]
+    );
+
+    res.json({
+      success: true,
+      template: result.rows[0],
+      message: 'Background URL set successfully',
+    });
+  } catch (error) {
+    console.error('Error setting background URL:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * DELETE /api/certificate-templates/:id/background
+ * Supprimer l'arrière-plan d'un template
+ */
+router.delete('/:id/background', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Récupérer le template
+    const existing = await pool.query(
+      'SELECT background_image_url, background_image_type FROM certificate_templates WHERE id = $1',
+      [id]
+    );
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Template not found',
+      });
+    }
+
+    const template = existing.rows[0];
+
+    // Supprimer le fichier si c'est un upload
+    if (template.background_image_url && template.background_image_type === 'upload') {
+      const filePath = path.join(__dirname, '../../', template.background_image_url);
+      deleteFile(filePath);
+    }
+
+    // Mettre à jour le template
+    const result = await pool.query(
+      `UPDATE certificate_templates
+       SET background_image_url = NULL,
+           background_image_type = NULL,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [id]
+    );
+
+    res.json({
+      success: true,
+      template: result.rows[0],
+      message: 'Background removed successfully',
+    });
+  } catch (error) {
+    console.error('Error removing background:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/certificate-templates/custom-fonts/upload
+ * Upload une police personnalisée
+ */
+router.post('/custom-fonts/upload', uploadFont, async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded',
+      });
+    }
+
+    const { fontName } = req.body;
+
+    if (!fontName) {
+      deleteFile(req.file.path);
+      return res.status(400).json({
+        success: false,
+        error: 'fontName is required',
+      });
+    }
+
+    // Vérifier si une police avec ce nom existe déjà
+    const existing = await pool.query(
+      'SELECT id FROM custom_fonts WHERE name = $1',
+      [fontName]
+    );
+
+    if (existing.rows.length > 0) {
+      deleteFile(req.file.path);
+      return res.status(409).json({
+        success: false,
+        error: 'A font with this name already exists',
+      });
+    }
+
+    const fileUrl = `/uploads/fonts/${req.file.filename}`;
+    const fileFormat = path.extname(req.file.originalname).substring(1).toLowerCase();
+
+    const result = await pool.query(
+      `INSERT INTO custom_fonts (name, file_url, file_format, file_size)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [fontName, fileUrl, fileFormat, req.file.size]
+    );
+
+    res.status(201).json({
+      success: true,
+      font: result.rows[0],
+      message: 'Font uploaded successfully',
+    });
+  } catch (error) {
+    if (req.file) {
+      deleteFile(req.file.path);
+    }
+    console.error('Error uploading font:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/certificate-templates/custom-fonts
+ * Liste toutes les polices personnalisées
+ */
+router.get('/custom-fonts', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM custom_fonts ORDER BY name ASC'
+    );
+
+    res.json({
+      success: true,
+      fonts: result.rows,
+    });
+  } catch (error) {
+    console.error('Error fetching custom fonts:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * DELETE /api/certificate-templates/custom-fonts/:id
+ * Supprimer une police personnalisée
+ */
+router.delete('/custom-fonts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Récupérer la police
+    const existing = await pool.query(
+      'SELECT file_url FROM custom_fonts WHERE id = $1',
+      [id]
+    );
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Font not found',
+      });
+    }
+
+    const font = existing.rows[0];
+
+    // Supprimer le fichier
+    if (font.file_url) {
+      const filePath = path.join(__dirname, '../../', font.file_url);
+      deleteFile(filePath);
+    }
+
+    // Supprimer de la base de données
+    await pool.query('DELETE FROM custom_fonts WHERE id = $1', [id]);
+
+    res.json({
+      success: true,
+      message: 'Font deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting font:', error);
     res.status(500).json({
       success: false,
       error: error.message,

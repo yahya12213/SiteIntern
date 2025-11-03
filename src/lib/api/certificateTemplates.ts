@@ -3,6 +3,7 @@ import type {
   CertificateTemplate,
   CreateTemplateInput,
   UpdateTemplateInput,
+  CustomFont,
 } from '@/types/certificateTemplate';
 
 /**
@@ -127,5 +128,74 @@ export const certificateTemplatesApi = {
     }
 
     return response.json();
+  },
+
+  /**
+   * Upload image d'arrière-plan pour un template
+   */
+  uploadBackground: async (id: string, file: File): Promise<{ success: boolean; template: CertificateTemplate; background_url: string; message: string }> => {
+    const formData = new FormData();
+    formData.append('background', file);
+
+    const response = await fetch(`/api/certificate-templates/${id}/upload-background`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to upload background image');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Définir une URL d'arrière-plan pour un template
+   */
+  setBackgroundUrl: async (id: string, url: string): Promise<{ success: boolean; template: CertificateTemplate; message: string }> => {
+    return apiClient.post(`/certificate-templates/${id}/background-url`, { url });
+  },
+
+  /**
+   * Supprimer l'arrière-plan d'un template
+   */
+  deleteBackground: async (id: string): Promise<{ success: boolean; template: CertificateTemplate; message: string }> => {
+    return apiClient.delete(`/certificate-templates/${id}/background`);
+  },
+
+  /**
+   * Upload une police personnalisée
+   */
+  uploadCustomFont: async (file: File, fontName: string): Promise<{ success: boolean; font: CustomFont; message: string }> => {
+    const formData = new FormData();
+    formData.append('font', file);
+    formData.append('fontName', fontName);
+
+    const response = await fetch(`/api/certificate-templates/custom-fonts/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to upload font');
+    }
+
+    return response.json();
+  },
+
+  /**
+   * Lister toutes les polices personnalisées
+   */
+  getCustomFonts: async (): Promise<{ success: boolean; fonts: CustomFont[] }> => {
+    return apiClient.get('/certificate-templates/custom-fonts');
+  },
+
+  /**
+   * Supprimer une police personnalisée
+   */
+  deleteCustomFont: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.delete(`/certificate-templates/custom-fonts/${id}`);
   },
 };

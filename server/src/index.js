@@ -99,6 +99,19 @@ if (!fs.existsSync(distPath)) {
   }
 }
 
+// Serve uploaded files (backgrounds, fonts)
+const uploadsPath = path.join(__dirname, '../uploads');
+console.log('📁 Uploads path:', uploadsPath);
+console.log('📂 Uploads exists?', fs.existsSync(uploadsPath));
+
+// Create uploads directory if it doesn't exist
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+  console.log('📁 Created uploads directory');
+}
+
+app.use('/uploads', express.static(uploadsPath));
+
 app.use(express.static(distPath));
 
 // The "catchall" handler: for any request that doesn't match API routes,

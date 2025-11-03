@@ -88,6 +88,8 @@ export interface CertificateTemplate {
   template_config: TemplateConfig;
   is_default: boolean;
   preview_image_url?: string;
+  background_image_url?: string;
+  background_image_type?: 'url' | 'upload';
   created_at: string;
   updated_at: string;
 }
@@ -183,12 +185,41 @@ export const COLOR_PRESETS = {
 } as const;
 
 /**
- * Familles de polices disponibles
+ * Interface pour l'arrière-plan du template
+ */
+export interface BackgroundImage {
+  type: 'url' | 'upload';
+  value: string;
+}
+
+/**
+ * Interface pour les polices personnalisées
+ */
+export interface CustomFont {
+  id: string;
+  name: string;
+  file_url: string;
+  file_format: 'ttf' | 'otf' | 'woff' | 'woff2';
+  file_size?: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+/**
+ * Familles de polices disponibles (built-in + possibilité de custom)
  */
 export const FONT_FAMILIES = [
   'helvetica',
   'times',
   'courier',
+  'arial',
+  'verdana',
+  'georgia',
+  'palatino',
+  'garamond',
+  'bookman',
+  'trebuchet',
+  'impact',
 ] as const;
 
 /**
