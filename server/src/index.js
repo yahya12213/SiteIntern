@@ -24,6 +24,11 @@ import progressRouter from './routes/progress.js';
 import setupProgressRouter from './routes/setup-progress.js';
 import migrationSessionsRouter from './routes/migration-sessions.js';
 import migrationSessionsCompleteRouter from './routes/migration-sessions-complete.js';
+import analyticsRouter from './routes/analytics.js';
+import certificatesRouter from './routes/certificates.js';
+import setupCertificatesRouter from './routes/setup-certificates.js';
+import forumsRouter from './routes/forums.js';
+import setupForumsRouter from './routes/setup-forums.js';
 
 dotenv.config();
 
@@ -46,8 +51,13 @@ app.use('/api/admin', adminRouter);
 app.use('/api/formations', formationsRouter);
 app.use('/api/cours', coursRouter);
 app.use('/api/progress', progressRouter);
+app.use('/api/analytics', analyticsRouter);
+app.use('/api/certificates', certificatesRouter);
+app.use('/api/forums', forumsRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
+app.use('/api/setup-certificates', setupCertificatesRouter); // TEMPORARY - Run once to create certificates table
+app.use('/api/setup-forums', setupForumsRouter); // TEMPORARY - Run once to create forum tables
 app.use('/api/migration-sessions', migrationSessionsRouter); // TEMPORARY - Migration pour ajouter formation_id
 app.use('/api/migration-sessions-complete', migrationSessionsCompleteRouter); // TEMPORARY - Migration complète sessions
 

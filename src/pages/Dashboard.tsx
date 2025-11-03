@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { Users, MapPin, FileSpreadsheet, Calculator, ClipboardCheck, FilePlus, List } from 'lucide-react';
+import { Users, MapPin, FileSpreadsheet, Calculator, ClipboardCheck, FilePlus, List, BarChart3, FileText } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import DashboardStats from '@/components/Dashboard/DashboardStats';
 
@@ -51,6 +51,20 @@ const Dashboard: React.FC = () => {
       icon: ClipboardCheck,
       link: '/admin/declarations',
       color: 'bg-indigo-500',
+    },
+    {
+      title: 'Analytics & Rapports',
+      description: 'Statistiques et analyses de performance des formations',
+      icon: BarChart3,
+      link: '/admin/analytics',
+      color: 'bg-pink-500',
+    },
+    {
+      title: 'Rapports Étudiants',
+      description: 'Consulter les rapports détaillés de progression des étudiants',
+      icon: FileText,
+      link: '/admin/student-reports',
+      color: 'bg-cyan-500',
     },
   ];
 

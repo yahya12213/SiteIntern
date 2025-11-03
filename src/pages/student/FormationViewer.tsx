@@ -13,19 +13,29 @@ import {
   ChevronDown,
   Lock,
   CheckCircle,
+  MessageSquare,
 } from 'lucide-react';
 import { useFormation } from '@/hooks/useCours';
 import { useFormationProgress } from '@/hooks/useProgress';
+import { useStudentCertificates } from '@/hooks/useCertificates';
+import { useAuth } from '@/contexts/AuthContext';
 import { ProgressBar, ProgressStats } from '@/components/student/ProgressBar';
 import type { FormationModule } from '@/types/cours';
 
 const FormationViewer: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: formation, isLoading, error } = useFormation(id);
   const { data: progressData } = useFormationProgress(id);
+  const { data: certificatesData } = useStudentCertificates(user?.id || null);
 
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+
+  // Check if certificate exists for this formation
+  const hasCertificate = certificatesData?.certificates.some(
+    (cert) => cert.formation_id === id
+  ) || false;
 
   const toggleModule = (moduleId: string) => {
     const newExpanded = new Set(expandedModules);
@@ -197,6 +207,54 @@ const FormationViewer: React.FC = () => {
                 color="purple"
                 size="lg"
               />
+            </div>
+
+            {/* Certificate Badge */}
+            {hasCertificate && (
+              <div className="mb-6">
+                <div
+                  onClick={() => navigate('/student/certificates')}
+                  className="bg-gradient-to-r from-amber-50 to-amber-100 border-2 border-amber-300 rounded-lg p-4 cursor-pointer hover:shadow-md transition-all"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="bg-amber-500 p-3 rounded-full">
+                      <Award className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-amber-900 mb-1">
+                        🎉 Certificat disponible !
+                      </h3>
+                      <p className="text-sm text-amber-700">
+                        Félicitations ! Vous avez terminé cette formation. Cliquez ici pour télécharger votre certificat.
+                      </p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-amber-600" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Forum Access */}
+            <div className="mb-6">
+              <div
+                onClick={() => navigate(`/student/forums/${id}`)}
+                className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg p-4 cursor-pointer hover:shadow-md transition-all"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-3 rounded-full">
+                    <MessageSquare className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-blue-900 mb-1">
+                      💬 Forum de discussion
+                    </h3>
+                    <p className="text-sm text-blue-700">
+                      Posez vos questions, partagez vos idées et discutez avec les autres étudiants.
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
             </div>
 
             {/* Detailed Stats */}

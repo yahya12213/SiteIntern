@@ -117,6 +117,38 @@ const StudentDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Quick Access */}
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Accès Rapide</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Button
+              onClick={() => navigate('/student/catalog')}
+              className="flex items-center justify-center gap-2 h-16 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+            >
+              <BookOpen className="h-5 w-5" />
+              <span className="font-medium">Catalogue de Formations</span>
+            </Button>
+
+            <Button
+              onClick={() => navigate('/student/certificates')}
+              className="flex items-center justify-center gap-2 h-16 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
+            >
+              <Award className="h-5 w-5" />
+              <span className="font-medium">Mes Certificats</span>
+            </Button>
+
+            {activeSessions.length > 0 && activeSessions[0].formation_id && (
+              <Button
+                onClick={() => navigate(`/student/formations/${activeSessions[0].formation_id}`)}
+                className="flex items-center justify-center gap-2 h-16 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
+              >
+                <PlayCircle className="h-5 w-5" />
+                <span className="font-medium">Continuer ma formation</span>
+              </Button>
+            )}
+          </div>
+        </div>
+
         {/* Active Sessions */}
         {activeSessions.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border p-6">

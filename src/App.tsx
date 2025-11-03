@@ -18,11 +18,19 @@ import CreateDeclaration from './pages/gerant/CreateDeclaration';
 import Sessions from './pages/admin/formations/Sessions';
 import Cours from './pages/admin/formations/Cours';
 import FormationEditor from './pages/admin/formations/FormationEditor';
+import { Analytics } from './pages/admin/Analytics';
+import { StudentReports } from './pages/admin/StudentReports';
+import { CertificatesManagement } from './pages/admin/CertificatesManagement';
+import { ForumModeration } from './pages/admin/ForumModeration';
 import StudentDashboard from './pages/student/StudentDashboard';
 import FormationCatalog from './pages/student/FormationCatalog';
 import FormationViewer from './pages/student/FormationViewer';
 import VideoPlayer from './pages/student/VideoPlayer';
 import TestTaking from './pages/student/TestTaking';
+import { MyCertificates } from './pages/student/MyCertificates';
+import { ForumList } from './pages/student/ForumList';
+import { ThreadView } from './pages/student/ThreadView';
+import { CreateThread } from './pages/student/CreateThread';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean; gerantOnly?: boolean }> = ({
@@ -204,6 +212,42 @@ const AppRoutes: React.FC = () => {
         }
       />
 
+      <Route
+        path="/admin/analytics"
+        element={
+          <ProtectedRoute adminOnly>
+            <Analytics />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/student-reports"
+        element={
+          <ProtectedRoute adminOnly>
+            <StudentReports />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/certificates"
+        element={
+          <ProtectedRoute adminOnly>
+            <CertificatesManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/forums"
+        element={
+          <ProtectedRoute adminOnly>
+            <ForumModeration />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Professor Routes */}
       <Route
         path="/professor/declarations"
@@ -265,6 +309,42 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <TestTaking />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/student/certificates"
+        element={
+          <ProtectedRoute>
+            <MyCertificates />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/student/forums/:formationId"
+        element={
+          <ProtectedRoute>
+            <ForumList />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/student/forums/:formationId/new"
+        element={
+          <ProtectedRoute>
+            <CreateThread />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/student/forums/thread/:threadId"
+        element={
+          <ProtectedRoute>
+            <ThreadView />
           </ProtectedRoute>
         }
       />
