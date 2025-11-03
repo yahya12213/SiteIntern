@@ -46,8 +46,8 @@ router.get('/overview', async (req, res) => {
         SELECT COUNT(*) as count
         FROM formation_sessions
         WHERE status = 'active'
-        AND start_date <= CURRENT_DATE
-        AND end_date >= CURRENT_DATE
+        AND start_date::date <= CURRENT_DATE
+        AND end_date::date >= CURRENT_DATE
       `),
 
       // Nombre total d'inscriptions
