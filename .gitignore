@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Exception: Allow server/dist (frontend build copied for Railway deployment)
+!server/dist
+
 # Environment variables
 .env
 .env.local
