@@ -14,7 +14,7 @@ router.get('/run-setup', async (req, res) => {
     // Create enrollments table (online LMS course enrollments)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS enrollments (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
         student_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
         formation_id TEXT NOT NULL REFERENCES formations(id) ON DELETE CASCADE,
         enrolled_at TIMESTAMP DEFAULT NOW(),
@@ -32,9 +32,9 @@ router.get('/run-setup', async (req, res) => {
     // Create video_progress table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS video_progress (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        student_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-        video_id UUID NOT NULL REFERENCES module_videos(id) ON DELETE CASCADE,
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        student_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        video_id TEXT NOT NULL REFERENCES module_videos(id) ON DELETE CASCADE,
         last_watched_at TIMESTAMP,
         completed_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT NOW(),
@@ -47,9 +47,9 @@ router.get('/run-setup', async (req, res) => {
     // Create test_attempts table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS test_attempts (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        student_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-        test_id UUID NOT NULL REFERENCES module_tests(id) ON DELETE CASCADE,
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        student_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        test_id TEXT NOT NULL REFERENCES module_tests(id) ON DELETE CASCADE,
         score INTEGER NOT NULL,
         total_points INTEGER NOT NULL,
         passed BOOLEAN DEFAULT FALSE,
