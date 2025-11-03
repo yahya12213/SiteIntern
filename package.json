@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && cd server && npm install",
+    "build": "tsc -b && vite build && cd server && npm install && cd .. && node -e \"const fs=require('fs'); const path=require('path'); if(fs.existsSync('dist')){fs.cpSync('dist','server/dist',{recursive:true})}\"",
     "lint": "eslint .",
     "preview": "serve dist -s -l ${PORT:-8080}",
     "start": "node server/src/index.js"
