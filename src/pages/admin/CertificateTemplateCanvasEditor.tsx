@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Save, X, Grid3x3 } from 'lucide-react';
+import { ArrowLeft, Save, X, Grid3x3, Eye } from 'lucide-react';
 import { useCertificateTemplate, useUpdateTemplate, useCreateTemplate } from '@/hooks/useCertificateTemplates';
 import type { CertificateTemplate, TemplateElement } from '@/types/certificateTemplate';
 import { ElementPalette } from '@/components/admin/templates/ElementPalette';
@@ -8,6 +8,7 @@ import { CanvasEditor } from '@/components/admin/templates/CanvasEditor';
 import { ElementPropertiesPanel } from '@/components/admin/templates/ElementPropertiesPanel';
 import { BackgroundImageManager } from '@/components/admin/templates/BackgroundImageManager';
 import { CustomFontManager } from '@/components/admin/templates/CustomFontManager';
+import { TemplatePreviewModal } from '@/components/admin/templates/TemplatePreviewModal';
 import { getCanvasDimensions, FORMAT_LABELS } from '@/lib/utils/canvasDimensions';
 
 const createDefaultTemplate = (folderId?: string): Omit<CertificateTemplate, 'id' | 'created_at' | 'updated_at'> => ({
@@ -62,6 +63,7 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
   const [showGrid, setShowGrid] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'elements' | 'background' | 'fonts'>('elements');
+  const [showPreview, setShowPreview] = useState(false);
 
   // Calculer les dimensions du canvas dynamiquement en fonction du format et de l'orientation
   const canvasSize = useMemo(() => {
@@ -409,6 +411,14 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
                 Grille
               </button>
               <button
+                onClick={() => setShowPreview(true)}
+                className="px-4 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                title="Prévisualiser le certificat"
+              >
+                <Eye className="h-4 w-4" />
+                Visualiser
+              </button>
+              <button
                 onClick={handleCancel}
                 disabled={isSaving}
                 className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50"
@@ -533,6 +543,15 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {template && (
+        <TemplatePreviewModal
+          isOpen={showPreview}
+          onClose={() => setShowPreview(false)}
+          template={template}
+        />
+      )}
     </div>
   );
 };
