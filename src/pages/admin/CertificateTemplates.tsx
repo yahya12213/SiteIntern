@@ -26,6 +26,8 @@ import {
   FolderPlus,
   Edit2,
   FolderX,
+  FolderOpen,
+  ChevronRight,
 } from 'lucide-react';
 import { FolderTree } from '@/components/admin/templates/FolderTree';
 import { FolderFormModal } from '@/components/admin/templates/FolderFormModal';
@@ -81,6 +83,23 @@ export const CertificateTemplates: React.FC = () => {
     };
     return findFolder(folderTree);
   }, [selectedFolderId, folderTree]);
+
+  // Get child folders of currently selected folder (for Windows Explorer view)
+  const currentChildFolders = useMemo((): TemplateFolder[] => {
+    if (!folderTree) return [];
+
+    // If no folder selected, show root folders
+    if (!selectedFolderId) {
+      return folderTree;
+    }
+
+    // Otherwise, find the selected folder and return its children
+    if (selectedFolder && selectedFolder.children) {
+      return selectedFolder.children;
+    }
+
+    return [];
+  }, [selectedFolderId, selectedFolder, folderTree]);
 
   // Build breadcrumb path from root to selected folder
   const breadcrumbPath = useMemo((): TemplateFolder[] => {
@@ -439,22 +458,22 @@ export const CertificateTemplates: React.FC = () => {
             )}
           </div>
 
-          {/* Right Panel: Templates Grid - ALWAYS VISIBLE */}
+          {/* Right Panel: Folders & Templates Grid (Windows Explorer Style) */}
           <div className="col-span-12 md:col-span-9">
-            {filteredTemplates.length === 0 ? (
+            {currentChildFolders.length === 0 && filteredTemplates.length === 0 ? (
               <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
                 <Award className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   {flattenedFolders.length === 0
                     ? '🚀 Commencez par créer un dossier'
                     : selectedFolder
-                    ? `Aucun template dans le dossier "${selectedFolder.name}"`
-                    : 'Aucun template disponible'}
+                    ? `Le dossier "${selectedFolder.name}" est vide`
+                    : 'Aucun contenu disponible'}
                 </h3>
                 <p className="text-gray-600 mb-6">
                   {flattenedFolders.length === 0
                     ? 'Organisez vos templates en créant d\'abord des dossiers (ex: Formation KSS → Certificat, Attestation, Badge)'
-                    : 'Sélectionnez un dossier et créez votre premier template'}
+                    : 'Créez un sous-dossier ou ajoutez un template dans ce dossier'}
                 </p>
                 <div className="flex gap-3 justify-center">
                   {flattenedFolders.length === 0 ? (
@@ -467,6 +486,13 @@ export const CertificateTemplates: React.FC = () => {
                     </button>
                   ) : (
                     <>
+                      <button
+                        onClick={handleCreateFolder}
+                        className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center gap-2 font-medium shadow-md"
+                      >
+                        <FolderPlus className="h-5 w-5" />
+                        Nouveau Sous-dossier
+                      </button>
                       <button
                         onClick={handleCreateCanvasTemplate}
                         className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2 font-medium shadow-md"
@@ -489,8 +515,56 @@ export const CertificateTemplates: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredTemplates.map((template) => (
+              <div className="space-y-6">
+                {/* Folders Section (Windows Explorer Style) */}
+                {currentChildFolders.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <Folder className="h-4 w-4" />
+                      Dossiers ({currentChildFolders.length})
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {currentChildFolders.map((folder) => (
+                        <button
+                          key={folder.id}
+                          onClick={() => setSelectedFolderId(folder.id)}
+                          className="group bg-white rounded-lg border-2 border-gray-200 hover:border-purple-300 hover:shadow-lg transition-all duration-200 p-5 text-left"
+                        >
+                          {/* Folder Icon Area - Larger */}
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="p-3 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg group-hover:from-purple-200 group-hover:to-purple-300 transition-all">
+                              <FolderOpen className="h-8 w-8 text-purple-600" />
+                            </div>
+                            <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
+                          </div>
+
+                          {/* Folder Info */}
+                          <div>
+                            <h4 className="font-bold text-gray-900 text-sm mb-1 truncate group-hover:text-purple-700 transition-colors">
+                              {folder.name}
+                            </h4>
+                            <p className="text-xs text-gray-500">
+                              {folder.template_count || 0} template{(folder.template_count || 0) !== 1 ? 's' : ''}
+                              {folder.children && folder.children.length > 0 && (
+                                <> • {folder.children.length} sous-dossier{folder.children.length !== 1 ? 's' : ''}</>
+                              )}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Templates Section */}
+                {filteredTemplates.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <Award className="h-4 w-4" />
+                      Templates ({filteredTemplates.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredTemplates.map((template) => (
                   <div
                     key={template.id}
                     className="bg-white rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-200 relative"
@@ -620,7 +694,10 @@ export const CertificateTemplates: React.FC = () => {
                       </div>
                     )}
                   </div>
-                ))}
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
