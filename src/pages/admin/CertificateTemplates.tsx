@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { FolderTree } from '@/components/admin/templates/FolderTree';
 import { FolderFormModal } from '@/components/admin/templates/FolderFormModal';
+import { Breadcrumb } from '@/components/admin/templates/Breadcrumb';
 import type { TemplateFolder } from '@/types/certificateTemplate';
 
 export const CertificateTemplates: React.FC = () => {
@@ -67,6 +68,31 @@ export const CertificateTemplates: React.FC = () => {
       return null;
     };
     return findFolder(folderTree);
+  }, [selectedFolderId, folderTree]);
+
+  // Build breadcrumb path from root to selected folder
+  const breadcrumbPath = useMemo((): TemplateFolder[] => {
+    if (!selectedFolderId || !folderTree) return [];
+
+    const buildPath = (
+      folders: TemplateFolder[],
+      targetId: string,
+      path: TemplateFolder[] = []
+    ): TemplateFolder[] | null => {
+      for (const folder of folders) {
+        const currentPath = [...path, folder];
+        if (folder.id === targetId) {
+          return currentPath;
+        }
+        if (folder.children) {
+          const found = buildPath(folder.children, targetId, currentPath);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    return buildPath(folderTree, selectedFolderId) || [];
   }, [selectedFolderId, folderTree]);
 
   // Flatten folder tree for modal
@@ -260,6 +286,9 @@ export const CertificateTemplates: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Breadcrumb Navigation */}
+        <Breadcrumb currentPath={breadcrumbPath} onNavigate={setSelectedFolderId} />
 
         {/* Main Content: Always show two-panel layout */}
         <div className="grid grid-cols-12 gap-4">
