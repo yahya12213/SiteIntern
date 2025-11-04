@@ -729,6 +729,16 @@ router.post('/:id/upload-background', uploadBackground, async (req, res) => {
       });
     }
 
+    // Handle new templates (not yet saved to database)
+    if (id === 'new') {
+      const fileUrl = `/uploads/backgrounds/${req.file.filename}`;
+      return res.json({
+        success: true,
+        background_url: fileUrl,
+        message: 'Background image uploaded successfully (template not saved yet)',
+      });
+    }
+
     // Vérifier que le template existe
     const existing = await pool.query(
       'SELECT background_image_url, background_image_type FROM certificate_templates WHERE id = $1',
