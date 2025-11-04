@@ -58,6 +58,16 @@ export const certificateTemplatesApi = {
   },
 
   /**
+   * Dupliquer un template vers un autre dossier
+   */
+  duplicateToFolder: async (
+    id: string,
+    targetFolderId: string
+  ): Promise<{ success: boolean; template: CertificateTemplate; message: string }> => {
+    return apiClient.post(`/certificate-templates/${id}/duplicate-to-folder`, { targetFolderId });
+  },
+
+  /**
    * Créer les templates prédéfinis (seed)
    */
   seedDefaults: async (): Promise<{ success: boolean; message: string; templates: CertificateTemplate[] }> => {

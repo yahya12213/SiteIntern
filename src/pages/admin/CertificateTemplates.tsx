@@ -5,6 +5,7 @@ import {
   useCertificateTemplates,
   useDeleteTemplate,
   useDuplicateTemplate,
+  useDuplicateToFolder,
   useSeedDefaultTemplates,
   useUpdateTemplate,
 } from '@/hooks/useCertificateTemplates';
@@ -31,6 +32,7 @@ import { FolderFormModal } from '@/components/admin/templates/FolderFormModal';
 import { Breadcrumb } from '@/components/admin/templates/Breadcrumb';
 import { CanvasConfigModal, type CanvasConfig } from '@/components/admin/templates/CanvasConfigModal';
 import { RenameTemplateModal } from '@/components/admin/templates/RenameTemplateModal';
+import { DuplicateToFolderModal } from '@/components/admin/templates/DuplicateToFolderModal';
 import type { TemplateFolder } from '@/types/certificateTemplate';
 
 export const CertificateTemplates: React.FC = () => {
@@ -39,6 +41,7 @@ export const CertificateTemplates: React.FC = () => {
   const { data: folderTree, isLoading: foldersLoading } = useTemplateFolderTree();
   const deleteMutation = useDeleteTemplate();
   const duplicateMutation = useDuplicateTemplate();
+  const duplicateToFolderMutation = useDuplicateToFolder();
   const updateTemplateMutation = useUpdateTemplate();
   const seedMutation = useSeedDefaultTemplates();
   const createFolderMutation = useCreateFolder();
@@ -53,6 +56,8 @@ export const CertificateTemplates: React.FC = () => {
   const [showCanvasConfigModal, setShowCanvasConfigModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renamingTemplate, setRenamingTemplate] = useState<{ id: string; name: string } | null>(null);
+  const [showDuplicateToFolderModal, setShowDuplicateToFolderModal] = useState(false);
+  const [duplicatingTemplate, setDuplicatingTemplate] = useState<{ id: string; name: string; folderId: string } | null>(null);
 
   // Filter templates by selected folder
   const filteredTemplates = useMemo(() => {
@@ -151,6 +156,26 @@ export const CertificateTemplates: React.FC = () => {
       setRenamingTemplate(null);
     } catch (error: any) {
       alert('Erreur: ' + (error.message || 'Impossible de renommer ce template'));
+    }
+  };
+
+  const handleDuplicateToFolderClick = (id: string, name: string, folderId: string) => {
+    setDuplicatingTemplate({ id, name, folderId });
+    setShowDuplicateToFolderModal(true);
+  };
+
+  const handleDuplicateToFolderSubmit = async (targetFolderId: string) => {
+    if (!duplicatingTemplate) return;
+
+    try {
+      await duplicateToFolderMutation.mutateAsync({
+        id: duplicatingTemplate.id,
+        targetFolderId,
+      });
+      setShowDuplicateToFolderModal(false);
+      setDuplicatingTemplate(null);
+    } catch (error: any) {
+      alert('Erreur: ' + (error.message || 'Impossible de dupliquer ce template'));
     }
   };
 
@@ -520,7 +545,7 @@ export const CertificateTemplates: React.FC = () => {
                       </div>
 
                       {/* Actions */}
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         <button
                           onClick={() => handleRenameClick(template.id, template.name)}
                           className="px-2 py-1.5 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
@@ -540,6 +565,16 @@ export const CertificateTemplates: React.FC = () => {
                         </button>
 
                         <button
+                          onClick={() => handleDuplicateToFolderClick(template.id, template.name, template.folder_id)}
+                          disabled={duplicateToFolderMutation.isPending}
+                          className="px-2 py-1.5 bg-cyan-50 text-cyan-700 rounded border border-cyan-300 hover:bg-cyan-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
+                          title="Dupliquer vers un autre dossier"
+                        >
+                          <FolderPlus className="h-3 w-3" />
+                          Vers dossier
+                        </button>
+
+                        <button
                           onClick={() => navigate(`/admin/certificate-templates/${template.id}/canvas-edit`)}
                           className="px-2 py-1.5 bg-purple-50 text-purple-700 rounded border border-purple-300 hover:bg-purple-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
                           title="Modifier avec l'éditeur Canvas"
@@ -551,7 +586,7 @@ export const CertificateTemplates: React.FC = () => {
                         <button
                           onClick={() => setShowDeleteConfirm(template.id)}
                           disabled={deleteMutation.isPending}
-                          className="px-2 py-1.5 bg-red-50 text-red-700 rounded border border-red-300 hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
+                          className="px-2 py-1.5 bg-red-50 text-red-700 rounded border border-red-300 hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50 col-span-2"
                         >
                           <Trash2 className="h-3 w-3" />
                           Supprimer
@@ -621,6 +656,22 @@ export const CertificateTemplates: React.FC = () => {
             onSubmit={handleRenameSubmit}
             currentName={renamingTemplate.name}
             isLoading={updateTemplateMutation.isPending}
+          />
+        )}
+
+        {/* Duplicate To Folder Modal */}
+        {duplicatingTemplate && (
+          <DuplicateToFolderModal
+            isOpen={showDuplicateToFolderModal}
+            onClose={() => {
+              setShowDuplicateToFolderModal(false);
+              setDuplicatingTemplate(null);
+            }}
+            onSubmit={handleDuplicateToFolderSubmit}
+            folders={flattenedFolders}
+            currentFolderId={duplicatingTemplate.folderId}
+            templateName={duplicatingTemplate.name}
+            isLoading={duplicateToFolderMutation.isPending}
           />
         )}
       </div>

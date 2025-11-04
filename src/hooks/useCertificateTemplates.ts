@@ -97,6 +97,21 @@ export const useDuplicateTemplate = () => {
 };
 
 /**
+ * Hook pour dupliquer un template vers un autre dossier
+ */
+export const useDuplicateToFolder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, targetFolderId }: { id: string; targetFolderId: string }) =>
+      certificateTemplatesApi.duplicateToFolder(id, targetFolderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateKeys.all });
+    },
+  });
+};
+
+/**
  * Hook pour créer les templates par défaut (seed)
  */
 export const useSeedDefaultTemplates = () => {

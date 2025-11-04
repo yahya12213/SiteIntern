@@ -455,6 +455,68 @@ router.post('/:id/duplicate', async (req, res) => {
 });
 
 /**
+ * POST /api/certificate-templates/:id/duplicate-to-folder
+ * Dupliquer un template vers un autre dossier
+ */
+router.post('/:id/duplicate-to-folder', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { targetFolderId } = req.body;
+
+    if (!targetFolderId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Target folder ID is required',
+      });
+    }
+
+    // Récupérer le template source
+    const source = await pool.query(
+      'SELECT * FROM certificate_templates WHERE id = $1',
+      [id]
+    );
+
+    if (source.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Template not found',
+      });
+    }
+
+    const sourceTemplate = source.rows[0];
+
+    // Créer une copie avec le nouveau folder_id
+    const result = await pool.query(
+      `INSERT INTO certificate_templates
+        (name, description, template_config, folder_id, background_image_url, background_image_type, preview_image_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [
+        sourceTemplate.name + ' - Copie',
+        sourceTemplate.description,
+        sourceTemplate.template_config,
+        targetFolderId,
+        sourceTemplate.background_image_url,
+        sourceTemplate.background_image_type,
+        sourceTemplate.preview_image_url,
+      ]
+    );
+
+    res.status(201).json({
+      success: true,
+      template: result.rows[0],
+      message: 'Template duplicated to folder successfully',
+    });
+  } catch (error) {
+    console.error('Error duplicating certificate template to folder:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
  * POST /api/certificate-templates/seed-defaults
  * Créer les 3 templates par défaut (Moderne, Classique, Élégant)
  */
