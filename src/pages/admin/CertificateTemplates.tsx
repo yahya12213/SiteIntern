@@ -6,7 +6,6 @@ import {
   useDeleteTemplate,
   useDuplicateTemplate,
   useDuplicateToFolder,
-  useSeedDefaultTemplates,
   useUpdateTemplate,
 } from '@/hooks/useCertificateTemplates';
 import {
@@ -19,21 +18,20 @@ import {
   Award,
   Copy,
   Trash2,
-  AlertCircle,
   Edit3,
   Palette,
   Folder,
   FolderPlus,
   Edit2,
-  FolderX,
   FolderOpen,
   ChevronRight,
+  AlertCircle,
 } from 'lucide-react';
-import { FolderTree } from '@/components/admin/templates/FolderTree';
 import { FolderFormModal } from '@/components/admin/templates/FolderFormModal';
 import { Breadcrumb } from '@/components/admin/templates/Breadcrumb';
 import { CanvasConfigModal, type CanvasConfig } from '@/components/admin/templates/CanvasConfigModal';
 import { RenameTemplateModal } from '@/components/admin/templates/RenameTemplateModal';
+import { RenameFolderModal } from '@/components/admin/templates/RenameFolderModal';
 import { DuplicateToFolderModal } from '@/components/admin/templates/DuplicateToFolderModal';
 import type { TemplateFolder } from '@/types/certificateTemplate';
 
@@ -45,7 +43,6 @@ export const CertificateTemplates: React.FC = () => {
   const duplicateMutation = useDuplicateTemplate();
   const duplicateToFolderMutation = useDuplicateToFolder();
   const updateTemplateMutation = useUpdateTemplate();
-  const seedMutation = useSeedDefaultTemplates();
   const createFolderMutation = useCreateFolder();
   const updateFolderMutation = useUpdateFolder();
   const deleteFolderMutation = useDeleteFolder();
@@ -58,8 +55,11 @@ export const CertificateTemplates: React.FC = () => {
   const [showCanvasConfigModal, setShowCanvasConfigModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renamingTemplate, setRenamingTemplate] = useState<{ id: string; name: string } | null>(null);
+  const [showRenameFolderModal, setShowRenameFolderModal] = useState(false);
+  const [renamingFolder, setRenamingFolder] = useState<{ id: string; name: string } | null>(null);
   const [showDuplicateToFolderModal, setShowDuplicateToFolderModal] = useState(false);
   const [duplicatingTemplate, setDuplicatingTemplate] = useState<{ id: string; name: string; folderId: string } | null>(null);
+  const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null);
 
   // Filter templates by selected folder
   const filteredTemplates = useMemo(() => {
@@ -198,14 +198,42 @@ export const CertificateTemplates: React.FC = () => {
     }
   };
 
-  const handleSeedDefaults = async () => {
-    if (window.confirm('Créer les 3 templates prédéfinis ? (Classique, Moderne, Élégant)')) {
-      try {
-        await seedMutation.mutateAsync();
-        alert('Templates créés avec succès !');
-      } catch (error: any) {
-        alert('Erreur: ' + (error.message || 'Impossible de créer les templates'));
+  const handleRenameFolderClick = (id: string, name: string) => {
+    setRenamingFolder({ id, name });
+    setShowRenameFolderModal(true);
+  };
+
+  const handleRenameFolderSubmit = async (newName: string) => {
+    if (!renamingFolder) return;
+
+    try {
+      await updateFolderMutation.mutateAsync({
+        id: renamingFolder.id,
+        data: { name: newName },
+      });
+      setShowRenameFolderModal(false);
+      setRenamingFolder(null);
+    } catch (error: any) {
+      alert('Erreur: ' + (error.message || 'Impossible de renommer ce dossier'));
+    }
+  };
+
+  const handleDeleteFolderClick = (folderId: string) => {
+    setDeletingFolderId(folderId);
+  };
+
+  const handleDeleteFolderConfirm = async () => {
+    if (!deletingFolderId) return;
+
+    try {
+      await deleteFolderMutation.mutateAsync(deletingFolderId);
+      if (selectedFolderId === deletingFolderId) {
+        setSelectedFolderId(null);
       }
+      setDeletingFolderId(null);
+    } catch (error: any) {
+      alert('Erreur: ' + (error.message || 'Impossible de supprimer ce dossier'));
+      setDeletingFolderId(null);
     }
   };
 
@@ -215,29 +243,14 @@ export const CertificateTemplates: React.FC = () => {
     setShowFolderModal(true);
   };
 
-  const handleEditFolder = (folder: TemplateFolder) => {
-    setFolderModalMode('edit');
-    setEditingFolder(folder);
-    setShowFolderModal(true);
-  };
-
-  const handleDeleteFolder = async (folder: TemplateFolder) => {
-    if (window.confirm(`Supprimer le dossier "${folder.name}" ?\n\nNote: Le dossier doit être vide (sans templates ni sous-dossiers).`)) {
-      try {
-        await deleteFolderMutation.mutateAsync(folder.id);
-        if (selectedFolderId === folder.id) {
-          setSelectedFolderId(null);
-        }
-      } catch (error: any) {
-        alert('Erreur: ' + (error.message || 'Impossible de supprimer ce dossier'));
-      }
-    }
-  };
-
   const handleFolderFormSubmit = async (name: string, parentId?: string | null) => {
     try {
       if (folderModalMode === 'create') {
-        await createFolderMutation.mutateAsync({ name, parent_id: parentId });
+        // Create subfolder in current location, or root if none selected
+        await createFolderMutation.mutateAsync({
+          name,
+          parent_id: parentId !== undefined ? parentId : selectedFolderId
+        });
       } else if (editingFolder) {
         await updateFolderMutation.mutateAsync({ id: editingFolder.id, data: { name } });
       }
@@ -245,13 +258,6 @@ export const CertificateTemplates: React.FC = () => {
     } catch (error: any) {
       alert('Erreur: ' + (error.message || 'Impossible d\'enregistrer le dossier'));
     }
-  };
-
-  const handleFolderContextMenu = (folder: TemplateFolder, event: React.MouseEvent) => {
-    event.preventDefault();
-    // For now, just select the folder on right-click
-    // Could add a context menu later
-    setSelectedFolderId(folder.id);
   };
 
   const handleCreateCanvasTemplate = () => {
@@ -326,7 +332,7 @@ export const CertificateTemplates: React.FC = () => {
           </div>
 
           <div className="flex gap-3">
-            {/* Nouveau Dossier Button - Primary */}
+            {/* Nouveau Dossier Button - Creates subfolder in current location */}
             <button
               onClick={handleCreateFolder}
               className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
@@ -335,7 +341,7 @@ export const CertificateTemplates: React.FC = () => {
               Nouveau Dossier
             </button>
 
-            {/* Ajouter Template Canvas Button - Secondary */}
+            {/* Ajouter Template Canvas Button - Creates template in current folder */}
             <button
               onClick={handleCreateCanvasTemplate}
               className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
@@ -343,18 +349,6 @@ export const CertificateTemplates: React.FC = () => {
               <Palette className="h-5 w-5" />
               Ajouter Template Canvas
             </button>
-
-            {/* Seed Defaults Button - Only if no templates */}
-            {templates && templates.length === 0 && (
-              <button
-                onClick={handleSeedDefaults}
-                disabled={seedMutation.isPending}
-                className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 shadow-md"
-              >
-                <Palette className="h-4 w-4" />
-                Créer Templates par Défaut
-              </button>
-            )}
           </div>
         </div>
 
@@ -383,136 +377,18 @@ export const CertificateTemplates: React.FC = () => {
         {/* Breadcrumb Navigation */}
         <Breadcrumb currentPath={breadcrumbPath} onNavigate={setSelectedFolderId} />
 
-        {/* Main Content: Always show two-panel layout */}
-        <div className="grid grid-cols-12 gap-4">
-          {/* Left Panel: Folder Tree - ALWAYS VISIBLE */}
-          <div className="col-span-12 md:col-span-3 bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="p-3 border-b border-gray-200 bg-gray-50">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-                  <Folder className="h-4 w-4" />
-                  Dossiers
-                </h3>
-                <button
-                  onClick={handleCreateFolder}
-                  className="p-1 hover:bg-gray-200 rounded transition-colors"
-                  title="Nouveau dossier"
-                >
-                  <FolderPlus className="h-4 w-4 text-purple-600" />
-                </button>
-              </div>
-              <button
-                onClick={() => setSelectedFolderId(null)}
-                className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
-                  selectedFolderId === null
-                    ? 'bg-blue-100 text-blue-700 font-medium'
-                    : 'hover:bg-gray-100 text-gray-700'
-                }`}
-              >
-                📁 Tous les templates
-              </button>
-            </div>
-            <div className="max-h-96 overflow-y-auto">
-              {folderTree && folderTree.length > 0 ? (
-                <FolderTree
-                  folders={folderTree}
-                  selectedFolderId={selectedFolderId}
-                  onFolderSelect={setSelectedFolderId}
-                  onFolderContextMenu={handleFolderContextMenu}
-                />
-              ) : (
-                <div className="p-6 text-center">
-                  <FolderPlus className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-sm text-gray-600 mb-3">Aucun dossier créé</p>
-                  <button
-                    onClick={handleCreateFolder}
-                    className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium inline-flex items-center gap-1"
-                  >
-                    <FolderPlus className="h-4 w-4" />
-                    Créer un dossier
-                  </button>
-                </div>
-              )}
-            </div>
-            {selectedFolder && (
-              <div className="p-3 border-t border-gray-200 bg-gray-50 space-y-2">
-                <div className="text-xs text-gray-600 font-medium mb-1">Actions sur "{selectedFolder.name}":</div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => handleEditFolder(selectedFolder)}
-                    className="flex-1 px-2 py-1.5 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
-                  >
-                    <Edit2 className="h-3 w-3" />
-                    Renommer
-                  </button>
-                  <button
-                    onClick={() => handleDeleteFolder(selectedFolder)}
-                    disabled={deleteFolderMutation.isPending}
-                    className="flex-1 px-2 py-1.5 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
-                  >
-                    <FolderX className="h-3 w-3" />
-                    Supprimer
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right Panel: Folders & Templates Grid (Windows Explorer Style) */}
-          <div className="col-span-12 md:col-span-9">
+        {/* Main Content: Full-Width Windows Explorer View */}
+        <div>
             {currentChildFolders.length === 0 && filteredTemplates.length === 0 ? (
               <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-                <Award className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <Folder className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600 text-sm">
                   {flattenedFolders.length === 0
-                    ? '🚀 Commencez par créer un dossier'
+                    ? 'Aucun dossier. Utilisez le bouton "Nouveau Dossier" pour commencer.'
                     : selectedFolder
-                    ? `Le dossier "${selectedFolder.name}" est vide`
-                    : 'Aucun contenu disponible'}
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  {flattenedFolders.length === 0
-                    ? 'Organisez vos templates en créant d\'abord des dossiers (ex: Formation KSS → Certificat, Attestation, Badge)'
-                    : 'Créez un sous-dossier ou ajoutez un template dans ce dossier'}
+                    ? `Ce dossier est vide`
+                    : 'Aucun contenu'}
                 </p>
-                <div className="flex gap-3 justify-center">
-                  {flattenedFolders.length === 0 ? (
-                    <button
-                      onClick={handleCreateFolder}
-                      className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center gap-2 font-medium shadow-md"
-                    >
-                      <FolderPlus className="h-5 w-5" />
-                      Créer mon premier dossier
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={handleCreateFolder}
-                        className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center gap-2 font-medium shadow-md"
-                      >
-                        <FolderPlus className="h-5 w-5" />
-                        Nouveau Sous-dossier
-                      </button>
-                      <button
-                        onClick={handleCreateCanvasTemplate}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2 font-medium shadow-md"
-                      >
-                        <Palette className="h-5 w-5" />
-                        Créer un Template Canvas
-                      </button>
-                      {templates && templates.length === 0 && (
-                        <button
-                          onClick={handleSeedDefaults}
-                          disabled={seedMutation.isPending}
-                          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors inline-flex items-center gap-2 disabled:opacity-50 font-medium shadow-md"
-                        >
-                          <Palette className="h-5 w-5" />
-                          Templates par Défaut
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
               </div>
             ) : (
               <div className="space-y-6">
@@ -523,34 +399,94 @@ export const CertificateTemplates: React.FC = () => {
                       <Folder className="h-4 w-4" />
                       Dossiers ({currentChildFolders.length})
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
                       {currentChildFolders.map((folder) => (
-                        <button
+                        <div
                           key={folder.id}
-                          onClick={() => setSelectedFolderId(folder.id)}
-                          className="group bg-white rounded-lg border-2 border-gray-200 hover:border-purple-300 hover:shadow-lg transition-all duration-200 p-5 text-left"
+                          className="relative bg-white rounded-lg border-2 border-gray-200 hover:border-purple-300 hover:shadow-lg transition-all duration-200"
                         >
-                          {/* Folder Icon Area - Larger */}
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="p-3 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg group-hover:from-purple-200 group-hover:to-purple-300 transition-all">
-                              <FolderOpen className="h-8 w-8 text-purple-600" />
+                          {/* Clickable Folder Area */}
+                          <button
+                            onClick={() => setSelectedFolderId(folder.id)}
+                            className="group w-full p-5 text-left"
+                          >
+                            {/* Folder Icon Area - Larger */}
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="p-3 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg group-hover:from-purple-200 group-hover:to-purple-300 transition-all">
+                                <FolderOpen className="h-8 w-8 text-purple-600" />
+                              </div>
+                              <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
                             </div>
-                            <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
+
+                            {/* Folder Info */}
+                            <div>
+                              <h4 className="font-bold text-gray-900 text-sm mb-1 truncate group-hover:text-purple-700 transition-colors">
+                                {folder.name}
+                              </h4>
+                              <p className="text-xs text-gray-500">
+                                {folder.template_count || 0} template{(folder.template_count || 0) !== 1 ? 's' : ''}
+                                {folder.children && folder.children.length > 0 && (
+                                  <> • {folder.children.length} sous-dossier{folder.children.length !== 1 ? 's' : ''}</>
+                                )}
+                              </p>
+                            </div>
+                          </button>
+
+                          {/* Action Buttons */}
+                          <div className="px-5 pb-4 flex gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRenameFolderClick(folder.id, folder.name);
+                              }}
+                              className="flex-1 px-2 py-1.5 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                              title="Renommer le dossier"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                              Renommer
+                            </button>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteFolderClick(folder.id);
+                              }}
+                              disabled={deleteFolderMutation.isPending && deletingFolderId === folder.id}
+                              className="flex-1 px-2 py-1.5 bg-red-50 text-red-700 rounded border border-red-300 hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
+                              title="Supprimer le dossier"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              Supprimer
+                            </button>
                           </div>
 
-                          {/* Folder Info */}
-                          <div>
-                            <h4 className="font-bold text-gray-900 text-sm mb-1 truncate group-hover:text-purple-700 transition-colors">
-                              {folder.name}
-                            </h4>
-                            <p className="text-xs text-gray-500">
-                              {folder.template_count || 0} template{(folder.template_count || 0) !== 1 ? 's' : ''}
-                              {folder.children && folder.children.length > 0 && (
-                                <> • {folder.children.length} sous-dossier{folder.children.length !== 1 ? 's' : ''}</>
-                              )}
-                            </p>
-                          </div>
-                        </button>
+                          {/* Delete Confirmation Overlay */}
+                          {deletingFolderId === folder.id && (
+                            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
+                              <div className="bg-white p-4 rounded-lg shadow-xl max-w-xs mx-4">
+                                <h4 className="font-bold text-gray-900 text-sm mb-2">Confirmer la suppression</h4>
+                                <p className="text-xs text-gray-600 mb-4">
+                                  Supprimer le dossier "{folder.name}" ?<br />
+                                  <span className="text-red-600 font-medium">Le dossier doit être vide.</span>
+                                </p>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => setDeletingFolderId(null)}
+                                    className="flex-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-xs font-medium"
+                                  >
+                                    Annuler
+                                  </button>
+                                  <button
+                                    onClick={handleDeleteFolderConfirm}
+                                    className="flex-1 px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs font-medium"
+                                  >
+                                    Supprimer
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -563,7 +499,7 @@ export const CertificateTemplates: React.FC = () => {
                       <Award className="h-4 w-4" />
                       Templates ({filteredTemplates.length})
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {filteredTemplates.map((template) => (
                   <div
                     key={template.id}
@@ -700,7 +636,6 @@ export const CertificateTemplates: React.FC = () => {
                 )}
               </div>
             )}
-          </div>
         </div>
 
         {/* Folder Form Modal */}
@@ -733,6 +668,20 @@ export const CertificateTemplates: React.FC = () => {
             onSubmit={handleRenameSubmit}
             currentName={renamingTemplate.name}
             isLoading={updateTemplateMutation.isPending}
+          />
+        )}
+
+        {/* Rename Folder Modal */}
+        {renamingFolder && (
+          <RenameFolderModal
+            isOpen={showRenameFolderModal}
+            onClose={() => {
+              setShowRenameFolderModal(false);
+              setRenamingFolder(null);
+            }}
+            onSubmit={handleRenameFolderSubmit}
+            currentName={renamingFolder.name}
+            isLoading={updateFolderMutation.isPending}
           />
         )}
 
