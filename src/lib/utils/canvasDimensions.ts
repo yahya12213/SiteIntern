@@ -31,14 +31,29 @@ const FORMAT_DIMENSIONS: Record<'a4' | 'letter' | 'badge', CanvasSize> = {
 
 /**
  * Calcule les dimensions du canvas en fonction du format et de l'orientation
- * @param format - Format de la page (a4, letter, badge)
+ * @param format - Format de la page (a4, letter, badge, custom)
  * @param orientation - Orientation (portrait ou landscape)
+ * @param customWidth - Largeur personnalisée en mm (pour format custom)
+ * @param customHeight - Hauteur personnalisée en mm (pour format custom)
  * @returns Dimensions en pixels { width, height }
  */
 export const getCanvasDimensions = (
-  format: 'a4' | 'letter' | 'badge',
-  orientation: 'portrait' | 'landscape'
+  format: 'a4' | 'letter' | 'badge' | 'custom',
+  orientation: 'portrait' | 'landscape',
+  customWidth?: number,
+  customHeight?: number
 ): CanvasSize => {
+  // Handle custom format
+  if (format === 'custom') {
+    const width = customWidth ? mmToPixels(customWidth) : 1122; // Default to A4 width
+    const height = customHeight ? mmToPixels(customHeight) : 794; // Default to A4 height
+
+    if (orientation === 'portrait') {
+      return { width: height, height: width };
+    }
+    return { width, height };
+  }
+
   const baseDimensions = FORMAT_DIMENSIONS[format];
 
   // En mode portrait, on inverse largeur et hauteur
@@ -57,14 +72,18 @@ export const getCanvasDimensions = (
  * Obtient les dimensions recommandées en pixels pour l'image d'arrière-plan
  * @param format - Format de la page
  * @param orientation - Orientation
+ * @param customWidth - Largeur personnalisée en mm (pour format custom)
+ * @param customHeight - Hauteur personnalisée en mm (pour format custom)
  * @returns Chaîne formatée avec les dimensions recommandées
  */
 export const getRecommendedImageDimensions = (
-  format: 'a4' | 'letter' | 'badge',
-  orientation: 'portrait' | 'landscape'
+  format: 'a4' | 'letter' | 'badge' | 'custom',
+  orientation: 'portrait' | 'landscape',
+  customWidth?: number,
+  customHeight?: number
 ): string => {
-  const { width, height } = getCanvasDimensions(format, orientation);
-  const formatLabel = FORMAT_LABELS[format];
+  const { width, height } = getCanvasDimensions(format, orientation, customWidth, customHeight);
+  const formatLabel = FORMAT_LABELS[format] || 'Personnalisé';
   const orientationLabel = orientation === 'portrait' ? 'Portrait' : 'Paysage';
 
   return `${width} × ${height} px (${formatLabel} ${orientationLabel})`;
@@ -73,19 +92,21 @@ export const getRecommendedImageDimensions = (
 /**
  * Labels pour l'affichage des formats
  */
-export const FORMAT_LABELS: Record<'a4' | 'letter' | 'badge', string> = {
+export const FORMAT_LABELS: Record<'a4' | 'letter' | 'badge' | 'custom', string> = {
   a4: 'A4',
   letter: 'Letter',
   badge: 'Badge',
+  custom: 'Personnalisé',
 };
 
 /**
  * Dimensions réelles en millimètres pour chaque format
  */
-export const FORMAT_DIMENSIONS_MM: Record<'a4' | 'letter' | 'badge', { width: number; height: number }> = {
+export const FORMAT_DIMENSIONS_MM: Record<'a4' | 'letter' | 'badge' | 'custom', { width: number; height: number }> = {
   a4: { width: 297, height: 210 },
   letter: { width: 279.4, height: 215.9 },
   badge: { width: 85.6, height: 54 },
+  custom: { width: 210, height: 297 }, // Default to A4 dimensions
 };
 
 /**

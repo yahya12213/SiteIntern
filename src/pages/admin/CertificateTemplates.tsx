@@ -28,6 +28,7 @@ import {
 import { FolderTree } from '@/components/admin/templates/FolderTree';
 import { FolderFormModal } from '@/components/admin/templates/FolderFormModal';
 import { Breadcrumb } from '@/components/admin/templates/Breadcrumb';
+import { CanvasConfigModal, type CanvasConfig } from '@/components/admin/templates/CanvasConfigModal';
 import type { TemplateFolder } from '@/types/certificateTemplate';
 
 export const CertificateTemplates: React.FC = () => {
@@ -46,6 +47,7 @@ export const CertificateTemplates: React.FC = () => {
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [folderModalMode, setFolderModalMode] = useState<'create' | 'edit'>('create');
   const [editingFolder, setEditingFolder] = useState<TemplateFolder | null>(null);
+  const [showCanvasConfigModal, setShowCanvasConfigModal] = useState(false);
 
   // Filter templates by selected folder
   const filteredTemplates = useMemo(() => {
@@ -189,9 +191,31 @@ export const CertificateTemplates: React.FC = () => {
       handleCreateFolder();
       return;
     }
-    // Redirect directly to Canvas editor with selected folder
+    // Open config modal
+    setShowCanvasConfigModal(true);
+  };
+
+  const handleCanvasConfigSubmit = (config: CanvasConfig) => {
+    // Get folder ID
     const folderId = selectedFolderId || flattenedFolders[0]?.id;
-    navigate(`/admin/certificate-templates/new/canvas-edit?folderId=${folderId}`);
+
+    // Build query params with configuration
+    const params = new URLSearchParams({
+      folderId,
+      name: config.name,
+      format: config.format,
+      orientation: config.orientation,
+      margins: config.margins.toString(),
+    });
+
+    // Add custom dimensions if Custom format
+    if (config.format === 'Custom' && config.customWidth && config.customHeight) {
+      params.set('customWidth', config.customWidth.toString());
+      params.set('customHeight', config.customHeight.toString());
+    }
+
+    // Navigate to Canvas editor with config
+    navigate(`/admin/certificate-templates/new/canvas-edit?${params.toString()}`);
   };
 
   if (isLoading || foldersLoading) {
@@ -542,6 +566,14 @@ export const CertificateTemplates: React.FC = () => {
           folders={flattenedFolders}
           isLoading={createFolderMutation.isPending || updateFolderMutation.isPending}
           mode={folderModalMode}
+        />
+
+        {/* Canvas Config Modal */}
+        <CanvasConfigModal
+          isOpen={showCanvasConfigModal}
+          onClose={() => setShowCanvasConfigModal(false)}
+          onSubmit={handleCanvasConfigSubmit}
+          currentFolderName={selectedFolder?.name || 'Tous les dossiers'}
         />
       </div>
     </AppLayout>

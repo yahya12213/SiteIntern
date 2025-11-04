@@ -22,7 +22,9 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
   // Obtenir les dimensions recommandées en fonction du format et de l'orientation
   const recommendedDimensions = getRecommendedImageDimensions(
     template.template_config.layout.format,
-    template.template_config.layout.orientation
+    template.template_config.layout.orientation,
+    template.template_config.layout.customWidth,
+    template.template_config.layout.customHeight
   );
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {

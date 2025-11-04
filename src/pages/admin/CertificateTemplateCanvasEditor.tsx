@@ -43,6 +43,14 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
   const folderId = searchParams.get('folderId');
   const isNewTemplate = id === 'new';
 
+  // Extract config parameters from URL
+  const configName = searchParams.get('name');
+  const configFormat = searchParams.get('format');
+  const configOrientation = searchParams.get('orientation');
+  const configMargins = searchParams.get('margins');
+  const configCustomWidth = searchParams.get('customWidth');
+  const configCustomHeight = searchParams.get('customHeight');
+
   const { data: existingTemplate, isLoading } = useCertificateTemplate(isNewTemplate ? null : (id || ''));
   const updateTemplate = useUpdateTemplate();
   const createTemplate = useCreateTemplate();
@@ -58,20 +66,46 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
   // Calculer les dimensions du canvas dynamiquement en fonction du format et de l'orientation
   const canvasSize = useMemo(() => {
     if (!template) return { width: 1122, height: 794 }; // Fallback A4 landscape
-    const { format, orientation } = template.template_config.layout;
-    return getCanvasDimensions(format, orientation);
-  }, [template?.template_config.layout.format, template?.template_config.layout.orientation]);
+    const { format, orientation, customWidth, customHeight } = template.template_config.layout;
+    return getCanvasDimensions(format, orientation, customWidth, customHeight);
+  }, [
+    template?.template_config.layout.format,
+    template?.template_config.layout.orientation,
+    template?.template_config.layout.customWidth,
+    template?.template_config.layout.customHeight,
+  ]);
 
   // Charger le template existant
   useEffect(() => {
     if (isNewTemplate) {
       const defaultTemplate = createDefaultTemplate(folderId || undefined);
-      setTemplate({
+
+      // Apply config parameters from URL
+      const margins = configMargins ? parseInt(configMargins) : 10;
+      const newTemplate: CertificateTemplate = {
         ...defaultTemplate,
         id: 'new',
+        name: configName || 'Nouveau Template Canvas',
+        template_config: {
+          ...defaultTemplate.template_config,
+          layout: {
+            ...defaultTemplate.template_config.layout,
+            format: (configFormat?.toLowerCase() || 'a4') as any,
+            orientation: (configOrientation || 'landscape') as 'portrait' | 'landscape',
+            margins: { top: margins, right: margins, bottom: margins, left: margins },
+          },
+        },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      } as CertificateTemplate);
+      };
+
+      // Apply custom dimensions if Custom format
+      if (configFormat?.toLowerCase() === 'custom' && configCustomWidth && configCustomHeight) {
+        newTemplate.template_config.layout.customWidth = parseInt(configCustomWidth);
+        newTemplate.template_config.layout.customHeight = parseInt(configCustomHeight);
+      }
+
+      setTemplate(newTemplate);
       setElements([]);
     } else if (existingTemplate) {
       setTemplate(existingTemplate);
@@ -88,7 +122,7 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
         setNextElementId(maxId + 1);
       }
     }
-  }, [existingTemplate, isNewTemplate, folderId]);
+  }, [existingTemplate, isNewTemplate, folderId, configName, configFormat, configOrientation, configMargins, configCustomWidth, configCustomHeight]);
 
   // Sauvegarder
   const handleSave = async () => {

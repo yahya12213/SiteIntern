@@ -4,13 +4,15 @@
 
 export interface TemplateLayout {
   orientation: 'portrait' | 'landscape';
-  format: 'a4' | 'letter' | 'badge';
+  format: 'a4' | 'letter' | 'badge' | 'custom';
   margins: {
     top: number;
     right: number;
     bottom: number;
     left: number;
   };
+  customWidth?: number;
+  customHeight?: number;
 }
 
 export interface TemplateColors {

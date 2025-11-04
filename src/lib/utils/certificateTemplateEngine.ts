@@ -34,26 +34,35 @@ export class CertificateTemplateEngine {
     this.template = template;
 
     const config = template.template_config;
-    const { format, orientation } = config.layout;
+    const { format, orientation, customWidth, customHeight } = config.layout;
 
     // Obtenir les dimensions du canvas en pixels
-    const canvasDimensions = getCanvasDimensions(format, orientation);
+    const canvasDimensions = getCanvasDimensions(format, orientation, customWidth, customHeight);
     this.canvasWidthPx = canvasDimensions.width;
     this.canvasHeightPx = canvasDimensions.height;
 
     // Obtenir les dimensions PDF en mm
-    const pdfDimensions = FORMAT_DIMENSIONS_MM[format];
-    const pdfWidthMm = orientation === 'landscape' ? pdfDimensions.width : pdfDimensions.height;
-    const pdfHeightMm = orientation === 'landscape' ? pdfDimensions.height : pdfDimensions.width;
+    let pdfWidthMm: number;
+    let pdfHeightMm: number;
+
+    if (format === 'custom') {
+      // Use custom dimensions
+      pdfWidthMm = orientation === 'landscape' ? (customWidth || 210) : (customHeight || 297);
+      pdfHeightMm = orientation === 'landscape' ? (customHeight || 297) : (customWidth || 210);
+    } else {
+      const pdfDimensions = FORMAT_DIMENSIONS_MM[format];
+      pdfWidthMm = orientation === 'landscape' ? pdfDimensions.width : pdfDimensions.height;
+      pdfHeightMm = orientation === 'landscape' ? pdfDimensions.height : pdfDimensions.width;
+    }
 
     // Calculer les ratios de conversion
     this.pxToMmX = pdfWidthMm / this.canvasWidthPx;
     this.pxToMmY = pdfHeightMm / this.canvasHeightPx;
 
     // Déterminer le format pour jsPDF
-    // Pour 'badge', on passe les dimensions en mm directement
+    // Pour 'badge' et 'custom', on passe les dimensions en mm directement
     let jsPdfFormat: string | number[];
-    if (format === 'badge') {
+    if (format === 'badge' || format === 'custom') {
       jsPdfFormat = [pdfWidthMm, pdfHeightMm];
     } else {
       jsPdfFormat = format; // 'a4' ou 'letter'
