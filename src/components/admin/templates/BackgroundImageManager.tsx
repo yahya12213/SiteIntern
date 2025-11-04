@@ -17,6 +17,7 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
   const [url, setUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Obtenir les dimensions recommandées en fonction du format et de l'orientation
@@ -90,6 +91,51 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
       onUpdate(result.template);
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la suppression de l\'arrière-plan');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    // Vérifier le type de fichier
+    if (!file.type.startsWith('image/')) {
+      setError('Veuillez déposer une image (JPG, PNG, WEBP ou SVG)');
+      return;
+    }
+
+    // Vérifier la taille (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('L\'image ne doit pas dépasser 5 MB');
+      return;
+    }
+
+    setIsUploading(true);
+    setError(null);
+
+    try {
+      const result = await certificateTemplatesApi.uploadBackground(template.id, file);
+      onUpdate(result.template);
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de l\'upload de l\'image');
     } finally {
       setIsUploading(false);
     }
@@ -177,24 +223,44 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
         {/* Tab Content */}
         {activeTab === 'upload' && (
           <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-2">
-                Choisir une image
-              </label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                disabled={isUploading}
-                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
-              />
-              <p className="text-xs text-gray-500 mt-2">
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              disabled={isUploading}
+              className="hidden"
+            />
+
+            {/* Drag & Drop Zone */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
+                isDragging
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50/50'
+              } ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+            >
+              <Upload className={`h-12 w-12 mx-auto mb-3 ${isDragging ? 'text-blue-600' : 'text-gray-400'}`} />
+              <p className="text-sm font-medium text-gray-700 mb-1">
+                {isDragging ? 'Déposez l\'image ici' : 'Glissez-déposez une image ou cliquez pour parcourir'}
+              </p>
+              <p className="text-xs text-gray-500">
                 JPG, PNG, WEBP ou SVG • Max 5 MB
               </p>
-              <p className="text-xs text-blue-600 font-medium mt-1">
-                Dimensions recommandées: {recommendedDimensions}
+              <p className="text-xs text-blue-600 font-medium mt-2">
+                Recommandé: {recommendedDimensions}
               </p>
+              {isUploading && (
+                <div className="mt-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-xs text-gray-600 mt-2">Upload en cours...</p>
+                </div>
+              )}
             </div>
           </div>
         )}
