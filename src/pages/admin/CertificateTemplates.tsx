@@ -15,7 +15,6 @@ import {
 } from '@/hooks/useTemplateFolders';
 import {
   Award,
-  Plus,
   Copy,
   Trash2,
   AlertCircle,
@@ -28,7 +27,6 @@ import {
 } from 'lucide-react';
 import { FolderTree } from '@/components/admin/templates/FolderTree';
 import { FolderFormModal } from '@/components/admin/templates/FolderFormModal';
-import { TemplateTypeModal } from '@/components/admin/templates/TemplateTypeModal';
 import type { TemplateFolder } from '@/types/certificateTemplate';
 
 export const CertificateTemplates: React.FC = () => {
@@ -45,7 +43,6 @@ export const CertificateTemplates: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [showFolderModal, setShowFolderModal] = useState(false);
-  const [showTemplateTypeModal, setShowTemplateTypeModal] = useState(false);
   const [folderModalMode, setFolderModalMode] = useState<'create' | 'edit'>('create');
   const [editingFolder, setEditingFolder] = useState<TemplateFolder | null>(null);
 
@@ -160,13 +157,15 @@ export const CertificateTemplates: React.FC = () => {
     setSelectedFolderId(folder.id);
   };
 
-  const handleOpenTemplateTypeModal = () => {
+  const handleCreateCanvasTemplate = () => {
     if (flattenedFolders.length === 0) {
       alert('Veuillez d\'abord créer au moins un dossier avant de créer un template.');
       handleCreateFolder();
       return;
     }
-    setShowTemplateTypeModal(true);
+    // Redirect directly to Canvas editor with selected folder
+    const folderId = selectedFolderId || flattenedFolders[0]?.id;
+    navigate(`/admin/certificate-templates/new/canvas-edit?folderId=${folderId}`);
   };
 
   if (isLoading || foldersLoading) {
@@ -217,13 +216,13 @@ export const CertificateTemplates: React.FC = () => {
               Nouveau Dossier
             </button>
 
-            {/* Nouveau Template Button - Secondary */}
+            {/* Ajouter Template Canvas Button - Secondary */}
             <button
-              onClick={handleOpenTemplateTypeModal}
+              onClick={handleCreateCanvasTemplate}
               className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
             >
-              <Plus className="h-5 w-5" />
-              Nouveau Template
+              <Palette className="h-5 w-5" />
+              Ajouter Template Canvas
             </button>
 
             {/* Seed Defaults Button - Only if no templates */}
@@ -366,11 +365,11 @@ export const CertificateTemplates: React.FC = () => {
                   ) : (
                     <>
                       <button
-                        onClick={handleOpenTemplateTypeModal}
+                        onClick={handleCreateCanvasTemplate}
                         className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2 font-medium shadow-md"
                       >
-                        <Plus className="h-5 w-5" />
-                        Créer un Template
+                        <Palette className="h-5 w-5" />
+                        Créer un Template Canvas
                       </button>
                       {templates && templates.length === 0 && (
                         <button
@@ -454,20 +453,12 @@ export const CertificateTemplates: React.FC = () => {
                         </button>
 
                         <button
-                          onClick={() => navigate(`/admin/certificate-templates/${template.id}/edit`)}
+                          onClick={() => navigate(`/admin/certificate-templates/${template.id}/canvas-edit`)}
                           className="px-2 py-1.5 bg-purple-50 text-purple-700 rounded border border-purple-300 hover:bg-purple-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                          title="Modifier avec l'éditeur Canvas"
                         >
                           <Edit3 className="h-3 w-3" />
                           Modifier
-                        </button>
-
-                        <button
-                          onClick={() => navigate(`/admin/certificate-templates/${template.id}/canvas-edit`)}
-                          className="px-2 py-1.5 bg-blue-50 text-blue-700 rounded border border-blue-300 hover:bg-blue-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
-                          title="Éditeur Canvas Drag-and-Drop"
-                        >
-                          <Palette className="h-3 w-3" />
-                          Canvas
                         </button>
 
                         <button
@@ -522,14 +513,6 @@ export const CertificateTemplates: React.FC = () => {
           folders={flattenedFolders}
           isLoading={createFolderMutation.isPending || updateFolderMutation.isPending}
           mode={folderModalMode}
-        />
-
-        {/* Template Type Modal */}
-        <TemplateTypeModal
-          isOpen={showTemplateTypeModal}
-          onClose={() => setShowTemplateTypeModal(false)}
-          folders={folderTree || []}
-          selectedFolderId={selectedFolderId}
         />
       </div>
     </AppLayout>
