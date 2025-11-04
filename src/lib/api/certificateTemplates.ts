@@ -133,8 +133,9 @@ export const certificateTemplatesApi = {
 
   /**
    * Upload image d'arrière-plan pour un template
+   * Note: Pour les nouveaux templates (id='new'), retourne seulement background_url
    */
-  uploadBackground: async (id: string, file: File): Promise<{ success: boolean; template: CertificateTemplate; background_url: string; message: string }> => {
+  uploadBackground: async (id: string, file: File): Promise<{ success: boolean; template?: CertificateTemplate; background_url?: string; message: string }> => {
     const formData = new FormData();
     formData.append('background', file);
 
@@ -153,15 +154,17 @@ export const certificateTemplatesApi = {
 
   /**
    * Définir une URL d'arrière-plan pour un template
+   * Note: Pour les nouveaux templates (id='new'), retourne seulement background_url
    */
-  setBackgroundUrl: async (id: string, url: string): Promise<{ success: boolean; template: CertificateTemplate; message: string }> => {
+  setBackgroundUrl: async (id: string, url: string): Promise<{ success: boolean; template?: CertificateTemplate; background_url?: string; message: string }> => {
     return apiClient.post(`/certificate-templates/${id}/background-url`, { url });
   },
 
   /**
    * Supprimer l'arrière-plan d'un template
+   * Note: Pour les nouveaux templates (id='new'), template est optionnel
    */
-  deleteBackground: async (id: string): Promise<{ success: boolean; template: CertificateTemplate; message: string }> => {
+  deleteBackground: async (id: string): Promise<{ success: boolean; template?: CertificateTemplate; message: string }> => {
     return apiClient.delete(`/certificate-templates/${id}/background`);
   },
 

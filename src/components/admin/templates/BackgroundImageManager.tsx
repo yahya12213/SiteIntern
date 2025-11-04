@@ -49,7 +49,19 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
 
     try {
       const result = await certificateTemplatesApi.uploadBackground(template.id, file);
-      onUpdate(result.template);
+
+      // Handle response difference for new vs existing templates
+      if (result.template) {
+        // Existing template - backend returned full template object
+        onUpdate(result.template);
+      } else if (result.background_url) {
+        // New template (id='new') - manually update background_url field
+        onUpdate({
+          ...template,
+          background_image_url: result.background_url,
+          background_image_type: 'upload',
+        });
+      }
     } catch (err: any) {
       setError(err.message || 'Erreur lors de l\'upload de l\'image');
     } finally {
@@ -71,7 +83,19 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
 
     try {
       const result = await certificateTemplatesApi.setBackgroundUrl(template.id, url.trim());
-      onUpdate(result.template);
+
+      // Handle response difference for new vs existing templates
+      if (result.template) {
+        // Existing template - backend returned full template object
+        onUpdate(result.template);
+      } else if (result.background_url) {
+        // New template (id='new') - manually update background_url field
+        onUpdate({
+          ...template,
+          background_image_url: result.background_url,
+          background_image_type: 'url',
+        });
+      }
       setUrl('');
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la définition de l\'URL');
@@ -88,7 +112,19 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
 
     try {
       const result = await certificateTemplatesApi.deleteBackground(template.id);
-      onUpdate(result.template);
+
+      // Handle response difference for new vs existing templates
+      if (result.template) {
+        // Existing template - backend returned full template object
+        onUpdate(result.template);
+      } else {
+        // New template (id='new') - manually clear background fields
+        onUpdate({
+          ...template,
+          background_image_url: undefined,
+          background_image_type: undefined,
+        });
+      }
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la suppression de l\'arrière-plan');
     } finally {
@@ -133,7 +169,19 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
 
     try {
       const result = await certificateTemplatesApi.uploadBackground(template.id, file);
-      onUpdate(result.template);
+
+      // Handle response difference for new vs existing templates
+      if (result.template) {
+        // Existing template - backend returned full template object
+        onUpdate(result.template);
+      } else if (result.background_url) {
+        // New template (id='new') - manually update background_url field
+        onUpdate({
+          ...template,
+          background_image_url: result.background_url,
+          background_image_type: 'upload',
+        });
+      }
     } catch (err: any) {
       setError(err.message || 'Erreur lors de l\'upload de l\'image');
     } finally {
