@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, X, Grid3x3 } from 'lucide-react';
 import { useCertificateTemplate, useUpdateTemplate, useCreateTemplate } from '@/hooks/useCertificateTemplates';
 import type { CertificateTemplate, TemplateElement } from '@/types/certificateTemplate';
@@ -10,10 +10,10 @@ import { BackgroundImageManager } from '@/components/admin/templates/BackgroundI
 import { CustomFontManager } from '@/components/admin/templates/CustomFontManager';
 import { getCanvasDimensions, FORMAT_LABELS } from '@/lib/utils/canvasDimensions';
 
-const DEFAULT_TEMPLATE: Omit<CertificateTemplate, 'id' | 'created_at' | 'updated_at'> = {
+const createDefaultTemplate = (folderId?: string): Omit<CertificateTemplate, 'id' | 'created_at' | 'updated_at'> => ({
   name: 'Nouveau Template Canvas',
   description: '',
-  folder_id: '',
+  folder_id: folderId || '',
   template_config: {
     layout: {
       orientation: 'landscape',
@@ -34,11 +34,13 @@ const DEFAULT_TEMPLATE: Omit<CertificateTemplate, 'id' | 'created_at' | 'updated
     },
     elements: [],
   },
-};
+});
 
 export const CertificateTemplateCanvasEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const folderId = searchParams.get('folderId');
   const isNewTemplate = id === 'new';
 
   const { data: existingTemplate, isLoading } = useCertificateTemplate(isNewTemplate ? null : (id || ''));
@@ -63,8 +65,9 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
   // Charger le template existant
   useEffect(() => {
     if (isNewTemplate) {
+      const defaultTemplate = createDefaultTemplate(folderId || undefined);
       setTemplate({
-        ...DEFAULT_TEMPLATE,
+        ...defaultTemplate,
         id: 'new',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -85,7 +88,7 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
         setNextElementId(maxId + 1);
       }
     }
-  }, [existingTemplate, isNewTemplate]);
+  }, [existingTemplate, isNewTemplate, folderId]);
 
   // Sauvegarder
   const handleSave = async () => {

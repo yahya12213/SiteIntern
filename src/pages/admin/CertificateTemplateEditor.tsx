@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, X, Plus } from 'lucide-react';
 import { useCertificateTemplate, useUpdateTemplate, useCreateTemplate } from '@/hooks/useCertificateTemplates';
 import type { CertificateTemplate, TemplateElement } from '@/types/certificateTemplate';
@@ -11,10 +11,10 @@ import { ElementEditor } from '@/components/admin/templates/ElementEditor';
 
 type Tab = 'general' | 'colors' | 'fonts' | 'elements';
 
-const DEFAULT_TEMPLATE: Omit<CertificateTemplate, 'id' | 'created_at' | 'updated_at'> = {
+const createDefaultTemplate = (folderId?: string): Omit<CertificateTemplate, 'id' | 'created_at' | 'updated_at'> => ({
   name: 'Nouveau Template',
   description: '',
-  folder_id: '',
+  folder_id: folderId || '',
   template_config: {
     layout: {
       orientation: 'landscape',
@@ -35,11 +35,13 @@ const DEFAULT_TEMPLATE: Omit<CertificateTemplate, 'id' | 'created_at' | 'updated
     },
     elements: [],
   },
-};
+});
 
 export const CertificateTemplateEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const folderId = searchParams.get('folderId');
   const isNewTemplate = id === 'new';
 
   const { data: existingTemplate, isLoading } = useCertificateTemplate(isNewTemplate ? null : (id || ''));
@@ -53,8 +55,9 @@ export const CertificateTemplateEditor: React.FC = () => {
 
   useEffect(() => {
     if (isNewTemplate) {
+      const defaultTemplate = createDefaultTemplate(folderId || undefined);
       setTemplate({
-        ...DEFAULT_TEMPLATE,
+        ...defaultTemplate,
         id: 'new',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -62,7 +65,7 @@ export const CertificateTemplateEditor: React.FC = () => {
     } else if (existingTemplate) {
       setTemplate(existingTemplate);
     }
-  }, [existingTemplate, isNewTemplate]);
+  }, [existingTemplate, isNewTemplate, folderId]);
 
   const handleSave = async () => {
     if (!template) return;

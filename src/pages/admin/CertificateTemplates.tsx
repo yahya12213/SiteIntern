@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { FolderTree } from '@/components/admin/templates/FolderTree';
 import { FolderFormModal } from '@/components/admin/templates/FolderFormModal';
+import { TemplateTypeModal } from '@/components/admin/templates/TemplateTypeModal';
 import type { TemplateFolder } from '@/types/certificateTemplate';
 
 export const CertificateTemplates: React.FC = () => {
@@ -44,6 +45,7 @@ export const CertificateTemplates: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [showFolderModal, setShowFolderModal] = useState(false);
+  const [showTemplateTypeModal, setShowTemplateTypeModal] = useState(false);
   const [folderModalMode, setFolderModalMode] = useState<'create' | 'edit'>('create');
   const [editingFolder, setEditingFolder] = useState<TemplateFolder | null>(null);
 
@@ -158,6 +160,15 @@ export const CertificateTemplates: React.FC = () => {
     setSelectedFolderId(folder.id);
   };
 
+  const handleOpenTemplateTypeModal = () => {
+    if (flattenedFolders.length === 0) {
+      alert('Veuillez d\'abord créer au moins un dossier avant de créer un template.');
+      handleCreateFolder();
+      return;
+    }
+    setShowTemplateTypeModal(true);
+  };
+
   if (isLoading || foldersLoading) {
     return (
       <AppLayout>
@@ -196,32 +207,36 @@ export const CertificateTemplates: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-3">
+            {/* Nouveau Dossier Button - Primary */}
+            <button
+              onClick={handleCreateFolder}
+              className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
+            >
+              <FolderPlus className="h-5 w-5" />
+              Nouveau Dossier
+            </button>
+
+            {/* Nouveau Template Button - Secondary */}
+            <button
+              onClick={handleOpenTemplateTypeModal}
+              className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
+            >
+              <Plus className="h-5 w-5" />
+              Nouveau Template
+            </button>
+
+            {/* Seed Defaults Button - Only if no templates */}
             {templates && templates.length === 0 && (
               <button
                 onClick={handleSeedDefaults}
                 disabled={seedMutation.isPending}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 shadow-md"
               >
                 <Palette className="h-4 w-4" />
                 Créer Templates par Défaut
               </button>
             )}
-            <button
-              onClick={() => navigate('/admin/certificate-templates/new/edit')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Nouveau Template
-            </button>
-            <button
-              onClick={() => navigate('/admin/certificate-templates/new/canvas-edit')}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-              title="Créer un template avec l'éditeur Canvas"
-            >
-              <Palette className="h-4 w-4" />
-              Nouveau Canvas
-            </button>
           </div>
         </div>
 
@@ -247,224 +262,256 @@ export const CertificateTemplates: React.FC = () => {
           </div>
         </div>
 
-        {/* Main Content: Two Panels */}
-        {!templates || templates.length === 0 ? (
-          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-            <Award className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Aucun template disponible
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Commencez par créer les templates prédéfinis ou créez un nouveau template personnalisé
-            </p>
-            <button
-              onClick={handleSeedDefaults}
-              disabled={seedMutation.isPending}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2 disabled:opacity-50"
-            >
-              <Palette className="h-5 w-5" />
-              Créer Templates par Défaut
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-12 gap-4">
-            {/* Left Panel: Folder Tree */}
-            <div className="col-span-12 md:col-span-3 bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="p-3 border-b border-gray-200 bg-gray-50">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-                    <Folder className="h-4 w-4" />
-                    Dossiers
-                  </h3>
-                  <button
-                    onClick={handleCreateFolder}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors"
-                    title="Nouveau dossier"
-                  >
-                    <FolderPlus className="h-4 w-4 text-blue-600" />
-                  </button>
-                </div>
+        {/* Main Content: Always show two-panel layout */}
+        <div className="grid grid-cols-12 gap-4">
+          {/* Left Panel: Folder Tree - ALWAYS VISIBLE */}
+          <div className="col-span-12 md:col-span-3 bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="p-3 border-b border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                  <Folder className="h-4 w-4" />
+                  Dossiers
+                </h3>
                 <button
-                  onClick={() => setSelectedFolderId(null)}
-                  className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
-                    selectedFolderId === null
-                      ? 'bg-blue-100 text-blue-700 font-medium'
-                      : 'hover:bg-gray-100 text-gray-700'
-                  }`}
+                  onClick={handleCreateFolder}
+                  className="p-1 hover:bg-gray-200 rounded transition-colors"
+                  title="Nouveau dossier"
                 >
-                  📁 Tous les templates
+                  <FolderPlus className="h-4 w-4 text-purple-600" />
                 </button>
               </div>
-              <div className="max-h-96 overflow-y-auto">
+              <button
+                onClick={() => setSelectedFolderId(null)}
+                className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
+                  selectedFolderId === null
+                    ? 'bg-blue-100 text-blue-700 font-medium'
+                    : 'hover:bg-gray-100 text-gray-700'
+                }`}
+              >
+                📁 Tous les templates
+              </button>
+            </div>
+            <div className="max-h-96 overflow-y-auto">
+              {folderTree && folderTree.length > 0 ? (
                 <FolderTree
-                  folders={folderTree || []}
+                  folders={folderTree}
                   selectedFolderId={selectedFolderId}
                   onFolderSelect={setSelectedFolderId}
                   onFolderContextMenu={handleFolderContextMenu}
                 />
-              </div>
-              {selectedFolder && (
-                <div className="p-3 border-t border-gray-200 bg-gray-50 space-y-2">
-                  <div className="text-xs text-gray-600 font-medium mb-1">Actions sur "{selectedFolder.name}":</div>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleEditFolder(selectedFolder)}
-                      className="flex-1 px-2 py-1.5 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
-                    >
-                      <Edit2 className="h-3 w-3" />
-                      Renommer
-                    </button>
-                    <button
-                      onClick={() => handleDeleteFolder(selectedFolder)}
-                      disabled={deleteFolderMutation.isPending}
-                      className="flex-1 px-2 py-1.5 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
-                    >
-                      <FolderX className="h-3 w-3" />
-                      Supprimer
-                    </button>
-                  </div>
+              ) : (
+                <div className="p-6 text-center">
+                  <FolderPlus className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-sm text-gray-600 mb-3">Aucun dossier créé</p>
+                  <button
+                    onClick={handleCreateFolder}
+                    className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium inline-flex items-center gap-1"
+                  >
+                    <FolderPlus className="h-4 w-4" />
+                    Créer un dossier
+                  </button>
                 </div>
               )}
             </div>
-
-            {/* Right Panel: Templates Grid */}
-            <div className="col-span-12 md:col-span-9">
-              {filteredTemplates.length === 0 ? (
-                <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-                  <Folder className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-600">
-                    {selectedFolder
-                      ? `Aucun template dans le dossier "${selectedFolder.name}"`
-                      : 'Sélectionnez un dossier ou créez un nouveau template'}
-                  </p>
+            {selectedFolder && (
+              <div className="p-3 border-t border-gray-200 bg-gray-50 space-y-2">
+                <div className="text-xs text-gray-600 font-medium mb-1">Actions sur "{selectedFolder.name}":</div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => handleEditFolder(selectedFolder)}
+                    className="flex-1 px-2 py-1.5 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                  >
+                    <Edit2 className="h-3 w-3" />
+                    Renommer
+                  </button>
+                  <button
+                    onClick={() => handleDeleteFolder(selectedFolder)}
+                    disabled={deleteFolderMutation.isPending}
+                    className="flex-1 px-2 py-1.5 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
+                  >
+                    <FolderX className="h-3 w-3" />
+                    Supprimer
+                  </button>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredTemplates.map((template) => (
-                    <div
-                      key={template.id}
-                      className="bg-white rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-200 relative"
+              </div>
+            )}
+          </div>
+
+          {/* Right Panel: Templates Grid - ALWAYS VISIBLE */}
+          <div className="col-span-12 md:col-span-9">
+            {filteredTemplates.length === 0 ? (
+              <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                <Award className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {flattenedFolders.length === 0
+                    ? '🚀 Commencez par créer un dossier'
+                    : selectedFolder
+                    ? `Aucun template dans le dossier "${selectedFolder.name}"`
+                    : 'Aucun template disponible'}
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {flattenedFolders.length === 0
+                    ? 'Organisez vos templates en créant d\'abord des dossiers (ex: Formation KSS → Certificat, Attestation, Badge)'
+                    : 'Sélectionnez un dossier et créez votre premier template'}
+                </p>
+                <div className="flex gap-3 justify-center">
+                  {flattenedFolders.length === 0 ? (
+                    <button
+                      onClick={handleCreateFolder}
+                      className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center gap-2 font-medium shadow-md"
                     >
-                      {/* Preview Area */}
-                      <div className="h-40 bg-gradient-to-br from-gray-50 to-gray-100 rounded-t-lg flex items-center justify-center relative overflow-hidden">
-                        <div className="text-center p-4">
-                          <Award className="h-16 w-16 text-gray-300 mx-auto mb-2" />
-                          <div className="text-xs text-gray-500 font-mono">
-                            {template.template_config.layout.orientation === 'landscape'
-                              ? 'Paysage'
-                              : 'Portrait'}{' '}
-                            • {template.template_config.layout.format.toUpperCase()}
-                          </div>
+                      <FolderPlus className="h-5 w-5" />
+                      Créer mon premier dossier
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleOpenTemplateTypeModal}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2 font-medium shadow-md"
+                      >
+                        <Plus className="h-5 w-5" />
+                        Créer un Template
+                      </button>
+                      {templates && templates.length === 0 && (
+                        <button
+                          onClick={handleSeedDefaults}
+                          disabled={seedMutation.isPending}
+                          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors inline-flex items-center gap-2 disabled:opacity-50 font-medium shadow-md"
+                        >
+                          <Palette className="h-5 w-5" />
+                          Templates par Défaut
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredTemplates.map((template) => (
+                  <div
+                    key={template.id}
+                    className="bg-white rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-200 relative"
+                  >
+                    {/* Preview Area */}
+                    <div className="h-40 bg-gradient-to-br from-gray-50 to-gray-100 rounded-t-lg flex items-center justify-center relative overflow-hidden">
+                      <div className="text-center p-4">
+                        <Award className="h-16 w-16 text-gray-300 mx-auto mb-2" />
+                        <div className="text-xs text-gray-500 font-mono">
+                          {template.template_config.layout.orientation === 'landscape'
+                            ? 'Paysage'
+                            : 'Portrait'}{' '}
+                          • {template.template_config.layout.format.toUpperCase()}
                         </div>
                       </div>
+                    </div>
 
-                      {/* Content */}
-                      <div className="p-4">
-                        <h3 className="font-bold text-gray-900 text-base mb-1">{template.name}</h3>
-                        <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                          {template.description || 'Aucune description'}
-                        </p>
+                    {/* Content */}
+                    <div className="p-4">
+                      <h3 className="font-bold text-gray-900 text-base mb-1">{template.name}</h3>
+                      <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                        {template.description || 'Aucune description'}
+                      </p>
 
-                        {/* Folder Badge */}
-                        {template.folder_name && (
-                          <div className="mb-3">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs">
-                              <Folder className="h-3 w-3" />
-                              {template.folder_name}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Colors Preview */}
-                        <div className="flex gap-1 mb-3">
-                          <div
-                            className="w-6 h-6 rounded border border-gray-300"
-                            style={{ backgroundColor: template.template_config.colors.primary }}
-                            title="Couleur primaire"
-                          />
-                          <div
-                            className="w-6 h-6 rounded border border-gray-300"
-                            style={{ backgroundColor: template.template_config.colors.secondary }}
-                            title="Couleur secondaire"
-                          />
-                          <div
-                            className="w-6 h-6 rounded border border-gray-300"
-                            style={{ backgroundColor: template.template_config.colors.text }}
-                            title="Couleur du texte"
-                          />
-                        </div>
-
-                        {/* Actions */}
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => handleDuplicate(template.id)}
-                            disabled={duplicateMutation.isPending}
-                            className="px-2 py-1.5 bg-blue-50 text-blue-700 rounded border border-blue-300 hover:bg-blue-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
-                          >
-                            <Copy className="h-3 w-3" />
-                            Dupliquer
-                          </button>
-
-                          <button
-                            onClick={() => navigate(`/admin/certificate-templates/${template.id}/edit`)}
-                            className="px-2 py-1.5 bg-purple-50 text-purple-700 rounded border border-purple-300 hover:bg-purple-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
-                          >
-                            <Edit3 className="h-3 w-3" />
-                            Modifier
-                          </button>
-
-                          <button
-                            onClick={() => navigate(`/admin/certificate-templates/${template.id}/canvas-edit`)}
-                            className="px-2 py-1.5 bg-blue-50 text-blue-700 rounded border border-blue-300 hover:bg-blue-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
-                            title="Éditeur Canvas Drag-and-Drop"
-                          >
-                            <Palette className="h-3 w-3" />
-                            Canvas
-                          </button>
-
-                          <button
-                            onClick={() => setShowDeleteConfirm(template.id)}
-                            disabled={deleteMutation.isPending}
-                            className="px-2 py-1.5 bg-red-50 text-red-700 rounded border border-red-300 hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            Supprimer
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Delete Confirmation */}
-                      {showDeleteConfirm === template.id && (
-                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
-                          <div className="bg-white p-4 rounded-lg shadow-xl max-w-xs mx-4">
-                            <h4 className="font-bold text-gray-900 text-sm mb-2">Confirmer la suppression</h4>
-                            <p className="text-xs text-gray-600 mb-4">
-                              Êtes-vous sûr de vouloir supprimer le template "{template.name}" ?
-                            </p>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => setShowDeleteConfirm(null)}
-                                className="flex-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-xs font-medium"
-                              >
-                                Annuler
-                              </button>
-                              <button
-                                onClick={() => handleDelete(template.id)}
-                                className="flex-1 px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs font-medium"
-                              >
-                                Supprimer
-                              </button>
-                            </div>
-                          </div>
+                      {/* Folder Badge */}
+                      {template.folder_name && (
+                        <div className="mb-3">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs">
+                            <Folder className="h-3 w-3" />
+                            {template.folder_name}
+                          </span>
                         </div>
                       )}
+
+                      {/* Colors Preview */}
+                      <div className="flex gap-1 mb-3">
+                        <div
+                          className="w-6 h-6 rounded border border-gray-300"
+                          style={{ backgroundColor: template.template_config.colors.primary }}
+                          title="Couleur primaire"
+                        />
+                        <div
+                          className="w-6 h-6 rounded border border-gray-300"
+                          style={{ backgroundColor: template.template_config.colors.secondary }}
+                          title="Couleur secondaire"
+                        />
+                        <div
+                          className="w-6 h-6 rounded border border-gray-300"
+                          style={{ backgroundColor: template.template_config.colors.text }}
+                          title="Couleur du texte"
+                        />
+                      </div>
+
+                      {/* Actions */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => handleDuplicate(template.id)}
+                          disabled={duplicateMutation.isPending}
+                          className="px-2 py-1.5 bg-blue-50 text-blue-700 rounded border border-blue-300 hover:bg-blue-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
+                        >
+                          <Copy className="h-3 w-3" />
+                          Dupliquer
+                        </button>
+
+                        <button
+                          onClick={() => navigate(`/admin/certificate-templates/${template.id}/edit`)}
+                          className="px-2 py-1.5 bg-purple-50 text-purple-700 rounded border border-purple-300 hover:bg-purple-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                          Modifier
+                        </button>
+
+                        <button
+                          onClick={() => navigate(`/admin/certificate-templates/${template.id}/canvas-edit`)}
+                          className="px-2 py-1.5 bg-blue-50 text-blue-700 rounded border border-blue-300 hover:bg-blue-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                          title="Éditeur Canvas Drag-and-Drop"
+                        >
+                          <Palette className="h-3 w-3" />
+                          Canvas
+                        </button>
+
+                        <button
+                          onClick={() => setShowDeleteConfirm(template.id)}
+                          disabled={deleteMutation.isPending}
+                          className="px-2 py-1.5 bg-red-50 text-red-700 rounded border border-red-300 hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Supprimer
+                        </button>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+
+                    {/* Delete Confirmation */}
+                    {showDeleteConfirm === template.id && (
+                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
+                        <div className="bg-white p-4 rounded-lg shadow-xl max-w-xs mx-4">
+                          <h4 className="font-bold text-gray-900 text-sm mb-2">Confirmer la suppression</h4>
+                          <p className="text-xs text-gray-600 mb-4">
+                            Êtes-vous sûr de vouloir supprimer le template "{template.name}" ?
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setShowDeleteConfirm(null)}
+                              className="flex-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-xs font-medium"
+                            >
+                              Annuler
+                            </button>
+                            <button
+                              onClick={() => handleDelete(template.id)}
+                              className="flex-1 px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs font-medium"
+                            >
+                              Supprimer
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Folder Form Modal */}
         <FolderFormModal
@@ -475,6 +522,14 @@ export const CertificateTemplates: React.FC = () => {
           folders={flattenedFolders}
           isLoading={createFolderMutation.isPending || updateFolderMutation.isPending}
           mode={folderModalMode}
+        />
+
+        {/* Template Type Modal */}
+        <TemplateTypeModal
+          isOpen={showTemplateTypeModal}
+          onClose={() => setShowTemplateTypeModal(false)}
+          folders={folderTree || []}
+          selectedFolderId={selectedFolderId}
         />
       </div>
     </AppLayout>
