@@ -6,6 +6,7 @@ import {
   useDeleteTemplate,
   useDuplicateTemplate,
   useSeedDefaultTemplates,
+  useUpdateTemplate,
 } from '@/hooks/useCertificateTemplates';
 import {
   useTemplateFolderTree,
@@ -29,6 +30,7 @@ import { FolderTree } from '@/components/admin/templates/FolderTree';
 import { FolderFormModal } from '@/components/admin/templates/FolderFormModal';
 import { Breadcrumb } from '@/components/admin/templates/Breadcrumb';
 import { CanvasConfigModal, type CanvasConfig } from '@/components/admin/templates/CanvasConfigModal';
+import { RenameTemplateModal } from '@/components/admin/templates/RenameTemplateModal';
 import type { TemplateFolder } from '@/types/certificateTemplate';
 
 export const CertificateTemplates: React.FC = () => {
@@ -37,6 +39,7 @@ export const CertificateTemplates: React.FC = () => {
   const { data: folderTree, isLoading: foldersLoading } = useTemplateFolderTree();
   const deleteMutation = useDeleteTemplate();
   const duplicateMutation = useDuplicateTemplate();
+  const updateTemplateMutation = useUpdateTemplate();
   const seedMutation = useSeedDefaultTemplates();
   const createFolderMutation = useCreateFolder();
   const updateFolderMutation = useUpdateFolder();
@@ -48,6 +51,8 @@ export const CertificateTemplates: React.FC = () => {
   const [folderModalMode, setFolderModalMode] = useState<'create' | 'edit'>('create');
   const [editingFolder, setEditingFolder] = useState<TemplateFolder | null>(null);
   const [showCanvasConfigModal, setShowCanvasConfigModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renamingTemplate, setRenamingTemplate] = useState<{ id: string; name: string } | null>(null);
 
   // Filter templates by selected folder
   const filteredTemplates = useMemo(() => {
@@ -126,6 +131,26 @@ export const CertificateTemplates: React.FC = () => {
       await duplicateMutation.mutateAsync(id);
     } catch (error: any) {
       alert('Erreur: ' + (error.message || 'Impossible de dupliquer ce template'));
+    }
+  };
+
+  const handleRenameClick = (id: string, name: string) => {
+    setRenamingTemplate({ id, name });
+    setShowRenameModal(true);
+  };
+
+  const handleRenameSubmit = async (newName: string) => {
+    if (!renamingTemplate) return;
+
+    try {
+      await updateTemplateMutation.mutateAsync({
+        id: renamingTemplate.id,
+        data: { name: newName },
+      });
+      setShowRenameModal(false);
+      setRenamingTemplate(null);
+    } catch (error: any) {
+      alert('Erreur: ' + (error.message || 'Impossible de renommer ce template'));
     }
   };
 
@@ -497,6 +522,15 @@ export const CertificateTemplates: React.FC = () => {
                       {/* Actions */}
                       <div className="grid grid-cols-2 gap-2">
                         <button
+                          onClick={() => handleRenameClick(template.id, template.name)}
+                          className="px-2 py-1.5 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                          title="Renommer le template"
+                        >
+                          <Edit2 className="h-3 w-3" />
+                          Renommer
+                        </button>
+
+                        <button
                           onClick={() => handleDuplicate(template.id)}
                           disabled={duplicateMutation.isPending}
                           className="px-2 py-1.5 bg-blue-50 text-blue-700 rounded border border-blue-300 hover:bg-blue-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
@@ -575,6 +609,20 @@ export const CertificateTemplates: React.FC = () => {
           onSubmit={handleCanvasConfigSubmit}
           currentFolderName={selectedFolder?.name || 'Tous les dossiers'}
         />
+
+        {/* Rename Template Modal */}
+        {renamingTemplate && (
+          <RenameTemplateModal
+            isOpen={showRenameModal}
+            onClose={() => {
+              setShowRenameModal(false);
+              setRenamingTemplate(null);
+            }}
+            onSubmit={handleRenameSubmit}
+            currentName={renamingTemplate.name}
+            isLoading={updateTemplateMutation.isPending}
+          />
+        )}
       </div>
     </AppLayout>
   );
