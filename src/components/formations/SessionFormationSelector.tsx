@@ -141,6 +141,7 @@ export const SessionFormationSelector: React.FC<SessionFormationSelectorProps> =
         </label>
         <div className="relative">
           <select
+            key={`segment-select-${selectedSegmentId || 'empty'}`}
             value={selectedSegmentId}
             onChange={handleSegmentChange}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none pr-10"
@@ -164,6 +165,7 @@ export const SessionFormationSelector: React.FC<SessionFormationSelectorProps> =
         </label>
         <div className="relative">
           <select
+            key={`city-select-${selectedCityId || 'empty'}`}
             value={selectedCityId}
             onChange={handleCityChange}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none pr-10 disabled:bg-gray-100 disabled:cursor-not-allowed"
