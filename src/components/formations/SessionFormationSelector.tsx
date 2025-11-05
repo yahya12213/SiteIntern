@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, X } from 'lucide-react';
+import { apiClient } from '@/lib/api/client';
 
 interface Segment {
   id: string;
@@ -69,8 +70,7 @@ export const SessionFormationSelector: React.FC<SessionFormationSelectorProps> =
   const fetchSegments = async () => {
     try {
       setLoadingSegments(true);
-      const response = await fetch('/api/segments');
-      const data = await response.json();
+      const data = await apiClient.get<Segment[]>('/segments');
       setSegments(data);
     } catch (error) {
       console.error('Error fetching segments:', error);
@@ -82,8 +82,7 @@ export const SessionFormationSelector: React.FC<SessionFormationSelectorProps> =
   const fetchCities = async (segmentId: string) => {
     try {
       setLoadingCities(true);
-      const response = await fetch(`/api/cities/by-segment/${segmentId}`);
-      const data = await response.json();
+      const data = await apiClient.get<City[]>(`/cities/by-segment/${segmentId}`);
       setCities(data);
     } catch (error) {
       console.error('Error fetching cities:', error);
@@ -96,8 +95,7 @@ export const SessionFormationSelector: React.FC<SessionFormationSelectorProps> =
   const fetchFormations = async () => {
     try {
       setLoadingFormations(true);
-      const response = await fetch('/api/formations/all');
-      const data = await response.json();
+      const data = await apiClient.get<Formation[]>('/formations/all');
       setFormations(data);
     } catch (error) {
       console.error('Error fetching formations:', error);
