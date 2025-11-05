@@ -178,9 +178,9 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
             selectedSegmentId={formData.segment_id}
             selectedCityId={formData.city_id}
             selectedFormationIds={formData.formation_ids}
-            onSegmentChange={(segmentId) => setFormData({ ...formData, segment_id: segmentId })}
-            onCityChange={(cityId) => setFormData({ ...formData, city_id: cityId })}
-            onFormationsChange={(formationIds) => setFormData({ ...formData, formation_ids: formationIds })}
+            onSegmentChange={(segmentId) => setFormData(prev => ({ ...prev, segment_id: segmentId }))}
+            onCityChange={(cityId) => setFormData(prev => ({ ...prev, city_id: cityId }))}
+            onFormationsChange={(formationIds) => setFormData(prev => ({ ...prev, formation_ids: formationIds }))}
           />
           {errors.formations && <p className="text-xs text-red-600 mt-1">{errors.formations}</p>}
           {errors.segment && <p className="text-xs text-red-600 mt-1">{errors.segment}</p>}

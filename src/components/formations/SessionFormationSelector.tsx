@@ -107,6 +107,7 @@ export const SessionFormationSelector: React.FC<SessionFormationSelectorProps> =
 
   const handleSegmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newSegmentId = e.target.value;
+    console.log('[SessionFormationSelector] Segment changed:', newSegmentId);
     onSegmentChange(newSegmentId);
     // Reset city when segment changes
     onCityChange('');
