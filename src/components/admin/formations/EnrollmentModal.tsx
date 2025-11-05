@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { X, AlertCircle, UserPlus, Trash2, Users, Search } from 'lucide-react';
+import { X, AlertCircle, UserPlus, Trash2, Users, Search, DollarSign, CheckCircle, XCircle } from 'lucide-react';
 import {
   useSession,
   useAvailableStudents,
   useEnrollStudents,
   useUnenrollStudent,
 } from '@/hooks/useFormations';
-import type { FormationSession } from '@/types/formations';
+import { StudentPaymentManager } from '@/components/formations/StudentPaymentManager';
+import type { FormationSession, EnrolledStudent } from '@/types/formations';
 
 interface EnrollmentModalProps {
   session: FormationSession;
@@ -24,6 +25,7 @@ export const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ session, onClo
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [studentForPayment, setStudentForPayment] = useState<EnrolledStudent | null>(null);
 
   const enrolledStudents = sessionDetail?.students || [];
 
@@ -97,6 +99,42 @@ export const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ session, onClo
         {badge.label}
       </span>
     );
+  };
+
+  const getPaymentStatusBadge = (status: string | undefined) => {
+    if (!status) return null;
+    const badges = {
+      paye: { bg: 'bg-green-100', text: 'text-green-700', label: 'Payé' },
+      partiel: { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Partiel' },
+      impaye: { bg: 'bg-red-100', text: 'text-red-700', label: 'Impayé' },
+      surpaye: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Surpayé' },
+    };
+    const badge = badges[status as keyof typeof badges];
+    if (!badge) return null;
+    return (
+      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${badge.bg} ${badge.text}`}>
+        {badge.label}
+      </span>
+    );
+  };
+
+  const handleToggleValidation = async (student: EnrolledStudent) => {
+    const newStatus = student.validation_status === 'valide' ? 'non_valide' : 'valide';
+    try {
+      const response = await fetch(`/api/formations/enrollments/${student.enrollment_id}/validation`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          validation_status: newStatus,
+          validated_by: newStatus === 'valide' ? 'current_user_id' : null, // TODO: Get actual user ID
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to update validation');
+      // Refresh session data
+      window.location.reload(); // Simple refresh for now
+    } catch (err: any) {
+      setError('Erreur lors de la mise à jour du statut de validation');
+    }
   };
 
   const capacityReached = session.max_capacity
@@ -195,7 +233,10 @@ export const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ session, onClo
                             Étudiant
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Date d'inscription
+                            Paiement
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Validation
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Statut
@@ -218,22 +259,55 @@ export const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ session, onClo
                                 </p>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-500">
-                              {new Date(student.enrollment_date).toLocaleDateString('fr-FR')}
+                            <td className="px-4 py-3">
+                              <div className="space-y-1">
+                                {getPaymentStatusBadge(student.payment_status)}
+                                {student.remaining_amount !== undefined && (
+                                  <p className="text-xs text-gray-500">
+                                    Reste: {student.remaining_amount.toFixed(2)} MAD
+                                  </p>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={() => handleToggleValidation(student)}
+                                className={`p-1.5 rounded-full ${
+                                  student.validation_status === 'valide'
+                                    ? 'bg-green-100 text-green-600 hover:bg-green-200'
+                                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                                }`}
+                                title={student.validation_status === 'valide' ? 'Validé' : 'Non validé'}
+                              >
+                                {student.validation_status === 'valide' ? (
+                                  <CheckCircle className="h-5 w-5" />
+                                ) : (
+                                  <XCircle className="h-5 w-5" />
+                                )}
+                              </button>
                             </td>
                             <td className="px-4 py-3">
                               {getStatusBadge(student.enrollment_status)}
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <button
-                                onClick={() =>
-                                  handleUnenroll(student.student_id, student.student_name)
-                                }
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2 rounded"
-                                title="Désinscrire"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  onClick={() => setStudentForPayment(student)}
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50 p-2 rounded"
+                                  title="Gérer paiements"
+                                >
+                                  <DollarSign className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleUnenroll(student.student_id, student.student_name)
+                                  }
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2 rounded"
+                                  title="Désinscrire"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -334,6 +408,14 @@ export const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ session, onClo
           </Button>
         </div>
       </div>
+
+      {/* Payment Manager Modal */}
+      {studentForPayment && (
+        <StudentPaymentManager
+          student={studentForPayment}
+          onClose={() => setStudentForPayment(null)}
+        />
+      )}
     </div>
   );
 };

@@ -3,12 +3,23 @@
 export type SessionStatus = 'planned' | 'active' | 'completed' | 'cancelled';
 export type EnrollmentStatus = 'enrolled' | 'completed' | 'dropped';
 
+export interface Formation {
+  id: string;
+  title: string;
+  description?: string;
+  price?: number;
+  duration_hours?: number;
+  level?: string;
+  association_date?: string;
+}
+
 export interface FormationSession {
   id: string;
   name: string;
   description?: string;
-  formation_id?: string;
-  formation_title?: string;
+  formation_id?: string; // Legacy - kept for backward compatibility
+  formation_title?: string; // Legacy - kept for backward compatibility
+  formations?: Formation[]; // New - array of formations associated with this session
   start_date: string;
   end_date: string;
   segment_id?: string;
@@ -26,6 +37,22 @@ export interface FormationSession {
   students?: EnrolledStudent[];
 }
 
+export type PaymentStatus = 'paye' | 'partiel' | 'impaye' | 'surpaye';
+export type ValidationStatus = 'valide' | 'non_valide';
+export type PaymentMethod = 'especes' | 'virement' | 'cheque' | 'carte' | 'autre';
+
+export interface StudentPayment {
+  id: string;
+  enrollment_id: string;
+  amount: number;
+  payment_date: string;
+  payment_method?: PaymentMethod;
+  note?: string;
+  created_at: string;
+  created_by?: string;
+  created_by_name?: string;
+}
+
 export interface EnrolledStudent {
   enrollment_id: string;
   enrollment_date: string;
@@ -35,6 +62,19 @@ export interface EnrolledStudent {
   student_name: string;
   student_username: string;
   role?: string;
+  // Payment fields
+  discount_amount?: number;
+  total_paid?: number;
+  formation_price?: number;
+  final_price?: number;
+  remaining_amount?: number;
+  payment_status?: PaymentStatus;
+  payment_count?: number;
+  // Validation fields
+  validation_status?: ValidationStatus;
+  validated_by?: string;
+  validated_by_name?: string;
+  validated_at?: string;
 }
 
 export interface FormationEnrollment {
@@ -73,7 +113,8 @@ export interface FormationStats {
 export interface CreateSessionInput {
   name: string;
   description?: string;
-  formation_id?: string;
+  formation_ids?: string[]; // New - array of formation IDs
+  formation_id?: string; // Legacy - kept for backward compatibility
   start_date: string;
   end_date: string;
   segment_id?: string;
@@ -86,7 +127,8 @@ export interface CreateSessionInput {
 export interface UpdateSessionInput {
   name?: string;
   description?: string;
-  formation_id?: string;
+  formation_ids?: string[]; // New - array of formation IDs
+  formation_id?: string; // Legacy - kept for backward compatibility
   start_date?: string;
   end_date?: string;
   segment_id?: string;

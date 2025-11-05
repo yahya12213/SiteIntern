@@ -1,11 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { X, Calendar, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCreateSession, useUpdateSession } from '@/hooks/useFormations';
-import { useSegments } from '@/hooks/useSegments';
-import { useCities } from '@/hooks/useCities';
-import { useFormations } from '@/hooks/useCours';
+import { SessionFormationSelector } from '@/components/formations/SessionFormationSelector';
 import type { FormationSession, SessionStatus } from '@/types/formations';
 
 interface SessionFormModalProps {
@@ -18,15 +16,10 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
 
-  // Fetch segments, cities and formations
-  const { data: segments = [] } = useSegments();
-  const { data: allCities = [] } = useCities();
-  const { data: formations = [] } = useFormations();
-
   const [formData, setFormData] = useState({
     name: session?.name || '',
     description: session?.description || '',
-    formation_id: session?.formation_id || '',
+    formation_ids: session?.formations?.map(f => f.id) || [],
     start_date: session?.start_date ? session.start_date.split('T')[0] : '',
     end_date: session?.end_date ? session.end_date.split('T')[0] : '',
     segment_id: session?.segment_id || '',
@@ -38,14 +31,6 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Filter cities based on selected segment
-  const filteredCities = useMemo(() => {
-    if (!formData.segment_id) {
-      return allCities;
-    }
-    return allCities.filter((city) => city.segment_id === formData.segment_id);
-  }, [allCities, formData.segment_id]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -70,6 +55,18 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
       newErrors.max_capacity = 'La capacité doit être supérieure à 0';
     }
 
+    if (formData.formation_ids.length === 0) {
+      newErrors.formations = 'Sélectionnez au moins une formation';
+    }
+
+    if (!formData.segment_id) {
+      newErrors.segment = 'Le segment est obligatoire';
+    }
+
+    if (!formData.city_id) {
+      newErrors.city = 'La ville est obligatoire';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -87,11 +84,11 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
       const submitData = {
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
-        formation_id: formData.formation_id || undefined,
+        formation_ids: formData.formation_ids,
         start_date: formData.start_date,
         end_date: formData.end_date,
-        segment_id: formData.segment_id || undefined,
-        city_id: formData.city_id || undefined,
+        segment_id: formData.segment_id,
+        city_id: formData.city_id,
         instructor_id: formData.instructor_id || undefined,
         max_capacity: formData.max_capacity ? parseInt(formData.max_capacity) : undefined,
         status: formData.status,
@@ -176,74 +173,18 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
             />
           </div>
 
-          {/* Segment and City */}
-          {/* Formation */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Formation
-            </label>
-            <select
-              value={formData.formation_id}
-              onChange={(e) => setFormData({ ...formData, formation_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-            >
-              <option value="">Sélectionner une formation</option>
-              {formations.map((formation) => (
-                <option key={formation.id} value={formation.id}>
-                  {formation.title}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Optionnel - Liez cette session à une formation spécifique
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Segment */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Segment
-              </label>
-              <select
-                value={formData.segment_id}
-                onChange={(e) => {
-                  setFormData({ ...formData, segment_id: e.target.value, city_id: '' });
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              >
-                <option value="">Sélectionner un segment</option>
-                {segments.map((segment) => (
-                  <option key={segment.id} value={segment.id}>
-                    {segment.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* City */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Ville
-              </label>
-              <select
-                value={formData.city_id}
-                onChange={(e) => setFormData({ ...formData, city_id: e.target.value })}
-                disabled={!formData.segment_id}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-              >
-                <option value="">Sélectionner une ville</option>
-                {filteredCities.map((city) => (
-                  <option key={city.id} value={city.id}>
-                    {city.name}
-                  </option>
-                ))}
-              </select>
-              {!formData.segment_id && (
-                <p className="text-xs text-gray-500 mt-1">Sélectionnez d'abord un segment</p>
-              )}
-            </div>
-          </div>
+          {/* Cascade Selector: Segment → City → Formations */}
+          <SessionFormationSelector
+            selectedSegmentId={formData.segment_id}
+            selectedCityId={formData.city_id}
+            selectedFormationIds={formData.formation_ids}
+            onSegmentChange={(segmentId) => setFormData({ ...formData, segment_id: segmentId })}
+            onCityChange={(cityId) => setFormData({ ...formData, city_id: cityId })}
+            onFormationsChange={(formationIds) => setFormData({ ...formData, formation_ids: formationIds })}
+          />
+          {errors.formations && <p className="text-xs text-red-600 mt-1">{errors.formations}</p>}
+          {errors.segment && <p className="text-xs text-red-600 mt-1">{errors.segment}</p>}
+          {errors.city && <p className="text-xs text-red-600 mt-1">{errors.city}</p>}
 
           {/* Dates */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

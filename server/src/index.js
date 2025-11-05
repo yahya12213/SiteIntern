@@ -24,6 +24,11 @@ import progressRouter from './routes/progress.js';
 import setupProgressRouter from './routes/setup-progress.js';
 import migrationSessionsRouter from './routes/migration-sessions.js';
 import migrationSessionsCompleteRouter from './routes/migration-sessions-complete.js';
+import migration010Router from './routes/migration-010-session-formations.js';
+import migration011Router from './routes/migration-011-student-payments.js';
+import migration012Router from './routes/migration-012-formation-templates.js';
+import migration013Router from './routes/migration-013-extend-enrollments.js';
+import migration014Router from './routes/migration-014-migrate-session-data.js';
 import analyticsRouter from './routes/analytics.js';
 import certificatesRouter from './routes/certificates.js';
 import setupCertificatesRouter from './routes/setup-certificates.js';
@@ -68,6 +73,11 @@ app.use('/api/setup-template-folders', setupTemplateFoldersRouter); // TEMPORARY
 app.use('/api/setup-forums', setupForumsRouter); // TEMPORARY - Run once to create forum tables
 app.use('/api/migration-sessions', migrationSessionsRouter); // TEMPORARY - Migration pour ajouter formation_id
 app.use('/api/migration-sessions-complete', migrationSessionsCompleteRouter); // TEMPORARY - Migration complète sessions
+app.use('/api/migration-010', migration010Router); // Migration 010 - session_formations junction table
+app.use('/api/migration-011', migration011Router); // Migration 011 - student_payments table
+app.use('/api/migration-012', migration012Router); // Migration 012 - formation_templates table
+app.use('/api/migration-013', migration013Router); // Migration 013 - extend formation_enrollments
+app.use('/api/migration-014', migration014Router); // Migration 014 - migrate existing data
 
 // Health check
 app.get('/api/health', async (req, res) => {
