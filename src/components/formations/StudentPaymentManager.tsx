@@ -162,23 +162,23 @@ export const StudentPaymentManager: React.FC<StudentPaymentManagerProps> = ({ st
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div>
               <p className="text-xs text-gray-500 mb-1">Prix formation</p>
-              <p className="text-lg font-bold text-gray-900">{student.formation_price?.toFixed(2) || '0.00'} MAD</p>
+              <p className="text-lg font-bold text-gray-900">{student.formation_price ? parseFloat(String(student.formation_price)).toFixed(2) : '0.00'} MAD</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-1">Remise</p>
-              <p className="text-lg font-bold text-purple-600">-{student.discount_amount?.toFixed(2) || '0.00'} MAD</p>
+              <p className="text-lg font-bold text-purple-600">-{student.discount_amount ? parseFloat(String(student.discount_amount)).toFixed(2) : '0.00'} MAD</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-1">Total payé</p>
-              <p className="text-lg font-bold text-blue-600">{student.total_paid?.toFixed(2) || '0.00'} MAD</p>
+              <p className="text-lg font-bold text-blue-600">{student.total_paid ? parseFloat(String(student.total_paid)).toFixed(2) : '0.00'} MAD</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-1">Reste à payer</p>
               <p className={`text-lg font-bold ${
-                (student.remaining_amount || 0) < 0 ? 'text-blue-600' :
-                (student.remaining_amount || 0) === 0 ? 'text-green-600' : 'text-red-600'
+                parseFloat(String(student.remaining_amount || 0)) < 0 ? 'text-blue-600' :
+                parseFloat(String(student.remaining_amount || 0)) === 0 ? 'text-green-600' : 'text-red-600'
               }`}>
-                {student.remaining_amount?.toFixed(2) || '0.00'} MAD
+                {student.remaining_amount ? parseFloat(String(student.remaining_amount)).toFixed(2) : '0.00'} MAD
               </p>
               {student.payment_status && (
                 <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${getPaymentStatusColor(student.payment_status)}`}>
@@ -333,7 +333,7 @@ export const StudentPaymentManager: React.FC<StudentPaymentManagerProps> = ({ st
                           </span>
                         </div>
                         <span className="text-lg font-bold text-green-600">
-                          {payment.amount.toFixed(2)} MAD
+                          {parseFloat(String(payment.amount)).toFixed(2)} MAD
                         </span>
                         {payment.payment_method && (
                           <span className="text-xs text-gray-500 capitalize">

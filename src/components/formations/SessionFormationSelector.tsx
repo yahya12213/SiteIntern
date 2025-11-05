@@ -239,7 +239,7 @@ export const SessionFormationSelector: React.FC<SessionFormationSelectorProps> =
                     )}
                     {formation.price !== undefined && (
                       <div className="text-sm text-blue-600 mt-1 font-semibold">
-                        {formation.price.toFixed(2)} MAD
+                        {parseFloat(String(formation.price)).toFixed(2)} MAD
                       </div>
                     )}
                   </div>
