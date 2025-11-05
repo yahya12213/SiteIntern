@@ -15,13 +15,11 @@ router.get('/sessions', async (req, res) => {
         p.full_name as instructor_name,
         s.name as segment_name,
         c.name as city_name,
-        f.title as formation_title,
         COUNT(DISTINCT fe.id) as enrolled_count
       FROM formation_sessions fs
       LEFT JOIN profiles p ON fs.instructor_id = p.id
       LEFT JOIN segments s ON fs.segment_id = s.id
       LEFT JOIN cities c ON fs.city_id = c.id
-      LEFT JOIN formations f ON fs.formation_id = f.id
       LEFT JOIN formation_enrollments fe ON fs.id = fe.session_id AND fe.status = 'enrolled'
     `;
 
@@ -48,7 +46,7 @@ router.get('/sessions', async (req, res) => {
     }
 
     query += `
-      GROUP BY fs.id, p.full_name, s.name, c.name, f.title
+      GROUP BY fs.id, p.full_name, s.name, c.name
       ORDER BY fs.created_at DESC
     `;
 
