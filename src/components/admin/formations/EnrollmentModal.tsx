@@ -143,7 +143,7 @@ export const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ session, onClo
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full my-8">
+      <div className="bg-white rounded-lg shadow-xl w-[95vw] max-w-7xl my-8">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <div className="flex items-center gap-3">
@@ -162,7 +162,7 @@ export const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ session, onClo
         </div>
 
         {/* Content */}
-        <div className="p-6 max-h-[calc(90vh-140px)] overflow-y-auto">
+        <div className="p-6 max-h-[calc(95vh-140px)] overflow-y-auto">
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 mb-6">
               <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -187,9 +187,11 @@ export const EnrollmentModal: React.FC<EnrollmentModalProps> = ({ session, onClo
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Formation</p>
+                    <p className="text-xs text-gray-500">Formation(s)</p>
                     <p className="text-sm font-medium text-gray-900">
-                      {session.formation_title || 'Aucune'}
+                      {sessionDetail?.formations && sessionDetail.formations.length > 0
+                        ? sessionDetail.formations.map(f => f.title).join(', ')
+                        : 'Aucune'}
                     </p>
                   </div>
                   <div>
