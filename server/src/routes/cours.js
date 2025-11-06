@@ -105,7 +105,9 @@ router.post('/formations', async (req, res) => {
       level,
       thumbnail_url,
       status,
-      passing_score_percentage
+      passing_score_percentage,
+      corps_formation_id,
+      certificate_template_id
     } = req.body;
 
     if (!title) {
@@ -119,15 +121,17 @@ router.post('/formations', async (req, res) => {
       INSERT INTO formations (
         id, title, description, price, duration_hours, level,
         thumbnail_url, status, passing_score_percentage,
+        corps_formation_id, certificate_template_id,
         created_at, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *
     `;
 
     const values = [
       id, title, description, price, duration_hours, level,
       thumbnail_url, status || 'draft', passing_score_percentage || 80,
+      corps_formation_id || null, certificate_template_id || null,
       now, now
     ];
 
@@ -151,7 +155,9 @@ router.put('/formations/:id', async (req, res) => {
       level,
       thumbnail_url,
       status,
-      passing_score_percentage
+      passing_score_percentage,
+      corps_formation_id,
+      certificate_template_id
     } = req.body;
 
     const now = new Date().toISOString();
@@ -167,14 +173,17 @@ router.put('/formations/:id', async (req, res) => {
         thumbnail_url = COALESCE($6, thumbnail_url),
         status = COALESCE($7, status),
         passing_score_percentage = COALESCE($8, passing_score_percentage),
-        updated_at = $9
-      WHERE id = $10
+        corps_formation_id = COALESCE($9, corps_formation_id),
+        certificate_template_id = COALESCE($10, certificate_template_id),
+        updated_at = $11
+      WHERE id = $12
       RETURNING *
     `;
 
     const values = [
       title, description, price, duration_hours, level,
       thumbnail_url, status, passing_score_percentage,
+      corps_formation_id, certificate_template_id,
       now, id
     ];
 
