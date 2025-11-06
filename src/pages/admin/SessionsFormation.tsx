@@ -173,10 +173,10 @@ export const SessionsFormation: React.FC = () => {
                       </div>
                     )}
 
-                    {session.formation_title && (
+                    {session.corps_formation_name && (
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <BookOpen className="h-4 w-4" />
-                        <span>{session.formation_title}</span>
+                        <span>{session.corps_formation_name}</span>
                       </div>
                     )}
 

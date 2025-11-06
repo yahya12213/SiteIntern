@@ -24,13 +24,13 @@ export const sessionsFormationApi = {
   getAll: async (params?: {
     ville_id?: string;
     segment_id?: string;
-    formation_id?: string;
+    corps_formation_id?: string;
     statut?: string;
   }): Promise<SessionFormation[]> => {
     const queryParams = new URLSearchParams();
     if (params?.ville_id) queryParams.append('ville_id', params.ville_id);
     if (params?.segment_id) queryParams.append('segment_id', params.segment_id);
-    if (params?.formation_id) queryParams.append('formation_id', params.formation_id);
+    if (params?.corps_formation_id) queryParams.append('corps_formation_id', params.corps_formation_id);
     if (params?.statut) queryParams.append('statut', params.statut);
 
     const url = `/sessions-formation${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
@@ -91,6 +91,7 @@ export const sessionsFormationApi = {
       message: string;
     }>(`/sessions-formation/${data.session_id}/etudiants`, {
       student_id: data.student_id,
+      formation_id: data.formation_id,
       montant_total: data.montant_total,
       statut_paiement: data.statut_paiement,
     });

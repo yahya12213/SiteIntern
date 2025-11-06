@@ -20,9 +20,9 @@ export interface SessionFormation {
   segment_id?: string;
   segment_name?: string; // JOIN avec segments
   segment_color?: string; // JOIN avec segments
-  formation_id?: string;
-  formation_title?: string; // JOIN avec formations
-  formation_is_pack?: boolean; // JOIN avec formations
+  corps_formation_id?: string;
+  corps_formation_name?: string; // JOIN avec corps_formation
+  corps_formation_description?: string; // JOIN avec corps_formation
   statut: SessionStatut;
   prix_total: number | string; // DECIMAL renvoyé comme string
   nombre_places: number;
@@ -43,6 +43,7 @@ export interface SessionEtudiant {
   id: string;
   session_id: string;
   student_id: string;
+  formation_id?: string;
   statut_paiement: StatutPaiement;
   montant_total: number | string;
   montant_paye: number | string;
@@ -56,6 +57,10 @@ export interface SessionEtudiant {
   student_email?: string;
   student_phone?: string;
   student_cin?: string;
+
+  // Données de la formation (JOIN)
+  formation_title?: string;
+  formation_is_pack?: boolean;
 }
 
 /**
@@ -129,7 +134,7 @@ export interface CreateSessionFormationInput {
   date_fin?: string;
   ville_id?: string;
   segment_id?: string;
-  formation_id?: string;
+  corps_formation_id?: string;
   statut?: SessionStatut;
   prix_total?: number;
   nombre_places?: number;
@@ -142,7 +147,7 @@ export interface UpdateSessionFormationInput {
   date_fin?: string;
   ville_id?: string;
   segment_id?: string;
-  formation_id?: string;
+  corps_formation_id?: string;
   statut?: SessionStatut;
   prix_total?: number;
   nombre_places?: number;
@@ -151,6 +156,7 @@ export interface UpdateSessionFormationInput {
 export interface AddEtudiantToSessionInput {
   session_id: string;
   student_id: string;
+  formation_id: string; // Obligatoire: formation choisie par l'étudiant
   montant_total?: number;
   statut_paiement?: StatutPaiement;
 }

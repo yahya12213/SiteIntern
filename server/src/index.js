@@ -43,6 +43,7 @@ import migrationCorpsFormationRouter from './routes/migration-corps-formation.js
 import corpsFormationRouter from './routes/corps-formation.js';
 import migration016Router from './routes/migration-016-sessions-formation.js';
 import sessionsFormationRouter from './routes/sessions-formation.js';
+import migration017Router from './routes/migration-017-sessions-corps-formation.js';
 
 dotenv.config();
 
@@ -88,6 +89,7 @@ app.use('/api/migration-014', migration014Router); // Migration 014 - migrate ex
 app.use('/api/migration-015', migration015Router); // Migration 015 - add segment_id to corps_formation
 app.use('/api/migration-corps-formation', migrationCorpsFormationRouter); // Migration - Corps de formation & Packs
 app.use('/api/migration-016', migration016Router); // Migration 016 - Sessions de formation (Classes)
+app.use('/api/migration-017', migration017Router); // Migration 017 - Sessions avec Corps de Formation
 
 // Health check
 app.get('/api/health', async (req, res) => {

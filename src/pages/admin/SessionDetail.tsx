@@ -104,10 +104,10 @@ export const SessionDetail: React.FC = () => {
                     {session.segment_name}
                   </span>
                 )}
-                {session.formation_title && (
+                {session.corps_formation_name && (
                   <div className="flex items-center gap-1">
                     <BookOpen className="h-4 w-4" />
-                    {session.formation_title}
+                    {session.corps_formation_name}
                   </div>
                 )}
               </div>
@@ -259,6 +259,9 @@ export const SessionDetail: React.FC = () => {
                             Nom
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Formation
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             CIN
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -276,6 +279,7 @@ export const SessionDetail: React.FC = () => {
                         {session.etudiants.map((etudiant) => (
                           <tr key={etudiant.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-sm text-gray-900">{etudiant.student_name}</td>
+                            <td className="px-4 py-3 text-sm text-blue-600 font-medium">{etudiant.formation_title || '-'}</td>
                             <td className="px-4 py-3 text-sm text-gray-600">{etudiant.student_cin}</td>
                             <td className="px-4 py-3 text-sm text-gray-600">{etudiant.student_phone}</td>
                             <td className="px-4 py-3">

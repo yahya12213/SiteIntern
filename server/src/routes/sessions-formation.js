@@ -14,7 +14,7 @@ const router = express.Router();
  */
 router.get('/', async (req, res) => {
   try {
-    const { ville_id, segment_id, formation_id, statut } = req.query;
+    const { ville_id, segment_id, corps_formation_id, statut } = req.query;
 
     let whereConditions = [];
     let params = [];
@@ -30,9 +30,9 @@ router.get('/', async (req, res) => {
       params.push(segment_id);
     }
 
-    if (formation_id) {
-      whereConditions.push(`sf.formation_id = $${paramIndex++}`);
-      params.push(formation_id);
+    if (corps_formation_id) {
+      whereConditions.push(`sf.corps_formation_id = $${paramIndex++}`);
+      params.push(corps_formation_id);
     }
 
     if (statut) {
@@ -50,8 +50,8 @@ router.get('/', async (req, res) => {
         v.name as ville_name,
         s.name as segment_name,
         s.color as segment_color,
-        f.title as formation_title,
-        f.is_pack as formation_is_pack,
+        cf.name as corps_formation_name,
+        cf.description as corps_formation_description,
         COUNT(DISTINCT se.id) as nombre_etudiants,
         COUNT(DISTINCT sp.id) as nombre_professeurs,
         COALESCE(SUM(se.montant_paye), 0) as total_paye,
@@ -59,11 +59,11 @@ router.get('/', async (req, res) => {
       FROM sessions_formation sf
       LEFT JOIN villes v ON v.id = sf.ville_id
       LEFT JOIN segments s ON s.id = sf.segment_id
-      LEFT JOIN formations f ON f.id = sf.formation_id
+      LEFT JOIN corps_formation cf ON cf.id = sf.corps_formation_id
       LEFT JOIN session_etudiants se ON se.session_id = sf.id
       LEFT JOIN session_professeurs sp ON sp.session_id = sf.id
       ${whereClause}
-      GROUP BY sf.id, v.name, s.name, s.color, f.title, f.is_pack
+      GROUP BY sf.id, v.name, s.name, s.color, cf.name, cf.description
       ORDER BY sf.date_debut DESC NULLS LAST, sf.created_at DESC
     `;
 
@@ -98,8 +98,8 @@ router.get('/:id', async (req, res) => {
         v.name as ville_name,
         s.name as segment_name,
         s.color as segment_color,
-        f.title as formation_title,
-        f.is_pack as formation_is_pack,
+        cf.name as corps_formation_name,
+        cf.description as corps_formation_description,
         COUNT(DISTINCT se.id) as nombre_etudiants,
         COUNT(DISTINCT sp.id) as nombre_professeurs,
         COALESCE(SUM(se.montant_paye), 0) as total_paye,
@@ -107,11 +107,11 @@ router.get('/:id', async (req, res) => {
       FROM sessions_formation sf
       LEFT JOIN villes v ON v.id = sf.ville_id
       LEFT JOIN segments s ON s.id = sf.segment_id
-      LEFT JOIN formations f ON f.id = sf.formation_id
+      LEFT JOIN corps_formation cf ON cf.id = sf.corps_formation_id
       LEFT JOIN session_etudiants se ON se.session_id = sf.id
       LEFT JOIN session_professeurs sp ON sp.session_id = sf.id
       WHERE sf.id = $1
-      GROUP BY sf.id, v.name, s.name, s.color, f.title, f.is_pack
+      GROUP BY sf.id, v.name, s.name, s.color, cf.name, cf.description
     `;
 
     const sessionResult = await pool.query(sessionQuery, [id]);
@@ -132,9 +132,12 @@ router.get('/:id', async (req, res) => {
         u.name as student_name,
         u.email as student_email,
         u.phone as student_phone,
-        u.cin as student_cin
+        u.cin as student_cin,
+        f.title as formation_title,
+        f.is_pack as formation_is_pack
       FROM session_etudiants se
       LEFT JOIN users u ON u.id = se.student_id
+      LEFT JOIN formations f ON f.id = se.formation_id
       WHERE se.session_id = $1
       ORDER BY se.date_inscription DESC
     `;
@@ -220,7 +223,7 @@ router.post('/', async (req, res) => {
       date_fin,
       ville_id,
       segment_id,
-      formation_id,
+      corps_formation_id,
       statut = 'planifiee',
       prix_total = 0,
       nombre_places = 0
@@ -240,7 +243,7 @@ router.post('/', async (req, res) => {
     const query = `
       INSERT INTO sessions_formation (
         id, titre, description, date_debut, date_fin,
-        ville_id, segment_id, formation_id, statut,
+        ville_id, segment_id, corps_formation_id, statut,
         prix_total, nombre_places, created_at, updated_at
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
@@ -249,7 +252,7 @@ router.post('/', async (req, res) => {
 
     const values = [
       id, titre, description, date_debut, date_fin,
-      ville_id, segment_id, formation_id, statut,
+      ville_id, segment_id, corps_formation_id, statut,
       prix_total, nombre_places, now, now
     ];
 
@@ -284,7 +287,7 @@ router.put('/:id', async (req, res) => {
       date_fin,
       ville_id,
       segment_id,
-      formation_id,
+      corps_formation_id,
       statut,
       prix_total,
       nombre_places
@@ -314,7 +317,7 @@ router.put('/:id', async (req, res) => {
         date_fin = COALESCE($4, date_fin),
         ville_id = COALESCE($5, ville_id),
         segment_id = COALESCE($6, segment_id),
-        formation_id = COALESCE($7, formation_id),
+        corps_formation_id = COALESCE($7, corps_formation_id),
         statut = COALESCE($8, statut),
         prix_total = COALESCE($9, prix_total),
         nombre_places = COALESCE($10, nombre_places),
@@ -325,7 +328,7 @@ router.put('/:id', async (req, res) => {
 
     const values = [
       titre, description, date_debut, date_fin,
-      ville_id, segment_id, formation_id, statut,
+      ville_id, segment_id, corps_formation_id, statut,
       prix_total, nombre_places, now, id
     ];
 
@@ -391,13 +394,50 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/etudiants', async (req, res) => {
   try {
     const { id: session_id } = req.params;
-    const { student_id, montant_total, statut_paiement = 'impaye' } = req.body;
+    const { student_id, formation_id, montant_total, statut_paiement = 'impaye' } = req.body;
 
     if (!student_id) {
       return res.status(400).json({
         success: false,
         error: 'student_id est obligatoire'
       });
+    }
+
+    if (!formation_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'formation_id est obligatoire - veuillez choisir une formation'
+      });
+    }
+
+    // Vérifier que la session existe et récupérer son corps_formation_id
+    const sessionResult = await pool.query(
+      'SELECT corps_formation_id FROM sessions_formation WHERE id = $1',
+      [session_id]
+    );
+
+    if (sessionResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found'
+      });
+    }
+
+    const { corps_formation_id } = sessionResult.rows[0];
+
+    // Vérifier que la formation appartient au corps de formation de la session
+    if (corps_formation_id) {
+      const formationResult = await pool.query(
+        'SELECT id FROM formations WHERE id = $1 AND corps_formation_id = $2',
+        [formation_id, corps_formation_id]
+      );
+
+      if (formationResult.rows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'La formation sélectionnée n\'appartient pas au corps de formation de cette session'
+        });
+      }
     }
 
     // Vérifier que l'étudiant n'est pas déjà inscrit
@@ -422,16 +462,16 @@ router.post('/:id/etudiants', async (req, res) => {
 
     const query = `
       INSERT INTO session_etudiants (
-        id, session_id, student_id, statut_paiement,
+        id, session_id, student_id, formation_id, statut_paiement,
         montant_total, montant_paye, montant_du,
         date_inscription, created_at, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `;
 
     const values = [
-      inscriptionId, session_id, student_id, statut_paiement,
+      inscriptionId, session_id, student_id, formation_id, statut_paiement,
       montant_total || 0, montant_paye, montant_du,
       now, now, now
     ];
