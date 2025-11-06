@@ -11,16 +11,6 @@ interface Formation {
   is_pack: boolean;
 }
 
-interface Centre {
-  id: string;
-  name: string;
-}
-
-interface Classe {
-  id: string;
-  name: string;
-}
-
 interface AddStudentToSessionModalProps {
   sessionId: string;
   corpsFormationId: string;
@@ -48,8 +38,7 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
     lieu_naissance: '',
     adresse: '',
     // Formation info
-    centre_id: '',
-    classe_id: '',
+    session_id: '',
     formation_id: '',
     numero_bon: '',
     avance: '',
@@ -64,11 +53,9 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
 
   // Dropdown data
   const [formations, setFormations] = useState<Formation[]>([]);
-  const [centres, setCentres] = useState<Centre[]>([]);
-  const [classes, setClasses] = useState<Classe[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]);
   const [loadingFormations, setLoadingFormations] = useState(false);
-  const [loadingCentres, setLoadingCentres] = useState(false);
-  const [loadingClasses, setLoadingClasses] = useState(false);
+  const [loadingSessions, setLoadingSessions] = useState(false);
 
   // Selected formation details
   const selectedFormation = formations.find((f) => f.id === formData.formation_id);
@@ -77,22 +64,9 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
   useEffect(() => {
     if (corpsFormationId) {
       fetchFormations();
+      fetchSessions();
     }
   }, [corpsFormationId]);
-
-  // Load centres on mount
-  useEffect(() => {
-    fetchCentres();
-  }, []);
-
-  // Load classes when centre changes
-  useEffect(() => {
-    if (formData.centre_id) {
-      fetchClasses(formData.centre_id);
-    } else {
-      setClasses([]);
-    }
-  }, [formData.centre_id]);
 
   const fetchFormations = async () => {
     try {
@@ -106,31 +80,16 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
     }
   };
 
-  const fetchCentres = async () => {
+  const fetchSessions = async () => {
     try {
-      setLoadingCentres(true);
-      // TODO: Replace with actual centres endpoint
-      const data = await apiClient.get<Centre[]>('/centres');
-      setCentres(data);
+      setLoadingSessions(true);
+      const response = await apiClient.get<any>(`/sessions-formation?corps_formation_id=${corpsFormationId}&statut=en_cours`);
+      setSessions(response.sessions || []);
     } catch (error) {
-      console.error('Error fetching centres:', error);
-      setCentres([]);
+      console.error('Error fetching sessions:', error);
+      setSessions([]);
     } finally {
-      setLoadingCentres(false);
-    }
-  };
-
-  const fetchClasses = async (centreId: string) => {
-    try {
-      setLoadingClasses(true);
-      // TODO: Replace with actual classes endpoint
-      const data = await apiClient.get<Classe[]>(`/centres/${centreId}/classes`);
-      setClasses(data);
-    } catch (error) {
-      console.error('Error fetching classes:', error);
-      setClasses([]);
-    } finally {
-      setLoadingClasses(false);
+      setLoadingSessions(false);
     }
   };
 
@@ -161,8 +120,7 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
     if (!formData.adresse.trim()) newErrors.adresse = "L'adresse est obligatoire";
 
     // Formation info
-    if (!formData.centre_id) newErrors.centre = 'Le centre de formation est obligatoire';
-    if (!formData.classe_id) newErrors.classe = 'La classe est obligatoire';
+    if (!formData.session_id) newErrors.session = 'La session est obligatoire';
     if (!formData.formation_id) newErrors.formation = 'La formation est obligatoire';
     if (!formData.numero_bon.trim()) newErrors.numero_bon = 'Le numéro de bon est obligatoire';
     if (!formData.avance) newErrors.avance = "L'avance est obligatoire";
@@ -233,8 +191,6 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
         montant_total: selectedFormation?.price || 0,
         montant_paye: parseFloat(formData.avance),
         numero_bon: formData.numero_bon.trim(),
-        centre_id: formData.centre_id,
-        classe_id: formData.classe_id,
         statut_paiement:
           parseFloat(formData.avance) >= (selectedFormation?.price || 0)
             ? 'paye'
@@ -437,50 +393,26 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations de Formation</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Centre de formation <span className="text-red-500">*</span>
+                  Session <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={formData.centre_id}
-                  onChange={(e) =>
-                    setFormData({ ...formData, centre_id: e.target.value, classe_id: '' })
-                  }
+                  value={formData.session_id}
+                  onChange={(e) => setFormData({ ...formData, session_id: e.target.value })}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.centre ? 'border-red-300' : 'border-gray-300'
+                    errors.session ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  disabled={loadingCentres}
+                  disabled={loadingSessions}
                 >
-                  <option value="">Sélectionner un centre</option>
-                  {centres.map((centre) => (
-                    <option key={centre.id} value={centre.id}>
-                      {centre.name}
+                  <option value="">Sélectionner une session</option>
+                  {sessions.map((session) => (
+                    <option key={session.id} value={session.id}>
+                      {session.titre}
                     </option>
                   ))}
                 </select>
-                {errors.centre && <p className="text-xs text-red-600 mt-1">{errors.centre}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Classe <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.classe_id}
-                  onChange={(e) => setFormData({ ...formData, classe_id: e.target.value })}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.classe ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  disabled={!formData.centre_id || loadingClasses}
-                >
-                  <option value="">Sélectionner une classe</option>
-                  {classes.map((classe) => (
-                    <option key={classe.id} value={classe.id}>
-                      {classe.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.classe && <p className="text-xs text-red-600 mt-1">{errors.classe}</p>}
+                {errors.session && <p className="text-xs text-red-600 mt-1">{errors.session}</p>}
               </div>
 
               <div className="md:col-span-2">

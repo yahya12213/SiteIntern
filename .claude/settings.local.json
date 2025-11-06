@@ -20,7 +20,10 @@
       "Bash(npm start)",
       "Bash(timeout /t 5)",
       "Bash(nul)",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(if [ -f nul ])",
+      "Bash(then rm -f nul)",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []
