@@ -548,21 +548,41 @@ router.get('/stats', async (req, res) => {
 // GET /api/formations/all - Liste toutes les formations disponibles (pour multi-select)
 router.get('/all', async (req, res) => {
   try {
-    const query = `
+    const { corps_id } = req.query;
+
+    let query = `
       SELECT
-        id,
-        title,
-        description,
-        price,
-        duration_hours,
-        level,
-        status
-      FROM formations
-      WHERE status = 'published'
-      ORDER BY title ASC
+        f.id,
+        f.title,
+        f.description,
+        f.price,
+        f.duration_hours,
+        f.level,
+        f.status,
+        f.is_pack,
+        f.corps_formation_id,
+        cf.name as corps_formation_name,
+        (
+          SELECT COUNT(*)::integer
+          FROM formation_pack_items fpi
+          WHERE fpi.pack_id = f.id
+        ) as formations_count
+      FROM formations f
+      LEFT JOIN corps_formation cf ON f.corps_formation_id = cf.id
+      WHERE f.status = 'published'
     `;
 
-    const result = await pool.query(query);
+    const params = [];
+
+    // Filtre par corps de formation si fourni
+    if (corps_id) {
+      query += ' AND f.corps_formation_id = $1';
+      params.push(corps_id);
+    }
+
+    query += ' ORDER BY f.is_pack DESC, f.title ASC';
+
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching all formations:', error);

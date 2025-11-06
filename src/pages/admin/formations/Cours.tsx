@@ -1,21 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Plus, Edit2, Trash2, AlertCircle, Video, FileQuestion, DollarSign, Settings, Award } from 'lucide-react';
+import { BookOpen, Plus, Edit2, Trash2, AlertCircle, Video, FileQuestion, DollarSign, Settings, Award, Package } from 'lucide-react';
 import { useFormations, useDeleteFormation, useCoursStats } from '@/hooks/useCours';
+import { useCorpsFormation } from '@/hooks/useCorpsFormation';
+import { packsApi } from '@/lib/api/packs';
 import { FormationFormModal } from '@/components/admin/formations/FormationFormModal';
+import PackFormModal from '@/components/admin/formations/PackFormModal';
 import { formatPrice } from '@/lib/utils/formatPrice';
 import type { Formation } from '@/types/cours';
+import type { CreatePackInput } from '@/types/cours';
 
 const Cours: React.FC = () => {
   const navigate = useNavigate();
-  const { data: formations, isLoading, error } = useFormations();
+  const { data: formations, isLoading, error, refetch } = useFormations();
+  const { data: corpsList = [] } = useCorpsFormation();
   const { data: stats } = useCoursStats();
   const deleteFormation = useDeleteFormation();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formationToEdit, setFormationToEdit] = useState<Formation | null>(null);
+  const [selectedCorpsId, setSelectedCorpsId] = useState<string>('');
+  const [showPackModal, setShowPackModal] = useState(false);
+  const [packCorps, setPackCorps] = useState<{ id: string; name: string } | null>(null);
+
+  // Filtrer les formations par corps si un corps est sélectionné
+  const filteredFormations = useMemo(() => {
+    if (!formations) return [];
+    if (!selectedCorpsId) return formations;
+    return formations.filter((f) => f.corps_formation_id === selectedCorpsId);
+  }, [formations, selectedCorpsId]);
 
   const handleDelete = async (formation: Formation) => {
     if (window.confirm(`Êtes-vous sûr de vouloir supprimer la formation "${formation.title}" ? Tous les modules, vidéos et tests associés seront également supprimés.`)) {
@@ -26,6 +41,23 @@ const Cours: React.FC = () => {
         alert('Erreur lors de la suppression de la formation');
       }
     }
+  };
+
+  const handleCreatePack = async (data: CreatePackInput) => {
+    try {
+      await packsApi.create(data);
+      refetch(); // Recharger les formations
+      setShowPackModal(false);
+      setPackCorps(null);
+    } catch (error: any) {
+      console.error('Error creating pack:', error);
+      throw error;
+    }
+  };
+
+  const handleOpenPackModal = (corpsId: string, corpsName: string) => {
+    setPackCorps({ id: corpsId, name: corpsName });
+    setShowPackModal(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -118,11 +150,53 @@ const Cours: React.FC = () => {
           </div>
         )}
 
+        {/* Filtres */}
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filtrer par corps de formation
+              </label>
+              <select
+                value={selectedCorpsId}
+                onChange={(e) => setSelectedCorpsId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Tous les corps</option>
+                {corpsList.map((corps) => (
+                  <option key={corps.id} value={corps.id}>
+                    {corps.name} ({corps.formations_count || 0})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {selectedCorpsId && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const corps = corpsList.find((c) => c.id === selectedCorpsId);
+                    if (corps) handleOpenPackModal(corps.id, corps.name);
+                  }}
+                  className="flex-1"
+                >
+                  <Package className="h-4 w-4 mr-2" />
+                  Créer un pack
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Header with create button */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Liste des formations</h2>
-            <p className="text-sm text-gray-600 mt-1">Créez et gérez vos formations en ligne</p>
+            <p className="text-sm text-gray-600 mt-1">
+              {selectedCorpsId
+                ? `Formations du corps "${corpsList.find((c) => c.id === selectedCorpsId)?.name}"`
+                : 'Créez et gérez vos formations en ligne'}
+            </p>
           </div>
           <Button
             onClick={() => setShowCreateModal(true)}
@@ -152,7 +226,7 @@ const Cours: React.FC = () => {
         )}
 
         {/* Formations table */}
-        {formations && formations.length > 0 && (
+        {filteredFormations && filteredFormations.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -162,6 +236,9 @@ const Cours: React.FC = () => {
                       Formation
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Corps
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Niveau
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -169,9 +246,6 @@ const Cours: React.FC = () => {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Prix
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Durée
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Template Certificat
@@ -185,15 +259,33 @@ const Cours: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {formations.map((formation) => (
+                  {filteredFormations.map((formation) => (
                     <tr key={formation.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{formation.title}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-gray-900">{formation.title}</p>
+                            {formation.is_pack && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                                <Package className="h-3 w-3 mr-1" />
+                                Pack
+                              </span>
+                            )}
+                          </div>
                           {formation.description && (
                             <p className="text-xs text-gray-500 mt-1 line-clamp-2">{formation.description}</p>
                           )}
+                          {formation.is_pack && formation.formations_count && (
+                            <p className="text-xs text-blue-600 mt-1">
+                              {formation.formations_count} formation{formation.formations_count > 1 ? 's' : ''} incluse{formation.formations_count > 1 ? 's' : ''}
+                            </p>
+                          )}
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-900">
+                          {formation.corps_formation_name || '-'}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getLevelColor(formation.level)}`}>
@@ -219,11 +311,6 @@ const Cours: React.FC = () => {
                             <span className="text-gray-400">Gratuit</span>
                           )}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900">
-                          {formation.duration_hours ? `${formation.duration_hours}h` : '-'}
-                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {formation.certificate_template_name ? (
@@ -280,7 +367,7 @@ const Cours: React.FC = () => {
         )}
 
         {/* Empty state */}
-        {formations && formations.length === 0 && !isLoading && (
+        {filteredFormations && filteredFormations.length === 0 && !isLoading && (
           <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
             <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune formation</h3>
@@ -306,6 +393,19 @@ const Cours: React.FC = () => {
         <FormationFormModal
           formation={formationToEdit}
           onClose={() => setFormationToEdit(null)}
+        />
+      )}
+
+      {showPackModal && packCorps && (
+        <PackFormModal
+          isOpen={showPackModal}
+          onClose={() => {
+            setShowPackModal(false);
+            setPackCorps(null);
+          }}
+          onSubmit={handleCreatePack}
+          corpsId={packCorps.id}
+          corpsName={packCorps.name}
         />
       )}
     </AppLayout>

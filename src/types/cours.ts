@@ -18,10 +18,29 @@ export interface Formation {
   passing_score_percentage: number;
   default_certificate_template_id?: string;
   certificate_template_name?: string; // Nom du template (depuis JOIN backend)
+  // Nouveaux champs pour Corps de Formation & Packs
+  corps_formation_id?: string;
+  corps_formation_name?: string;
+  is_pack?: boolean;
+  certificate_template_id?: string;
+  formations_count?: number; // Pour les packs: nombre de formations incluses
+  formations?: PackFormation[]; // Pour les packs: formations incluses
   created_at: string;
   updated_at: string;
   module_count?: number;
   modules?: FormationModule[];
+}
+
+// Formation incluse dans un pack
+export interface PackFormation {
+  id: string;
+  title: string;
+  description?: string;
+  price?: number | string;
+  duration_hours?: number;
+  level?: FormationLevel;
+  thumbnail_url?: string;
+  order_index: number;
 }
 
 // Module de formation
@@ -111,6 +130,8 @@ export interface CreateFormationInput {
   status?: FormationStatus;
   passing_score_percentage?: number;
   default_certificate_template_id?: string;
+  corps_formation_id: string; // Obligatoire
+  certificate_template_id?: string;
 }
 
 export interface UpdateFormationInput {
@@ -123,6 +144,33 @@ export interface UpdateFormationInput {
   status?: FormationStatus;
   passing_score_percentage?: number;
   default_certificate_template_id?: string;
+  corps_formation_id?: string;
+  certificate_template_id?: string;
+}
+
+// ============================================
+// Interfaces pour les Packs
+// ============================================
+
+export interface CreatePackInput {
+  title: string;
+  description?: string;
+  corps_formation_id: string;
+  price: number;
+  certificate_template_id?: string;
+  formation_ids: string[]; // IDs des formations à inclure
+  level?: FormationLevel;
+  thumbnail_url?: string;
+}
+
+export interface UpdatePackInput {
+  title?: string;
+  description?: string;
+  price?: number;
+  certificate_template_id?: string;
+  formation_ids?: string[];
+  level?: FormationLevel;
+  thumbnail_url?: string;
 }
 
 export interface CreateModuleInput {

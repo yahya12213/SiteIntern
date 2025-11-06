@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, X, Package } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 
 interface Segment {
@@ -15,11 +15,20 @@ interface City {
   segment_id: string;
 }
 
+interface CorpsFormation {
+  id: string;
+  name: string;
+  formations_count?: number;
+}
+
 interface Formation {
   id: string;
   title: string;
   description?: string;
   price?: number;
+  is_pack?: boolean;
+  formations_count?: number;
+  corps_formation_name?: string;
 }
 
 interface SessionFormationSelectorProps {
@@ -41,15 +50,23 @@ export const SessionFormationSelector: React.FC<SessionFormationSelectorProps> =
 }) => {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [cities, setCities] = useState<City[]>([]);
+  const [corpsFormations, setCorpsFormations] = useState<CorpsFormation[]>([]);
   const [formations, setFormations] = useState<Formation[]>([]);
+  const [selectedCorpsId, setSelectedCorpsId] = useState<string>('');
 
   const [loadingSegments, setLoadingSegments] = useState(true);
   const [loadingCities, setLoadingCities] = useState(false);
+  const [loadingCorps, setLoadingCorps] = useState(false);
   const [loadingFormations, setLoadingFormations] = useState(false);
 
   // Charger les segments au montage
   useEffect(() => {
     fetchSegments();
+  }, []);
+
+  // Charger les corps de formation au montage
+  useEffect(() => {
+    fetchCorpsFormations();
   }, []);
 
   // Charger les villes quand le segment change
@@ -62,10 +79,15 @@ export const SessionFormationSelector: React.FC<SessionFormationSelectorProps> =
     }
   }, [selectedSegmentId]);
 
-  // Charger toutes les formations disponibles au montage
+  // Charger les formations quand le corps change
   useEffect(() => {
-    fetchFormations();
-  }, []);
+    if (selectedCorpsId) {
+      fetchFormations(selectedCorpsId);
+    } else {
+      setFormations([]);
+      onFormationsChange([]);
+    }
+  }, [selectedCorpsId]);
 
   const fetchSegments = async () => {
     try {
@@ -92,10 +114,23 @@ export const SessionFormationSelector: React.FC<SessionFormationSelectorProps> =
     }
   };
 
-  const fetchFormations = async () => {
+  const fetchCorpsFormations = async () => {
+    try {
+      setLoadingCorps(true);
+      const response = await apiClient.get<{ success: boolean; corps: CorpsFormation[] }>('/corps-formation');
+      setCorpsFormations(response.corps);
+    } catch (error) {
+      console.error('Error fetching corps formations:', error);
+      setCorpsFormations([]);
+    } finally {
+      setLoadingCorps(false);
+    }
+  };
+
+  const fetchFormations = async (corpsId: string) => {
     try {
       setLoadingFormations(true);
-      const data = await apiClient.get<Formation[]>('/formations/all');
+      const data = await apiClient.get<Formation[]>(`/formations/all?corps_id=${corpsId}`);
       setFormations(data);
     } catch (error) {
       console.error('Error fetching formations:', error);
@@ -189,6 +224,33 @@ export const SessionFormationSelector: React.FC<SessionFormationSelectorProps> =
         </div>
       </div>
 
+      {/* Corps de Formation Dropdown */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Corps de Formation <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <select
+            key={`corps-select-${selectedCorpsId || 'empty'}`}
+            value={selectedCorpsId}
+            onChange={(e) => {
+              setSelectedCorpsId(e.target.value);
+              onFormationsChange([]); // Reset formations quand le corps change
+            }}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none pr-10 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            disabled={loadingCorps}
+          >
+            <option value="">Sélectionner un corps de formation</option>
+            {corpsFormations.map(corps => (
+              <option key={corps.id} value={corps.id}>
+                {corps.name} {corps.formations_count ? `(${corps.formations_count})` : ''}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+        </div>
+      </div>
+
       {/* Formations Multi-Select */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -218,10 +280,12 @@ export const SessionFormationSelector: React.FC<SessionFormationSelectorProps> =
 
         {/* Formation selection */}
         <div className="border border-gray-300 rounded-lg max-h-64 overflow-y-auto">
-          {loadingFormations ? (
+          {!selectedCorpsId ? (
+            <div className="p-4 text-center text-gray-500">Veuillez d'abord sélectionner un corps de formation</div>
+          ) : loadingFormations ? (
             <div className="p-4 text-center text-gray-500">Chargement des formations...</div>
           ) : formations.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">Aucune formation disponible</div>
+            <div className="p-4 text-center text-gray-500">Aucune formation disponible dans ce corps</div>
           ) : (
             <div className="divide-y divide-gray-200">
               {formations.map(formation => (
@@ -236,9 +300,22 @@ export const SessionFormationSelector: React.FC<SessionFormationSelectorProps> =
                     className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
                   <div className="flex-1">
-                    <div className="font-medium text-gray-900">{formation.title}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-gray-900">{formation.title}</div>
+                      {formation.is_pack && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                          <Package className="h-3 w-3 mr-1" />
+                          Pack
+                        </span>
+                      )}
+                    </div>
                     {formation.description && (
                       <div className="text-sm text-gray-500 mt-0.5">{formation.description}</div>
+                    )}
+                    {formation.is_pack && formation.formations_count && (
+                      <div className="text-xs text-blue-600 mt-1">
+                        {formation.formations_count} formation{formation.formations_count > 1 ? 's' : ''} incluse{formation.formations_count > 1 ? 's' : ''}
+                      </div>
                     )}
                     {formation.price !== undefined && (
                       <div className="text-sm text-blue-600 mt-1 font-semibold">

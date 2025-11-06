@@ -875,4 +875,300 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// ============================================
+// PACKS DE FORMATIONS
+// ============================================
+
+// POST /api/cours/packs - Créer un pack de formations
+router.post('/packs', async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const {
+      title,
+      description,
+      corps_formation_id,
+      price,
+      certificate_template_id,
+      formation_ids,
+      level,
+      thumbnail_url
+    } = req.body;
+
+    // Validation
+    if (!title || !corps_formation_id || !price || !formation_ids || formation_ids.length === 0) {
+      return res.status(400).json({
+        error: 'Champs obligatoires manquants',
+        required: ['title', 'corps_formation_id', 'price', 'formation_ids']
+      });
+    }
+
+    // Vérifier que toutes les formations appartiennent au même corps
+    const formationsCheck = await client.query(
+      `SELECT id, corps_formation_id, title
+       FROM formations
+       WHERE id = ANY($1::text[])
+       AND is_pack = FALSE`,
+      [formation_ids]
+    );
+
+    if (formationsCheck.rows.length !== formation_ids.length) {
+      return res.status(400).json({
+        error: 'Certaines formations sont invalides ou sont déjà des packs'
+      });
+    }
+
+    const invalidFormations = formationsCheck.rows.filter(
+      f => f.corps_formation_id !== corps_formation_id
+    );
+
+    if (invalidFormations.length > 0) {
+      return res.status(400).json({
+        error: 'Toutes les formations doivent appartenir au même corps de formation',
+        invalid_formations: invalidFormations.map(f => f.title)
+      });
+    }
+
+    await client.query('BEGIN');
+
+    // Calculer la durée totale
+    const durationQuery = await client.query(
+      'SELECT COALESCE(SUM(duration_hours), 0) as total_duration FROM formations WHERE id = ANY($1::text[])',
+      [formation_ids]
+    );
+    const totalDuration = parseInt(durationQuery.rows[0].total_duration);
+
+    // Créer le pack
+    const packId = nanoid();
+    const insertPackQuery = `
+      INSERT INTO formations (
+        id, title, description, corps_formation_id, price, duration_hours,
+        level, thumbnail_url, is_pack, certificate_template_id,
+        status, passing_score_percentage, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, $9, 'published', 80, NOW(), NOW())
+      RETURNING *
+    `;
+
+    const packResult = await client.query(insertPackQuery, [
+      packId,
+      title,
+      description || null,
+      corps_formation_id,
+      price,
+      totalDuration,
+      level || 'intermediaire',
+      thumbnail_url || null,
+      certificate_template_id || null
+    ]);
+
+    // Ajouter les formations au pack
+    for (let i = 0; i < formation_ids.length; i++) {
+      const itemId = nanoid();
+      await client.query(
+        `INSERT INTO formation_pack_items (id, pack_id, formation_id, order_index)
+         VALUES ($1, $2, $3, $4)`,
+        [itemId, packId, formation_ids[i], i]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    res.status(201).json({
+      success: true,
+      pack: packResult.rows[0],
+      formations_count: formation_ids.length
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error creating pack:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /api/cours/packs/:id - Détail d'un pack avec ses formations
+router.get('/packs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Récupérer le pack
+    const packQuery = `
+      SELECT f.*, cf.name as corps_formation_name
+      FROM formations f
+      LEFT JOIN corps_formation cf ON f.corps_formation_id = cf.id
+      WHERE f.id = $1 AND f.is_pack = TRUE
+    `;
+    const packResult = await pool.query(packQuery, [id]);
+
+    if (packResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Pack non trouvé' });
+    }
+
+    const pack = packResult.rows[0];
+
+    // Récupérer les formations incluses
+    const formationsQuery = `
+      SELECT
+        f.id, f.title, f.description, f.price, f.duration_hours,
+        f.level, f.thumbnail_url, fpi.order_index
+      FROM formation_pack_items fpi
+      JOIN formations f ON f.id = fpi.formation_id
+      WHERE fpi.pack_id = $1
+      ORDER BY fpi.order_index
+    `;
+    const formationsResult = await pool.query(formationsQuery, [id]);
+
+    pack.formations = formationsResult.rows;
+
+    res.json({
+      success: true,
+      pack
+    });
+
+  } catch (error) {
+    console.error('Error fetching pack:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/cours/packs/:id - Modifier un pack
+router.put('/packs/:id', async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params;
+    const {
+      title,
+      description,
+      price,
+      certificate_template_id,
+      formation_ids,
+      level,
+      thumbnail_url
+    } = req.body;
+
+    // Vérifier que le pack existe
+    const packCheck = await client.query(
+      'SELECT * FROM formations WHERE id = $1 AND is_pack = TRUE',
+      [id]
+    );
+
+    if (packCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Pack non trouvé' });
+    }
+
+    const pack = packCheck.rows[0];
+
+    await client.query('BEGIN');
+
+    // Mettre à jour le pack
+    let totalDuration = pack.duration_hours;
+
+    if (formation_ids && formation_ids.length > 0) {
+      // Recalculer la durée
+      const durationQuery = await client.query(
+        'SELECT COALESCE(SUM(duration_hours), 0) as total_duration FROM formations WHERE id = ANY($1::text[])',
+        [formation_ids]
+      );
+      totalDuration = parseInt(durationQuery.rows[0].total_duration);
+
+      // Supprimer les anciennes associations
+      await client.query('DELETE FROM formation_pack_items WHERE pack_id = $1', [id]);
+
+      // Ajouter les nouvelles associations
+      for (let i = 0; i < formation_ids.length; i++) {
+        const itemId = nanoid();
+        await client.query(
+          `INSERT INTO formation_pack_items (id, pack_id, formation_id, order_index)
+           VALUES ($1, $2, $3, $4)`,
+          [itemId, id, formation_ids[i], i]
+        );
+      }
+    }
+
+    const updateQuery = `
+      UPDATE formations
+      SET
+        title = COALESCE($1, title),
+        description = COALESCE($2, description),
+        price = COALESCE($3, price),
+        duration_hours = $4,
+        level = COALESCE($5, level),
+        thumbnail_url = COALESCE($6, thumbnail_url),
+        certificate_template_id = $7,
+        updated_at = NOW()
+      WHERE id = $8
+      RETURNING *
+    `;
+
+    const result = await client.query(updateQuery, [
+      title,
+      description,
+      price,
+      totalDuration,
+      level,
+      thumbnail_url,
+      certificate_template_id,
+      id
+    ]);
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      pack: result.rows[0]
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error updating pack:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// DELETE /api/cours/packs/:id - Supprimer un pack
+router.delete('/packs/:id', async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params;
+
+    // Vérifier que le pack existe
+    const packCheck = await client.query(
+      'SELECT * FROM formations WHERE id = $1 AND is_pack = TRUE',
+      [id]
+    );
+
+    if (packCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Pack non trouvé' });
+    }
+
+    await client.query('BEGIN');
+
+    // Supprimer les associations (CASCADE devrait le faire automatiquement)
+    await client.query('DELETE FROM formation_pack_items WHERE pack_id = $1', [id]);
+
+    // Supprimer le pack
+    await client.query('DELETE FROM formations WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: 'Pack supprimé avec succès'
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting pack:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
 export default router;
