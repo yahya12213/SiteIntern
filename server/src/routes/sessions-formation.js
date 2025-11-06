@@ -146,12 +146,8 @@ router.get('/:id', async (req, res) => {
     // Professeurs
     const professeursQuery = `
       SELECT
-        sp.*,
-        u.name as professeur_name,
-        u.email as professeur_email,
-        u.phone as professeur_phone
+        sp.*
       FROM session_professeurs sp
-      LEFT JOIN users u ON u.id = sp.professeur_id
       WHERE sp.session_id = $1
       ORDER BY sp.date_affectation DESC
     `;
