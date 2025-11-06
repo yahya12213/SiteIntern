@@ -5,7 +5,6 @@ import { X, Package, Check } from 'lucide-react';
 import { useFormationsByCorps } from '@/hooks/useCorpsFormation';
 import { useCertificateTemplates } from '@/hooks/useCertificateTemplates';
 import type { CreatePackInput } from '@/types/cours';
-import type { Formation } from '@/types/cours';
 
 interface PackFormModalProps {
   isOpen: boolean;

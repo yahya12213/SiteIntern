@@ -5,7 +5,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { corpsFormationApi } from '@/lib/api/corps-formation';
 import type {
-  CorpsFormation,
   CreateCorpsFormationDto,
   UpdateCorpsFormationDto
 } from '@/types/corps-formation';

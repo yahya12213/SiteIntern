@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCreateFormation, useUpdateFormation } from '@/hooks/useCours';
 import { useCertificateTemplates } from '@/hooks/useCertificateTemplates';
+import { useCorpsFormation } from '@/hooks/useCorpsFormation';
 import type { Formation, FormationLevel, FormationStatus } from '@/types/cours';
 
 interface FormationFormModalProps {
@@ -16,6 +17,7 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
   const createFormation = useCreateFormation();
   const updateFormation = useUpdateFormation();
   const { data: templates } = useCertificateTemplates();
+  const { data: corpsList = [] } = useCorpsFormation();
 
   const [formData, setFormData] = useState({
     title: formation?.title || '',
@@ -27,6 +29,7 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
     status: (formation?.status || 'draft') as FormationStatus,
     passing_score_percentage: formation?.passing_score_percentage?.toString() || '80',
     default_certificate_template_id: formation?.default_certificate_template_id || '',
+    corps_formation_id: formation?.corps_formation_id || '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -37,6 +40,10 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
 
     if (!formData.title.trim()) {
       newErrors.title = 'Le titre est obligatoire';
+    }
+
+    if (!formData.corps_formation_id) {
+      newErrors.corps_formation_id = 'Le corps de formation est obligatoire';
     }
 
     if (formData.price && parseFloat(formData.price) < 0) {
@@ -66,7 +73,7 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
     setIsSubmitting(true);
 
     try {
-      const submitData = {
+      const baseData = {
         title: formData.title.trim(),
         description: formData.description.trim() || undefined,
         price: formData.price ? parseFloat(formData.price) : undefined,
@@ -76,15 +83,16 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
         status: formData.status,
         passing_score_percentage: parseInt(formData.passing_score_percentage),
         default_certificate_template_id: formData.default_certificate_template_id || undefined,
+        corps_formation_id: formData.corps_formation_id,
       };
 
       if (isEdit && formation) {
         await updateFormation.mutateAsync({
           id: formation.id,
-          data: submitData,
+          data: baseData,
         });
       } else {
-        await createFormation.mutateAsync(submitData);
+        await createFormation.mutateAsync(baseData);
       }
 
       onClose();
@@ -155,6 +163,33 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             />
+          </div>
+
+          {/* Corps de Formation */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Corps de Formation <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={formData.corps_formation_id}
+              onChange={(e) => setFormData({ ...formData, corps_formation_id: e.target.value })}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                errors.corps_formation_id ? 'border-red-300' : 'border-gray-300'
+              }`}
+            >
+              <option value="">Sélectionner un corps de formation</option>
+              {corpsList.map((corps) => (
+                <option key={corps.id} value={corps.id}>
+                  {corps.name}
+                </option>
+              ))}
+            </select>
+            {errors.corps_formation_id && (
+              <p className="text-xs text-red-600 mt-1">{errors.corps_formation_id}</p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Catégorie de formation (ex: Bureautique, Développement Web...)
+            </p>
           </div>
 
           {/* Level and Status */}
