@@ -110,4 +110,26 @@ export const coursApi = {
   // Statistiques
   // ============================================
   getStats: () => apiClient.get<CoursStats>('/cours/stats'),
+
+  // ============================================
+  // Duplication
+  // ============================================
+  duplicateFormation: async (
+    id: string,
+    options?: { include_modules?: boolean }
+  ): Promise<{
+    formation: Formation;
+    duplicated_modules_count: number;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      formation: Formation;
+      duplicated_modules_count: number;
+      message: string;
+    }>(`/cours/formations/${id}/duplicate`, options || {});
+    return {
+      formation: response.formation,
+      duplicated_modules_count: response.duplicated_modules_count
+    };
+  },
 };

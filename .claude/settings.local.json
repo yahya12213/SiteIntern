@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /b /s:*)",
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(psql:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd Corps de Formation system with Pack management\n\nImplement comprehensive Corps de Formation (formation category) system:\n\nBackend Changes:\n- Created corps_formation table with CRUD API endpoints\n- Added corps_formation_id, is_pack, certificate_template_id columns to formations table\n- Created formation_pack_items junction table for pack composition\n- Added pack creation/management routes (POST/GET/PUT/DELETE /api/cours/packs)\n- Added corps filtering to formations endpoint (?corps_id parameter)\n- Implemented validation: formations in pack must belong to same corps\n\nFrontend Changes:\n- Created Corps de Formation management page with full CRUD interface\n- Created PackFormModal component for creating packs from existing formations\n- Added corps cascade selection in SessionFormationSelector (Segment → Ville → Corps → Formations)\n- Added corps filtering and pack creation in Formations management page\n- Added visual pack badges (golden with Package icon) throughout UI\n- Created TypeScript interfaces for corps-formation and pack types\n- Created API clients (corps-formation.ts, packs.ts)\n- Created React Query hooks (useCorpsFormation.ts)\n- Added Corps de Formation menu item in Sidebar with Layers icon\n\nFeatures:\n- Each formation must belong to a corps de formation\n- Admins can create packs from existing unitaire formations within same corps\n- Custom pack pricing (not auto-calculated)\n- Pack formations are completed one by one by students\n- Certificate templates assignable to packs\n- Visual distinction between packs and individual formations\n\nMigration: Run server/src/routes/migration-corps-formation.js after deployment\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(curl:*)",
+      "Bash(npm run build:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

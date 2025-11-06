@@ -111,3 +111,20 @@ export function useDeleteCorpsFormation() {
     },
   });
 }
+
+/**
+ * Hook pour dupliquer un corps de formation
+ */
+export function useDuplicateCorpsFormation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, options }: { id: string; options?: { include_formations?: boolean } }) =>
+      corpsFormationApi.duplicate(id, options),
+    onSuccess: () => {
+      // Invalider le cache pour forcer le rechargement
+      queryClient.invalidateQueries({ queryKey: corpsFormationKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: corpsFormationKeys.stats() });
+    },
+  });
+}

@@ -98,6 +98,22 @@ export function useDeleteFormation() {
   });
 }
 
+/**
+ * Duplique une formation
+ */
+export function useDuplicateFormation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, options }: { id: string; options?: { include_modules?: boolean } }) =>
+      coursApi.duplicateFormation(id, options),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: coursKeys.formations() });
+      queryClient.invalidateQueries({ queryKey: coursKeys.stats() });
+    },
+  });
+}
+
 // ============================================
 // Modules Hooks
 // ============================================

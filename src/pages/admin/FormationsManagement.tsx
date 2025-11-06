@@ -17,14 +17,18 @@ import {
   FileQuestion,
   Layers,
   ArrowLeft,
+  Copy,
+  MapPin,
 } from 'lucide-react';
 import {
   useCorpsFormation,
   useCreateCorpsFormation,
   useUpdateCorpsFormation,
   useDeleteCorpsFormation,
+  useDuplicateCorpsFormation,
 } from '@/hooks/useCorpsFormation';
-import { useFormations, useDeleteFormation, useCoursStats } from '@/hooks/useCours';
+import { useFormations, useDeleteFormation, useCoursStats, useDuplicateFormation } from '@/hooks/useCours';
+import { useSegments } from '@/hooks/useSegments';
 import { FormationFormModal } from '@/components/admin/formations/FormationFormModal';
 import PackFormModal from '@/components/admin/formations/PackFormModal';
 import { packsApi } from '@/lib/api/packs';
@@ -36,10 +40,13 @@ export default function FormationsManagement() {
   const { data: corpsList = [], isLoading: loadingCorps } = useCorpsFormation();
   const { data: allFormations = [], isLoading: loadingFormations } = useFormations();
   const { data: stats } = useCoursStats();
+  const { data: segments = [] } = useSegments();
   const deleteFormation = useDeleteFormation();
+  const duplicateFormation = useDuplicateFormation();
   const createCorps = useCreateCorpsFormation();
   const updateCorps = useUpdateCorpsFormation();
   const deleteCorps = useDeleteCorpsFormation();
+  const duplicateCorps = useDuplicateCorpsFormation();
 
   // État pour l'expansion des corps
   const [expandedCorps, setExpandedCorps] = useState<Set<string>>(new Set());
@@ -52,6 +59,7 @@ export default function FormationsManagement() {
     description: '',
     color: '#3B82F6',
     order_index: 0,
+    segment_id: '',
   });
 
   // États pour les modals Formation
@@ -112,6 +120,7 @@ export default function FormationsManagement() {
       description: corps.description || '',
       color: corps.color || '#3B82F6',
       order_index: corps.order_index || 0,
+      segment_id: corps.segment_id || '',
     });
     setShowCorpsForm(true);
   };
@@ -126,8 +135,38 @@ export default function FormationsManagement() {
     }
   };
 
+  const handleDuplicateCorps = async (id: string, name: string) => {
+    const includeFormations = confirm(
+      `Voulez-vous dupliquer le corps "${name}" avec toutes ses formations ?\n\nOUI = Avec formations\nNON = Sans formations`
+    );
+
+    try {
+      await duplicateCorps.mutateAsync({
+        id,
+        options: { include_formations: includeFormations }
+      });
+    } catch (error: any) {
+      alert(error.message || 'Erreur lors de la duplication');
+    }
+  };
+
+  const handleDuplicateFormation = async (id: string, title: string) => {
+    const includeModules = confirm(
+      `Voulez-vous dupliquer la formation "${title}" avec tous ses modules ?\n\nOUI = Avec modules\nNON = Sans modules`
+    );
+
+    try {
+      await duplicateFormation.mutateAsync({
+        id,
+        options: { include_modules: includeModules }
+      });
+    } catch (error: any) {
+      alert(error.message || 'Erreur lors de la duplication');
+    }
+  };
+
   const resetCorpsForm = () => {
-    setCorpsFormData({ name: '', description: '', color: '#3B82F6', order_index: 0 });
+    setCorpsFormData({ name: '', description: '', color: '#3B82F6', order_index: 0, segment_id: '' });
     setEditingCorps(null);
     setShowCorpsForm(false);
   };
@@ -301,6 +340,26 @@ export default function FormationsManagement() {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Segment (optionnel)
+                  </label>
+                  <select
+                    value={corpsFormData.segment_id}
+                    onChange={(e) =>
+                      setCorpsFormData({ ...corpsFormData, segment_id: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Aucun segment</option>
+                    {segments.map((segment) => (
+                      <option key={segment.id} value={segment.id}>
+                        {segment.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Couleur</label>
@@ -404,11 +463,17 @@ export default function FormationsManagement() {
 
                         {/* Nom et stats */}
                         <div className="flex-1">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="text-lg font-semibold text-gray-900">{corps.name}</h3>
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                               {formations.length} formation{formations.length !== 1 ? 's' : ''}
                             </span>
+                            {corps.segment_name && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                <MapPin className="h-3 w-3 mr-1" />
+                                {corps.segment_name}
+                              </span>
+                            )}
                           </div>
                           {corps.description && (
                             <p className="text-sm text-gray-600 mt-0.5">{corps.description}</p>
@@ -425,6 +490,15 @@ export default function FormationsManagement() {
                         >
                           <Plus className="h-4 w-4 mr-1" />
                           Formation
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDuplicateCorps(corps.id, corps.name)}
+                          disabled={duplicateCorps.isPending}
+                          title="Dupliquer ce corps"
+                        >
+                          <Copy className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="outline"
@@ -596,6 +670,19 @@ export default function FormationsManagement() {
                                             title="Éditeur"
                                           >
                                             <Settings className="h-4 w-4" />
+                                          </Button>
+                                        )}
+                                        {!formation.is_pack && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                              handleDuplicateFormation(formation.id, formation.title)
+                                            }
+                                            disabled={duplicateFormation.isPending}
+                                            title="Dupliquer cette formation"
+                                          >
+                                            <Copy className="h-4 w-4" />
                                           </Button>
                                         )}
                                         <Button

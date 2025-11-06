@@ -1171,4 +1171,200 @@ router.delete('/packs/:id', async (req, res) => {
   }
 });
 
+// ============================================
+// DUPLICATION ENDPOINT
+// ============================================
+
+/**
+ * POST /api/cours/formations/:id/duplicate
+ * Dupliquer une formation (avec option d'inclure les modules)
+ */
+router.post('/formations/:id/duplicate', async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params;
+    const { include_modules = false } = req.body;
+
+    await client.query('BEGIN');
+
+    // Récupérer la formation originale
+    const formationResult = await client.query(
+      'SELECT * FROM formations WHERE id = $1 AND is_pack = FALSE',
+      [id]
+    );
+
+    if (formationResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        success: false,
+        error: 'Formation non trouvée ou c\'est un pack (les packs ne peuvent pas être dupliqués directement)'
+      });
+    }
+
+    const originalFormation = formationResult.rows[0];
+
+    // Créer la nouvelle formation avec (Copie)
+    const newFormationId = nanoid();
+    const newFormationTitle = `${originalFormation.title} (Copie)`;
+    const now = new Date().toISOString();
+
+    const insertFormationQuery = `
+      INSERT INTO formations (
+        id, title, description, price, duration_hours, level,
+        thumbnail_url, status, passing_score_percentage,
+        corps_formation_id, certificate_template_id,
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING *
+    `;
+
+    const newFormationResult = await client.query(insertFormationQuery, [
+      newFormationId,
+      newFormationTitle,
+      originalFormation.description,
+      originalFormation.price,
+      originalFormation.duration_hours,
+      originalFormation.level,
+      originalFormation.thumbnail_url,
+      'draft', // Toujours en brouillon pour la copie
+      originalFormation.passing_score_percentage,
+      originalFormation.corps_formation_id,
+      originalFormation.certificate_template_id,
+      now,
+      now
+    ]);
+
+    const newFormation = newFormationResult.rows[0];
+    let duplicatedModulesCount = 0;
+
+    // Dupliquer les modules si demandé
+    if (include_modules) {
+      // Récupérer les modules de la formation originale
+      const modulesResult = await client.query(
+        `SELECT * FROM formation_modules
+         WHERE formation_id = $1
+         ORDER BY order_index ASC`,
+        [id]
+      );
+
+      // Map pour stocker les correspondances ancien ID -> nouveau ID
+      const moduleIdMap = new Map();
+
+      // Première passe: dupliquer les modules
+      for (const module of modulesResult.rows) {
+        const newModuleId = nanoid();
+        moduleIdMap.set(module.id, newModuleId);
+
+        const insertModuleQuery = `
+          INSERT INTO formation_modules (
+            id, formation_id, title, description, order_index,
+            prerequisite_module_id, module_type, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `;
+
+        // Pour l'instant, prerequisite_module_id sera null, on le mettra à jour après
+        await client.query(insertModuleQuery, [
+          newModuleId,
+          newFormationId,
+          module.title,
+          module.description,
+          module.order_index,
+          null, // Sera mis à jour dans la deuxième passe
+          module.module_type,
+          now
+        ]);
+
+        // Dupliquer les vidéos du module
+        const videosResult = await client.query(
+          'SELECT * FROM module_videos WHERE module_id = $1 ORDER BY order_index ASC',
+          [module.id]
+        );
+
+        for (const video of videosResult.rows) {
+          const newVideoId = nanoid();
+          await client.query(
+            `INSERT INTO module_videos (
+              id, module_id, title, youtube_url, duration_seconds,
+              description, order_index, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [
+              newVideoId,
+              newModuleId,
+              video.title,
+              video.youtube_url,
+              video.duration_seconds,
+              video.description,
+              video.order_index,
+              now
+            ]
+          );
+        }
+
+        // Dupliquer les tests du module (sans dupliquer les questions pour l'instant)
+        const testsResult = await client.query(
+          'SELECT * FROM module_tests WHERE module_id = $1',
+          [module.id]
+        );
+
+        for (const test of testsResult.rows) {
+          const newTestId = nanoid();
+          await client.query(
+            `INSERT INTO module_tests (
+              id, module_id, title, description, passing_score,
+              time_limit_minutes, max_attempts, show_correct_answers, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [
+              newTestId,
+              newModuleId,
+              test.title,
+              test.description,
+              test.passing_score,
+              test.time_limit_minutes,
+              test.max_attempts,
+              test.show_correct_answers,
+              now
+            ]
+          );
+        }
+
+        duplicatedModulesCount++;
+      }
+
+      // Deuxième passe: mettre à jour les prerequisite_module_id
+      for (const module of modulesResult.rows) {
+        if (module.prerequisite_module_id && moduleIdMap.has(module.prerequisite_module_id)) {
+          const newModuleId = moduleIdMap.get(module.id);
+          const newPrerequisiteId = moduleIdMap.get(module.prerequisite_module_id);
+
+          await client.query(
+            'UPDATE formation_modules SET prerequisite_module_id = $1 WHERE id = $2',
+            [newPrerequisiteId, newModuleId]
+          );
+        }
+      }
+    }
+
+    await client.query('COMMIT');
+
+    res.status(201).json({
+      success: true,
+      formation: newFormation,
+      duplicated_modules_count: duplicatedModulesCount,
+      message: `Formation dupliquée avec succès${include_modules ? ` (${duplicatedModulesCount} module(s) copié(s))` : ''}`
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erreur duplication formation:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur serveur',
+      details: error.message
+    });
+  } finally {
+    client.release();
+  }
+});
+
 export default router;

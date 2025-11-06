@@ -9,6 +9,9 @@ export interface CorpsFormation {
   color?: string;
   icon?: string;
   order_index: number;
+  segment_id?: string;
+  segment_name?: string;
+  segment_color?: string;
   created_at: string;
   updated_at: string;
   formations_count?: number; // Nombre de formations dans ce corps
@@ -20,6 +23,7 @@ export interface CreateCorpsFormationDto {
   color?: string;
   icon?: string;
   order_index?: number;
+  segment_id?: string;
 }
 
 export interface UpdateCorpsFormationDto {
@@ -28,6 +32,7 @@ export interface UpdateCorpsFormationDto {
   color?: string;
   icon?: string;
   order_index?: number;
+  segment_id?: string;
 }
 
 export interface CorpsFormationWithFormations extends CorpsFormation {

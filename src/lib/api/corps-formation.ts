@@ -90,5 +90,27 @@ export const corpsFormationApi = {
       };
     }>('/corps-formation/stats/global');
     return response.stats;
+  },
+
+  /**
+   * Dupliquer un corps de formation
+   */
+  duplicate: async (
+    id: string,
+    options?: { include_formations?: boolean }
+  ): Promise<{
+    corps: CorpsFormation;
+    duplicated_formations: Formation[];
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      corps: CorpsFormation;
+      duplicated_formations: Formation[];
+      message: string;
+    }>(`/corps-formation/${id}/duplicate`, options || {});
+    return {
+      corps: response.corps,
+      duplicated_formations: response.duplicated_formations
+    };
   }
 };

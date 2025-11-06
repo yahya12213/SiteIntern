@@ -29,6 +29,7 @@ import migration011Router from './routes/migration-011-student-payments.js';
 import migration012Router from './routes/migration-012-formation-templates.js';
 import migration013Router from './routes/migration-013-extend-enrollments.js';
 import migration014Router from './routes/migration-014-migrate-session-data.js';
+import migration015Router from './routes/migration-015-corps-segment.js';
 import analyticsRouter from './routes/analytics.js';
 import certificatesRouter from './routes/certificates.js';
 import setupCertificatesRouter from './routes/setup-certificates.js';
@@ -81,6 +82,7 @@ app.use('/api/migration-011', migration011Router); // Migration 011 - student_pa
 app.use('/api/migration-012', migration012Router); // Migration 012 - formation_templates table
 app.use('/api/migration-013', migration013Router); // Migration 013 - extend formation_enrollments
 app.use('/api/migration-014', migration014Router); // Migration 014 - migrate existing data
+app.use('/api/migration-015', migration015Router); // Migration 015 - add segment_id to corps_formation
 app.use('/api/migration-corps-formation', migrationCorpsFormationRouter); // Migration - Corps de formation & Packs
 
 // Health check

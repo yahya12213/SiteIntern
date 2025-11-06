@@ -19,10 +19,13 @@ router.get('/', async (req, res) => {
     const query = `
       SELECT
         cf.*,
+        s.name as segment_name,
+        s.color as segment_color,
         COUNT(f.id)::integer as formations_count
       FROM corps_formation cf
+      LEFT JOIN segments s ON cf.segment_id = s.id
       LEFT JOIN formations f ON f.corps_formation_id = cf.id
-      GROUP BY cf.id
+      GROUP BY cf.id, s.name, s.color
       ORDER BY cf.order_index ASC, cf.name ASC
     `;
 
@@ -50,9 +53,15 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Récupérer le corps
+    // Récupérer le corps avec segment
     const corpsResult = await pool.query(
-      'SELECT * FROM corps_formation WHERE id = $1',
+      `SELECT
+        cf.*,
+        s.name as segment_name,
+        s.color as segment_color
+      FROM corps_formation cf
+      LEFT JOIN segments s ON cf.segment_id = s.id
+      WHERE cf.id = $1`,
       [id]
     );
 
@@ -96,7 +105,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { name, description, color, icon, order_index } = req.body;
+    const { name, description, color, icon, order_index, segment_id } = req.body;
 
     // Validation
     if (!name || name.trim() === '') {
@@ -123,8 +132,8 @@ router.post('/', async (req, res) => {
     const id = nanoid();
     const query = `
       INSERT INTO corps_formation (
-        id, name, description, color, icon, order_index
-      ) VALUES ($1, $2, $3, $4, $5, $6)
+        id, name, description, color, icon, order_index, segment_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
 
@@ -134,7 +143,8 @@ router.post('/', async (req, res) => {
       description || null,
       color || '#3B82F6',
       icon || null,
-      order_index !== undefined ? order_index : 0
+      order_index !== undefined ? order_index : 0,
+      segment_id || null
     ]);
 
     res.status(201).json({
@@ -159,7 +169,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, color, icon, order_index } = req.body;
+    const { name, description, color, icon, order_index, segment_id } = req.body;
 
     // Vérifier que le corps existe
     const existingCorps = await pool.query(
@@ -204,8 +214,9 @@ router.put('/:id', async (req, res) => {
         color = $3,
         icon = $4,
         order_index = $5,
+        segment_id = $6,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $6
+      WHERE id = $7
       RETURNING *
     `;
 
@@ -215,6 +226,7 @@ router.put('/:id', async (req, res) => {
       color || '#3B82F6',
       icon || null,
       order_index !== undefined ? order_index : 0,
+      segment_id || null,
       id
     ]);
 
@@ -361,6 +373,120 @@ router.get('/stats/global', async (req, res) => {
       error: 'Erreur serveur',
       details: error.message
     });
+  }
+});
+
+/**
+ * POST /api/corps-formation/:id/duplicate
+ * Dupliquer un corps de formation (avec option d'inclure les formations)
+ */
+router.post('/:id/duplicate', async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params;
+    const { include_formations = false } = req.body;
+
+    await client.query('BEGIN');
+
+    // Récupérer le corps original
+    const corpsResult = await client.query(
+      'SELECT * FROM corps_formation WHERE id = $1',
+      [id]
+    );
+
+    if (corpsResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        success: false,
+        error: 'Corps de formation non trouvé'
+      });
+    }
+
+    const originalCorps = corpsResult.rows[0];
+
+    // Créer le nouveau corps avec (Copie)
+    const newCorpsId = nanoid();
+    const newCorpsName = `${originalCorps.name} (Copie)`;
+
+    const insertCorpsQuery = `
+      INSERT INTO corps_formation (
+        id, name, description, color, icon, order_index, segment_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `;
+
+    const newCorpsResult = await client.query(insertCorpsQuery, [
+      newCorpsId,
+      newCorpsName,
+      originalCorps.description,
+      originalCorps.color,
+      originalCorps.icon,
+      originalCorps.order_index,
+      originalCorps.segment_id
+    ]);
+
+    const newCorps = newCorpsResult.rows[0];
+    const duplicatedFormations = [];
+
+    // Dupliquer les formations si demandé
+    if (include_formations) {
+      // Récupérer les formations unitaires (non-packs) du corps original
+      const formationsResult = await client.query(
+        `SELECT * FROM formations
+         WHERE corps_formation_id = $1
+         AND is_pack = FALSE
+         ORDER BY title ASC`,
+        [id]
+      );
+
+      for (const formation of formationsResult.rows) {
+        const newFormationId = nanoid();
+        const newFormationTitle = `${formation.title} (Copie)`;
+
+        const insertFormationQuery = `
+          INSERT INTO formations (
+            id, title, description, price, duration_hours, level,
+            status, corps_formation_id, certificate_template_id, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+          RETURNING id, title, description, price, level, status
+        `;
+
+        const newFormationResult = await client.query(insertFormationQuery, [
+          newFormationId,
+          newFormationTitle,
+          formation.description,
+          formation.price,
+          formation.duration_hours,
+          formation.level,
+          'draft', // Toujours en brouillon pour la copie
+          newCorpsId,
+          formation.certificate_template_id
+        ]);
+
+        duplicatedFormations.push(newFormationResult.rows[0]);
+      }
+    }
+
+    await client.query('COMMIT');
+
+    res.status(201).json({
+      success: true,
+      corps: newCorps,
+      duplicated_formations: duplicatedFormations,
+      message: `Corps de formation dupliqué avec succès${include_formations ? ` (${duplicatedFormations.length} formation(s) copiée(s))` : ''}`
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erreur duplication corps:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur serveur',
+      details: error.message
+    });
+  } finally {
+    client.release();
   }
 });
 
