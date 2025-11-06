@@ -16,9 +16,8 @@ import DeclarationForm from './pages/professor/DeclarationForm';
 import GerantDeclarations from './pages/gerant/GerantDeclarations';
 import CreateDeclaration from './pages/gerant/CreateDeclaration';
 import Sessions from './pages/admin/formations/Sessions';
-import Cours from './pages/admin/formations/Cours';
 import FormationEditor from './pages/admin/formations/FormationEditor';
-import CorpsFormation from './pages/admin/CorpsFormation';
+import FormationsManagement from './pages/admin/FormationsManagement';
 import { Analytics } from './pages/admin/Analytics';
 import { StudentReports } from './pages/admin/StudentReports';
 import { CertificatesManagement } from './pages/admin/CertificatesManagement';
@@ -189,10 +188,10 @@ const AppRoutes: React.FC = () => {
       />
 
       <Route
-        path="/admin/corps-formation"
+        path="/admin/formations-management"
         element={
           <ProtectedRoute adminOnly>
-            <CorpsFormation />
+            <FormationsManagement />
           </ProtectedRoute>
         }
       />
@@ -202,15 +201,6 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute adminOnly>
             <Sessions />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/formations/cours"
-        element={
-          <ProtectedRoute adminOnly>
-            <Cours />
           </ProtectedRoute>
         }
       />
