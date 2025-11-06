@@ -1,8 +1,12 @@
-const { Pool } = require('pg');
+import express from 'express';
+import pkg from 'pg';
+
+const { Pool } = pkg;
+const router = express.Router();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
 async function runMigration() {
@@ -25,27 +29,29 @@ async function runMigration() {
 
     await client.query('COMMIT');
     console.log('Migration 020 completed successfully!');
+
+    return { success: true, message: 'Migration 020 completed successfully!' };
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Migration 020 failed:', error);
     throw error;
   } finally {
     client.release();
-    await pool.end();
   }
 }
 
-// Run if called directly
-if (require.main === module) {
-  runMigration()
-    .then(() => {
-      console.log('Migration script finished');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('Migration script failed:', error);
-      process.exit(1);
+// Route POST pour exécuter la migration via API
+router.post('/', async (req, res) => {
+  try {
+    const result = await runMigration();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Migration 020 failed',
     });
-}
+  }
+});
 
-module.exports = { runMigration };
+export default router;

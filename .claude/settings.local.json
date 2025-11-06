@@ -12,7 +12,14 @@
       "Bash(curl:*)",
       "Bash(npm run build:*)",
       "Bash(python:*)",
-      "Bash(dir /b \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\src\")"
+      "Bash(dir /b \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\src\")",
+      "Bash(dir:*)",
+      "Bash(node -e:*)",
+      "Bash(DATABASE_URL=\"$DATABASE_URL\" node:*)",
+      "Bash(cat:*)",
+      "Bash(npm start)",
+      "Bash(timeout /t 5)",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": []

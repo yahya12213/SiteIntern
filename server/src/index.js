@@ -44,6 +44,9 @@ import corpsFormationRouter from './routes/corps-formation.js';
 import migration016Router from './routes/migration-016-sessions-formation.js';
 import sessionsFormationRouter from './routes/sessions-formation.js';
 import migration017Router from './routes/migration-017-sessions-corps-formation.js';
+import migration018Router from './routes/migration-018-create-students-table.js';
+import migration019Router from './routes/migration-019-create-centres-classes.js';
+import migration020Router from './routes/migration-020-update-session-etudiants.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 
@@ -94,6 +97,9 @@ app.use('/api/migration-015', migration015Router); // Migration 015 - add segmen
 app.use('/api/migration-corps-formation', migrationCorpsFormationRouter); // Migration - Corps de formation & Packs
 app.use('/api/migration-016', migration016Router); // Migration 016 - Sessions de formation (Classes)
 app.use('/api/migration-017', migration017Router); // Migration 017 - Sessions avec Corps de Formation
+app.use('/api/migration-018', migration018Router); // Migration 018 - Students table
+app.use('/api/migration-019', migration019Router); // Migration 019 - Centres & Classes tables
+app.use('/api/migration-020', migration020Router); // Migration 020 - Session_etudiants columns
 
 // Health check
 app.get('/api/health', async (req, res) => {

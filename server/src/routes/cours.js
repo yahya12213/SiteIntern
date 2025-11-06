@@ -8,6 +8,35 @@ const router = express.Router();
 // FORMATIONS CRUD
 // ============================================
 
+// GET /api/cours - Liste formations filtrées par corps_id (query param)
+router.get('/', async (req, res) => {
+  try {
+    const { corps_id } = req.query;
+
+    let query = `
+      SELECT
+        f.*,
+        COUNT(DISTINCT fm.id) as module_count
+      FROM formations f
+      LEFT JOIN formation_modules fm ON f.id = fm.formation_id
+    `;
+
+    const params = [];
+    if (corps_id) {
+      query += ` WHERE f.corps_formation_id = $1`;
+      params.push(corps_id);
+    }
+
+    query += ` GROUP BY f.id ORDER BY f.created_at DESC`;
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching cours:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET /api/cours/formations - Liste toutes les formations
 router.get('/formations', async (req, res) => {
   try {
