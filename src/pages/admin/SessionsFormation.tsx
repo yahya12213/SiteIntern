@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useSessionsFormation, useDeleteSession } from '@/hooks/useSessionsFormation';
+import { SessionFormModal } from '@/components/admin/formations/SessionFormModal';
 import {
   Calendar,
   MapPin,
@@ -21,6 +22,8 @@ export const SessionsFormation: React.FC = () => {
   const deleteSession = useDeleteSession();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showSessionModal, setShowSessionModal] = useState(false);
+  const [editingSession, setEditingSession] = useState<any>(null);
 
   const filteredSessions = sessions?.filter((session) =>
     session.titre.toLowerCase().includes(searchTerm.toLowerCase())
@@ -74,7 +77,10 @@ export const SessionsFormation: React.FC = () => {
           </div>
 
           <button
-            onClick={() => navigate('/admin/sessions-formation/new')}
+            onClick={() => {
+              setEditingSession(null);
+              setShowSessionModal(true);
+            }}
             className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
           >
             <Plus className="h-5 w-5" />
@@ -212,7 +218,10 @@ export const SessionsFormation: React.FC = () => {
                     </button>
 
                     <button
-                      onClick={() => navigate(`/admin/sessions-formation/${session.id}/edit`)}
+                      onClick={() => {
+                        setEditingSession(session);
+                        setShowSessionModal(true);
+                      }}
                       className="flex-1 px-3 py-2 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-sm font-medium flex items-center justify-center gap-1"
                     >
                       <Edit2 className="h-4 w-4" />
@@ -268,7 +277,10 @@ export const SessionsFormation: React.FC = () => {
             </p>
             {!searchTerm && (
               <button
-                onClick={() => navigate('/admin/sessions-formation/new')}
+                onClick={() => {
+                  setEditingSession(null);
+                  setShowSessionModal(true);
+                }}
                 className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
               >
                 <Plus className="h-5 w-5" />
@@ -278,6 +290,17 @@ export const SessionsFormation: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Session Modal */}
+      {showSessionModal && (
+        <SessionFormModal
+          session={editingSession}
+          onClose={() => {
+            setShowSessionModal(false);
+            setEditingSession(null);
+          }}
+        />
+      )}
     </AppLayout>
   );
 };
