@@ -47,7 +47,7 @@ router.get('/', async (req, res) => {
     const query = `
       SELECT
         sf.*,
-        v.name as ville_name,
+        c.name as ville_name,
         s.name as segment_name,
         s.color as segment_color,
         cf.name as corps_formation_name,
@@ -57,13 +57,13 @@ router.get('/', async (req, res) => {
         COALESCE(SUM(se.montant_paye), 0) as total_paye,
         COALESCE(SUM(se.montant_du), 0) as total_du
       FROM sessions_formation sf
-      LEFT JOIN villes v ON v.id = sf.ville_id
+      LEFT JOIN cities c ON c.id = sf.ville_id
       LEFT JOIN segments s ON s.id = sf.segment_id
       LEFT JOIN corps_formation cf ON cf.id = sf.corps_formation_id
       LEFT JOIN session_etudiants se ON se.session_id = sf.id
       LEFT JOIN session_professeurs sp ON sp.session_id = sf.id
       ${whereClause}
-      GROUP BY sf.id, v.name, s.name, s.color, cf.name, cf.description
+      GROUP BY sf.id, c.name, s.name, s.color, cf.name, cf.description
       ORDER BY sf.date_debut DESC NULLS LAST, sf.created_at DESC
     `;
 
@@ -95,7 +95,7 @@ router.get('/:id', async (req, res) => {
     const sessionQuery = `
       SELECT
         sf.*,
-        v.name as ville_name,
+        c.name as ville_name,
         s.name as segment_name,
         s.color as segment_color,
         cf.name as corps_formation_name,
@@ -105,13 +105,13 @@ router.get('/:id', async (req, res) => {
         COALESCE(SUM(se.montant_paye), 0) as total_paye,
         COALESCE(SUM(se.montant_du), 0) as total_du
       FROM sessions_formation sf
-      LEFT JOIN villes v ON v.id = sf.ville_id
+      LEFT JOIN cities c ON c.id = sf.ville_id
       LEFT JOIN segments s ON s.id = sf.segment_id
       LEFT JOIN corps_formation cf ON cf.id = sf.corps_formation_id
       LEFT JOIN session_etudiants se ON se.session_id = sf.id
       LEFT JOIN session_professeurs sp ON sp.session_id = sf.id
       WHERE sf.id = $1
-      GROUP BY sf.id, v.name, s.name, s.color, cf.name, cf.description
+      GROUP BY sf.id, c.name, s.name, s.color, cf.name, cf.description
     `;
 
     const sessionResult = await pool.query(sessionQuery, [id]);
@@ -129,14 +129,14 @@ router.get('/:id', async (req, res) => {
     const etudiantsQuery = `
       SELECT
         se.*,
-        u.name as student_name,
-        u.email as student_email,
-        u.phone as student_phone,
-        u.cin as student_cin,
+        CONCAT(s.nom, ' ', s.prenom) as student_name,
+        s.email as student_email,
+        s.phone as student_phone,
+        s.cin as student_cin,
         f.title as formation_title,
         f.is_pack as formation_is_pack
       FROM session_etudiants se
-      LEFT JOIN users u ON u.id = se.student_id
+      LEFT JOIN students s ON s.id = se.student_id
       LEFT JOIN formations f ON f.id = se.formation_id
       WHERE se.session_id = $1
       ORDER BY se.date_inscription DESC
