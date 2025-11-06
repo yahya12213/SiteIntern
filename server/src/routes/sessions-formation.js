@@ -394,7 +394,16 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/etudiants', async (req, res) => {
   try {
     const { id: session_id } = req.params;
-    const { student_id, formation_id, montant_total, statut_paiement = 'impaye' } = req.body;
+    const {
+      student_id,
+      formation_id,
+      montant_total,
+      montant_paye = 0,
+      numero_bon,
+      centre_id,
+      classe_id,
+      statut_paiement = 'impaye'
+    } = req.body;
 
     if (!student_id) {
       return res.status(400).json({
@@ -457,22 +466,23 @@ router.post('/:id/etudiants', async (req, res) => {
     const now = new Date().toISOString();
 
     // Calculer montant_du
-    const montant_paye = 0;
-    const montant_du = montant_total || 0;
+    const montant_du = (montant_total || 0) - (montant_paye || 0);
 
     const query = `
       INSERT INTO session_etudiants (
         id, session_id, student_id, formation_id, statut_paiement,
         montant_total, montant_paye, montant_du,
+        centre_id, classe_id, numero_bon,
         date_inscription, created_at, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *
     `;
 
     const values = [
       inscriptionId, session_id, student_id, formation_id, statut_paiement,
-      montant_total || 0, montant_paye, montant_du,
+      montant_total || 0, montant_paye || 0, montant_du,
+      centre_id || null, classe_id || null, numero_bon || null,
       now, now, now
     ];
 

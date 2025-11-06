@@ -44,6 +44,8 @@ import corpsFormationRouter from './routes/corps-formation.js';
 import migration016Router from './routes/migration-016-sessions-formation.js';
 import sessionsFormationRouter from './routes/sessions-formation.js';
 import migration017Router from './routes/migration-017-sessions-corps-formation.js';
+import studentsRouter from './routes/students.js';
+import centresRouter from './routes/centres.js';
 
 dotenv.config();
 
@@ -73,6 +75,8 @@ app.use('/api/template-folders', templateFoldersRouter);
 app.use('/api/forums', forumsRouter);
 app.use('/api/corps-formation', corpsFormationRouter);
 app.use('/api/sessions-formation', sessionsFormationRouter);
+app.use('/api/students', studentsRouter);
+app.use('/api/centres', centresRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
 app.use('/api/setup-certificates', setupCertificatesRouter); // TEMPORARY - Run once to create certificates table

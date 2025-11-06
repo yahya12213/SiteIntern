@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useSessionFormation } from '@/hooks/useSessionsFormation';
+import { AddStudentToSessionModal } from '@/components/admin/sessions-formation/AddStudentToSessionModal';
 import {
   Calendar,
   MapPin,
@@ -18,8 +19,9 @@ import {
 export const SessionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: session, isLoading, error } = useSessionFormation(id);
+  const { data: session, isLoading, error, refetch } = useSessionFormation(id);
   const [activeTab, setActiveTab] = useState<'etudiants' | 'profs' | 'tests' | 'presences'>('etudiants');
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
 
   if (isLoading) {
     return (
@@ -245,7 +247,10 @@ export const SessionDetail: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">
                     Liste des étudiants ({session.etudiants?.length || 0})
                   </h3>
-                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                  <button
+                    onClick={() => setShowAddStudentModal(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
                     Ajouter un étudiant
                   </button>
                 </div>
@@ -419,6 +424,19 @@ export const SessionDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Add Student Modal */}
+      {showAddStudentModal && session?.corps_formation_id && (
+        <AddStudentToSessionModal
+          sessionId={session.id}
+          corpsFormationId={session.corps_formation_id}
+          onClose={() => setShowAddStudentModal(false)}
+          onSuccess={() => {
+            refetch();
+            setShowAddStudentModal(false);
+          }}
+        />
+      )}
     </AppLayout>
   );
 };
