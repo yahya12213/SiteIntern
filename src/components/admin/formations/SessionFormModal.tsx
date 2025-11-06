@@ -19,7 +19,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
   const [formData, setFormData] = useState({
     name: session?.name || '',
     description: session?.description || '',
-    formation_ids: session?.formations?.map(f => f.id) || [],
+    corps_formation_id: session?.corps_formation_id || '',
     start_date: session?.start_date ? session.start_date.split('T')[0] : '',
     end_date: session?.end_date ? session.end_date.split('T')[0] : '',
     segment_id: session?.segment_id || '',
@@ -55,8 +55,8 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
       newErrors.max_capacity = 'La capacité doit être supérieure à 0';
     }
 
-    if (formData.formation_ids.length === 0) {
-      newErrors.formations = 'Sélectionnez au moins une formation';
+    if (!formData.corps_formation_id) {
+      newErrors.corps = 'Le corps de formation est obligatoire';
     }
 
     if (!formData.segment_id) {
@@ -84,7 +84,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
       const submitData = {
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
-        formation_ids: formData.formation_ids,
+        corps_formation_id: formData.corps_formation_id,
         start_date: formData.start_date,
         end_date: formData.end_date,
         segment_id: formData.segment_id,
@@ -173,16 +173,16 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
             />
           </div>
 
-          {/* Cascade Selector: Segment → City → Formations */}
+          {/* Cascade Selector: Segment → City → Corps de Formation */}
           <SessionFormationSelector
             selectedSegmentId={formData.segment_id}
             selectedCityId={formData.city_id}
-            selectedFormationIds={formData.formation_ids}
+            selectedCorpsId={formData.corps_formation_id}
             onSegmentChange={(segmentId) => setFormData(prev => ({ ...prev, segment_id: segmentId }))}
             onCityChange={(cityId) => setFormData(prev => ({ ...prev, city_id: cityId }))}
-            onFormationsChange={(formationIds) => setFormData(prev => ({ ...prev, formation_ids: formationIds }))}
+            onCorpsChange={(corpsId) => setFormData(prev => ({ ...prev, corps_formation_id: corpsId }))}
           />
-          {errors.formations && <p className="text-xs text-red-600 mt-1">{errors.formations}</p>}
+          {errors.corps && <p className="text-xs text-red-600 mt-1">{errors.corps}</p>}
           {errors.segment && <p className="text-xs text-red-600 mt-1">{errors.segment}</p>}
           {errors.city && <p className="text-xs text-red-600 mt-1">{errors.city}</p>}
 

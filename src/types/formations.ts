@@ -20,6 +20,7 @@ export interface FormationSession {
   formation_id?: string; // Legacy - kept for backward compatibility
   formation_title?: string; // Legacy - kept for backward compatibility
   formations?: Formation[]; // New - array of formations associated with this session
+  corps_formation_id?: string; // Corps de Formation association
   start_date: string;
   end_date: string;
   segment_id?: string;
@@ -115,6 +116,7 @@ export interface CreateSessionInput {
   description?: string;
   formation_ids?: string[]; // New - array of formation IDs
   formation_id?: string; // Legacy - kept for backward compatibility
+  corps_formation_id?: string; // Corps de Formation association
   start_date: string;
   end_date: string;
   segment_id?: string;
@@ -129,6 +131,7 @@ export interface UpdateSessionInput {
   description?: string;
   formation_ids?: string[]; // New - array of formation IDs
   formation_id?: string; // Legacy - kept for backward compatibility
+  corps_formation_id?: string; // Corps de Formation association
   start_date?: string;
   end_date?: string;
   segment_id?: string;
