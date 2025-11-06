@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Calendar, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useCreateSession, useUpdateSession } from '@/hooks/useFormations';
+import { useCreateSession, useUpdateSession } from '@/hooks/useSessionsFormation';
 import { SessionFormationSelector } from '@/components/formations/SessionFormationSelector';
 import type { FormationSession, SessionStatus } from '@/types/formations';
 
@@ -81,17 +81,25 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
     setIsSubmitting(true);
 
     try {
+      // Mapping des statuts anglais vers français
+      const statusMap: Record<SessionStatus, 'planifiee' | 'en_cours' | 'terminee' | 'annulee'> = {
+        'planned': 'planifiee',
+        'active': 'en_cours',
+        'completed': 'terminee',
+        'cancelled': 'annulee',
+      };
+
       const submitData = {
-        name: formData.name.trim(),
+        titre: formData.name.trim(),
         description: formData.description.trim() || undefined,
         corps_formation_id: formData.corps_formation_id,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
+        date_debut: formData.start_date,
+        date_fin: formData.end_date,
         segment_id: formData.segment_id,
-        city_id: formData.city_id,
-        instructor_id: formData.instructor_id || undefined,
-        max_capacity: formData.max_capacity ? parseInt(formData.max_capacity) : undefined,
-        status: formData.status,
+        ville_id: formData.city_id,
+        nombre_places: formData.max_capacity ? parseInt(formData.max_capacity) : 0,
+        statut: statusMap[formData.status],
+        prix_total: 0,
       };
 
       if (isEdit && session) {
