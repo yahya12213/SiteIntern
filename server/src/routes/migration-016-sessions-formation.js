@@ -25,14 +25,14 @@ router.post('/run', async (req, res) => {
     console.log('Création de la table sessions_formation...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS sessions_formation (
-        id VARCHAR(21) PRIMARY KEY DEFAULT nanoid(),
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
         titre VARCHAR(255) NOT NULL,
         description TEXT,
         date_debut DATE,
         date_fin DATE,
-        ville_id VARCHAR(21) REFERENCES villes(id) ON DELETE SET NULL,
-        segment_id VARCHAR(21) REFERENCES segments(id) ON DELETE SET NULL,
-        formation_id VARCHAR(21) REFERENCES formations(id) ON DELETE CASCADE,
+        ville_id TEXT REFERENCES villes(id) ON DELETE SET NULL,
+        segment_id TEXT REFERENCES segments(id) ON DELETE SET NULL,
+        formation_id TEXT REFERENCES formations(id) ON DELETE CASCADE,
         statut VARCHAR(50) DEFAULT 'planifiee' CHECK (statut IN ('planifiee', 'en_cours', 'terminee', 'annulee')),
         prix_total DECIMAL(10, 2) DEFAULT 0,
         nombre_places INTEGER DEFAULT 0,
@@ -54,9 +54,9 @@ router.post('/run', async (req, res) => {
     console.log('Création de la table session_etudiants...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS session_etudiants (
-        id VARCHAR(21) PRIMARY KEY DEFAULT nanoid(),
-        session_id VARCHAR(21) NOT NULL REFERENCES sessions_formation(id) ON DELETE CASCADE,
-        student_id VARCHAR(21) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+        session_id TEXT NOT NULL REFERENCES sessions_formation(id) ON DELETE CASCADE,
+        student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         statut_paiement VARCHAR(50) DEFAULT 'impaye' CHECK (statut_paiement IN ('paye', 'partiellement_paye', 'impaye')),
         montant_total DECIMAL(10, 2) DEFAULT 0,
         montant_paye DECIMAL(10, 2) DEFAULT 0,
@@ -78,9 +78,9 @@ router.post('/run', async (req, res) => {
     console.log('Création de la table session_professeurs...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS session_professeurs (
-        id VARCHAR(21) PRIMARY KEY DEFAULT nanoid(),
-        session_id VARCHAR(21) NOT NULL REFERENCES sessions_formation(id) ON DELETE CASCADE,
-        professeur_id VARCHAR(21) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+        session_id TEXT NOT NULL REFERENCES sessions_formation(id) ON DELETE CASCADE,
+        professeur_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         date_affectation TIMESTAMP DEFAULT NOW(),
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW(),
@@ -97,8 +97,8 @@ router.post('/run', async (req, res) => {
     console.log('Création de la table session_fichiers...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS session_fichiers (
-        id VARCHAR(21) PRIMARY KEY DEFAULT nanoid(),
-        session_id VARCHAR(21) NOT NULL REFERENCES sessions_formation(id) ON DELETE CASCADE,
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+        session_id TEXT NOT NULL REFERENCES sessions_formation(id) ON DELETE CASCADE,
         type VARCHAR(50) NOT NULL CHECK (type IN ('test', 'presence')),
         titre VARCHAR(255) NOT NULL,
         file_url VARCHAR(500),
