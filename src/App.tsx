@@ -24,6 +24,8 @@ import { CertificatesManagement } from './pages/admin/CertificatesManagement';
 import { CertificateTemplates } from './pages/admin/CertificateTemplates';
 import { CertificateTemplateCanvasEditor } from './pages/admin/CertificateTemplateCanvasEditor';
 import { ForumModeration } from './pages/admin/ForumModeration';
+import { SessionsFormation } from './pages/admin/SessionsFormation';
+import { SessionDetail } from './pages/admin/SessionDetail';
 import StudentDashboard from './pages/student/StudentDashboard';
 import FormationCatalog from './pages/student/FormationCatalog';
 import FormationViewer from './pages/student/FormationViewer';
@@ -210,6 +212,24 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute adminOnly>
             <FormationEditor />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/sessions-formation"
+        element={
+          <ProtectedRoute adminOnly>
+            <SessionsFormation />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/sessions-formation/:id"
+        element={
+          <ProtectedRoute adminOnly>
+            <SessionDetail />
           </ProtectedRoute>
         }
       />

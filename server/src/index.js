@@ -41,6 +41,8 @@ import forumsRouter from './routes/forums.js';
 import setupForumsRouter from './routes/setup-forums.js';
 import migrationCorpsFormationRouter from './routes/migration-corps-formation.js';
 import corpsFormationRouter from './routes/corps-formation.js';
+import migration016Router from './routes/migration-016-sessions-formation.js';
+import sessionsFormationRouter from './routes/sessions-formation.js';
 
 dotenv.config();
 
@@ -69,6 +71,7 @@ app.use('/api/certificate-templates', certificateTemplatesRouter);
 app.use('/api/template-folders', templateFoldersRouter);
 app.use('/api/forums', forumsRouter);
 app.use('/api/corps-formation', corpsFormationRouter);
+app.use('/api/sessions-formation', sessionsFormationRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
 app.use('/api/setup-certificates', setupCertificatesRouter); // TEMPORARY - Run once to create certificates table
@@ -84,6 +87,7 @@ app.use('/api/migration-013', migration013Router); // Migration 013 - extend for
 app.use('/api/migration-014', migration014Router); // Migration 014 - migrate existing data
 app.use('/api/migration-015', migration015Router); // Migration 015 - add segment_id to corps_formation
 app.use('/api/migration-corps-formation', migrationCorpsFormationRouter); // Migration - Corps de formation & Packs
+app.use('/api/migration-016', migration016Router); // Migration 016 - Sessions de formation (Classes)
 
 // Health check
 app.get('/api/health', async (req, res) => {

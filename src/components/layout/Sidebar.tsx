@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   GraduationCap,
   Calendar,
+  CalendarCheck,
   BookOpen,
   BarChart3,
   FileText,
@@ -66,6 +67,7 @@ export const Sidebar: React.FC = () => {
       icon: GraduationCap,
       items: [
         { to: '/admin/formations-management', icon: BookOpen, label: 'Gestion des Formations' },
+        { to: '/admin/sessions-formation', icon: CalendarCheck, label: 'Sessions de Formation' },
         { to: '/admin/formations/sessions', icon: Calendar, label: 'Sessions' },
         { to: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
         { to: '/admin/student-reports', icon: FileText, label: 'Rapports Étudiants' },
