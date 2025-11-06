@@ -26,12 +26,14 @@ export const sessionsFormationApi = {
     segment_id?: string;
     corps_formation_id?: string;
     statut?: string;
+    annee?: string;
   }): Promise<SessionFormation[]> => {
     const queryParams = new URLSearchParams();
     if (params?.ville_id) queryParams.append('ville_id', params.ville_id);
     if (params?.segment_id) queryParams.append('segment_id', params.segment_id);
     if (params?.corps_formation_id) queryParams.append('corps_formation_id', params.corps_formation_id);
     if (params?.statut) queryParams.append('statut', params.statut);
+    if (params?.annee) queryParams.append('annee', params.annee);
 
     const url = `/sessions-formation${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
     const response = await apiClient.get<{ success: boolean; sessions: SessionFormation[] }>(url);

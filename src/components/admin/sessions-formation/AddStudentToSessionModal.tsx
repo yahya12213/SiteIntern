@@ -38,7 +38,7 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
     lieu_naissance: '',
     adresse: '',
     // Formation info
-    session_id: '',
+    session_id: sessionId, // Pre-select the session
     formation_id: '',
     numero_bon: '',
     avance: '',

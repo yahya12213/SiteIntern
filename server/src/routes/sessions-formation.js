@@ -14,7 +14,7 @@ const router = express.Router();
  */
 router.get('/', async (req, res) => {
   try {
-    const { ville_id, segment_id, corps_formation_id, statut } = req.query;
+    const { ville_id, segment_id, corps_formation_id, statut, annee } = req.query;
 
     let whereConditions = [];
     let params = [];
@@ -38,6 +38,11 @@ router.get('/', async (req, res) => {
     if (statut) {
       whereConditions.push(`sf.statut = $${paramIndex++}`);
       params.push(statut);
+    }
+
+    if (annee) {
+      whereConditions.push(`EXTRACT(YEAR FROM sf.date_debut) = $${paramIndex++}`);
+      params.push(annee);
     }
 
     const whereClause = whereConditions.length > 0

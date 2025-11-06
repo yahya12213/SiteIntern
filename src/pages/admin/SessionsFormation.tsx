@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useSessionsFormation, useDeleteSession } from '@/hooks/useSessionsFormation';
 import { SessionFormModal } from '@/components/admin/formations/SessionFormModal';
+import { apiClient } from '@/lib/api/client';
 import {
   Calendar,
   MapPin,
@@ -13,21 +14,88 @@ import {
   Trash2,
   BookOpen,
   AlertCircle,
-  Search,
+  Filter,
 } from 'lucide-react';
+
+interface Segment {
+  id: string;
+  name: string;
+  color: string;
+}
+
+interface City {
+  id: string;
+  name: string;
+  segment_id: string;
+}
 
 export const SessionsFormation: React.FC = () => {
   const navigate = useNavigate();
-  const { data: sessions, isLoading, error } = useSessionsFormation();
+
+  // Filter states
+  const [filters, setFilters] = useState({
+    segment_id: '',
+    ville_id: '',
+    annee: '',
+  });
+
+  // Data for filter dropdowns
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
+
+  // Fetch sessions with filters
+  const { data: sessions, isLoading, error } = useSessionsFormation(filters.segment_id || filters.ville_id || filters.annee ? filters : undefined);
   const deleteSession = useDeleteSession();
-  const [searchTerm, setSearchTerm] = useState('');
+
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [editingSession, setEditingSession] = useState<any>(null);
 
-  const filteredSessions = sessions?.filter((session) =>
-    session.titre.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Load segments
+  useEffect(() => {
+    const fetchSegments = async () => {
+      try {
+        const data = await apiClient.get<Segment[]>('/segments');
+        setSegments(data);
+      } catch (error) {
+        console.error('Error fetching segments:', error);
+      }
+    };
+    fetchSegments();
+  }, []);
+
+  // Load cities when segment changes
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        if (filters.segment_id) {
+          const data = await apiClient.get<City[]>(`/cities?segment_id=${filters.segment_id}`);
+          setCities(data);
+        } else {
+          const data = await apiClient.get<City[]>('/cities');
+          setCities(data);
+        }
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+      }
+    };
+    fetchCities();
+  }, [filters.segment_id]);
+
+  // Generate available years from sessions
+  useEffect(() => {
+    if (sessions && sessions.length > 0) {
+      const years = new Set<string>();
+      sessions.forEach(session => {
+        if (session.date_debut) {
+          const year = new Date(session.date_debut).getFullYear().toString();
+          years.add(year);
+        }
+      });
+      setAvailableYears(Array.from(years).sort((a, b) => parseInt(b) - parseInt(a)));
+    }
+  }, [sessions]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -36,6 +104,10 @@ export const SessionsFormation: React.FC = () => {
     } catch (error: any) {
       alert('Erreur: ' + (error.message || 'Impossible de supprimer cette session'));
     }
+  };
+
+  const resetFilters = () => {
+    setFilters({ segment_id: '', ville_id: '', annee: '' });
   };
 
   if (isLoading) {
@@ -117,165 +189,220 @@ export const SessionsFormation: React.FC = () => {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Rechercher une session..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+        {/* Filters */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Filter className="h-5 w-5 text-gray-600" />
+            <h3 className="font-semibold text-gray-900">Filtres</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Segment
+              </label>
+              <select
+                value={filters.segment_id}
+                onChange={(e) => setFilters({ ...filters, segment_id: e.target.value, ville_id: '' })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Tous les segments</option>
+                {segments.map((segment) => (
+                  <option key={segment.id} value={segment.id}>
+                    {segment.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ville
+              </label>
+              <select
+                value={filters.ville_id}
+                onChange={(e) => setFilters({ ...filters, ville_id: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={!filters.segment_id && cities.length === 0}
+              >
+                <option value="">Toutes les villes</option>
+                {cities.map((city) => (
+                  <option key={city.id} value={city.id}>
+                    {city.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Année
+              </label>
+              <select
+                value={filters.annee}
+                onChange={(e) => setFilters({ ...filters, annee: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Toutes les années</option>
+                {availableYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                onClick={resetFilters}
+                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+              >
+                Réinitialiser
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Sessions List */}
-        {filteredSessions && filteredSessions.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredSessions.map((session) => (
-              <div
-                key={session.id}
-                className="bg-white rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-200 relative"
-              >
-                {/* Status Badge */}
-                <div className="absolute top-4 right-4">
-                  <span
-                    className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      session.statut === 'en_cours'
-                        ? 'bg-blue-100 text-blue-800'
-                        : session.statut === 'terminee'
-                        ? 'bg-green-100 text-green-800'
-                        : session.statut === 'annulee'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {session.statut === 'planifiee' && 'Planifiée'}
-                    {session.statut === 'en_cours' && 'En cours'}
-                    {session.statut === 'terminee' && 'Terminée'}
-                    {session.statut === 'annulee' && 'Annulée'}
-                  </span>
-                </div>
-
-                {/* Content */}
-                <div className="p-6">
-                  <h3 className="font-bold text-gray-900 text-lg mb-3 pr-20">{session.titre}</h3>
-
-                  <div className="space-y-2 mb-4">
-                    {session.date_debut && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Calendar className="h-4 w-4" />
-                        <span>
-                          {new Date(session.date_debut).toLocaleDateString('fr-FR')}
-                          {session.date_fin && ` - ${new Date(session.date_fin).toLocaleDateString('fr-FR')}`}
+        {/* Sessions Table */}
+        {sessions && sessions.length > 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Titre
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Segment
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ville
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date Début
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Étudiants
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Statut
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {sessions.map((session) => (
+                    <tr key={session.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {session.titre}
+                            </div>
+                            {session.corps_formation_name && (
+                              <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                                <BookOpen className="h-3 w-3" />
+                                {session.corps_formation_name}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {session.segment_name && (
+                          <span
+                            className="inline-flex px-2 py-1 text-xs font-medium rounded-full"
+                            style={{
+                              backgroundColor: session.segment_color + '20',
+                              color: session.segment_color,
+                            }}
+                          >
+                            {session.segment_name}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1 text-sm text-gray-900">
+                          <MapPin className="h-4 w-4 text-gray-400" />
+                          {session.ville_name || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1 text-sm text-gray-900">
+                          <Calendar className="h-4 w-4 text-gray-400" />
+                          {session.date_debut ? new Date(session.date_debut).toLocaleDateString('fr-FR') : '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1 text-sm text-gray-900">
+                          <Users className="h-4 w-4 text-gray-400" />
+                          {session.nombre_etudiants || 0}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                            session.statut === 'en_cours'
+                              ? 'bg-blue-100 text-blue-800'
+                              : session.statut === 'terminee'
+                              ? 'bg-green-100 text-green-800'
+                              : session.statut === 'annulee'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {session.statut === 'planifiee' && 'Planifiée'}
+                          {session.statut === 'en_cours' && 'En cours'}
+                          {session.statut === 'terminee' && 'Terminée'}
+                          {session.statut === 'annulee' && 'Annulée'}
                         </span>
-                      </div>
-                    )}
-
-                    {session.ville_name && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <MapPin className="h-4 w-4" />
-                        <span>{session.ville_name}</span>
-                      </div>
-                    )}
-
-                    {session.corps_formation_name && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <BookOpen className="h-4 w-4" />
-                        <span>{session.corps_formation_name}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Users className="h-4 w-4" />
-                      <span>{session.nombre_etudiants || 0} étudiant(s)</span>
-                    </div>
-                  </div>
-
-                  {/* Segment Badge */}
-                  {session.segment_name && (
-                    <div className="mb-4">
-                      <span
-                        className="inline-block px-2 py-1 rounded text-xs font-medium"
-                        style={{
-                          backgroundColor: session.segment_color + '20',
-                          color: session.segment_color,
-                        }}
-                      >
-                        {session.segment_name}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => navigate(`/admin/sessions-formation/${session.id}`)}
-                      className="flex-1 px-3 py-2 bg-blue-50 text-blue-700 rounded border border-blue-300 hover:bg-blue-100 transition-colors text-sm font-medium flex items-center justify-center gap-1"
-                    >
-                      <Eye className="h-4 w-4" />
-                      Voir
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setEditingSession(session);
-                        setShowSessionModal(true);
-                      }}
-                      className="flex-1 px-3 py-2 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-sm font-medium flex items-center justify-center gap-1"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                      Modifier
-                    </button>
-
-                    <button
-                      onClick={() => setDeleteConfirm(session.id)}
-                      className="px-3 py-2 bg-red-50 text-red-700 rounded border border-red-300 hover:bg-red-100 transition-colors text-sm font-medium flex items-center justify-center"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Delete Confirmation */}
-                {deleteConfirm === session.id && (
-                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
-                    <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm mx-4">
-                      <h4 className="font-bold text-gray-900 text-lg mb-2">Confirmer la suppression</h4>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Êtes-vous sûr de vouloir supprimer la session "{session.titre}" ?
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setDeleteConfirm(null)}
-                          className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-sm font-medium"
-                        >
-                          Annuler
-                        </button>
-                        <button
-                          onClick={() => handleDelete(session.id)}
-                          disabled={deleteSession.isPending}
-                          className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
-                        >
-                          {deleteSession.isPending ? 'Suppression...' : 'Supprimer'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => navigate(`/admin/sessions-formation/${session.id}`)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Voir"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingSession(session);
+                              setShowSessionModal(true);
+                            }}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Modifier"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(session.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : (
           <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
             <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-600 text-lg mb-2">Aucune session trouvée</p>
             <p className="text-gray-500 text-sm mb-4">
-              {searchTerm
-                ? 'Aucune session ne correspond à votre recherche'
+              {filters.segment_id || filters.ville_id || filters.annee
+                ? 'Aucune session ne correspond aux filtres sélectionnés'
                 : 'Commencez par créer votre première session de formation'}
             </p>
-            {!searchTerm && (
+            {!filters.segment_id && !filters.ville_id && !filters.annee && (
               <button
                 onClick={() => {
                   setEditingSession(null);
@@ -290,6 +417,33 @@ export const SessionsFormation: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md mx-4">
+            <h4 className="font-bold text-gray-900 text-lg mb-2">Confirmer la suppression</h4>
+            <p className="text-sm text-gray-600 mb-4">
+              Êtes-vous sûr de vouloir supprimer cette session ?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-sm font-medium"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirm)}
+                disabled={deleteSession.isPending}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
+              >
+                {deleteSession.isPending ? 'Suppression...' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Session Modal */}
       {showSessionModal && (

@@ -32,6 +32,7 @@ export function useSessionsFormation(params?: {
   segment_id?: string;
   formation_id?: string;
   statut?: string;
+  annee?: string;
 }) {
   return useQuery({
     queryKey: sessionsKeys.list(params),
