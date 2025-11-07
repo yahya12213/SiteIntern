@@ -87,6 +87,9 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
       };
 
       if (isEdit && formation) {
+        if (!formation.id) {
+          throw new Error('ID de formation manquant. Impossible de modifier cette formation.');
+        }
         await updateFormation.mutateAsync({
           id: formation.id,
           data: baseData,
