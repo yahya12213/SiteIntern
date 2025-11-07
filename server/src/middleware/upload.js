@@ -11,9 +11,14 @@ const uploadsDir = path.join(__dirname, '../../uploads');
 const backgroundsDir = path.join(uploadsDir, 'backgrounds');
 const fontsDir = path.join(uploadsDir, 'fonts');
 
+console.log('📁 Verifying upload directories...');
 [uploadsDir, backgroundsDir, fontsDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
+    console.log(`  Creating directory: ${dir}`);
     fs.mkdirSync(dir, { recursive: true });
+    console.log(`  ✓ Directory created successfully`);
+  } else {
+    console.log(`  ✓ Directory exists: ${dir}`);
   }
 });
 

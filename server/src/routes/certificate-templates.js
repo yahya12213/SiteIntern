@@ -718,7 +718,43 @@ router.post('/seed-defaults', async (req, res) => {
  * POST /api/certificate-templates/:id/upload-background
  * Upload une image d'arrière-plan pour un template
  */
-router.post('/:id/upload-background', uploadBackground, async (req, res) => {
+router.post('/:id/upload-background', (req, res, next) => {
+  // Wrapper multer middleware with better error handling
+  uploadBackground(req, res, (err) => {
+    if (err) {
+      console.error('Multer upload error:', err);
+      console.error('Error details:', {
+        message: err.message,
+        code: err.code,
+        field: err.field,
+        storageErrors: err.storageErrors
+      });
+
+      // Handle specific multer errors
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          error: 'File size exceeds 5 MB limit',
+        });
+      }
+
+      if (err.message && err.message.includes('Format de fichier')) {
+        return res.status(400).json({
+          success: false,
+          error: err.message,
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: err.message || 'Upload failed',
+      });
+    }
+
+    // No error, proceed to route handler
+    next();
+  });
+}, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -786,7 +822,11 @@ router.post('/:id/upload-background', uploadBackground, async (req, res) => {
     if (req.file) {
       deleteFile(req.file.path);
     }
-    console.error('Error uploading background image:', error);
+    console.error('Error uploading background image:');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Request file:', req.file);
+    console.error('Request params:', req.params);
     res.status(500).json({
       success: false,
       error: error.message,
