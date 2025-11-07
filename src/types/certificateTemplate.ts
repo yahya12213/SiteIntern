@@ -105,6 +105,8 @@ export interface CreateTemplateInput {
   description?: string;
   template_config: TemplateConfig;
   folder_id?: string;
+  background_image_url?: string;
+  background_image_type?: 'url' | 'upload';
 }
 
 export interface UpdateTemplateInput {
@@ -112,6 +114,8 @@ export interface UpdateTemplateInput {
   description?: string;
   template_config?: TemplateConfig;
   folder_id?: string;
+  background_image_url?: string;
+  background_image_type?: 'url' | 'upload';
 }
 
 /**

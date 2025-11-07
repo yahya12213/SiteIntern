@@ -209,7 +209,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { name, description, template_config, folder_id } = req.body;
+    const { name, description, template_config, folder_id, background_image_url, background_image_type } = req.body;
 
     if (!name || !template_config) {
       return res.status(400).json({
@@ -241,10 +241,10 @@ router.post('/', async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO certificate_templates (name, description, template_config, folder_id)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO certificate_templates (name, description, template_config, folder_id, background_image_url, background_image_type)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [name, description, JSON.stringify(template_config), folder_id || null]
+      [name, description, JSON.stringify(template_config), folder_id || null, background_image_url || null, background_image_type || null]
     );
 
     res.status(201).json({
@@ -267,7 +267,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, template_config, folder_id } = req.body;
+    const { name, description, template_config, folder_id, background_image_url, background_image_type } = req.body;
 
     // Vérifier que le template existe
     const existing = await pool.query(
@@ -319,6 +319,16 @@ router.put('/:id', async (req, res) => {
     if (folder_id !== undefined) {
       updates.push(`folder_id = $${paramCount++}`);
       values.push(folder_id);
+    }
+
+    if (background_image_url !== undefined) {
+      updates.push(`background_image_url = $${paramCount++}`);
+      values.push(background_image_url);
+    }
+
+    if (background_image_type !== undefined) {
+      updates.push(`background_image_type = $${paramCount++}`);
+      values.push(background_image_type);
     }
 
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
