@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { X, FolderOpen, Folder, FileText, Search, Award, Check } from 'lucide-react';
 import { useCertificateTemplates } from '@/hooks/useCertificateTemplates';
 import { useTemplateFolders } from '@/hooks/useTemplateFolders';
-import type { CertificateTemplate, TemplateFolder } from '@/types/certificateTemplate';
 
 interface TemplateSelectionModalProps {
   isOpen: boolean;
