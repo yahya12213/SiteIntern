@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, X, Grid3x3, Eye, Plus, FileText } from 'lucide-react';
 import { useCertificateTemplate, useUpdateTemplate, useCreateTemplate } from '@/hooks/useCertificateTemplates';
 import type { CertificateTemplate, TemplateElement, TemplatePage } from '@/types/certificateTemplate';
-import { getTemplatePages, migrateToMultiPage, createNewPage, generatePageId } from '@/types/certificateTemplate';
+import { getTemplatePages, createNewPage, generatePageId } from '@/types/certificateTemplate';
 import { ElementPalette } from '@/components/admin/templates/ElementPalette';
 import { CanvasEditor } from '@/components/admin/templates/CanvasEditor';
 import { ElementPropertiesPanel } from '@/components/admin/templates/ElementPropertiesPanel';
@@ -391,11 +391,6 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
     const dragData = { type, ...data };
     // On stocke en global pour le récupérer dans handleDrop
     (window as any).__dragData = dragData;
-  };
-
-  // Rafraîchir les données du template
-  const handleTemplateUpdate = (updatedTemplate: CertificateTemplate) => {
-    setTemplate(updatedTemplate);
   };
 
   // Gérer la mise à jour du background de la page actuelle

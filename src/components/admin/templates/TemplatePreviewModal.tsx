@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { X, Download } from 'lucide-react';
 import type { CertificateTemplate } from '@/types/certificateTemplate';
+import { getTemplatePages } from '@/types/certificateTemplate';
 import { getCanvasDimensions } from '@/lib/utils/canvasDimensions';
 
 interface TemplatePreviewModalProps {
@@ -72,8 +73,15 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
         duration: '40 heures',
       };
 
-      // Rendu des éléments
-      template.template_config.elements.forEach((element) => {
+      // Récupérer les pages avec migration automatique
+      const pages = getTemplatePages(template.template_config, {
+        url: template.background_image_url,
+        type: template.background_image_type,
+      });
+
+      // Rendu des éléments de toutes les pages (pour la preview, afficher seulement la première page)
+      const elementsToRender = pages[0]?.elements || [];
+      elementsToRender.forEach((element) => {
         ctx.save();
 
         // Convertir les coordonnées en nombres
