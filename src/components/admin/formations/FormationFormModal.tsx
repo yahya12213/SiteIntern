@@ -13,7 +13,7 @@ interface FormationFormModalProps {
 }
 
 export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formation, onClose }) => {
-  const isEdit = !!formation;
+  const isEdit = !!formation?.id;
   const createFormation = useCreateFormation();
   const updateFormation = useUpdateFormation();
   const { data: templates } = useCertificateTemplates();
