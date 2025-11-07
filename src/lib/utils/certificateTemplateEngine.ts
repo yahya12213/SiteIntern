@@ -10,6 +10,7 @@ import type {
   TemplateFont,
   CustomFont,
 } from '@/types/certificateTemplate';
+import { getTemplatePages } from '@/types/certificateTemplate';
 import { certificateTemplatesApi } from '@/lib/api/certificateTemplates';
 import { getCanvasDimensions, FORMAT_DIMENSIONS_MM } from '@/lib/utils/canvasDimensions';
 
@@ -133,13 +134,14 @@ export class CertificateTemplateEngine {
 
   /**
    * Charger et afficher l'image de fond
+   * @param bgUrl URL de l'image (optionnel, utilise this.template.background_image_url par défaut)
    */
-  private async loadBackgroundImage(): Promise<void> {
-    const bgUrl = this.template.background_image_url;
-    if (!bgUrl) return;
+  private async loadBackgroundImage(bgUrl?: string): Promise<void> {
+    const backgroundUrl = bgUrl || this.template.background_image_url;
+    if (!backgroundUrl) return;
 
     try {
-      const response = await fetch(bgUrl);
+      const response = await fetch(backgroundUrl);
       const blob = await response.blob();
       const base64 = await this.blobToBase64(blob);
 
@@ -217,19 +219,36 @@ export class CertificateTemplateEngine {
     // Charger les polices personnalisées
     await this.loadCustomFonts();
 
-    // Charger et afficher l'image de fond
-    await this.loadBackgroundImage();
+    // Récupérer les pages du template (avec migration automatique si nécessaire)
+    const pages = getTemplatePages(
+      this.template.template_config,
+      {
+        url: this.template.background_image_url,
+        type: this.template.background_image_type,
+      }
+    );
 
-    const elements = this.template.template_config.elements;
+    // Générer chaque page
+    for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      const page = pages[pageIndex];
 
-    // Dessiner chaque élément dans l'ordre
-    for (const element of elements) {
-      // Vérifier la condition si elle existe
-      if (element.condition && !this.checkCondition(element.condition)) {
-        continue; // Skip cet élément
+      // Ajouter une nouvelle page PDF pour le verso et les pages suivantes
+      if (pageIndex > 0) {
+        this.doc.addPage();
       }
 
-      await this.renderElement(element);
+      // Charger le background spécifique à cette page (ou fallback template background)
+      await this.loadBackgroundImage(page.background_image_url);
+
+      // Dessiner chaque élément de la page dans l'ordre
+      for (const element of page.elements) {
+        // Vérifier la condition si elle existe
+        if (element.condition && !this.checkCondition(element.condition)) {
+          continue; // Skip cet élément
+        }
+
+        await this.renderElement(element);
+      }
     }
 
     return this.doc;

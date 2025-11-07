@@ -76,11 +76,27 @@ export interface TemplateElement {
   [key: string]: any;
 }
 
+/**
+ * Représente une page individuelle d'un template (pour support recto-verso)
+ */
+export interface TemplatePage {
+  id: string;                    // Identifiant unique de la page (ex: "page-1", "page-2")
+  name: string;                  // Nom de la page (ex: "Recto", "Verso")
+  background_image_url?: string; // Image d'arrière-plan spécifique à cette page
+  background_image_type?: 'url' | 'upload'; // Type de background
+  elements: TemplateElement[];   // Éléments visuels de cette page
+}
+
 export interface TemplateConfig {
   layout: TemplateLayout;
   colors: TemplateColors;
   fonts: Record<string, TemplateFont>;
-  elements: TemplateElement[];
+
+  // Nouveau: Support multi-pages (recto-verso)
+  pages?: TemplatePage[];        // Tableau de pages pour templates multi-faces
+
+  // Deprecated: Garder pour rétrocompatibilité (sera migré vers pages[0])
+  elements?: TemplateElement[];  // Legacy: éléments pour templates mono-page
 }
 
 export interface CertificateTemplate {
@@ -295,4 +311,79 @@ export interface MoveFolderInput {
 
 export interface MoveTemplateInput {
   folder_id: string;
+}
+
+/**
+ * Utilitaires pour la migration et gestion multi-pages
+ */
+
+/**
+ * Génère un ID unique pour une nouvelle page
+ */
+export function generatePageId(): string {
+  return `page-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+/**
+ * Migre un ancien template config (mono-page) vers le nouveau format (multi-pages)
+ * Si le template a déjà des pages, le retourne tel quel
+ */
+export function migrateToMultiPage(config: TemplateConfig, templateBackground?: {
+  url?: string;
+  type?: 'url' | 'upload';
+}): TemplateConfig {
+  // Déjà migré: a un tableau de pages
+  if (config.pages && config.pages.length > 0) {
+    return config;
+  }
+
+  // Migration: créer une page "Recto" avec les éléments existants
+  const rectoPage: TemplatePage = {
+    id: generatePageId(),
+    name: 'Recto',
+    background_image_url: templateBackground?.url,
+    background_image_type: templateBackground?.type,
+    elements: config.elements || [],
+  };
+
+  return {
+    ...config,
+    pages: [rectoPage],
+    // Garder elements pour rétrocompatibilité temporaire
+    elements: config.elements,
+  };
+}
+
+/**
+ * Vérifie si un template config utilise le nouveau format multi-pages
+ */
+export function isMultiPageTemplate(config: TemplateConfig): boolean {
+  return !!(config.pages && config.pages.length > 0);
+}
+
+/**
+ * Récupère les pages d'un template, avec migration automatique si nécessaire
+ */
+export function getTemplatePages(config: TemplateConfig, templateBackground?: {
+  url?: string;
+  type?: 'url' | 'upload';
+}): TemplatePage[] {
+  if (isMultiPageTemplate(config)) {
+    return config.pages!;
+  }
+
+  // Migration à la volée
+  const migrated = migrateToMultiPage(config, templateBackground);
+  return migrated.pages!;
+}
+
+/**
+ * Crée une nouvelle page vierge pour un template
+ */
+export function createNewPage(name: string = 'Nouvelle page'): TemplatePage {
+  return {
+    id: generatePageId(),
+    name,
+    elements: [],
+  };
 }
