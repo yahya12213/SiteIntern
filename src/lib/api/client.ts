@@ -44,11 +44,17 @@ class ApiClient {
       url += `?${queryString}`;
     }
 
-    // Headers par défaut
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...fetchOptions.headers,
-    };
+    // Headers par défaut (sauf si FormData est utilisé)
+    const isFormData = fetchOptions.body instanceof FormData;
+    const headers: HeadersInit = isFormData
+      ? {
+          // Ne pas définir Content-Type pour FormData (le navigateur le fait automatiquement avec boundary)
+          ...fetchOptions.headers,
+        }
+      : {
+          'Content-Type': 'application/json',
+          ...fetchOptions.headers,
+        };
 
     try {
       const response = await fetch(url, {
@@ -99,9 +105,12 @@ class ApiClient {
    * POST request
    */
   async post<T>(endpoint: string, data?: unknown): Promise<T> {
+    // Si data est FormData, l'envoyer tel quel (ne pas stringifier)
+    const body = data instanceof FormData ? data : JSON.stringify(data);
+
     return this.request<T>(endpoint, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body,
     });
   }
 
@@ -109,9 +118,12 @@ class ApiClient {
    * PUT request
    */
   async put<T>(endpoint: string, data?: unknown): Promise<T> {
+    // Si data est FormData, l'envoyer tel quel (ne pas stringifier)
+    const body = data instanceof FormData ? data : JSON.stringify(data);
+
     return this.request<T>(endpoint, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body,
     });
   }
 
@@ -119,9 +131,12 @@ class ApiClient {
    * PATCH request
    */
   async patch<T>(endpoint: string, data?: unknown): Promise<T> {
+    // Si data est FormData, l'envoyer tel quel (ne pas stringifier)
+    const body = data instanceof FormData ? data : JSON.stringify(data);
+
     return this.request<T>(endpoint, {
       method: 'PATCH',
-      body: JSON.stringify(data),
+      body,
     });
   }
 
