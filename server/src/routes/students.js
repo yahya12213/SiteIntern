@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../config/database.js';
 import { nanoid } from 'nanoid';
+import { uploadProfileImage } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -39,8 +40,9 @@ router.get('/check-cin/:cin', async (req, res) => {
 /**
  * Create a new student
  * POST /api/students
+ * Accepts multipart/form-data with optional profile_image file
  */
-router.post('/', async (req, res) => {
+router.post('/', uploadProfileImage, async (req, res) => {
   const {
     nom,
     prenom,
@@ -62,9 +64,12 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Un étudiant avec ce CIN existe déjà' });
     }
 
-    // TODO: Handle profile image upload
-    // For now, profile_image_url is optional
-    const profile_image_url = null;
+    // Handle profile image upload
+    let profile_image_url = null;
+    if (req.file) {
+      // Generate URL relative to server uploads directory
+      profile_image_url = `/uploads/profiles/${req.file.filename}`;
+    }
 
     const result = await pool.query(
       `INSERT INTO students (

@@ -10,9 +10,10 @@ const __dirname = path.dirname(__filename);
 const uploadsDir = path.join(__dirname, '../../uploads');
 const backgroundsDir = path.join(uploadsDir, 'backgrounds');
 const fontsDir = path.join(uploadsDir, 'fonts');
+const profilesDir = path.join(uploadsDir, 'profiles');
 
 console.log('📁 Verifying upload directories...');
-[uploadsDir, backgroundsDir, fontsDir].forEach(dir => {
+[uploadsDir, backgroundsDir, fontsDir, profilesDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     console.log(`  Creating directory: ${dir}`);
     fs.mkdirSync(dir, { recursive: true });
@@ -43,6 +44,18 @@ const fontStorage = multer.diskStorage({
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
     cb(null, `font-${uniqueSuffix}${ext}`);
+  }
+});
+
+// Storage pour les photos de profil
+const profileStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, profilesDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `profile-${uniqueSuffix}${ext}`);
   }
 });
 
@@ -82,6 +95,14 @@ export const uploadFont = multer({
     fileSize: 2 * 1024 * 1024 // 2 MB max
   }
 }).single('font');
+
+export const uploadProfileImage = multer({
+  storage: profileStorage,
+  fileFilter: imageFileFilter,
+  limits: {
+    fileSize: 3 * 1024 * 1024 // 3 MB max
+  }
+}).single('profile_image');
 
 // Helper pour supprimer un fichier
 export const deleteFile = (filePath) => {
