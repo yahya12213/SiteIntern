@@ -492,145 +492,165 @@ export const CertificateTemplates: React.FC = () => {
                   </div>
                 )}
 
-                {/* Templates Section */}
+                {/* Templates Section - Liste/Tableau */}
                 {filteredTemplates.length > 0 && (
                   <div>
                     <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                       <Award className="h-4 w-4" />
                       Templates ({filteredTemplates.length})
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {filteredTemplates.map((template) => (
-                  <div
-                    key={template.id}
-                    className="bg-white rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-200 relative"
-                  >
-                    {/* Preview Area */}
-                    <div className="h-40 bg-gradient-to-br from-gray-50 to-gray-100 rounded-t-lg flex items-center justify-center relative overflow-hidden">
-                      <div className="text-center p-4">
-                        <Award className="h-16 w-16 text-gray-300 mx-auto mb-2" />
-                        <div className="text-xs text-gray-500 font-mono">
-                          {template.template_config.layout.orientation === 'landscape'
-                            ? 'Paysage'
-                            : 'Portrait'}{' '}
-                          • {template.template_config.layout.format.toUpperCase()}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-4">
-                      <h3 className="font-bold text-gray-900 text-base mb-1">{template.name}</h3>
-                      <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                        {template.description || 'Aucune description'}
-                      </p>
-
-                      {/* Folder Badge */}
-                      {template.folder_name && (
-                        <div className="mb-3">
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs">
-                            <Folder className="h-3 w-3" />
-                            {template.folder_name}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Colors Preview */}
-                      <div className="flex gap-1 mb-3">
-                        <div
-                          className="w-6 h-6 rounded border border-gray-300"
-                          style={{ backgroundColor: template.template_config.colors.primary }}
-                          title="Couleur primaire"
-                        />
-                        <div
-                          className="w-6 h-6 rounded border border-gray-300"
-                          style={{ backgroundColor: template.template_config.colors.secondary }}
-                          title="Couleur secondaire"
-                        />
-                        <div
-                          className="w-6 h-6 rounded border border-gray-300"
-                          style={{ backgroundColor: template.template_config.colors.text }}
-                          title="Couleur du texte"
-                        />
-                      </div>
-
-                      {/* Actions */}
-                      <div className="grid grid-cols-3 gap-2">
-                        <button
-                          onClick={() => handleRenameClick(template.id, template.name)}
-                          className="px-2 py-1.5 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
-                          title="Renommer le template"
-                        >
-                          <Edit2 className="h-3 w-3" />
-                          Renommer
-                        </button>
-
-                        <button
-                          onClick={() => handleDuplicate(template.id)}
-                          disabled={duplicateMutation.isPending}
-                          className="px-2 py-1.5 bg-blue-50 text-blue-700 rounded border border-blue-300 hover:bg-blue-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
-                        >
-                          <Copy className="h-3 w-3" />
-                          Dupliquer
-                        </button>
-
-                        <button
-                          onClick={() => handleDuplicateToFolderClick(template.id, template.name, template.folder_id)}
-                          disabled={duplicateToFolderMutation.isPending}
-                          className="px-2 py-1.5 bg-cyan-50 text-cyan-700 rounded border border-cyan-300 hover:bg-cyan-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
-                          title="Dupliquer vers un autre dossier"
-                        >
-                          <FolderPlus className="h-3 w-3" />
-                          Vers dossier
-                        </button>
-
-                        <button
-                          onClick={() => navigate(`/admin/certificate-templates/${template.id}/canvas-edit`)}
-                          className="px-2 py-1.5 bg-purple-50 text-purple-700 rounded border border-purple-300 hover:bg-purple-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
-                          title="Modifier avec l'éditeur Canvas"
-                        >
-                          <Edit3 className="h-3 w-3" />
-                          Modifier
-                        </button>
-
-                        <button
-                          onClick={() => setShowDeleteConfirm(template.id)}
-                          disabled={deleteMutation.isPending}
-                          className="px-2 py-1.5 bg-red-50 text-red-700 rounded border border-red-300 hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50 col-span-2"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                          Supprimer
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Delete Confirmation */}
-                    {showDeleteConfirm === template.id && (
-                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
-                        <div className="bg-white p-4 rounded-lg shadow-xl max-w-xs mx-4">
-                          <h4 className="font-bold text-gray-900 text-sm mb-2">Confirmer la suppression</h4>
-                          <p className="text-xs text-gray-600 mb-4">
-                            Êtes-vous sûr de vouloir supprimer le template "{template.name}" ?
-                          </p>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setShowDeleteConfirm(null)}
-                              className="flex-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-xs font-medium"
+                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                              Nom
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                              Format
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                              Couleurs
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {filteredTemplates.map((template) => (
+                            <tr
+                              key={template.id}
+                              className="hover:bg-blue-50 transition-colors"
                             >
-                              Annuler
-                            </button>
-                            <button
-                              onClick={() => handleDelete(template.id)}
-                              className="flex-1 px-3 py-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs font-medium"
-                            >
-                              Supprimer
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                      ))}
+                              {/* Nom et Description */}
+                              <td className="px-4 py-3">
+                                <div>
+                                  <div className="font-semibold text-gray-900">{template.name}</div>
+                                  <div className="text-xs text-gray-500 mt-0.5">
+                                    {template.description || 'Aucune description'}
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Format et Orientation */}
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <Award className="h-4 w-4 text-gray-400" />
+                                  <div className="text-sm">
+                                    <div className="font-medium text-gray-900">
+                                      {template.template_config.layout.format.toUpperCase()}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {template.template_config.layout.orientation === 'landscape' ? 'Paysage' : 'Portrait'}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Couleurs */}
+                              <td className="px-4 py-3">
+                                <div className="flex gap-1.5">
+                                  <div
+                                    className="w-6 h-6 rounded border border-gray-300"
+                                    style={{ backgroundColor: template.template_config.colors.primary }}
+                                    title="Couleur primaire"
+                                  />
+                                  <div
+                                    className="w-6 h-6 rounded border border-gray-300"
+                                    style={{ backgroundColor: template.template_config.colors.secondary }}
+                                    title="Couleur secondaire"
+                                  />
+                                  <div
+                                    className="w-6 h-6 rounded border border-gray-300"
+                                    style={{ backgroundColor: template.template_config.colors.text }}
+                                    title="Couleur du texte"
+                                  />
+                                </div>
+                              </td>
+
+                              {/* Actions */}
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => navigate(`/admin/certificate-templates/${template.id}/canvas-edit`)}
+                                    className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded border border-purple-300 hover:bg-purple-100 transition-colors text-xs font-medium flex items-center gap-1"
+                                    title="Modifier avec l'éditeur Canvas"
+                                  >
+                                    <Edit3 className="h-3.5 w-3.5" />
+                                    Modifier
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleRenameClick(template.id, template.name)}
+                                    className="px-3 py-1.5 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-xs font-medium flex items-center gap-1"
+                                    title="Renommer le template"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                    Renommer
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDuplicate(template.id)}
+                                    disabled={duplicateMutation.isPending}
+                                    className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded border border-blue-300 hover:bg-blue-100 transition-colors text-xs font-medium flex items-center gap-1 disabled:opacity-50"
+                                    title="Dupliquer"
+                                  >
+                                    <Copy className="h-3.5 w-3.5" />
+                                    Dupliquer
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDuplicateToFolderClick(template.id, template.name, template.folder_id)}
+                                    disabled={duplicateToFolderMutation.isPending}
+                                    className="px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded border border-cyan-300 hover:bg-cyan-100 transition-colors text-xs font-medium flex items-center gap-1 disabled:opacity-50"
+                                    title="Dupliquer vers un autre dossier"
+                                  >
+                                    <FolderPlus className="h-3.5 w-3.5" />
+                                    Vers dossier
+                                  </button>
+
+                                  <button
+                                    onClick={() => setShowDeleteConfirm(template.id)}
+                                    disabled={deleteMutation.isPending}
+                                    className="px-3 py-1.5 bg-red-50 text-red-700 rounded border border-red-300 hover:bg-red-100 transition-colors text-xs font-medium flex items-center gap-1 disabled:opacity-50"
+                                    title="Supprimer"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    Supprimer
+                                  </button>
+                                </div>
+
+                                {/* Delete Confirmation */}
+                                {showDeleteConfirm === template.id && (
+                                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                    <div className="bg-white p-6 rounded-lg shadow-xl max-w-md mx-4">
+                                      <h4 className="font-bold text-gray-900 text-lg mb-2">Confirmer la suppression</h4>
+                                      <p className="text-sm text-gray-600 mb-6">
+                                        Êtes-vous sûr de vouloir supprimer le template "<strong>{template.name}</strong>" ?
+                                      </p>
+                                      <div className="flex gap-3 justify-end">
+                                        <button
+                                          onClick={() => setShowDeleteConfirm(null)}
+                                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-sm font-medium"
+                                        >
+                                          Annuler
+                                        </button>
+                                        <button
+                                          onClick={() => handleDelete(template.id)}
+                                          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm font-medium"
+                                        >
+                                          Supprimer
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )}
