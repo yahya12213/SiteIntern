@@ -16,6 +16,11 @@ import {
   Square,
   Minus,
   Circle,
+  Phone,
+  MessageCircle,
+  Home,
+  User,
+  Cake,
 } from 'lucide-react';
 
 interface ElementPaletteProps {
@@ -26,9 +31,16 @@ export const ElementPalette: React.FC<ElementPaletteProps> = ({ onDragStart }) =
   // Variables dynamiques (données étudiant, formation, certificat)
   const variableElements = [
     // Données Étudiant
-    { type: 'text', icon: Type, label: 'Nom étudiant', variable: '{student_name}', category: 'Étudiant', color: 'blue' },
+    { type: 'text', icon: Type, label: 'Nom complet étudiant', variable: '{student_name}', category: 'Étudiant', color: 'blue' },
+    { type: 'text', icon: User, label: 'Prénom étudiant', variable: '{student_first_name}', category: 'Étudiant', color: 'blue' },
+    { type: 'text', icon: User, label: 'Nom famille étudiant', variable: '{student_last_name}', category: 'Étudiant', color: 'blue' },
     { type: 'text', icon: AtSign, label: 'Email étudiant', variable: '{student_email}', category: 'Étudiant', color: 'blue' },
     { type: 'text', icon: CreditCard, label: 'CIN/ID étudiant', variable: '{student_id}', category: 'Étudiant', color: 'blue' },
+    { type: 'text', icon: Phone, label: 'Téléphone étudiant', variable: '{student_phone}', category: 'Étudiant', color: 'blue' },
+    { type: 'text', icon: MessageCircle, label: 'WhatsApp étudiant', variable: '{student_whatsapp}', category: 'Étudiant', color: 'blue' },
+    { type: 'text', icon: Cake, label: 'Date naissance', variable: '{student_birth_date}', category: 'Étudiant', color: 'blue' },
+    { type: 'text', icon: MapPin, label: 'Lieu naissance', variable: '{student_birth_place}', category: 'Étudiant', color: 'blue' },
+    { type: 'text', icon: Home, label: 'Adresse étudiant', variable: '{student_address}', category: 'Étudiant', color: 'blue' },
 
     // Données Formation
     { type: 'text', icon: GraduationCap, label: 'Nom formation', variable: '{formation_title}', category: 'Formation', color: 'green' },
@@ -68,6 +80,7 @@ export const ElementPalette: React.FC<ElementPaletteProps> = ({ onDragStart }) =
 
   const handleDragStart = (e: React.DragEvent, element: any) => {
     e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('application/json', JSON.stringify(element));
     onDragStart(element.type, element);
   };
 

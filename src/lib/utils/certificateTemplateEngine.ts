@@ -250,11 +250,22 @@ export class CertificateTemplateEngine {
   private replaceVariables(text: string): string {
     // Construire l'objet des variables
     const variables: Record<string, any> = {
+      // Student fields
       '{student_name}': this.certificate.student_name || 'Étudiant',
+      '{student_first_name}': (this.certificate.metadata as any)?.student_first_name || (this.certificate.metadata as any)?.prenom || '',
+      '{student_last_name}': (this.certificate.metadata as any)?.student_last_name || (this.certificate.metadata as any)?.nom || '',
       '{student_email}': this.certificate.student_email || '',
+      '{student_id}': (this.certificate.metadata as any)?.student_id || (this.certificate.metadata as any)?.cin || '',
+      '{student_phone}': (this.certificate.metadata as any)?.student_phone || (this.certificate.metadata as any)?.phone || '',
+      '{student_whatsapp}': (this.certificate.metadata as any)?.student_whatsapp || (this.certificate.metadata as any)?.whatsapp || '',
+      '{student_birth_date}': (this.certificate.metadata as any)?.student_birth_date || (this.certificate.metadata as any)?.date_naissance ? this.formatDate((this.certificate.metadata as any)?.student_birth_date || (this.certificate.metadata as any)?.date_naissance, 'short') : '',
+      '{student_birth_place}': (this.certificate.metadata as any)?.student_birth_place || (this.certificate.metadata as any)?.lieu_naissance || '',
+      '{student_address}': (this.certificate.metadata as any)?.student_address || (this.certificate.metadata as any)?.adresse || '',
+      // Formation fields
       '{formation_title}': this.certificate.formation_title || 'Formation',
       '{formation_description}': this.certificate.formation_description || '',
       '{duration_hours}': this.certificate.duration_hours || '',
+      // Certificate fields
       '{completion_date}': this.formatDate(this.certificate.completion_date, 'long'),
       '{completion_date_short}': this.formatDate(this.certificate.completion_date, 'short'),
       '{issued_date}': this.formatDate(this.certificate.issued_at, 'long'),
@@ -265,6 +276,7 @@ export class CertificateTemplateEngine {
         this.certificate.grade !== null && this.certificate.grade !== undefined
           ? Math.round(this.certificate.grade)
           : '',
+      // Other fields
       '{current_year}': new Date().getFullYear(),
       '{current_date}': this.formatDate(new Date(), 'long'),
       '{organization_name}':
