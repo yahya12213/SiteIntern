@@ -1,14 +1,8 @@
 import express from 'express';
-import pkg from 'pg';
+import pool from '../config/database.js';
 import { nanoid } from 'nanoid';
 
-const { Pool } = pkg;
 const router = express.Router();
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-});
 
 /**
  * Check if student with CIN already exists

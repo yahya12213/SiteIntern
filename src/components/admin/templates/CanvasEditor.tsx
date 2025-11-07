@@ -108,7 +108,15 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     const y = e.clientY - rect.top;
 
     try {
-      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      const jsonData = e.dataTransfer.getData('application/json');
+
+      // Vérifier que les données ne sont pas vides avant de parser
+      if (!jsonData || jsonData.trim() === '') {
+        console.warn('Drop data is empty - ignoring drop event');
+        return;
+      }
+
+      const data = JSON.parse(jsonData);
       onElementDrop(data.type, x, y, data);
     } catch (error) {
       console.error('Error parsing drop data:', error);
