@@ -186,6 +186,8 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
         fontFamily: 'helvetica',
         fontStyle: 'normal',
         align: 'left',
+        width: 150,
+        height: 30,
       };
     } else if (type === 'image') {
       newElement = {

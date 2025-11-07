@@ -169,24 +169,50 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
     // Texte
     if (element.type === 'text') {
+      const width = typeof element.width === 'number' ? element.width : 150;
+      const height = typeof element.height === 'number' ? element.height : 30;
+
       return (
-        <div
-          key={element.id}
-          style={{
-            ...baseStyle,
-            padding: '4px 8px',
-            fontSize: `${element.fontSize || 12}px`,
-            fontFamily: element.fontFamily || 'helvetica',
-            fontWeight: element.fontStyle?.includes('bold') ? 'bold' : 'normal',
-            fontStyle: element.fontStyle?.includes('italic') ? 'italic' : 'normal',
-            color: element.color || '#000000',
-            textAlign: (element.align as any) || 'left',
-            whiteSpace: 'nowrap',
-            backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
-          }}
-          onMouseDown={(e) => handleMouseDown(e, element)}
-        >
-          {element.content || 'Texte vide'}
+        <div key={element.id}>
+          <div
+            style={{
+              ...baseStyle,
+              width: `${width}px`,
+              height: `${height}px`,
+              padding: '4px 8px',
+              fontSize: `${element.fontSize || 12}px`,
+              fontFamily: element.fontFamily || 'helvetica',
+              fontWeight: element.fontStyle?.includes('bold') ? 'bold' : 'normal',
+              fontStyle: element.fontStyle?.includes('italic') ? 'italic' : 'normal',
+              color: element.color || '#000000',
+              textAlign: (element.align as any) || 'left',
+              whiteSpace: 'normal',
+              wordWrap: 'break-word',
+              overflow: 'hidden',
+              backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
+            }}
+            onMouseDown={(e) => handleMouseDown(e, element)}
+          >
+            {element.content || 'Texte vide'}
+          </div>
+          {isSelected && (
+            <div
+              className="resize-handle"
+              style={{
+                position: 'absolute',
+                left: `${x + width - 8}px`,
+                top: `${y + height - 8}px`,
+                width: '16px',
+                height: '16px',
+                backgroundColor: '#3B82F6',
+                border: '2px solid white',
+                borderRadius: '50%',
+                cursor: 'se-resize',
+                zIndex: 1000,
+              }}
+              onMouseDown={(e) => handleResizeMouseDown(e, element)}
+            />
+          )}
         </div>
       );
     }
