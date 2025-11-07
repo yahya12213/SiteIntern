@@ -475,7 +475,12 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
             showGrid={showGrid && !template.background_image_url}
             onElementMove={handleElementMove}
             onElementResize={handleElementResize}
-            onElementSelect={setSelectedId}
+            onElementSelect={(id) => {
+              setSelectedId(id);
+              if (id !== null) {
+                setActiveTab('elements');
+              }
+            }}
             onElementDrop={(type, x, y) => {
               const data = (window as any).__dragData || {};
               handleElementDrop(type, x, y, data);

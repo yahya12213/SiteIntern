@@ -23,7 +23,11 @@
       "Bash(ping:*)",
       "Bash(if [ -f nul ])",
       "Bash(then rm -f nul)",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(netstat:*)",
+      "Bash(lsof:*)",
+      "Bash(findstr:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []
