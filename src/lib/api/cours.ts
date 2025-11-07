@@ -19,6 +19,8 @@ import type {
   UpdateQuestionInput,
   CreateChoiceInput,
   UpdateChoiceInput,
+  FormationTemplate,
+  DocumentType,
 } from '@/types/cours';
 
 export const coursApi = {
@@ -110,6 +112,33 @@ export const coursApi = {
   // Statistiques
   // ============================================
   getStats: () => apiClient.get<CoursStats>('/cours/stats'),
+
+  // ============================================
+  // Formation Templates (Multi-template support)
+  // ============================================
+  getFormationTemplates: (formationId: string) =>
+    apiClient.get<FormationTemplate[]>(`/formations/${formationId}/templates`),
+
+  addFormationTemplates: (
+    formationId: string,
+    template_ids: string[],
+    document_type: DocumentType = 'certificat'
+  ) =>
+    apiClient.post<{ success: boolean; templates: FormationTemplate[] }>(
+      `/formations/${formationId}/templates`,
+      { template_ids, document_type }
+    ),
+
+  removeFormationTemplate: (formationId: string, templateId: string) =>
+    apiClient.delete<{ success: boolean }>(
+      `/formations/${formationId}/templates/${templateId}`
+    ),
+
+  setDefaultTemplate: (formationId: string, templateId: string) =>
+    apiClient.put<{ success: boolean }>(
+      `/formations/${formationId}/templates/${templateId}/default`,
+      {}
+    ),
 
   // ============================================
   // Duplication

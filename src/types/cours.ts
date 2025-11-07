@@ -4,6 +4,23 @@ export type FormationLevel = 'debutant' | 'intermediaire' | 'avance';
 export type FormationStatus = 'draft' | 'published';
 export type ModuleType = 'video' | 'test' | 'document';
 export type QuestionType = 'multiple_choice';
+export type DocumentType = 'certificat' | 'attestation' | 'diplome' | 'autre';
+
+// Template de certificat associé à une formation (relation many-to-many)
+export interface FormationTemplate {
+  id: string;
+  formation_id: string;
+  template_id: string;
+  document_type: DocumentType;
+  is_default: boolean;
+  created_at: string;
+  // Champs du JOIN avec certificate_templates
+  template_name?: string;
+  template_description?: string;
+  folder_id?: string;
+  preview_image_url?: string;
+  background_image_url?: string;
+}
 
 // Formation (cours en ligne)
 export interface Formation {
@@ -18,6 +35,8 @@ export interface Formation {
   passing_score_percentage: number;
   default_certificate_template_id?: string;
   certificate_template_name?: string; // Nom du template (depuis JOIN backend)
+  // Multi-template support
+  templates?: FormationTemplate[]; // Templates associés (relation many-to-many)
   // Nouveaux champs pour Corps de Formation & Packs
   corps_formation_id?: string;
   corps_formation_name?: string;
@@ -132,6 +151,9 @@ export interface CreateFormationInput {
   default_certificate_template_id?: string;
   corps_formation_id: string; // Obligatoire
   certificate_template_id?: string;
+  // Multi-template support
+  template_ids?: string[]; // IDs des templates à associer
+  document_type?: DocumentType; // Type de document (par défaut: 'certificat')
 }
 
 export interface UpdateFormationInput {
@@ -146,6 +168,9 @@ export interface UpdateFormationInput {
   default_certificate_template_id?: string;
   corps_formation_id?: string;
   certificate_template_id?: string;
+  // Multi-template support
+  template_ids?: string[]; // IDs des templates à associer
+  document_type?: DocumentType; // Type de document
 }
 
 // ============================================

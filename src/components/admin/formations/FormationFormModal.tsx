@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { X, BookOpen, AlertCircle, Award } from 'lucide-react';
+import { X, BookOpen, AlertCircle, Award, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useCreateFormation, useUpdateFormation } from '@/hooks/useCours';
+import { useCreateFormation, useUpdateFormation, useAddFormationTemplates, useFormationTemplates } from '@/hooks/useCours';
 import { useCertificateTemplates } from '@/hooks/useCertificateTemplates';
 import { useCorpsFormation } from '@/hooks/useCorpsFormation';
+import { TemplateSelectionModal } from './TemplateSelectionModal';
 import type { Formation, FormationLevel, FormationStatus } from '@/types/cours';
 
 interface FormationFormModalProps {
@@ -16,8 +17,10 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
   const isEdit = !!formation?.id;
   const createFormation = useCreateFormation();
   const updateFormation = useUpdateFormation();
+  const addFormationTemplates = useAddFormationTemplates();
   const { data: templates } = useCertificateTemplates();
   const { data: corpsList = [] } = useCorpsFormation();
+  const { data: existingTemplates } = useFormationTemplates(formation?.id);
 
   const [formData, setFormData] = useState({
     title: formation?.title || '',
@@ -32,6 +35,10 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
     corps_formation_id: formation?.corps_formation_id || '',
   });
 
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>(
+    existingTemplates?.map((t) => t.template_id) || []
+  );
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -63,6 +70,14 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
     return Object.keys(newErrors).length === 0;
   };
 
+  // Get selected templates for display
+  const selectedTemplates = templates?.filter((t) => selectedTemplateIds.includes(t.id)) || [];
+
+  // Remove template from selection
+  const handleRemoveTemplate = (templateId: string) => {
+    setSelectedTemplateIds((prev) => prev.filter((id) => id !== templateId));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -86,6 +101,8 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
         corps_formation_id: formData.corps_formation_id,
       };
 
+      let formationId: string;
+
       if (isEdit && formation) {
         if (!formation.id) {
           throw new Error('ID de formation manquant. Impossible de modifier cette formation.');
@@ -94,8 +111,19 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
           id: formation.id,
           data: baseData,
         });
+        formationId = formation.id;
       } else {
-        await createFormation.mutateAsync(baseData);
+        const result = await createFormation.mutateAsync(baseData);
+        formationId = result.id;
+      }
+
+      // Ajouter les templates sélectionnés (si présents)
+      if (selectedTemplateIds.length > 0) {
+        await addFormationTemplates.mutateAsync({
+          formationId,
+          template_ids: selectedTemplateIds,
+          document_type: 'certificat',
+        });
       }
 
       onClose();
@@ -299,26 +327,54 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
             <p className="text-xs text-gray-500 mt-1">Image de présentation de la formation (optionnel)</p>
           </div>
 
-          {/* Certificate Template */}
+          {/* Certificate Templates - Multi-select */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
               <Award className="h-4 w-4 text-blue-600" />
-              Template de Certificat
+              Templates de Certificat
             </label>
-            <select
-              value={formData.default_certificate_template_id}
-              onChange={(e) => setFormData({ ...formData, default_certificate_template_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+
+            {/* Add Templates Button */}
+            <button
+              type="button"
+              onClick={() => setIsTemplateModalOpen(true)}
+              className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2 text-sm font-medium text-gray-600 hover:text-blue-600"
             >
-              <option value="">Aucun template sélectionné</option>
-              {templates?.map(template => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Ce template sera utilisé pour générer les certificats de cette formation
+              <Plus className="h-4 w-4" />
+              {selectedTemplateIds.length === 0
+                ? 'Sélectionner des templates'
+                : 'Ajouter / Modifier les templates'}
+            </button>
+
+            {/* Selected Templates Display */}
+            {selectedTemplates.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-medium text-gray-600">
+                  {selectedTemplates.length} template{selectedTemplates.length > 1 ? 's' : ''} sélectionné{selectedTemplates.length > 1 ? 's' : ''}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedTemplates.map((template) => (
+                    <div
+                      key={template.id}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
+                    >
+                      <Award className="h-3 w-3" />
+                      <span className="truncate max-w-xs">{template.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTemplate(template.id)}
+                        className="hover:bg-blue-200 rounded-full p-0.5 transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-gray-500 mt-2">
+              Ces templates seront utilisés pour générer les certificats de cette formation
             </p>
           </div>
 
@@ -351,6 +407,15 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
           </div>
         </form>
       </div>
+
+      {/* Template Selection Modal */}
+      <TemplateSelectionModal
+        isOpen={isTemplateModalOpen}
+        onClose={() => setIsTemplateModalOpen(false)}
+        onSelect={setSelectedTemplateIds}
+        selectedTemplateIds={selectedTemplateIds}
+        title="Sélectionner des templates de certificat"
+      />
     </div>
   );
 };

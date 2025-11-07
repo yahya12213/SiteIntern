@@ -27,7 +27,14 @@
       "Bash(netstat:*)",
       "Bash(lsof:*)",
       "Bash(findstr:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(timeout /t 3)",
+      "Bash(taskkill:*)",
+      "Bash(npx kill-port:*)",
+      "Bash(if [ -d \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\uploads\\backgrounds\" ])",
+      "Bash(then ls -la \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\uploads\\backgrounds\")",
+      "Bash(else dir \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\uploads\\backgrounds\" /a)",
+      "Bash(npm run db:schema:*)"
     ],
     "deny": [],
     "ask": []

@@ -13,6 +13,7 @@ import type {
   UpdateQuestionInput,
   CreateChoiceInput,
   UpdateChoiceInput,
+  DocumentType,
 } from '@/types/cours';
 
 // ============================================
@@ -22,6 +23,7 @@ export const coursKeys = {
   all: ['cours'] as const,
   formations: () => [...coursKeys.all, 'formations'] as const,
   formation: (id: string) => [...coursKeys.formations(), id] as const,
+  formationTemplates: (formationId: string) => [...coursKeys.all, 'formation-templates', formationId] as const,
   modules: (formationId: string) => [...coursKeys.all, 'modules', formationId] as const,
   test: (id: string) => [...coursKeys.all, 'test', id] as const,
   stats: () => [...coursKeys.all, 'stats'] as const,
@@ -94,6 +96,89 @@ export function useDeleteFormation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: coursKeys.formations() });
       queryClient.invalidateQueries({ queryKey: coursKeys.stats() });
+    },
+  });
+}
+
+// ============================================
+// Formation Templates Hooks (Multi-template support)
+// ============================================
+
+/**
+ * Récupère tous les templates associés à une formation
+ */
+export function useFormationTemplates(formationId: string | undefined) {
+  return useQuery({
+    queryKey: coursKeys.formationTemplates(formationId!),
+    queryFn: () => coursApi.getFormationTemplates(formationId!),
+    enabled: !!formationId,
+  });
+}
+
+/**
+ * Ajoute des templates à une formation
+ */
+export function useAddFormationTemplates() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      formationId,
+      template_ids,
+      document_type = 'certificat',
+    }: {
+      formationId: string;
+      template_ids: string[];
+      document_type?: DocumentType;
+    }) => coursApi.addFormationTemplates(formationId, template_ids, document_type),
+    onSuccess: (_, { formationId }) => {
+      queryClient.invalidateQueries({ queryKey: coursKeys.formationTemplates(formationId) });
+      queryClient.invalidateQueries({ queryKey: coursKeys.formation(formationId) });
+      queryClient.invalidateQueries({ queryKey: coursKeys.formations() });
+    },
+  });
+}
+
+/**
+ * Supprime un template d'une formation
+ */
+export function useRemoveFormationTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      formationId,
+      templateId,
+    }: {
+      formationId: string;
+      templateId: string;
+    }) => coursApi.removeFormationTemplate(formationId, templateId),
+    onSuccess: (_, { formationId }) => {
+      queryClient.invalidateQueries({ queryKey: coursKeys.formationTemplates(formationId) });
+      queryClient.invalidateQueries({ queryKey: coursKeys.formation(formationId) });
+      queryClient.invalidateQueries({ queryKey: coursKeys.formations() });
+    },
+  });
+}
+
+/**
+ * Définit un template comme default pour une formation
+ */
+export function useSetDefaultTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      formationId,
+      templateId,
+    }: {
+      formationId: string;
+      templateId: string;
+    }) => coursApi.setDefaultTemplate(formationId, templateId),
+    onSuccess: (_, { formationId }) => {
+      queryClient.invalidateQueries({ queryKey: coursKeys.formationTemplates(formationId) });
+      queryClient.invalidateQueries({ queryKey: coursKeys.formation(formationId) });
+      queryClient.invalidateQueries({ queryKey: coursKeys.formations() });
     },
   });
 }

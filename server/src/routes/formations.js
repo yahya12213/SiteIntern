@@ -744,4 +744,218 @@ router.patch('/enrollments/:id/validation', async (req, res) => {
   }
 });
 
+// ============================================================================
+// FORMATION TEMPLATES MANAGEMENT
+// ============================================================================
+
+// GET /api/formations/:id/templates - Récupère tous les templates d'une formation
+router.get('/:id/templates', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query = `
+      SELECT
+        ft.id,
+        ft.formation_id,
+        ft.template_id,
+        ft.document_type,
+        ft.is_default,
+        ft.created_at,
+        ct.name as template_name,
+        ct.description as template_description,
+        ct.folder_id,
+        ct.preview_image_url,
+        ct.background_image_url
+      FROM formation_templates ft
+      JOIN certificate_templates ct ON ft.template_id = ct.id
+      WHERE ft.formation_id = $1
+      ORDER BY ft.is_default DESC, ft.created_at ASC
+    `;
+
+    const result = await pool.query(query, [id]);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching formation templates:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/formations/:id/templates - Ajoute des templates à une formation
+router.post('/:id/templates', async (req, res) => {
+  try {
+    const { id: formation_id } = req.params;
+    const { template_ids, document_type = 'certificat' } = req.body;
+
+    // Validation
+    if (!template_ids || !Array.isArray(template_ids) || template_ids.length === 0) {
+      return res.status(400).json({ error: 'template_ids doit être un tableau non vide' });
+    }
+
+    if (!['certificat', 'attestation', 'diplome', 'autre'].includes(document_type)) {
+      return res.status(400).json({ error: 'document_type invalide' });
+    }
+
+    // Vérifier si la formation existe
+    const formationCheck = await pool.query(
+      'SELECT id FROM formations WHERE id = $1',
+      [formation_id]
+    );
+
+    if (formationCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Formation non trouvée' });
+    }
+
+    // Vérifier si c'est le premier template (sera is_default)
+    const existingTemplatesQuery = await pool.query(
+      'SELECT COUNT(*) as count FROM formation_templates WHERE formation_id = $1',
+      [formation_id]
+    );
+    const isFirstTemplate = parseInt(existingTemplatesQuery.rows[0].count) === 0;
+
+    // Insérer les templates
+    const insertedTemplates = [];
+    for (let i = 0; i < template_ids.length; i++) {
+      const template_id = template_ids[i];
+      const is_default = isFirstTemplate && i === 0; // Le premier template du premier batch est default
+
+      try {
+        const insertQuery = `
+          INSERT INTO formation_templates (id, formation_id, template_id, document_type, is_default)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (formation_id, template_id, document_type) DO UPDATE
+          SET is_default = EXCLUDED.is_default
+          RETURNING *
+        `;
+
+        const result = await pool.query(insertQuery, [
+          nanoid(),
+          formation_id,
+          template_id,
+          document_type,
+          is_default
+        ]);
+
+        insertedTemplates.push(result.rows[0]);
+      } catch (err) {
+        console.error(`Error inserting template ${template_id}:`, err);
+        // Continue with other templates
+      }
+    }
+
+    // Mettre à jour le champ legacy certificate_template_id avec le premier template default
+    if (insertedTemplates.some(t => t.is_default)) {
+      const defaultTemplate = insertedTemplates.find(t => t.is_default);
+      await pool.query(
+        'UPDATE formations SET certificate_template_id = $1 WHERE id = $2',
+        [defaultTemplate.template_id, formation_id]
+      );
+    }
+
+    res.json({ success: true, templates: insertedTemplates });
+  } catch (error) {
+    console.error('Error adding formation templates:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/formations/:id/templates/:templateId - Supprime un template d'une formation
+router.delete('/:id/templates/:templateId', async (req, res) => {
+  try {
+    const { id: formation_id, templateId: template_id } = req.params;
+
+    // Vérifier si le template est le default
+    const checkQuery = await pool.query(
+      'SELECT is_default FROM formation_templates WHERE formation_id = $1 AND template_id = $2',
+      [formation_id, template_id]
+    );
+
+    if (checkQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'Association template-formation non trouvée' });
+    }
+
+    const wasDefault = checkQuery.rows[0].is_default;
+
+    // Supprimer l'association
+    await pool.query(
+      'DELETE FROM formation_templates WHERE formation_id = $1 AND template_id = $2',
+      [formation_id, template_id]
+    );
+
+    // Si c'était le default, promouvoir le prochain template
+    if (wasDefault) {
+      const nextTemplateQuery = await pool.query(
+        'SELECT template_id FROM formation_templates WHERE formation_id = $1 ORDER BY created_at ASC LIMIT 1',
+        [formation_id]
+      );
+
+      if (nextTemplateQuery.rows.length > 0) {
+        const new_default_id = nextTemplateQuery.rows[0].template_id;
+
+        // Mettre à jour le nouveau default
+        await pool.query(
+          'UPDATE formation_templates SET is_default = true WHERE formation_id = $1 AND template_id = $2',
+          [formation_id, new_default_id]
+        );
+
+        // Mettre à jour le champ legacy
+        await pool.query(
+          'UPDATE formations SET certificate_template_id = $1 WHERE id = $2',
+          [new_default_id, formation_id]
+        );
+      } else {
+        // Aucun template restant, clear le champ legacy
+        await pool.query(
+          'UPDATE formations SET certificate_template_id = NULL WHERE id = $1',
+          [formation_id]
+        );
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error removing formation template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/formations/:id/templates/:templateId/default - Définit un template comme default
+router.put('/:id/templates/:templateId/default', async (req, res) => {
+  try {
+    const { id: formation_id, templateId: template_id } = req.params;
+
+    // Vérifier que l'association existe
+    const checkQuery = await pool.query(
+      'SELECT id FROM formation_templates WHERE formation_id = $1 AND template_id = $2',
+      [formation_id, template_id]
+    );
+
+    if (checkQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'Association template-formation non trouvée' });
+    }
+
+    // Retirer is_default de tous les templates de cette formation
+    await pool.query(
+      'UPDATE formation_templates SET is_default = false WHERE formation_id = $1',
+      [formation_id]
+    );
+
+    // Définir le nouveau default
+    await pool.query(
+      'UPDATE formation_templates SET is_default = true WHERE formation_id = $1 AND template_id = $2',
+      [formation_id, template_id]
+    );
+
+    // Mettre à jour le champ legacy
+    await pool.query(
+      'UPDATE formations SET certificate_template_id = $1 WHERE id = $2',
+      [template_id, formation_id]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error setting default template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
