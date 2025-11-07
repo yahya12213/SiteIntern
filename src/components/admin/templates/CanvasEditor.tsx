@@ -353,7 +353,12 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => onElementSelect(null)}
+          onClick={(e) => {
+            // Only deselect if clicking directly on canvas background, not on children
+            if (e.target === e.currentTarget) {
+              onElementSelect(null);
+            }
+          }}
         >
           {/* Message si vide */}
           {elements.length === 0 && (
