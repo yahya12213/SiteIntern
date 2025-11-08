@@ -335,6 +335,9 @@ export const SessionDetail: React.FC = () => {
                             Formation
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Prix Formation
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Remise
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -348,6 +351,9 @@ export const SessionDetail: React.FC = () => {
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Montant Payé
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Reste à Payer
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Actions
@@ -370,7 +376,7 @@ export const SessionDetail: React.FC = () => {
                                   <img
                                     src={getImageUrl(etudiant.profile_image_url)}
                                     alt={etudiant.student_name}
-                                    className="h-10 w-10 rounded-full object-cover border-2 border-gray-200"
+                                    className="h-12 w-12 rounded-full object-cover border-3 border-gray-300 shadow-sm"
                                     onError={(e) => {
                                       // Si l'image ne charge pas, afficher les initiales
                                       (e.target as HTMLImageElement).style.display = 'none';
@@ -378,7 +384,7 @@ export const SessionDetail: React.FC = () => {
                                   />
                                 ) : null}
                                 {!etudiant.profile_image_url && (
-                                  <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold text-sm border-2 border-blue-200">
+                                  <div className="h-12 w-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold text-base border-3 border-blue-300 shadow-sm">
                                     {initials}
                                   </div>
                                 )}
@@ -386,6 +392,11 @@ export const SessionDetail: React.FC = () => {
 
                               <td className="px-4 py-3 text-sm text-gray-900">{etudiant.student_name}</td>
                               <td className="px-4 py-3 text-sm text-blue-600 font-medium">{etudiant.formation_title || '-'}</td>
+
+                              {/* Prix Formation */}
+                              <td className="px-4 py-3 text-sm font-semibold text-indigo-600">
+                                {parseFloat(etudiant.montant_total?.toString() || '0').toFixed(2)} DH
+                              </td>
 
                               {/* Remise */}
                               <td className="px-4 py-3">
@@ -433,6 +444,21 @@ export const SessionDetail: React.FC = () => {
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-900">
                                 {parseFloat(etudiant.montant_paye?.toString() || '0').toFixed(2)} DH
+                              </td>
+
+                              {/* Reste à Payer */}
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`text-sm font-semibold ${
+                                    parseFloat(etudiant.montant_du?.toString() || '0') === 0
+                                      ? 'text-green-600'
+                                      : parseFloat(etudiant.montant_du?.toString() || '0') === parseFloat(etudiant.montant_total?.toString() || '0')
+                                      ? 'text-red-600'
+                                      : 'text-orange-600'
+                                  }`}
+                                >
+                                  {parseFloat(etudiant.montant_du?.toString() || '0').toFixed(2)} DH
+                                </span>
                               </td>
 
                               {/* Actions */}
