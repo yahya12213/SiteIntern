@@ -34,7 +34,7 @@ export const DiscountModal: React.FC<DiscountModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Calculer le prix original (avant remise)
-  const originalPrice = student.montant_total + (student.discount_amount || 0);
+  const originalPrice = parseFloat(student.montant_total?.toString() || '0') + parseFloat(student.discount_amount?.toString() || '0');
 
   // Calculer le nouveau prix après la remise saisie
   const newDiscountAmount = parseFloat(formData.discount_amount) || 0;
