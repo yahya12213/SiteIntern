@@ -145,16 +145,29 @@ if (!fs.existsSync(distPath)) {
   }
 }
 
-// Serve uploaded files (backgrounds, fonts)
-const uploadsPath = path.join(__dirname, '../uploads');
+// Serve uploaded files (backgrounds, fonts, student photos)
+// Use UPLOADS_PATH env variable if set (for Railway persistent volume)
+// Otherwise use local directory (for development)
+const uploadsPath = process.env.UPLOADS_PATH || path.join(__dirname, '../uploads');
 console.log('📁 Uploads path:', uploadsPath);
 console.log('📂 Uploads exists?', fs.existsSync(uploadsPath));
+console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
 
 // Create uploads directory if it doesn't exist
 if (!fs.existsSync(uploadsPath)) {
   fs.mkdirSync(uploadsPath, { recursive: true });
   console.log('📁 Created uploads directory');
 }
+
+// Ensure subdirectories exist
+const subdirs = ['profiles', 'backgrounds', 'fonts'];
+subdirs.forEach(subdir => {
+  const subdirPath = path.join(uploadsPath, subdir);
+  if (!fs.existsSync(subdirPath)) {
+    fs.mkdirSync(subdirPath, { recursive: true });
+    console.log(`📁 Created ${subdir} subdirectory`);
+  }
+});
 
 app.use('/uploads', express.static(uploadsPath));
 

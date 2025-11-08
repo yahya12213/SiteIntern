@@ -5,6 +5,7 @@ import { useSessionFormation } from '@/hooks/useSessionsFormation';
 import { AddStudentToSessionModal } from '@/components/admin/sessions-formation/AddStudentToSessionModal';
 import { EditStudentModal } from '@/components/admin/sessions-formation/EditStudentModal';
 import { DiscountModal } from '@/components/admin/sessions-formation/DiscountModal';
+import { ImageCropperModal } from '@/components/admin/students/ImageCropperModal';
 import { apiClient } from '@/lib/api/client';
 import {
   Calendar,
@@ -33,6 +34,7 @@ export const SessionDetail: React.FC = () => {
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [showEditStudentModal, setShowEditStudentModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [showCropModal, setShowCropModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
@@ -381,13 +383,23 @@ export const SessionDetail: React.FC = () => {
                                     <img
                                       src={getImageUrl(etudiant.profile_image_url)}
                                       alt={etudiant.student_name}
-                                      className="h-12 w-12 rounded-full object-cover border-3 border-gray-300 shadow-sm"
+                                      className="h-20 w-20 rounded-full object-cover border-3 border-gray-300 shadow-sm cursor-pointer hover:border-blue-500 transition-all"
+                                      onClick={() => {
+                                        setSelectedStudent(etudiant);
+                                        setShowCropModal(true);
+                                      }}
                                       onError={() => {
                                         setImageErrors(prev => new Set(prev).add(etudiant.id));
                                       }}
                                     />
                                   ) : (
-                                    <div className="h-12 w-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold text-base border-3 border-blue-300 shadow-sm">
+                                    <div
+                                      className="h-20 w-20 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold text-xl border-3 border-blue-300 shadow-sm cursor-pointer hover:border-blue-500 transition-all"
+                                      onClick={() => {
+                                        setSelectedStudent(etudiant);
+                                        setShowCropModal(true);
+                                      }}
+                                    >
                                       {initials}
                                     </div>
                                   );
@@ -706,6 +718,23 @@ export const SessionDetail: React.FC = () => {
             refetch();
             setShowDiscountModal(false);
             setSelectedStudent(null);
+          }}
+        />
+      )}
+
+      {/* Image Cropper Modal */}
+      {showCropModal && selectedStudent && (
+        <ImageCropperModal
+          student={selectedStudent}
+          onClose={() => {
+            setShowCropModal(false);
+            setSelectedStudent(null);
+          }}
+          onSuccess={() => {
+            refetch();
+            setShowCropModal(false);
+            setSelectedStudent(null);
+            setImageErrors(new Set()); // Reset image errors after successful upload
           }}
         />
       )}
