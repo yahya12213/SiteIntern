@@ -194,7 +194,6 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
       await apiClient.post(`/sessions-formation/${sessionId}/etudiants`, {
         student_id: studentId,
         formation_id: formData.formation_id,
-        montant_total: formationPrice,
         montant_paye: parseFloat(formData.avance),
         numero_bon: formData.numero_bon.trim(),
         discount_percentage: discountPct,

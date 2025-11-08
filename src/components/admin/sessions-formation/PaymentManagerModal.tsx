@@ -14,6 +14,8 @@ interface PaymentManagerModalProps {
     montant_paye: number;
     montant_du: number;
     statut_paiement: 'paye' | 'partiellement_paye' | 'impaye';
+    formation_original_price?: number;
+    discount_percentage?: number;
   };
   sessionId: string;
   onClose: () => void;
@@ -167,9 +169,28 @@ export const PaymentManagerModal: React.FC<PaymentManagerModalProps> = ({
           {/* Totals Summary */}
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
             <h3 className="text-sm font-medium text-gray-700 mb-4">Récapitulatif</h3>
+
+            {/* Show original price and discount if available */}
+            {student.formation_original_price && student.discount_percentage && parseFloat(student.discount_percentage.toString()) > 0 && (
+              <div className="mb-4 pb-4 border-b border-blue-200">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Prix formation original:</span>
+                  <span className="font-semibold text-gray-900">{parseFloat(student.formation_original_price.toString()).toFixed(2)} DH</span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-1">
+                  <span className="text-gray-600">Remise:</span>
+                  <span className="font-semibold text-green-600">-{parseFloat(student.discount_percentage.toString()).toFixed(1)}%</span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-1 pt-2 border-t border-blue-200">
+                  <span className="text-gray-600">Prix après remise:</span>
+                  <span className="font-bold text-indigo-600">{totals.montant_total.toFixed(2)} DH</span>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <p className="text-xs text-gray-600 mb-1">Montant Total</p>
+                <p className="text-xs text-gray-600 mb-1">Montant à Payer</p>
                 <p className="text-2xl font-bold text-gray-900">{totals.montant_total.toFixed(2)} DH</p>
               </div>
               <div>
@@ -178,7 +199,7 @@ export const PaymentManagerModal: React.FC<PaymentManagerModalProps> = ({
               </div>
               <div>
                 <p className="text-xs text-gray-600 mb-1">Reste à Payer</p>
-                <p className={`text-2xl font-bold ${totals.montant_du === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-2xl font-bold ${totals.montant_du === 0 ? 'text-green-600' : totals.montant_du < 0 ? 'text-red-600' : 'text-orange-600'}`}>
                   {totals.montant_du.toFixed(2)} DH
                 </p>
               </div>

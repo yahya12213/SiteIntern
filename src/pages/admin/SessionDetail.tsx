@@ -412,8 +412,23 @@ export const SessionDetail: React.FC = () => {
                               <td className="px-4 py-3 text-sm text-blue-600 font-medium">{etudiant.formation_title || '-'}</td>
 
                               {/* Prix Formation */}
-                              <td className="px-4 py-3 text-sm font-semibold text-indigo-600">
-                                {parseFloat(etudiant.montant_total?.toString() || '0').toFixed(2)} DH
+                              <td className="px-4 py-3 text-sm">
+                                {etudiant.formation_original_price && parseFloat(etudiant.formation_original_price.toString()) > 0 ? (
+                                  <div>
+                                    <div className="font-semibold text-gray-900">
+                                      {parseFloat(etudiant.formation_original_price.toString()).toFixed(2)} DH
+                                    </div>
+                                    {etudiant.discount_percentage && parseFloat(etudiant.discount_percentage.toString()) > 0 && (
+                                      <div className="text-xs text-green-600 mt-0.5">
+                                        Après remise: {parseFloat(etudiant.montant_total?.toString() || '0').toFixed(2)} DH
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="font-semibold text-indigo-600">
+                                    {parseFloat(etudiant.montant_total?.toString() || '0').toFixed(2)} DH
+                                  </div>
+                                )}
                               </td>
 
                               {/* Remise */}
