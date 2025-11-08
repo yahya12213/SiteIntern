@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useSessionFormation } from '@/hooks/useSessionsFormation';
 import { AddStudentToSessionModal } from '@/components/admin/sessions-formation/AddStudentToSessionModal';
+import { EditStudentModal } from '@/components/admin/sessions-formation/EditStudentModal';
+import { DiscountModal } from '@/components/admin/sessions-formation/DiscountModal';
 import {
   Calendar,
   MapPin,
@@ -14,6 +16,12 @@ import {
   ClipboardList,
   ArrowLeft,
   AlertCircle,
+  MoreVertical,
+  Edit,
+  Receipt,
+  Tag,
+  Award,
+  Trash2,
 } from 'lucide-react';
 
 export const SessionDetail: React.FC = () => {
@@ -22,6 +30,10 @@ export const SessionDetail: React.FC = () => {
   const { data: session, isLoading, error, refetch } = useSessionFormation(id);
   const [activeTab, setActiveTab] = useState<'etudiants' | 'profs' | 'tests' | 'presences'>('etudiants');
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [showEditStudentModal, setShowEditStudentModal] = useState(false);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -261,6 +273,9 @@ export const SessionDetail: React.FC = () => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Photo
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Nom
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -278,35 +293,140 @@ export const SessionDetail: React.FC = () => {
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Montant Payé
                           </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Actions
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {session.etudiants.map((etudiant) => (
-                          <tr key={etudiant.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm text-gray-900">{etudiant.student_name}</td>
-                            <td className="px-4 py-3 text-sm text-blue-600 font-medium">{etudiant.formation_title || '-'}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{etudiant.student_cin}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{etudiant.student_phone}</td>
-                            <td className="px-4 py-3">
-                              <span
-                                className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                  etudiant.statut_paiement === 'paye'
-                                    ? 'bg-green-100 text-green-800'
-                                    : etudiant.statut_paiement === 'partiellement_paye'
-                                    ? 'bg-yellow-100 text-yellow-800'
-                                    : 'bg-red-100 text-red-800'
-                                }`}
-                              >
-                                {etudiant.statut_paiement === 'paye' && 'Payé'}
-                                {etudiant.statut_paiement === 'partiellement_paye' && 'Partiellement'}
-                                {etudiant.statut_paiement === 'impaye' && 'Impayé'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-900">
-                              {parseFloat(etudiant.montant_paye?.toString() || '0').toFixed(2)} DH
-                            </td>
-                          </tr>
-                        ))}
+                        {session.etudiants.map((etudiant) => {
+                          const initials = etudiant.student_name
+                            ?.split(' ')
+                            .map(n => n[0])
+                            .join('')
+                            .toUpperCase() || '??';
+
+                          return (
+                            <tr key={etudiant.id} className="hover:bg-gray-50">
+                              {/* Photo */}
+                              <td className="px-4 py-3">
+                                {etudiant.profile_image_url ? (
+                                  <img
+                                    src={etudiant.profile_image_url}
+                                    alt={etudiant.student_name}
+                                    className="h-10 w-10 rounded-full object-cover border-2 border-gray-200"
+                                  />
+                                ) : (
+                                  <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold text-sm border-2 border-blue-200">
+                                    {initials}
+                                  </div>
+                                )}
+                              </td>
+
+                              <td className="px-4 py-3 text-sm text-gray-900">{etudiant.student_name}</td>
+                              <td className="px-4 py-3 text-sm text-blue-600 font-medium">{etudiant.formation_title || '-'}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600">{etudiant.student_cin}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600">{etudiant.student_phone}</td>
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                    etudiant.statut_paiement === 'paye'
+                                      ? 'bg-green-100 text-green-800'
+                                      : etudiant.statut_paiement === 'partiellement_paye'
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : 'bg-red-100 text-red-800'
+                                  }`}
+                                >
+                                  {etudiant.statut_paiement === 'paye' && 'Payé'}
+                                  {etudiant.statut_paiement === 'partiellement_paye' && 'Partiellement'}
+                                  {etudiant.statut_paiement === 'impaye' && 'Impayé'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-900">
+                                {parseFloat(etudiant.montant_paye?.toString() || '0').toFixed(2)} DH
+                              </td>
+
+                              {/* Actions */}
+                              <td className="px-4 py-3 relative">
+                                <button
+                                  onClick={() => setOpenMenuId(openMenuId === etudiant.id ? null : etudiant.id)}
+                                  className="p-1 hover:bg-gray-100 rounded transition-colors"
+                                >
+                                  <MoreVertical className="h-5 w-5 text-gray-600" />
+                                </button>
+
+                                {openMenuId === etudiant.id && (
+                                  <>
+                                    <div
+                                      className="fixed inset-0 z-10"
+                                      onClick={() => setOpenMenuId(null)}
+                                    />
+                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedStudent(etudiant);
+                                          setShowEditStudentModal(true);
+                                          setOpenMenuId(null);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                        Modifier
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          setSelectedStudent(etudiant);
+                                          setShowDiscountModal(true);
+                                          setOpenMenuId(null);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                      >
+                                        <Tag className="h-4 w-4" />
+                                        Remise
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          // TODO: Open payment manager
+                                          setOpenMenuId(null);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                      >
+                                        <Receipt className="h-4 w-4" />
+                                        Paiements
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          // TODO: Generate certificate
+                                          setOpenMenuId(null);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                      >
+                                        <Award className="h-4 w-4" />
+                                        Certificat
+                                      </button>
+
+                                      <div className="border-t border-gray-200 my-1" />
+
+                                      <button
+                                        onClick={() => {
+                                          // TODO: Delete student
+                                          setOpenMenuId(null);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                        Supprimer
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -434,6 +554,39 @@ export const SessionDetail: React.FC = () => {
           onSuccess={() => {
             refetch();
             setShowAddStudentModal(false);
+          }}
+        />
+      )}
+
+      {/* Edit Student Modal */}
+      {showEditStudentModal && selectedStudent && (
+        <EditStudentModal
+          student={selectedStudent}
+          onClose={() => {
+            setShowEditStudentModal(false);
+            setSelectedStudent(null);
+          }}
+          onSuccess={() => {
+            refetch();
+            setShowEditStudentModal(false);
+            setSelectedStudent(null);
+          }}
+        />
+      )}
+
+      {/* Discount Modal */}
+      {showDiscountModal && selectedStudent && session && (
+        <DiscountModal
+          student={selectedStudent}
+          sessionId={session.id}
+          onClose={() => {
+            setShowDiscountModal(false);
+            setSelectedStudent(null);
+          }}
+          onSuccess={() => {
+            refetch();
+            setShowDiscountModal(false);
+            setSelectedStudent(null);
           }}
         />
       )}

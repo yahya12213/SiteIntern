@@ -48,6 +48,8 @@ export interface SessionEtudiant {
   montant_total: number | string;
   montant_paye: number | string;
   montant_du: number | string;
+  discount_amount?: number | string;
+  discount_reason?: string;
   date_inscription: string;
   created_at: string;
   updated_at: string;
@@ -57,6 +59,7 @@ export interface SessionEtudiant {
   student_email?: string;
   student_phone?: string;
   student_cin?: string;
+  profile_image_url?: string;
 
   // Données de la formation (JOIN)
   formation_title?: string;

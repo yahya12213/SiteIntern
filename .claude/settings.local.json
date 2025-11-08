@@ -34,7 +34,8 @@
       "Bash(if [ -d \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\uploads\\backgrounds\" ])",
       "Bash(then ls -la \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\uploads\\backgrounds\")",
       "Bash(else dir \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\uploads\\backgrounds\" /a)",
-      "Bash(npm run db:schema:*)"
+      "Bash(npm run db:schema:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

@@ -152,4 +152,84 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+/**
+ * Update student by ID
+ * PUT /api/students/:id
+ * Accepts multipart/form-data with optional profile_image file
+ */
+router.put('/:id', uploadProfileImage, async (req, res) => {
+  const { id } = req.params;
+  const {
+    nom,
+    prenom,
+    cin,
+    email,
+    phone,
+    whatsapp,
+    date_naissance,
+    lieu_naissance,
+    adresse,
+    statut_compte,
+  } = req.body;
+
+  try {
+    // Check if student exists
+    const existingStudent = await pool.query('SELECT id, profile_image_url FROM students WHERE id = $1', [id]);
+
+    if (existingStudent.rows.length === 0) {
+      return res.status(404).json({ error: 'Étudiant non trouvé' });
+    }
+
+    // Handle profile image upload
+    let profile_image_url = existingStudent.rows[0].profile_image_url;
+    if (req.file) {
+      // Generate URL relative to server uploads directory
+      profile_image_url = `/uploads/profiles/${req.file.filename}`;
+
+      // TODO: Delete old profile image if exists
+    }
+
+    const result = await pool.query(
+      `UPDATE students SET
+        nom = COALESCE($1, nom),
+        prenom = COALESCE($2, prenom),
+        cin = COALESCE($3, cin),
+        email = COALESCE($4, email),
+        phone = COALESCE($5, phone),
+        whatsapp = COALESCE($6, whatsapp),
+        date_naissance = COALESCE($7, date_naissance),
+        lieu_naissance = COALESCE($8, lieu_naissance),
+        adresse = COALESCE($9, adresse),
+        statut_compte = COALESCE($10, statut_compte),
+        profile_image_url = COALESCE($11, profile_image_url),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $12
+      RETURNING *`,
+      [
+        nom || null,
+        prenom || null,
+        cin || null,
+        email || null,
+        phone || null,
+        whatsapp || null,
+        date_naissance || null,
+        lieu_naissance || null,
+        adresse || null,
+        statut_compte || null,
+        req.file ? profile_image_url : null,
+        id,
+      ]
+    );
+
+    res.json({
+      success: true,
+      student: result.rows[0],
+      message: 'Étudiant mis à jour avec succès',
+    });
+  } catch (error) {
+    console.error('Error updating student:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'étudiant', details: error.message });
+  }
+});
+
 export default router;

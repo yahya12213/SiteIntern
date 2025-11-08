@@ -511,13 +511,13 @@ router.post('/:id/etudiants', async (req, res) => {
 router.put('/:sessionId/etudiants/:etudiantId', async (req, res) => {
   try {
     const { sessionId, etudiantId } = req.params;
-    const { statut_paiement, montant_paye } = req.body;
+    const { statut_paiement, montant_paye, discount_amount, discount_reason } = req.body;
 
     const now = new Date().toISOString();
 
-    // Récupérer montant_total
+    // Récupérer montant_total et discount actuel
     const currentResult = await pool.query(
-      'SELECT montant_total FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
+      'SELECT montant_total, discount_amount FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
       [sessionId, etudiantId]
     );
 
@@ -528,7 +528,18 @@ router.put('/:sessionId/etudiants/:etudiantId', async (req, res) => {
       });
     }
 
-    const montant_total = parseFloat(currentResult.rows[0].montant_total);
+    let montant_total = parseFloat(currentResult.rows[0].montant_total);
+    const current_discount = parseFloat(currentResult.rows[0].discount_amount) || 0;
+
+    // Si une remise est fournie, recalculer le montant_total
+    let new_discount = discount_amount !== undefined ? parseFloat(discount_amount) : null;
+    if (new_discount !== null) {
+      // Recalculer le prix original (avant remise)
+      const original_price = montant_total + current_discount;
+      // Appliquer la nouvelle remise
+      montant_total = original_price - new_discount;
+    }
+
     const new_montant_paye = montant_paye !== undefined ? parseFloat(montant_paye) : null;
     const montant_du = new_montant_paye !== null ? montant_total - new_montant_paye : null;
 
@@ -550,12 +561,25 @@ router.put('/:sessionId/etudiants/:etudiantId', async (req, res) => {
         statut_paiement = COALESCE($1, statut_paiement),
         montant_paye = COALESCE($2, montant_paye),
         montant_du = COALESCE($3, montant_du),
-        updated_at = $4
-      WHERE session_id = $5 AND student_id = $6
+        discount_amount = COALESCE($4, discount_amount),
+        discount_reason = COALESCE($5, discount_reason),
+        montant_total = COALESCE($6, montant_total),
+        updated_at = $7
+      WHERE session_id = $8 AND student_id = $9
       RETURNING *
     `;
 
-    const values = [new_statut, new_montant_paye, montant_du, now, sessionId, etudiantId];
+    const values = [
+      new_statut,
+      new_montant_paye,
+      montant_du,
+      new_discount,
+      discount_reason,
+      new_discount !== null ? montant_total : null,
+      now,
+      sessionId,
+      etudiantId
+    ];
     const result = await pool.query(query, values);
 
     res.json({
