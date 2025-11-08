@@ -35,6 +35,7 @@ export const SessionDetail: React.FC = () => {
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
   const handleGenerateCertificate = async (etudiant: any) => {
     if (!etudiant.formation_id) {
@@ -372,22 +373,25 @@ export const SessionDetail: React.FC = () => {
                             <tr key={etudiant.id} className="hover:bg-gray-50">
                               {/* Photo */}
                               <td className="px-4 py-3">
-                                {etudiant.profile_image_url ? (
-                                  <img
-                                    src={getImageUrl(etudiant.profile_image_url)}
-                                    alt={etudiant.student_name}
-                                    className="h-12 w-12 rounded-full object-cover border-3 border-gray-300 shadow-sm"
-                                    onError={(e) => {
-                                      // Si l'image ne charge pas, afficher les initiales
-                                      (e.target as HTMLImageElement).style.display = 'none';
-                                    }}
-                                  />
-                                ) : null}
-                                {!etudiant.profile_image_url && (
-                                  <div className="h-12 w-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold text-base border-3 border-blue-300 shadow-sm">
-                                    {initials}
-                                  </div>
-                                )}
+                                {(() => {
+                                  const hasImageError = imageErrors.has(etudiant.id);
+                                  const shouldShowImage = etudiant.profile_image_url && !hasImageError;
+
+                                  return shouldShowImage ? (
+                                    <img
+                                      src={getImageUrl(etudiant.profile_image_url)}
+                                      alt={etudiant.student_name}
+                                      className="h-12 w-12 rounded-full object-cover border-3 border-gray-300 shadow-sm"
+                                      onError={() => {
+                                        setImageErrors(prev => new Set(prev).add(etudiant.id));
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="h-12 w-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold text-base border-3 border-blue-300 shadow-sm">
+                                      {initials}
+                                    </div>
+                                  );
+                                })()}
                               </td>
 
                               <td className="px-4 py-3 text-sm text-gray-900">{etudiant.student_name}</td>
