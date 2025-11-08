@@ -49,16 +49,16 @@ router.post('/generate', async (req, res) => {
 
     // Si pas de template_id fourni, essayer de le récupérer
     if (!finalTemplateId) {
-      // 1. Essayer de récupérer le template par défaut de la formation
+      // 1. Essayer de récupérer le template de la formation
       const formationResult = await pool.query(
-        'SELECT default_certificate_template_id FROM formations WHERE id = $1',
+        'SELECT certificate_template_id FROM formations WHERE id = $1',
         [formation_id]
       );
 
-      if (formationResult.rows.length > 0 && formationResult.rows[0].default_certificate_template_id) {
-        finalTemplateId = formationResult.rows[0].default_certificate_template_id;
+      if (formationResult.rows.length > 0 && formationResult.rows[0].certificate_template_id) {
+        finalTemplateId = formationResult.rows[0].certificate_template_id;
       } else {
-        // 2. Si pas de template par défaut, prendre le premier template disponible
+        // 2. Si pas de template, prendre le premier template disponible
         const templatesResult = await pool.query(
           'SELECT id FROM certificate_templates ORDER BY created_at ASC LIMIT 1'
         );
