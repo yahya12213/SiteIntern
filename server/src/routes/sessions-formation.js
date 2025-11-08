@@ -851,4 +851,253 @@ router.delete('/fichiers/:fichierId', async (req, res) => {
   }
 });
 
+// ============================================
+// ROUTES DE PAIEMENTS DES ÉTUDIANTS
+// ============================================
+
+/**
+ * POST /api/sessions-formation/:sessionId/etudiants/:studentId/paiements
+ * Enregistrer un nouveau paiement pour un étudiant
+ */
+router.post('/:sessionId/etudiants/:studentId/paiements', async (req, res) => {
+  try {
+    const { sessionId, studentId } = req.params;
+    const { amount, payment_date, payment_method, reference_number, note } = req.body;
+
+    // Validation des données
+    if (!amount || parseFloat(amount) <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Le montant du paiement doit être supérieur à zéro'
+      });
+    }
+
+    const validMethods = ['especes', 'virement', 'cheque', 'carte', 'autre'];
+    if (!payment_method || !validMethods.includes(payment_method)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Méthode de paiement invalide'
+      });
+    }
+
+    // Récupérer l'enregistrement session_etudiant
+    const sessionEtudiantResult = await pool.query(
+      'SELECT * FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
+      [sessionId, studentId]
+    );
+
+    if (sessionEtudiantResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Étudiant non trouvé dans cette session'
+      });
+    }
+
+    const sessionEtudiant = sessionEtudiantResult.rows[0];
+
+    // Vérifier que le paiement ne dépasse pas le montant restant dû
+    const montantDu = parseFloat(sessionEtudiant.montant_du || 0);
+    if (parseFloat(amount) > montantDu) {
+      return res.status(400).json({
+        success: false,
+        error: `Le montant du paiement (${amount} DH) dépasse le montant restant dû (${montantDu.toFixed(2)} DH)`
+      });
+    }
+
+    // Créer le paiement
+    const paymentResult = await pool.query(
+      `INSERT INTO student_payments (
+        session_etudiant_id,
+        amount,
+        payment_date,
+        payment_method,
+        reference_number,
+        note
+      ) VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *`,
+      [
+        sessionEtudiant.id,
+        amount,
+        payment_date || new Date().toISOString().split('T')[0],
+        payment_method,
+        reference_number || null,
+        note || null
+      ]
+    );
+
+    const payment = paymentResult.rows[0];
+
+    // Mettre à jour montant_paye et statut_paiement dans session_etudiants
+    const newMontantPaye = parseFloat(sessionEtudiant.montant_paye || 0) + parseFloat(amount);
+    const newMontantDu = parseFloat(sessionEtudiant.montant_total || 0) - newMontantPaye;
+
+    let newStatutPaiement = 'impaye';
+    if (newMontantPaye >= parseFloat(sessionEtudiant.montant_total || 0)) {
+      newStatutPaiement = 'paye';
+    } else if (newMontantPaye > 0) {
+      newStatutPaiement = 'partiellement_paye';
+    }
+
+    await pool.query(
+      `UPDATE session_etudiants
+       SET montant_paye = $1,
+           montant_du = $2,
+           statut_paiement = $3,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4`,
+      [newMontantPaye, newMontantDu, newStatutPaiement, sessionEtudiant.id]
+    );
+
+    res.status(201).json({
+      success: true,
+      payment,
+      updated_totals: {
+        montant_paye: newMontantPaye,
+        montant_du: newMontantDu,
+        statut_paiement: newStatutPaiement
+      }
+    });
+
+  } catch (error) {
+    console.error('Error recording payment:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/sessions-formation/:sessionId/etudiants/:studentId/paiements
+ * Récupérer l'historique des paiements d'un étudiant
+ */
+router.get('/:sessionId/etudiants/:studentId/paiements', async (req, res) => {
+  try {
+    const { sessionId, studentId } = req.params;
+
+    // Récupérer l'enregistrement session_etudiant
+    const sessionEtudiantResult = await pool.query(
+      'SELECT * FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
+      [sessionId, studentId]
+    );
+
+    if (sessionEtudiantResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Étudiant non trouvé dans cette session'
+      });
+    }
+
+    const sessionEtudiant = sessionEtudiantResult.rows[0];
+
+    // Récupérer tous les paiements
+    const paymentsResult = await pool.query(
+      `SELECT * FROM student_payments
+       WHERE session_etudiant_id = $1
+       ORDER BY payment_date DESC, created_at DESC`,
+      [sessionEtudiant.id]
+    );
+
+    res.json({
+      success: true,
+      payments: paymentsResult.rows,
+      totals: {
+        montant_total: parseFloat(sessionEtudiant.montant_total || 0),
+        montant_paye: parseFloat(sessionEtudiant.montant_paye || 0),
+        montant_du: parseFloat(sessionEtudiant.montant_du || 0),
+        statut_paiement: sessionEtudiant.statut_paiement
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching payments:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/sessions-formation/:sessionId/etudiants/:studentId/paiements/:paymentId
+ * Annuler/Supprimer un paiement
+ */
+router.delete('/:sessionId/etudiants/:studentId/paiements/:paymentId', async (req, res) => {
+  try {
+    const { sessionId, studentId, paymentId } = req.params;
+
+    // Récupérer l'enregistrement session_etudiant
+    const sessionEtudiantResult = await pool.query(
+      'SELECT * FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
+      [sessionId, studentId]
+    );
+
+    if (sessionEtudiantResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Étudiant non trouvé dans cette session'
+      });
+    }
+
+    const sessionEtudiant = sessionEtudiantResult.rows[0];
+
+    // Récupérer le paiement à supprimer
+    const paymentResult = await pool.query(
+      'SELECT * FROM student_payments WHERE id = $1 AND session_etudiant_id = $2',
+      [paymentId, sessionEtudiant.id]
+    );
+
+    if (paymentResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Paiement non trouvé'
+      });
+    }
+
+    const payment = paymentResult.rows[0];
+    const paymentAmount = parseFloat(payment.amount);
+
+    // Supprimer le paiement
+    await pool.query('DELETE FROM student_payments WHERE id = $1', [paymentId]);
+
+    // Mettre à jour montant_paye et statut_paiement dans session_etudiants
+    const newMontantPaye = parseFloat(sessionEtudiant.montant_paye || 0) - paymentAmount;
+    const newMontantDu = parseFloat(sessionEtudiant.montant_total || 0) - newMontantPaye;
+
+    let newStatutPaiement = 'impaye';
+    if (newMontantPaye >= parseFloat(sessionEtudiant.montant_total || 0)) {
+      newStatutPaiement = 'paye';
+    } else if (newMontantPaye > 0) {
+      newStatutPaiement = 'partiellement_paye';
+    }
+
+    await pool.query(
+      `UPDATE session_etudiants
+       SET montant_paye = $1,
+           montant_du = $2,
+           statut_paiement = $3,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4`,
+      [newMontantPaye, newMontantDu, newStatutPaiement, sessionEtudiant.id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Paiement annulé avec succès',
+      updated_totals: {
+        montant_paye: newMontantPaye,
+        montant_du: newMontantDu,
+        statut_paiement: newStatutPaiement
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting payment:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

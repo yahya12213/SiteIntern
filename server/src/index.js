@@ -52,6 +52,7 @@ import migration022Router from './routes/migration-022-add-discount-to-session-e
 import migration023Router from './routes/migration-023-fix-certificates-fk.js';
 import migration024Router from './routes/migration-024-seed-certificate-templates.js';
 import migration025Router from './routes/migration-025-add-discount-percentage.js';
+import migration026Router from './routes/migration-026-create-student-payments.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 
@@ -110,6 +111,7 @@ app.use('/api/migration-022', migration022Router); // Migration 022 - Add discou
 app.use('/api/migration-023', migration023Router); // Migration 023 - Fix certificates foreign key
 app.use('/api/migration-024', migration024Router); // Migration 024 - Seed default certificate templates
 app.use('/api/migration-025', migration025Router); // Migration 025 - Add discount percentage system
+app.use('/api/migration-026', migration026Router); // Migration 026 - Create student_payments table
 
 // Health check
 app.get('/api/health', async (req, res) => {

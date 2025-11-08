@@ -5,6 +5,7 @@ import { useSessionFormation } from '@/hooks/useSessionsFormation';
 import { AddStudentToSessionModal } from '@/components/admin/sessions-formation/AddStudentToSessionModal';
 import { EditStudentModal } from '@/components/admin/sessions-formation/EditStudentModal';
 import { DiscountModal } from '@/components/admin/sessions-formation/DiscountModal';
+import { PaymentManagerModal } from '@/components/admin/sessions-formation/PaymentManagerModal';
 import { ImageCropperModal } from '@/components/admin/students/ImageCropperModal';
 import { apiClient } from '@/lib/api/client';
 import {
@@ -34,6 +35,7 @@ export const SessionDetail: React.FC = () => {
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [showEditStudentModal, setShowEditStudentModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCropModal, setShowCropModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -519,7 +521,8 @@ export const SessionDetail: React.FC = () => {
 
                                       <button
                                         onClick={() => {
-                                          // TODO: Open payment manager
+                                          setSelectedStudent(etudiant);
+                                          setShowPaymentModal(true);
                                           setOpenMenuId(null);
                                         }}
                                         className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
@@ -735,6 +738,23 @@ export const SessionDetail: React.FC = () => {
             setShowCropModal(false);
             setSelectedStudent(null);
             setImageErrors(new Set()); // Reset image errors after successful upload
+          }}
+        />
+      )}
+
+      {/* Payment Manager Modal */}
+      {showPaymentModal && selectedStudent && session && (
+        <PaymentManagerModal
+          student={selectedStudent}
+          sessionId={session.id}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setSelectedStudent(null);
+          }}
+          onSuccess={() => {
+            refetch();
+            setShowPaymentModal(false);
+            setSelectedStudent(null);
           }}
         />
       )}
