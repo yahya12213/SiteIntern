@@ -7,7 +7,7 @@ const router = express.Router();
  * Migration 022: Add discount columns to session_etudiants
  * Adds discount_amount and discount_reason to session_etudiants table
  */
-router.post('/migration-022', async (req, res) => {
+router.post('/run', async (req, res) => {
   const client = await pool.connect();
 
   try {

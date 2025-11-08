@@ -7,7 +7,7 @@ const router = express.Router();
  * Migration 023: Fix certificates table foreign key
  * Changes student_id foreign key from profiles(id) to students(id)
  */
-router.post('/migration-023', async (req, res) => {
+router.post('/run', async (req, res) => {
   const client = await pool.connect();
 
   try {
