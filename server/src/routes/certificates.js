@@ -47,12 +47,32 @@ router.post('/generate', async (req, res) => {
     // Déterminer le template à utiliser
     let finalTemplateId = template_id;
 
-    // Si pas de template_id fourni, template_id est maintenant requis
+    // Si pas de template_id fourni, essayer de le récupérer
     if (!finalTemplateId) {
-      return res.status(400).json({
-        success: false,
-        error: 'template_id is required',
-      });
+      // 1. Essayer de récupérer le template par défaut de la formation
+      const formationResult = await pool.query(
+        'SELECT default_certificate_template_id FROM formations WHERE id = $1',
+        [formation_id]
+      );
+
+      if (formationResult.rows.length > 0 && formationResult.rows[0].default_certificate_template_id) {
+        finalTemplateId = formationResult.rows[0].default_certificate_template_id;
+      } else {
+        // 2. Si pas de template par défaut, prendre le premier template disponible
+        const templatesResult = await pool.query(
+          'SELECT id FROM certificate_templates ORDER BY created_at ASC LIMIT 1'
+        );
+
+        if (templatesResult.rows.length > 0) {
+          finalTemplateId = templatesResult.rows[0].id;
+        } else {
+          // 3. Aucun template disponible
+          return res.status(400).json({
+            success: false,
+            error: 'No certificate template available. Please create a certificate template first.',
+          });
+        }
+      }
     }
 
     // Générer le numéro de certificat

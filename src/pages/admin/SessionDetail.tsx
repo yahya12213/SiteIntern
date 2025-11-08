@@ -43,12 +43,11 @@ export const SessionDetail: React.FC = () => {
     }
 
     try {
-      // Générer le certificat
+      // Générer le certificat (template_id sera géré par le backend)
       await apiClient.post('/certificates/generate', {
         student_id: etudiant.student_id,
         formation_id: etudiant.formation_id,
         completion_date: new Date().toISOString().split('T')[0],
-        template_id: 'default', // TODO: Get from formation
       });
 
       alert('Certificat généré avec succès!');
@@ -57,6 +56,8 @@ export const SessionDetail: React.FC = () => {
       console.error('Error generating certificate:', error);
       if (error.message.includes('already exists')) {
         alert('Un certificat existe déjà pour cet étudiant et cette formation');
+      } else if (error.message.includes('template')) {
+        alert('Erreur: Aucun modèle de certificat disponible. Veuillez créer des modèles de certificats d\'abord.');
       } else {
         alert('Erreur lors de la génération du certificat: ' + error.message);
       }
@@ -102,9 +103,18 @@ export const SessionDetail: React.FC = () => {
   }
 
   const stats = session.statistiques;
-  const totalPaye = parseFloat(stats?.total_paye?.toString() || '0');
-  const totalImpaye = parseFloat(stats?.total_impaye?.toString() || '0');
-  const totalPartiellement = parseFloat(stats?.total_partiellement_paye?.toString() || '0');
+  const totalPaye = Number(parseFloat(stats?.total_paye?.toString() || '0')) || 0;
+  const totalImpaye = Number(parseFloat(stats?.total_impaye?.toString() || '0')) || 0;
+  const totalPartiellement = Number(parseFloat(stats?.total_partiellement_paye?.toString() || '0')) || 0;
+
+  // Helper pour construire l'URL complète des images
+  const getImageUrl = (relativeUrl: string | null | undefined): string => {
+    if (!relativeUrl) return '';
+    if (relativeUrl.startsWith('http')) return relativeUrl;
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    const baseUrl = API_URL.replace('/api', '');
+    return `${baseUrl}${relativeUrl}`;
+  };
 
   return (
     <AppLayout>
@@ -355,11 +365,16 @@ export const SessionDetail: React.FC = () => {
                               <td className="px-4 py-3">
                                 {etudiant.profile_image_url ? (
                                   <img
-                                    src={etudiant.profile_image_url}
+                                    src={getImageUrl(etudiant.profile_image_url)}
                                     alt={etudiant.student_name}
                                     className="h-10 w-10 rounded-full object-cover border-2 border-gray-200"
+                                    onError={(e) => {
+                                      // Si l'image ne charge pas, afficher les initiales
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
                                   />
-                                ) : (
+                                ) : null}
+                                {!etudiant.profile_image_url && (
                                   <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold text-sm border-2 border-blue-200">
                                     {initials}
                                   </div>
