@@ -5,6 +5,7 @@ import { useSessionFormation } from '@/hooks/useSessionsFormation';
 import { AddStudentToSessionModal } from '@/components/admin/sessions-formation/AddStudentToSessionModal';
 import { EditStudentModal } from '@/components/admin/sessions-formation/EditStudentModal';
 import { DiscountModal } from '@/components/admin/sessions-formation/DiscountModal';
+import { apiClient } from '@/lib/api/client';
 import {
   Calendar,
   MapPin,
@@ -34,6 +35,48 @@ export const SessionDetail: React.FC = () => {
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  const handleGenerateCertificate = async (etudiant: any) => {
+    if (!etudiant.formation_id) {
+      alert('Impossible de générer le certificat: aucune formation assignée à cet étudiant');
+      return;
+    }
+
+    try {
+      // Générer le certificat
+      await apiClient.post('/certificates/generate', {
+        student_id: etudiant.student_id,
+        formation_id: etudiant.formation_id,
+        completion_date: new Date().toISOString().split('T')[0],
+        template_id: 'default', // TODO: Get from formation
+      });
+
+      alert('Certificat généré avec succès!');
+      refetch();
+    } catch (error: any) {
+      console.error('Error generating certificate:', error);
+      if (error.message.includes('already exists')) {
+        alert('Un certificat existe déjà pour cet étudiant et cette formation');
+      } else {
+        alert('Erreur lors de la génération du certificat: ' + error.message);
+      }
+    }
+  };
+
+  const handleDeleteStudent = async (etudiant: any) => {
+    if (!confirm(`Êtes-vous sûr de vouloir retirer ${etudiant.student_name} de cette session?`)) {
+      return;
+    }
+
+    try {
+      await apiClient.delete(`/sessions-formation/${id}/etudiants/${etudiant.student_id}`);
+      alert('Étudiant retiré de la session avec succès');
+      refetch();
+    } catch (error: any) {
+      console.error('Error deleting student:', error);
+      alert('Erreur lors de la suppression: ' + error.message);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -399,7 +442,7 @@ export const SessionDetail: React.FC = () => {
 
                                       <button
                                         onClick={() => {
-                                          // TODO: Generate certificate
+                                          handleGenerateCertificate(etudiant);
                                           setOpenMenuId(null);
                                         }}
                                         className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
@@ -412,7 +455,7 @@ export const SessionDetail: React.FC = () => {
 
                                       <button
                                         onClick={() => {
-                                          // TODO: Delete student
+                                          handleDeleteStudent(etudiant);
                                           setOpenMenuId(null);
                                         }}
                                         className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
