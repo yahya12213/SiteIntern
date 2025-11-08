@@ -210,7 +210,7 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
   };
 
   const montantRestant = selectedFormation && formData.avance
-    ? Math.max(0, selectedFormation.price - parseFloat(formData.avance))
+    ? Math.max(0, Number(selectedFormation.price) - parseFloat(formData.avance))
     : 0;
 
   return (
