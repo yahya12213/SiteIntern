@@ -42,6 +42,7 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
     formation_id: '',
     numero_bon: '',
     avance: '',
+    discount_percentage: '0',
     // Account status
     statut_compte: 'actif',
   });
@@ -185,14 +186,20 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
       }
 
       // Step 3: Enroll student to session
+      const formationPrice = selectedFormation?.price || 0;
+      const discountPct = parseFloat(formData.discount_percentage) || 0;
+      const discountAmount = (formationPrice * discountPct) / 100;
+      const priceAfterDiscount = formationPrice - discountAmount;
+
       await apiClient.post(`/sessions-formation/${sessionId}/etudiants`, {
         student_id: studentId,
         formation_id: formData.formation_id,
-        montant_total: selectedFormation?.price || 0,
+        montant_total: formationPrice,
         montant_paye: parseFloat(formData.avance),
         numero_bon: formData.numero_bon.trim(),
+        discount_percentage: discountPct,
         statut_paiement:
-          parseFloat(formData.avance) >= (selectedFormation?.price || 0)
+          parseFloat(formData.avance) >= priceAfterDiscount
             ? 'paye'
             : parseFloat(formData.avance) > 0
             ? 'partiellement_paye'
@@ -209,9 +216,14 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
     }
   };
 
-  const montantRestant = selectedFormation && formData.avance
-    ? Math.max(0, Number(selectedFormation.price) - parseFloat(formData.avance))
-    : 0;
+  // Calculer le montant restant après remise
+  const formationPrice = selectedFormation?.price || 0;
+  const discountPct = parseFloat(formData.discount_percentage) || 0;
+  const discountAmount = (Number(formationPrice) * discountPct) / 100;
+  const priceAfterDiscount = Number(formationPrice) - discountAmount;
+  const montantRestant = formData.avance
+    ? Math.max(0, priceAfterDiscount - parseFloat(formData.avance))
+    : priceAfterDiscount;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -454,6 +466,31 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
                   className={errors.numero_bon ? 'border-red-300' : ''}
                 />
                 {errors.numero_bon && <p className="text-xs text-red-600 mt-1">{errors.numero_bon}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Remise (%)
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={formData.discount_percentage}
+                  onChange={(e) => setFormData({ ...formData, discount_percentage: e.target.value })}
+                  placeholder="0"
+                />
+                {selectedFormation && discountPct > 0 && (
+                  <p className="text-xs text-green-600 mt-1">
+                    Remise: {discountPct.toFixed(2)}% (-{discountAmount.toFixed(2)} DH)
+                  </p>
+                )}
+                {selectedFormation && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    Prix après remise: {priceAfterDiscount.toFixed(2)} DH
+                  </p>
+                )}
               </div>
 
               <div>

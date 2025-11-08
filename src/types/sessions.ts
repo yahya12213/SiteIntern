@@ -49,7 +49,9 @@ export interface SessionEtudiant {
   montant_paye: number | string;
   montant_du: number | string;
   discount_amount?: number | string;
+  discount_percentage?: number | string;
   discount_reason?: string;
+  formation_original_price?: number | string;
   date_inscription: string;
   created_at: string;
   updated_at: string;

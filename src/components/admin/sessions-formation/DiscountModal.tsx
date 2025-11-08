@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Tag, AlertCircle, DollarSign } from 'lucide-react';
+import { X, Tag, AlertCircle, Percent } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { apiClient } from '@/lib/api/client';
@@ -12,7 +12,9 @@ interface DiscountModalProps {
     montant_total: number;
     montant_paye: number;
     discount_amount?: number;
+    discount_percentage?: number;
     discount_reason?: string;
+    formation_original_price?: number;
   };
   sessionId: string;
   onClose: () => void;
@@ -26,31 +28,37 @@ export const DiscountModal: React.FC<DiscountModalProps> = ({
   onSuccess,
 }) => {
   const [formData, setFormData] = useState({
-    discount_amount: (student.discount_amount || 0).toString(),
+    discount_percentage: (student.discount_percentage || 0).toString(),
     discount_reason: student.discount_reason || '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Calculer le prix original (avant remise)
-  const originalPrice = parseFloat(student.montant_total?.toString() || '0') + parseFloat(student.discount_amount?.toString() || '0');
+  // Récupérer le prix original de la formation
+  const formationOriginalPrice = parseFloat(student.formation_original_price?.toString() || '0') ||
+    (parseFloat(student.montant_total?.toString() || '0') + parseFloat(student.discount_amount?.toString() || '0'));
 
-  // Calculer le nouveau prix après la remise saisie
-  const newDiscountAmount = parseFloat(formData.discount_amount) || 0;
-  const newTotalPrice = originalPrice - newDiscountAmount;
+  // Calculer le montant de la remise depuis le pourcentage
+  const discountPercentage = parseFloat(formData.discount_percentage) || 0;
+  const discountAmount = (formationOriginalPrice * discountPercentage) / 100;
+  const newTotalPrice = formationOriginalPrice - discountAmount;
+
+  // Pourcentage actuel
+  const currentDiscountPercentage = parseFloat(student.discount_percentage?.toString() || '0');
+  const currentDiscountAmount = parseFloat(student.discount_amount?.toString() || '0');
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
 
-    const discountAmount = parseFloat(formData.discount_amount);
+    const percentage = parseFloat(formData.discount_percentage);
 
-    if (isNaN(discountAmount) || discountAmount < 0) {
-      newErrors.discount_amount = 'Le montant de la remise doit être un nombre positif ou zéro';
+    if (isNaN(percentage) || percentage < 0) {
+      newErrors.discount_percentage = 'Le pourcentage doit être un nombre positif ou zéro';
     }
 
-    if (discountAmount > originalPrice) {
-      newErrors.discount_amount = 'La remise ne peut pas dépasser le prix original';
+    if (percentage > 100) {
+      newErrors.discount_percentage = 'Le pourcentage ne peut pas dépasser 100%';
     }
 
     setErrors(newErrors);
@@ -71,7 +79,7 @@ export const DiscountModal: React.FC<DiscountModalProps> = ({
       await apiClient.put(
         `/sessions-formation/${sessionId}/etudiants/${student.student_id}`,
         {
-          discount_amount: parseFloat(formData.discount_amount),
+          discount_percentage: parseFloat(formData.discount_percentage),
           discount_reason: formData.discount_reason.trim() || null,
         }
       );
@@ -120,16 +128,16 @@ export const DiscountModal: React.FC<DiscountModalProps> = ({
           {/* Prix info */}
           <div className="bg-gray-50 rounded-lg p-4 space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Prix original:</span>
+              <span className="text-gray-600">Prix formation:</span>
               <span className="font-semibold text-gray-900">
-                {originalPrice.toFixed(2)} DH
+                {formationOriginalPrice.toFixed(2)} DH
               </span>
             </div>
-            {student.discount_amount && student.discount_amount > 0 ? (
+            {currentDiscountPercentage > 0 ? (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Remise actuelle:</span>
                 <span className="font-semibold text-purple-600">
-                  -{student.discount_amount.toFixed(2)} DH
+                  {currentDiscountPercentage.toFixed(2)}% (-{currentDiscountAmount.toFixed(2)} DH)
                 </span>
               </div>
             ) : null}
@@ -137,35 +145,38 @@ export const DiscountModal: React.FC<DiscountModalProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">Prix actuel:</span>
                 <span className="text-lg font-bold text-gray-900">
-                  {student.montant_total.toFixed(2)} DH
+                  {parseFloat(student.montant_total.toString()).toFixed(2)} DH
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Montant de la remise */}
+          {/* Pourcentage de la remise */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Montant de la remise (DH)
+              Pourcentage de remise (%)
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <DollarSign className="h-4 w-4 text-gray-400" />
+                <Percent className="h-4 w-4 text-gray-400" />
               </div>
               <Input
                 type="number"
                 step="0.01"
                 min="0"
-                max={originalPrice}
-                value={formData.discount_amount}
-                onChange={(e) => setFormData({ ...formData, discount_amount: e.target.value })}
+                max="100"
+                value={formData.discount_percentage}
+                onChange={(e) => setFormData({ ...formData, discount_percentage: e.target.value })}
                 placeholder="0.00"
-                className={`pl-10 ${errors.discount_amount ? 'border-red-300' : ''}`}
+                className={`pl-10 ${errors.discount_percentage ? 'border-red-300' : ''}`}
               />
             </div>
-            {errors.discount_amount && (
-              <p className="text-xs text-red-600 mt-1">{errors.discount_amount}</p>
+            {errors.discount_percentage && (
+              <p className="text-xs text-red-600 mt-1">{errors.discount_percentage}</p>
             )}
+            <p className="text-xs text-gray-500 mt-1">
+              Exemple: 10 pour une remise de 10%
+            </p>
           </div>
 
           {/* Raison de la remise */}
@@ -183,21 +194,34 @@ export const DiscountModal: React.FC<DiscountModalProps> = ({
           </div>
 
           {/* Nouveau prix aperçu */}
-          {newDiscountAmount > 0 && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          {discountPercentage > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-green-800">
-                  Nouveau prix après remise:
+                  Remise appliquée:
                 </span>
-                <span className="text-xl font-bold text-green-700">
-                  {newTotalPrice.toFixed(2)} DH
+                <span className="text-sm font-bold text-green-700">
+                  {discountPercentage.toFixed(2)}%
                 </span>
               </div>
-              {newDiscountAmount > 0 && (
-                <p className="text-xs text-green-600 mt-1">
-                  Économie de {newDiscountAmount.toFixed(2)} DH
-                </p>
-              )}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-green-700">
+                  Montant de la remise:
+                </span>
+                <span className="text-sm font-semibold text-green-700">
+                  -{discountAmount.toFixed(2)} DH
+                </span>
+              </div>
+              <div className="pt-2 border-t border-green-300">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-green-800">
+                    Nouveau prix final:
+                  </span>
+                  <span className="text-xl font-bold text-green-700">
+                    {newTotalPrice.toFixed(2)} DH
+                  </span>
+                </div>
+              </div>
             </div>
           )}
 

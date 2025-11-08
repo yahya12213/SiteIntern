@@ -335,6 +335,9 @@ export const SessionDetail: React.FC = () => {
                             Formation
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Remise
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             CIN
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -383,6 +386,34 @@ export const SessionDetail: React.FC = () => {
 
                               <td className="px-4 py-3 text-sm text-gray-900">{etudiant.student_name}</td>
                               <td className="px-4 py-3 text-sm text-blue-600 font-medium">{etudiant.formation_title || '-'}</td>
+
+                              {/* Remise */}
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  {etudiant.discount_percentage && parseFloat(etudiant.discount_percentage.toString()) > 0 ? (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedStudent(etudiant);
+                                        setShowDiscountModal(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-medium hover:bg-green-200 transition-colors"
+                                    >
+                                      <span>{parseFloat(etudiant.discount_percentage.toString()).toFixed(1)}%</span>
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedStudent(etudiant);
+                                        setShowDiscountModal(true);
+                                      }}
+                                      className="text-xs text-gray-400 hover:text-purple-600 hover:underline"
+                                    >
+                                      Ajouter
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+
                               <td className="px-4 py-3 text-sm text-gray-600">{etudiant.student_cin}</td>
                               <td className="px-4 py-3 text-sm text-gray-600">{etudiant.student_phone}</td>
                               <td className="px-4 py-3">

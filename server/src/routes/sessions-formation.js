@@ -404,7 +404,8 @@ router.post('/:id/etudiants', async (req, res) => {
       numero_bon,
       centre_id,
       classe_id,
-      statut_paiement = 'impaye'
+      statut_paiement = 'impaye',
+      discount_percentage = 0
     } = req.body;
 
     if (!student_id) {
@@ -437,9 +438,11 @@ router.post('/:id/etudiants', async (req, res) => {
     const { corps_formation_id } = sessionResult.rows[0];
 
     // Vérifier que la formation appartient au corps de formation de la session
+    // ET récupérer le prix de la formation
+    let formationPrice = 0;
     if (corps_formation_id) {
       const formationResult = await pool.query(
-        'SELECT id FROM formations WHERE id = $1 AND corps_formation_id = $2',
+        'SELECT id, price FROM formations WHERE id = $1 AND corps_formation_id = $2',
         [formation_id, corps_formation_id]
       );
 
@@ -448,6 +451,18 @@ router.post('/:id/etudiants', async (req, res) => {
           success: false,
           error: 'La formation sélectionnée n\'appartient pas au corps de formation de cette session'
         });
+      }
+
+      formationPrice = parseFloat(formationResult.rows[0].price) || 0;
+    } else {
+      // Si pas de corps_formation_id, récupérer quand même le prix
+      const formationResult = await pool.query(
+        'SELECT price FROM formations WHERE id = $1',
+        [formation_id]
+      );
+
+      if (formationResult.rows.length > 0) {
+        formationPrice = parseFloat(formationResult.rows[0].price) || 0;
       }
     }
 
@@ -467,23 +482,29 @@ router.post('/:id/etudiants', async (req, res) => {
     const inscriptionId = nanoid();
     const now = new Date().toISOString();
 
-    // Calculer montant_du
-    const montant_du = (montant_total || 0) - (montant_paye || 0);
+    // Calculer remise et prix final
+    const formation_original_price = montant_total || formationPrice;
+    const discount_pct = parseFloat(discount_percentage) || 0;
+    const discount_amount = (formation_original_price * discount_pct) / 100;
+    const final_montant_total = formation_original_price - discount_amount;
+    const montant_du = final_montant_total - (montant_paye || 0);
 
     const query = `
       INSERT INTO session_etudiants (
         id, session_id, student_id, formation_id, statut_paiement,
         montant_total, montant_paye, montant_du,
+        discount_percentage, discount_amount, formation_original_price,
         centre_id, classe_id, numero_bon,
         date_inscription, created_at, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *
     `;
 
     const values = [
       inscriptionId, session_id, student_id, formation_id, statut_paiement,
-      montant_total || 0, montant_paye || 0, montant_du,
+      final_montant_total, montant_paye || 0, montant_du,
+      discount_pct, discount_amount, formation_original_price,
       centre_id || null, classe_id || null, numero_bon || null,
       now, now, now
     ];
@@ -512,13 +533,13 @@ router.post('/:id/etudiants', async (req, res) => {
 router.put('/:sessionId/etudiants/:etudiantId', async (req, res) => {
   try {
     const { sessionId, etudiantId } = req.params;
-    const { statut_paiement, montant_paye, discount_amount, discount_reason } = req.body;
+    const { statut_paiement, montant_paye, discount_percentage, discount_reason } = req.body;
 
     const now = new Date().toISOString();
 
-    // Récupérer montant_total et discount actuel
+    // Récupérer les données actuelles incluant formation_original_price
     const currentResult = await pool.query(
-      'SELECT montant_total, discount_amount FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
+      'SELECT montant_total, discount_amount, discount_percentage, formation_original_price FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
       [sessionId, etudiantId]
     );
 
@@ -530,15 +551,19 @@ router.put('/:sessionId/etudiants/:etudiantId', async (req, res) => {
     }
 
     let montant_total = parseFloat(currentResult.rows[0].montant_total);
-    const current_discount = parseFloat(currentResult.rows[0].discount_amount) || 0;
+    const current_discount_amount = parseFloat(currentResult.rows[0].discount_amount) || 0;
+    const current_discount_percentage = parseFloat(currentResult.rows[0].discount_percentage) || 0;
+    const formation_original_price = parseFloat(currentResult.rows[0].formation_original_price) || (montant_total + current_discount_amount);
 
-    // Si une remise est fournie, recalculer le montant_total
-    let new_discount = discount_amount !== undefined ? parseFloat(discount_amount) : null;
-    if (new_discount !== null) {
-      // Recalculer le prix original (avant remise)
-      const original_price = montant_total + current_discount;
-      // Appliquer la nouvelle remise
-      montant_total = original_price - new_discount;
+    // Si un nouveau pourcentage de remise est fourni, recalculer
+    let new_discount_percentage = discount_percentage !== undefined ? parseFloat(discount_percentage) : null;
+    let new_discount_amount = null;
+
+    if (new_discount_percentage !== null) {
+      // Calculer le nouveau montant de remise depuis le pourcentage
+      new_discount_amount = (formation_original_price * new_discount_percentage) / 100;
+      // Recalculer le montant_total
+      montant_total = formation_original_price - new_discount_amount;
     }
 
     const new_montant_paye = montant_paye !== undefined ? parseFloat(montant_paye) : null;
@@ -562,11 +587,12 @@ router.put('/:sessionId/etudiants/:etudiantId', async (req, res) => {
         statut_paiement = COALESCE($1, statut_paiement),
         montant_paye = COALESCE($2, montant_paye),
         montant_du = COALESCE($3, montant_du),
-        discount_amount = COALESCE($4, discount_amount),
-        discount_reason = COALESCE($5, discount_reason),
-        montant_total = COALESCE($6, montant_total),
-        updated_at = $7
-      WHERE session_id = $8 AND student_id = $9
+        discount_percentage = COALESCE($4, discount_percentage),
+        discount_amount = COALESCE($5, discount_amount),
+        discount_reason = COALESCE($6, discount_reason),
+        montant_total = COALESCE($7, montant_total),
+        updated_at = $8
+      WHERE session_id = $9 AND student_id = $10
       RETURNING *
     `;
 
@@ -574,9 +600,10 @@ router.put('/:sessionId/etudiants/:etudiantId', async (req, res) => {
       new_statut,
       new_montant_paye,
       montant_du,
-      new_discount,
+      new_discount_percentage,
+      new_discount_amount,
       discount_reason,
-      new_discount !== null ? montant_total : null,
+      new_discount_percentage !== null ? montant_total : null,
       now,
       sessionId,
       etudiantId
