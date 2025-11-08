@@ -49,6 +49,7 @@ import migration019Router from './routes/migration-019-create-centres-classes.js
 import migration020Router from './routes/migration-020-update-session-etudiants.js';
 import migration021Router from './routes/migration-021-rename-formation-id.js';
 import migration022Router from './routes/migration-022-add-discount-to-session-etudiants.js';
+import migration023Router from './routes/migration-023-fix-certificates-fk.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 
@@ -104,6 +105,7 @@ app.use('/api/migration-019', migration019Router); // Migration 019 - Centres & 
 app.use('/api/migration-020', migration020Router); // Migration 020 - Session_etudiants columns
 app.use('/api/migration-021', migration021Router); // Migration 021 - Rename formation_id to corps_formation_id
 app.use('/api/migration-022', migration022Router); // Migration 022 - Add discount columns to session_etudiants
+app.use('/api/migration-023', migration023Router); // Migration 023 - Fix certificates foreign key
 
 // Health check
 app.get('/api/health', async (req, res) => {

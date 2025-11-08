@@ -138,6 +138,7 @@ router.get('/:id', async (req, res) => {
         s.email as student_email,
         s.phone as student_phone,
         s.cin as student_cin,
+        s.profile_image_url as profile_image_url,
         f.title as formation_title,
         f.is_pack as formation_is_pack
       FROM session_etudiants se
