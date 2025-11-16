@@ -26,12 +26,25 @@ console.log('📁 Verifying upload directories...');
 // Storage pour les images d'arrière-plan
 const backgroundStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, backgroundsDir);
+    // Ensure directory exists at write time
+    try {
+      if (!fs.existsSync(backgroundsDir)) {
+        console.log(`📁 Creating backgrounds directory at write time: ${backgroundsDir}`);
+        fs.mkdirSync(backgroundsDir, { recursive: true });
+      }
+      console.log(`📁 Background upload destination: ${backgroundsDir}`);
+      cb(null, backgroundsDir);
+    } catch (err) {
+      console.error(`❌ Error ensuring backgrounds directory exists:`, err);
+      cb(err);
+    }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
-    cb(null, `background-${uniqueSuffix}${ext}`);
+    const filename = `background-${uniqueSuffix}${ext}`;
+    console.log(`📁 Background filename: ${filename}`);
+    cb(null, filename);
   }
 });
 
@@ -50,12 +63,25 @@ const fontStorage = multer.diskStorage({
 // Storage pour les photos de profil
 const profileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, profilesDir);
+    // Ensure directory exists at write time
+    try {
+      if (!fs.existsSync(profilesDir)) {
+        console.log(`📁 Creating profiles directory at write time: ${profilesDir}`);
+        fs.mkdirSync(profilesDir, { recursive: true });
+      }
+      console.log(`📁 Profile upload destination: ${profilesDir}`);
+      cb(null, profilesDir);
+    } catch (err) {
+      console.error(`❌ Error ensuring profiles directory exists:`, err);
+      cb(err);
+    }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname);
-    cb(null, `profile-${uniqueSuffix}${ext}`);
+    const filename = `profile-${uniqueSuffix}${ext}`;
+    console.log(`📁 Profile filename: ${filename}`);
+    cb(null, filename);
   }
 });
 
