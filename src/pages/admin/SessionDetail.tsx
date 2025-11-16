@@ -305,13 +305,13 @@ export const SessionDetail: React.FC = () => {
       const fullTemplate: CertificateTemplate = templateResponse.template;
 
       // Générer le premier document pour l'utiliser comme base
-      const firstEtudiant = selectedEtudiants[0];
+      const firstEtudiant: any = selectedEtudiants[0];
       setBulkGenerationProgress(prev => ({ ...prev, current: 1 }));
 
       const firstCertificateData: Certificate = {
         id: `temp-${Date.now()}-0`,
         student_id: firstEtudiant.student_id,
-        formation_id: firstEtudiant.formation_id,
+        formation_id: firstEtudiant.formation_id || '',
         student_name: firstEtudiant.student_name,
         student_email: firstEtudiant.student_email || '',
         formation_title: firstEtudiant.formation_title || '',
@@ -349,13 +349,13 @@ export const SessionDetail: React.FC = () => {
 
       // Ajouter les pages pour les autres étudiants
       for (let i = 1; i < selectedEtudiants.length; i++) {
-        const etudiant = selectedEtudiants[i];
+        const etudiant: any = selectedEtudiants[i];
         setBulkGenerationProgress(prev => ({ ...prev, current: i + 1 }));
 
         const certificateData: Certificate = {
           id: `temp-${Date.now()}-${i}`,
           student_id: etudiant.student_id,
-          formation_id: etudiant.formation_id,
+          formation_id: etudiant.formation_id || '',
           student_name: etudiant.student_name,
           student_email: etudiant.student_email || '',
           formation_title: etudiant.formation_title || '',
