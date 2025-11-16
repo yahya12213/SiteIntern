@@ -41,8 +41,9 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
   useEffect(() => {
     if (student.profile_image_url) {
       setIsLoadingExisting(true);
-      // Construct full URL for the image
-      const baseUrl = import.meta.env.VITE_API_URL || '';
+      // Construct full URL for the image (same logic as getImageUrl in SessionDetail)
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const baseUrl = API_URL.replace('/api', '');
       const fullUrl = student.profile_image_url.startsWith('http')
         ? student.profile_image_url
         : `${baseUrl}${student.profile_image_url}`;
