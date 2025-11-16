@@ -196,7 +196,6 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
                   onChange={(c) => setCrop(c)}
                   onComplete={(c) => setCompletedCrop(c)}
                   aspect={1}
-                  circularCrop
                 >
                   <img
                     ref={imageRef}
