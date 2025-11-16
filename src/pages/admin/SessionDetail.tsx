@@ -8,6 +8,7 @@ import { DiscountModal } from '@/components/admin/sessions-formation/DiscountMod
 import { PaymentManagerModal } from '@/components/admin/sessions-formation/PaymentManagerModal';
 import { ImageCropperModal } from '@/components/admin/students/ImageCropperModal';
 import { apiClient } from '@/lib/api/client';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import {
   Calendar,
   MapPin,
@@ -234,28 +235,56 @@ export const SessionDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Payment Statistics Chart Placeholder */}
+        {/* Payment Statistics Chart */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Statistiques de Paiement</h3>
-          <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg">
-            <div className="text-center">
-              <DollarSign className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-              <p className="text-gray-500">Graphique à implémenter</p>
-              <div className="mt-4 flex gap-4 justify-center text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <span>Payé: {totalPaye.toFixed(2)} DH</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <span>Partiellement: {totalPartiellement.toFixed(2)} DH</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                  <span>Impayé: {totalImpaye.toFixed(2)} DH</span>
+          <div className="h-64">
+            {session.etudiants && session.etudiants.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Payé', value: totalPaye, count: session.etudiants.filter((e: any) => e.statut_paiement === 'paye').length },
+                      { name: 'Partiellement', value: totalPartiellement, count: session.etudiants.filter((e: any) => e.statut_paiement === 'partiellement_paye').length },
+                      { name: 'Impayé', value: totalImpaye, count: session.etudiants.filter((e: any) => e.statut_paiement === 'impaye').length },
+                    ].filter(item => item.value > 0)}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={(props: any) => `${props.name} ${(props.percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    <Cell key="cell-0" fill="#22c55e" />
+                    <Cell key="cell-1" fill="#eab308" />
+                    <Cell key="cell-2" fill="#ef4444" />
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number, name: string, props: any) => [
+                      `${value.toFixed(2)} DH (${props.payload.count} étudiants)`,
+                      name
+                    ]}
+                  />
+                  <Legend
+                    verticalAlign="bottom"
+                    height={36}
+                    formatter={(value, entry: any) => (
+                      <span className="text-sm text-gray-600">
+                        {value}: {entry.payload.value.toFixed(2)} DH ({entry.payload.count} étudiants)
+                      </span>
+                    )}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full bg-gray-50 rounded-lg">
+                <div className="text-center">
+                  <DollarSign className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500">Aucun étudiant inscrit</p>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 

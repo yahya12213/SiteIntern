@@ -18,6 +18,7 @@ import {
   Award,
   MessageSquare,
   Palette,
+  Layers,
 } from 'lucide-react';
 
 interface NavSection {
@@ -65,6 +66,7 @@ export const Sidebar: React.FC = () => {
       title: 'Formation en Ligne',
       icon: GraduationCap,
       items: [
+        { to: '/admin/corps-formation', icon: Layers, label: 'Corps de Formation' },
         { to: '/admin/formations-management', icon: BookOpen, label: 'Gestion des Formations' },
         { to: '/admin/sessions-formation', icon: CalendarCheck, label: 'Sessions de Formation' },
         { to: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
