@@ -49,7 +49,8 @@
       "Bash(done)",
       "Bash(for file in src/pages/admin/CalculationSheets.tsx src/pages/admin/CertificateTemplateCanvasEditor.tsx src/pages/admin/DeclarationViewer.tsx src/pages/Login.tsx)",
       "Bash(do echo \"C:\\Users\\pc\\Desktop\\systeme de calcul$file\")",
-      "Bash(if exist NUL del /f NUL)"
+      "Bash(if exist NUL del /f NUL)",
+      "Bash(.gitignore)"
     ],
     "deny": [],
     "ask": []

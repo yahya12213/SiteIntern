@@ -90,8 +90,8 @@ export const SessionDetail: React.FC = () => {
     setGeneratingDocument(`${etudiant.student_id}-${template.template_id}`);
     try {
       // Récupérer le template complet avec sa configuration
-      const templateResponse = await apiClient.get(`/certificate-templates/${template.template_id}`) as CertificateTemplate;
-      const fullTemplate: CertificateTemplate = templateResponse;
+      const templateResponse = await apiClient.get(`/certificate-templates/${template.template_id}`) as { success: boolean; template: CertificateTemplate };
+      const fullTemplate: CertificateTemplate = templateResponse.template;
 
       // Construire l'objet Certificate avec les données de l'étudiant
       const certificateData: Certificate = {

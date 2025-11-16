@@ -287,9 +287,20 @@ router.get('/:id', async (req, res) => {
       });
     }
 
+    const template = result.rows[0];
+
+    // Parse template_config from JSON string to object if needed
+    if (template.template_config && typeof template.template_config === 'string') {
+      try {
+        template.template_config = JSON.parse(template.template_config);
+      } catch (parseError) {
+        console.error('Error parsing template_config:', parseError);
+      }
+    }
+
     res.json({
       success: true,
-      template: result.rows[0],
+      template: template,
     });
   } catch (error) {
     console.error('Error fetching certificate template:', error);
