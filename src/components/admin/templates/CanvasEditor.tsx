@@ -263,7 +263,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   const currentStyle = element.fontStyle || 'normal';
                   const isBold = currentStyle.includes('bold');
                   const isItalic = currentStyle.includes('italic');
-                  let newStyle = isBold
+                  const newStyle: 'bold' | 'normal' | 'italic' | 'bolditalic' = isBold
                     ? isItalic ? 'italic' : 'normal'
                     : isItalic ? 'bolditalic' : 'bold';
                   onElementUpdate?.({ ...element, fontStyle: newStyle });
@@ -278,7 +278,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   const currentStyle = element.fontStyle || 'normal';
                   const isBold = currentStyle.includes('bold');
                   const isItalic = currentStyle.includes('italic');
-                  let newStyle = isItalic
+                  const newStyle: 'bold' | 'normal' | 'italic' | 'bolditalic' = isItalic
                     ? isBold ? 'bold' : 'normal'
                     : isBold ? 'bolditalic' : 'italic';
                   onElementUpdate?.({ ...element, fontStyle: newStyle });
