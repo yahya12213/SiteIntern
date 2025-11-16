@@ -826,15 +826,36 @@ router.post('/seed-defaults', async (req, res) => {
  * Upload une image d'arrière-plan pour un template
  */
 router.post('/:id/upload-background', (req, res, next) => {
+  console.log('📥 Upload background request received');
+  console.log('  - Template ID:', req.params.id);
+  console.log('  - Content-Type:', req.headers['content-type']);
+  console.log('  - Content-Length:', req.headers['content-length']);
+  console.log('  - All headers:', JSON.stringify(req.headers, null, 2));
+
   // Wrapper multer middleware with better error handling
   uploadBackground(req, res, (err) => {
+    console.log('📦 Multer processing complete');
+    console.log('  - File received:', req.file ? 'YES' : 'NO');
+    if (req.file) {
+      console.log('  - File details:', {
+        fieldname: req.file.fieldname,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        destination: req.file.destination,
+        filename: req.file.filename,
+        path: req.file.path
+      });
+    }
+
     if (err) {
-      console.error('Multer upload error:', err);
+      console.error('❌ Multer upload error:', err);
       console.error('Error details:', {
         message: err.message,
         code: err.code,
         field: err.field,
-        storageErrors: err.storageErrors
+        storageErrors: err.storageErrors,
+        stack: err.stack
       });
 
       // Handle specific multer errors
@@ -858,10 +879,12 @@ router.post('/:id/upload-background', (req, res, next) => {
       });
     }
 
+    console.log('✅ Multer processed successfully, proceeding to route handler');
     // No error, proceed to route handler
     next();
   });
 }, async (req, res) => {
+  console.log('🔧 Route handler started');
   try {
     const { id } = req.params;
 
