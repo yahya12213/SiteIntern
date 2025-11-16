@@ -9,6 +9,9 @@ import { PaymentManagerModal } from '@/components/admin/sessions-formation/Payme
 import { ImageCropperModal } from '@/components/admin/students/ImageCropperModal';
 import { apiClient } from '@/lib/api/client';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { CertificateTemplateEngine } from '@/lib/utils/certificateTemplateEngine';
+import type { Certificate } from '@/lib/api/certificates';
+import type { CertificateTemplate } from '@/types/certificateTemplate';
 import {
   Calendar,
   MapPin,
@@ -24,12 +27,14 @@ import {
   Edit,
   Receipt,
   Tag,
-  Award,
   Trash2,
   CheckSquare,
   Square,
   ShieldCheck,
   ShieldX,
+  ChevronRight,
+  FileDown,
+  Loader2,
 } from 'lucide-react';
 
 export const SessionDetail: React.FC = () => {
@@ -47,38 +52,96 @@ export const SessionDetail: React.FC = () => {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const [documentSubmenuOpen, setDocumentSubmenuOpen] = useState<string | null>(null);
+  const [availableDocuments, setAvailableDocuments] = useState<Record<string, any[]>>({});
+  const [loadingDocuments, setLoadingDocuments] = useState<string | null>(null);
+  const [generatingDocument, setGeneratingDocument] = useState<string | null>(null);
 
-  const handleGenerateCertificate = async (etudiant: any) => {
-    // Bloquer si étudiant abandonné
-    if (etudiant.student_status === 'abandonne') {
-      alert('Impossible de générer le certificat: cet étudiant a le statut "Abandonné". Veuillez d\'abord changer son statut en "Valide".');
+  // Charger les documents disponibles pour un étudiant
+  const loadAvailableDocuments = async (studentId: string) => {
+    if (availableDocuments[studentId]) {
+      setDocumentSubmenuOpen(studentId);
       return;
     }
 
-    if (!etudiant.formation_id) {
-      alert('Impossible de générer le certificat: aucune formation assignée à cet étudiant');
-      return;
-    }
-
+    setLoadingDocuments(studentId);
     try {
-      // Générer le certificat (template_id sera géré par le backend)
-      await apiClient.post('/certificates/generate', {
+      const response = await apiClient.get(`/sessions-formation/${id}/etudiants/${studentId}/available-documents`) as { templates: any[] };
+      setAvailableDocuments(prev => ({
+        ...prev,
+        [studentId]: response.templates || []
+      }));
+      setDocumentSubmenuOpen(studentId);
+    } catch (error: any) {
+      console.error('Error loading documents:', error);
+      alert('Erreur lors du chargement des documents: ' + error.message);
+    } finally {
+      setLoadingDocuments(null);
+    }
+  };
+
+  // Générer et télécharger un document
+  const handleGenerateDocument = async (etudiant: any, template: any) => {
+    if (etudiant.student_status === 'abandonne') {
+      alert('Impossible de générer le document: cet étudiant a le statut "Abandonné".');
+      return;
+    }
+
+    setGeneratingDocument(`${etudiant.student_id}-${template.template_id}`);
+    try {
+      // Récupérer le template complet avec sa configuration
+      const templateResponse = await apiClient.get(`/certificate-templates/${template.template_id}`) as CertificateTemplate;
+      const fullTemplate: CertificateTemplate = templateResponse;
+
+      // Construire l'objet Certificate avec les données de l'étudiant
+      const certificateData: Certificate = {
+        id: `temp-${Date.now()}`,
         student_id: etudiant.student_id,
         formation_id: etudiant.formation_id,
-        completion_date: new Date().toISOString().split('T')[0],
-      });
+        student_name: etudiant.student_name,
+        student_email: etudiant.student_email || '',
+        formation_title: etudiant.formation_title || '',
+        formation_description: '',
+        duration_hours: 0,
+        certificate_number: `DOC-${Date.now()}`,
+        issued_at: new Date().toISOString(),
+        completion_date: new Date().toISOString(),
+        grade: null,
+        metadata: {
+          student_first_name: etudiant.student_first_name || etudiant.student_name?.split(' ')[0] || '',
+          student_last_name: etudiant.student_last_name || etudiant.student_name?.split(' ').slice(1).join(' ') || '',
+          cin: etudiant.student_cin || '',
+          phone: etudiant.student_phone || '',
+          whatsapp: etudiant.student_whatsapp || '',
+          date_naissance: etudiant.student_birth_date || '',
+          lieu_naissance: etudiant.student_birth_place || '',
+          adresse: etudiant.student_address || '',
+          organization_name: session?.titre || 'Session de Formation',
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
-      alert('Certificat généré avec succès!');
-      refetch();
+      // Générer le PDF
+      const engine = new CertificateTemplateEngine(certificateData, fullTemplate);
+      const doc = await engine.generate();
+
+      // Formater le nom de fichier: NomPrenom_NomSession_TypeDocument.pdf
+      const studentName = etudiant.student_name?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Etudiant';
+      const sessionName = session?.titre?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Session';
+      const documentType = template.document_type?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Document';
+      const filename = `${studentName}_${sessionName}_${documentType}.pdf`;
+
+      // Télécharger le PDF
+      doc.save(filename);
+
+      setOpenMenuId(null);
+      setDocumentSubmenuOpen(null);
     } catch (error: any) {
-      console.error('Error generating certificate:', error);
-      if (error.message.includes('already exists')) {
-        alert('Un certificat existe déjà pour cet étudiant et cette formation');
-      } else if (error.message.includes('template')) {
-        alert('Erreur: Aucun modèle de certificat disponible. Veuillez créer des modèles de certificats d\'abord.');
-      } else {
-        alert('Erreur lors de la génération du certificat: ' + error.message);
-      }
+      console.error('Error generating document:', error);
+      alert('Erreur lors de la génération du document: ' + error.message);
+    } finally {
+      setGeneratingDocument(null);
     }
   };
 
@@ -653,7 +716,10 @@ export const SessionDetail: React.FC = () => {
                                   <>
                                     <div
                                       className="fixed inset-0 z-10"
-                                      onClick={() => setOpenMenuId(null)}
+                                      onClick={() => {
+                                        setOpenMenuId(null);
+                                        setDocumentSubmenuOpen(null);
+                                      }}
                                     />
                                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
                                       <button
@@ -692,16 +758,59 @@ export const SessionDetail: React.FC = () => {
                                         Paiements
                                       </button>
 
-                                      <button
-                                        onClick={() => {
-                                          handleGenerateCertificate(etudiant);
-                                          setOpenMenuId(null);
-                                        }}
-                                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                      >
-                                        <Award className="h-4 w-4" />
-                                        Certificat
-                                      </button>
+                                      {/* Documents submenu */}
+                                      <div className="relative">
+                                        <button
+                                          onClick={() => loadAvailableDocuments(etudiant.student_id)}
+                                          onMouseEnter={() => loadAvailableDocuments(etudiant.student_id)}
+                                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <FileDown className="h-4 w-4" />
+                                            Documents
+                                          </div>
+                                          {loadingDocuments === etudiant.student_id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <ChevronRight className="h-4 w-4" />
+                                          )}
+                                        </button>
+
+                                        {/* Documents submenu panel */}
+                                        {documentSubmenuOpen === etudiant.student_id && availableDocuments[etudiant.student_id] && (
+                                          <div className="absolute left-full top-0 ml-1 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-30">
+                                            {availableDocuments[etudiant.student_id].length === 0 ? (
+                                              <div className="px-4 py-3 text-sm text-gray-500 italic">
+                                                Aucun document disponible pour cette formation
+                                              </div>
+                                            ) : (
+                                              <>
+                                                <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase border-b border-gray-100">
+                                                  Documents disponibles
+                                                </div>
+                                                {availableDocuments[etudiant.student_id].map((template: any) => (
+                                                  <button
+                                                    key={template.template_id}
+                                                    onClick={() => handleGenerateDocument(etudiant, template)}
+                                                    disabled={generatingDocument === `${etudiant.student_id}-${template.template_id}` || etudiant.student_status === 'abandonne'}
+                                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-blue-50 flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed"
+                                                  >
+                                                    <div className="flex flex-col">
+                                                      <span className="font-medium">{template.template_name}</span>
+                                                      <span className="text-xs text-gray-500">{template.document_type}</span>
+                                                    </div>
+                                                    {generatingDocument === `${etudiant.student_id}-${template.template_id}` ? (
+                                                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                                                    ) : (
+                                                      <FileDown className="h-4 w-4 text-blue-600" />
+                                                    )}
+                                                  </button>
+                                                ))}
+                                              </>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
 
                                       <div className="border-t border-gray-200 my-1" />
 

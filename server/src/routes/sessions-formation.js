@@ -591,6 +591,76 @@ router.put('/:sessionId/etudiants/bulk-status', async (req, res) => {
 });
 
 /**
+ * GET /api/sessions-formation/:sessionId/etudiants/:studentId/available-documents
+ * Récupérer les templates de documents disponibles pour un étudiant
+ */
+router.get('/:sessionId/etudiants/:studentId/available-documents', async (req, res) => {
+  try {
+    const { sessionId, studentId } = req.params;
+
+    // Récupérer la formation de l'étudiant dans cette session
+    const enrollmentResult = await pool.query(
+      `SELECT se.formation_id, se.student_status, f.title as formation_title
+       FROM session_etudiants se
+       LEFT JOIN formations f ON f.id = se.formation_id
+       WHERE se.session_id = $1 AND se.student_id = $2`,
+      [sessionId, studentId]
+    );
+
+    if (enrollmentResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Étudiant non trouvé dans cette session'
+      });
+    }
+
+    const { formation_id, student_status, formation_title } = enrollmentResult.rows[0];
+
+    if (!formation_id) {
+      return res.json({
+        success: true,
+        templates: [],
+        message: 'Aucune formation assignée à cet étudiant'
+      });
+    }
+
+    // Récupérer les templates liés à cette formation
+    const templatesResult = await pool.query(
+      `SELECT
+         ft.id as link_id,
+         ft.document_type,
+         ft.is_default,
+         ct.id as template_id,
+         ct.name as template_name,
+         ct.description as template_description,
+         ct.template_config,
+         ct.background_image_url,
+         ct.preview_image_url
+       FROM formation_templates ft
+       JOIN certificate_templates ct ON ct.id = ft.template_id
+       WHERE ft.formation_id = $1
+       ORDER BY ft.document_type, ft.is_default DESC, ct.name ASC`,
+      [formation_id]
+    );
+
+    res.json({
+      success: true,
+      formation_id,
+      formation_title,
+      student_status,
+      templates: templatesResult.rows
+    });
+
+  } catch (error) {
+    console.error('Error fetching available documents:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * PUT /api/sessions-formation/:sessionId/etudiants/:etudiantId
  * Modifier l'inscription d'un étudiant (paiement)
  */
