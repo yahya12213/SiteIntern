@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { AppLayout } from '@/components/layout/AppLayout';
 import {
   Plus,
   Edit,
@@ -16,7 +17,6 @@ import {
   Video,
   FileQuestion,
   Layers,
-  ArrowLeft,
   Copy,
   MapPin,
 } from 'lucide-react';
@@ -212,25 +212,13 @@ export default function FormationsManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <Link to="/dashboard">
-              <Button variant="outline" size="icon">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                Gestion des Formations
-              </h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Corps de formation et formations associées
-              </p>
-            </div>
-          </div>
+    <AppLayout
+      title="Gestion des Formations"
+      subtitle="Corps de formation et formations associées"
+    >
+      <div className="space-y-6">
+        {/* Header Actions */}
+        <div className="flex justify-end">
           <Button onClick={() => setShowCorpsForm(true)} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Nouveau Corps
@@ -754,6 +742,6 @@ export default function FormationsManagement() {
           />
         )}
       </div>
-    </div>
+    </AppLayout>
   );
 }

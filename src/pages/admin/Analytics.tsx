@@ -25,6 +25,7 @@ import {
   Award,
   Download,
 } from 'lucide-react';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { AnalyticsStatCard } from '@/components/admin/AnalyticsStatCard';
 import {
   useOverviewStats,
@@ -58,23 +59,20 @@ export const Analytics: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="p-8">
+      <AppLayout title="Analytics" subtitle="Vue d'ensemble des performances">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="p-8 space-y-8">
-      {/* En-tête */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Tableau de bord Analytics</h1>
-        <p className="text-gray-600 mt-2">
-          Vue d'ensemble des performances de votre plateforme de formation
-        </p>
-      </div>
+    <AppLayout
+      title="Tableau de bord Analytics"
+      subtitle="Vue d'ensemble des performances de votre plateforme de formation"
+    >
+      <div className="space-y-8">
 
       {/* Statistiques de période */}
       {periodStatsData && (
@@ -451,6 +449,7 @@ export const Analytics: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AppLayout>
   );
 };
