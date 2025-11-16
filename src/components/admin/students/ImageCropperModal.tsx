@@ -107,7 +107,7 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
       // Create FormData
       const formData = new FormData();
       formData.append(
-        'profileImage',
+        'profile_image',
         croppedImageBlob,
         `profile-${student.student_id}-${Date.now()}.jpg`
       );
