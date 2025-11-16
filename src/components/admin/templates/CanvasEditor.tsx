@@ -9,9 +9,11 @@ import {
   Copy,
   Trash2,
   Bold,
-  Italic
+  Italic,
+  Palette
 } from 'lucide-react';
 import type { TemplateElement } from '@/types/certificateTemplate';
+import { FONT_FAMILIES } from '@/types/certificateTemplate';
 
 interface CanvasEditorProps {
   elements: TemplateElement[];
@@ -257,6 +259,22 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
               <div className="w-px h-5 bg-gray-300 mx-1" />
 
+              {/* Font family selector */}
+              <select
+                value={element.fontFamily || 'helvetica'}
+                onChange={(e) => onElementUpdate?.({ ...element, fontFamily: e.target.value })}
+                className="text-xs bg-white border border-gray-300 rounded px-1 py-1 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                title="Police"
+              >
+                {FONT_FAMILIES.map((font) => (
+                  <option key={font} value={font}>
+                    {font.charAt(0).toUpperCase() + font.slice(1)}
+                  </option>
+                ))}
+              </select>
+
+              <div className="w-px h-5 bg-gray-300 mx-1" />
+
               {/* Font style */}
               <button
                 onClick={() => {
@@ -309,6 +327,20 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
               >
                 <Plus className="h-4 w-4" />
               </button>
+
+              <div className="w-px h-5 bg-gray-300 mx-1" />
+
+              {/* Text color picker */}
+              <div className="relative flex items-center" title="Couleur du texte">
+                <Palette className="h-4 w-4 text-gray-600 mr-1" />
+                <input
+                  type="color"
+                  value={element.color || '#000000'}
+                  onChange={(e) => onElementUpdate?.({ ...element, color: e.target.value })}
+                  className="w-6 h-6 rounded border border-gray-300 cursor-pointer"
+                  style={{ padding: 0 }}
+                />
+              </div>
 
               <div className="w-px h-5 bg-gray-300 mx-1" />
 
