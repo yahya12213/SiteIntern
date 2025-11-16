@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactCrop from 'react-image-crop';
 import type { Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
-import { X, Upload, AlertCircle } from 'lucide-react';
+import { X, Upload, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api/client';
 
@@ -25,16 +25,32 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState<Crop>({
     unit: '%',
-    width: 90,
-    height: 90,
-    x: 5,
-    y: 5,
+    width: 75,
+    height: 100,
+    x: 12.5,
+    y: 0,
   });
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(false);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Load existing photo if available
+  useEffect(() => {
+    if (student.profile_image_url) {
+      setIsLoadingExisting(true);
+      // Construct full URL for the image
+      const baseUrl = import.meta.env.VITE_API_URL || '';
+      const fullUrl = student.profile_image_url.startsWith('http')
+        ? student.profile_image_url
+        : `${baseUrl}${student.profile_image_url}`;
+
+      setImageSrc(fullUrl);
+      setIsLoadingExisting(false);
+    }
+  }, [student.profile_image_url]);
 
   const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -159,8 +175,18 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
             </div>
           )}
 
+          {/* Loading existing photo */}
+          {isLoadingExisting && (
+            <div className="flex items-center justify-center p-12">
+              <div className="flex items-center gap-3">
+                <RefreshCw className="h-6 w-6 text-blue-600 animate-spin" />
+                <span className="text-gray-600">Chargement de la photo existante...</span>
+              </div>
+            </div>
+          )}
+
           {/* File input */}
-          {!imageSrc && (
+          {!imageSrc && !isLoadingExisting && (
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-12">
               <div className="text-center">
                 <Upload className="mx-auto h-12 w-12 text-gray-400" />
@@ -195,13 +221,28 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
                   crop={crop}
                   onChange={(c) => setCrop(c)}
                   onComplete={(c) => setCompletedCrop(c)}
-                  aspect={1}
+                  aspect={3/4}
                 >
                   <img
                     ref={imageRef}
                     src={imageSrc}
                     alt="Crop me"
                     style={{ maxHeight: '400px', maxWidth: '100%' }}
+                    onLoad={() => {
+                      // Set initial crop when image loads
+                      if (imageRef.current && !completedCrop) {
+                        const { width, height } = imageRef.current;
+                        const cropWidth = Math.min(width * 0.75, height * (3/4));
+                        const cropHeight = cropWidth / (3/4);
+                        setCompletedCrop({
+                          unit: 'px',
+                          width: cropWidth,
+                          height: cropHeight,
+                          x: (width - cropWidth) / 2,
+                          y: (height - cropHeight) / 2,
+                        });
+                      }
+                    }}
                   />
                 </ReactCrop>
               </div>
