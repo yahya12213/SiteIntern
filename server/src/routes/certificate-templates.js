@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../config/database.js';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { uploadBackground, uploadFont, deleteFile } from '../middleware/upload.js';
 
@@ -8,6 +9,102 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const router = express.Router();
+
+/**
+ * GET /api/certificate-templates/debug/storage
+ * Diagnostic endpoint to check file storage status
+ */
+router.get('/debug/storage', async (req, res) => {
+  try {
+    const uploadsDir = path.join(__dirname, '../../uploads');
+    const backgroundsDir = path.join(uploadsDir, 'backgrounds');
+    const profilesDir = path.join(uploadsDir, 'profiles');
+    const fontsDir = path.join(uploadsDir, 'fonts');
+
+    const checkDir = (dirPath) => {
+      try {
+        const exists = fs.existsSync(dirPath);
+        let writable = false;
+        let files = [];
+
+        if (exists) {
+          // Check if writable by trying to access
+          try {
+            fs.accessSync(dirPath, fs.constants.W_OK);
+            writable = true;
+          } catch (e) {
+            writable = false;
+          }
+
+          // List files
+          try {
+            files = fs.readdirSync(dirPath).slice(0, 10); // First 10 files
+          } catch (e) {
+            files = [`Error reading: ${e.message}`];
+          }
+        }
+
+        return {
+          path: dirPath,
+          exists,
+          writable,
+          files
+        };
+      } catch (error) {
+        return {
+          path: dirPath,
+          exists: false,
+          writable: false,
+          error: error.message
+        };
+      }
+    };
+
+    // Try to create backgrounds directory if it doesn't exist
+    let createAttempt = null;
+    if (!fs.existsSync(backgroundsDir)) {
+      try {
+        fs.mkdirSync(backgroundsDir, { recursive: true });
+        createAttempt = 'Successfully created backgrounds directory';
+      } catch (e) {
+        createAttempt = `Failed to create: ${e.message}`;
+      }
+    }
+
+    // Try to write a test file
+    let writeTest = null;
+    const testFilePath = path.join(backgroundsDir, 'test-write.txt');
+    try {
+      fs.writeFileSync(testFilePath, `Test write at ${new Date().toISOString()}`);
+      writeTest = 'Write test SUCCESS';
+      // Clean up
+      fs.unlinkSync(testFilePath);
+    } catch (e) {
+      writeTest = `Write test FAILED: ${e.message}`;
+    }
+
+    res.json({
+      success: true,
+      diagnostics: {
+        currentDir: __dirname,
+        uploadsDir: checkDir(uploadsDir),
+        backgroundsDir: checkDir(backgroundsDir),
+        profilesDir: checkDir(profilesDir),
+        fontsDir: checkDir(fontsDir),
+        createAttempt,
+        writeTest,
+        nodeEnv: process.env.NODE_ENV,
+        cwd: process.cwd()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
 
 /**
  * GET /api/certificate-templates
