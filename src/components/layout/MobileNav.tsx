@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Users, MapPin, FileSpreadsheet, Calculator, LogOut, FilePlus, ClipboardCheck, List, ChevronDown, ChevronUp, GraduationCap, Layers, BookOpen, CalendarCheck, BarChart3, FileText, Award, Palette, MessageSquare } from 'lucide-react';
+import { Menu, X, Home, Users, MapPin, FileSpreadsheet, Calculator, LogOut, FilePlus, ClipboardCheck, List, ChevronDown, ChevronUp, GraduationCap, BookOpen, CalendarCheck, BarChart3, FileText, Award, Palette, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -62,7 +62,6 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
       title: 'Formation en Ligne',
       icon: GraduationCap,
       items: [
-        { to: '/admin/corps-formation', icon: Layers, label: 'Corps de Formation' },
         { to: '/admin/formations-management', icon: BookOpen, label: 'Gestion des Formations' },
         { to: '/admin/sessions-formation', icon: CalendarCheck, label: 'Sessions de Formation' },
         { to: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
