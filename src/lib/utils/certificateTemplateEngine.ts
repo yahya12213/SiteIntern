@@ -440,25 +440,38 @@ export class CertificateTemplateEngine {
     const text = this.replaceVariables(element.content || '');
 
     // Convertir les coordonnées pixels → mm
-    const x = this.pxToMm(element.x || 0, 'x');
+    let x = this.pxToMm(element.x || 0, 'x');
     const y = this.pxToMm(element.y || 0, 'y');
+
+    const align = element.align || 'left';
 
     // Gérer le maxWidth (retour à la ligne automatique)
     if (element.maxWidth) {
       const maxWidthMm = this.pxToMm(element.maxWidth, 'x');
+
+      // CRITICAL FIX: Adjust X coordinate based on alignment
+      // The stored X is the LEFT edge of the bounding box
+      // jsPDF expects X to be at the alignment point
+      let adjustedX = x;
+      if (align === 'center') {
+        adjustedX = x + (maxWidthMm / 2); // Move to center of bounding box
+      } else if (align === 'right') {
+        adjustedX = x + maxWidthMm; // Move to right edge of bounding box
+      }
+
       const lines = this.doc.splitTextToSize(text, maxWidthMm);
 
       if (lines.length === 1) {
-        this.doc.text(lines[0], x, y, { align: element.align || 'left' });
+        this.doc.text(lines[0], adjustedX, y, { align });
       } else {
         // Afficher plusieurs lignes avec un espacement
         const lineHeightMm = (fontSize * 0.3527) * 1.2; // Conversion points → mm avec espacement
         lines.forEach((line: string, index: number) => {
-          this.doc.text(line, x, y + index * lineHeightMm, { align: element.align || 'left' });
+          this.doc.text(line, adjustedX, y + index * lineHeightMm, { align });
         });
       }
     } else {
-      this.doc.text(text, x, y, { align: element.align || 'left' });
+      this.doc.text(text, x, y, { align });
     }
   }
 
