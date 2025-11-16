@@ -54,6 +54,7 @@ import migration024Router from './routes/migration-024-seed-certificate-template
 import migration025Router from './routes/migration-025-add-discount-percentage.js';
 import migration026Router from './routes/migration-026-create-student-payments.js';
 import migration027Router from './routes/migration-027-fix-student-payments.js';
+import migration028Router from './routes/migration-028-student-status.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 
@@ -114,6 +115,7 @@ app.use('/api/migration-024', migration024Router); // Migration 024 - Seed defau
 app.use('/api/migration-025', migration025Router); // Migration 025 - Add discount percentage system
 app.use('/api/migration-026', migration026Router); // Migration 026 - Create student_payments table
 app.use('/api/migration-027', migration027Router); // Migration 027 - Fix student_payments table structure
+app.use('/api/migration-028', migration028Router); // Migration 028 - Add student status (valide/abandonne)
 
 // Health check
 app.get('/api/health', async (req, res) => {

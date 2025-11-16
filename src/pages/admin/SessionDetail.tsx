@@ -26,6 +26,10 @@ import {
   Tag,
   Award,
   Trash2,
+  CheckSquare,
+  Square,
+  ShieldCheck,
+  ShieldX,
 } from 'lucide-react';
 
 export const SessionDetail: React.FC = () => {
@@ -41,8 +45,16 @@ export const SessionDetail: React.FC = () => {
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   const handleGenerateCertificate = async (etudiant: any) => {
+    // Bloquer si étudiant abandonné
+    if (etudiant.student_status === 'abandonne') {
+      alert('Impossible de générer le certificat: cet étudiant a le statut "Abandonné". Veuillez d\'abord changer son statut en "Valide".');
+      return;
+    }
+
     if (!etudiant.formation_id) {
       alert('Impossible de générer le certificat: aucune formation assignée à cet étudiant');
       return;
@@ -82,6 +94,57 @@ export const SessionDetail: React.FC = () => {
     } catch (error: any) {
       console.error('Error deleting student:', error);
       alert('Erreur lors de la suppression: ' + error.message);
+    }
+  };
+
+  const toggleStudentSelection = (studentId: string) => {
+    setSelectedStudents(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(studentId)) {
+        newSet.delete(studentId);
+      } else {
+        newSet.add(studentId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAllStudents = () => {
+    if (!session?.etudiants) return;
+
+    if (selectedStudents.size === session.etudiants.length) {
+      setSelectedStudents(new Set());
+    } else {
+      setSelectedStudents(new Set(session.etudiants.map((e: any) => e.student_id)));
+    }
+  };
+
+  const handleBulkStatusChange = async (newStatus: 'valide' | 'abandonne') => {
+    if (selectedStudents.size === 0) {
+      alert('Veuillez sélectionner au moins un étudiant');
+      return;
+    }
+
+    const statusLabel = newStatus === 'valide' ? 'Valide' : 'Abandonné';
+    if (!confirm(`Êtes-vous sûr de vouloir changer le statut de ${selectedStudents.size} étudiant(s) en "${statusLabel}"?`)) {
+      return;
+    }
+
+    setIsChangingStatus(true);
+    try {
+      await apiClient.put(`/sessions-formation/${id}/etudiants/bulk-status`, {
+        student_ids: Array.from(selectedStudents),
+        status: newStatus
+      });
+
+      alert(`Statut mis à jour avec succès pour ${selectedStudents.size} étudiant(s)`);
+      setSelectedStudents(new Set());
+      refetch();
+    } catch (error: any) {
+      console.error('Error changing status:', error);
+      alert('Erreur lors du changement de statut: ' + error.message);
+    } finally {
+      setIsChangingStatus(false);
     }
   };
 
@@ -360,10 +423,26 @@ export const SessionDetail: React.FC = () => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            <button
+                              onClick={toggleAllStudents}
+                              className="p-1 hover:bg-gray-200 rounded transition-colors"
+                              title={selectedStudents.size === session.etudiants.length ? "Désélectionner tout" : "Sélectionner tout"}
+                            >
+                              {selectedStudents.size === session.etudiants.length ? (
+                                <CheckSquare className="h-5 w-5 text-blue-600" />
+                              ) : (
+                                <Square className="h-5 w-5 text-gray-400" />
+                              )}
+                            </button>
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Photo
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Nom
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Statut
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Formation
@@ -403,7 +482,21 @@ export const SessionDetail: React.FC = () => {
                             .toUpperCase() || '??';
 
                           return (
-                            <tr key={etudiant.id} className="hover:bg-gray-50">
+                            <tr key={etudiant.id} className={`hover:bg-gray-50 ${etudiant.student_status === 'abandonne' ? 'bg-red-50' : ''}`}>
+                              {/* Checkbox */}
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={() => toggleStudentSelection(etudiant.student_id)}
+                                  className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                >
+                                  {selectedStudents.has(etudiant.student_id) ? (
+                                    <CheckSquare className="h-5 w-5 text-blue-600" />
+                                  ) : (
+                                    <Square className="h-5 w-5 text-gray-400" />
+                                  )}
+                                </button>
+                              </td>
+
                               {/* Photo */}
                               <td className="px-4 py-3">
                                 {(() => {
@@ -438,6 +531,30 @@ export const SessionDetail: React.FC = () => {
                               </td>
 
                               <td className="px-4 py-3 text-sm text-gray-900">{etudiant.student_name}</td>
+
+                              {/* Statut étudiant */}
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
+                                    etudiant.student_status === 'abandonne'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-green-100 text-green-800'
+                                  }`}
+                                >
+                                  {etudiant.student_status === 'abandonne' ? (
+                                    <>
+                                      <ShieldX className="h-3 w-3" />
+                                      Abandonné
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ShieldCheck className="h-3 w-3" />
+                                      Valide
+                                    </>
+                                  )}
+                                </span>
+                              </td>
+
                               <td className="px-4 py-3 text-sm text-blue-600 font-medium">{etudiant.formation_title || '-'}</td>
 
                               {/* Prix Formation */}
@@ -607,6 +724,38 @@ export const SessionDetail: React.FC = () => {
                         })}
                       </tbody>
                     </table>
+
+                    {/* Barre d'action flottante pour sélection multiple */}
+                    {selectedStudents.size > 0 && (
+                      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-xl border border-gray-200 p-4 flex items-center gap-4 z-50">
+                        <div className="text-sm font-medium text-gray-700">
+                          {selectedStudents.size} étudiant(s) sélectionné(s)
+                        </div>
+                        <div className="h-6 w-px bg-gray-300" />
+                        <button
+                          onClick={() => handleBulkStatusChange('valide')}
+                          disabled={isChangingStatus}
+                          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          Valider
+                        </button>
+                        <button
+                          onClick={() => handleBulkStatusChange('abandonne')}
+                          disabled={isChangingStatus}
+                          className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <ShieldX className="h-4 w-4" />
+                          Abandonner
+                        </button>
+                        <button
+                          onClick={() => setSelectedStudents(new Set())}
+                          className="px-3 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-12 text-gray-500">Aucun étudiant inscrit</div>

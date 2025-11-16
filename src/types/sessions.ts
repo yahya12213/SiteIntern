@@ -5,6 +5,7 @@
 export type SessionStatut = 'planifiee' | 'en_cours' | 'terminee' | 'annulee';
 export type StatutPaiement = 'paye' | 'partiellement_paye' | 'impaye';
 export type TypeFichier = 'test' | 'presence';
+export type StudentStatus = 'valide' | 'abandonne';
 
 /**
  * Session de Formation (Classe)
@@ -45,6 +46,7 @@ export interface SessionEtudiant {
   student_id: string;
   formation_id?: string;
   statut_paiement: StatutPaiement;
+  student_status?: StudentStatus;
   montant_total: number | string;
   montant_paye: number | string;
   montant_du: number | string;

@@ -676,6 +676,69 @@ router.delete('/:sessionId/etudiants/:etudiantId', async (req, res) => {
   }
 });
 
+/**
+ * PUT /api/sessions-formation/:sessionId/etudiants/bulk-status
+ * Mettre à jour le statut de plusieurs étudiants en une seule requête
+ */
+router.put('/:sessionId/etudiants/bulk-status', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { student_ids, status } = req.body;
+
+    if (!student_ids || !Array.isArray(student_ids) || student_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'student_ids doit être un tableau non vide'
+      });
+    }
+
+    if (!status || !['valide', 'abandonne'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'status doit être "valide" ou "abandonne"'
+      });
+    }
+
+    // Vérifier que la session existe
+    const sessionCheck = await pool.query(
+      'SELECT id FROM sessions_formation WHERE id = $1',
+      [sessionId]
+    );
+
+    if (sessionCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found'
+      });
+    }
+
+    // Mettre à jour le statut pour tous les étudiants sélectionnés
+    const result = await pool.query(
+      `UPDATE session_etudiants
+       SET student_status = $1, updated_at = NOW()
+       WHERE session_id = $2 AND student_id = ANY($3)
+       RETURNING student_id`,
+      [status, sessionId, student_ids]
+    );
+
+    const updatedCount = result.rows.length;
+
+    res.json({
+      success: true,
+      updated_count: updatedCount,
+      message: `${updatedCount} étudiant(s) mis à jour avec le statut "${status}"`,
+      updated_ids: result.rows.map(r => r.student_id)
+    });
+
+  } catch (error) {
+    console.error('Error updating bulk student status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // ============================================
 // GESTION DES PROFESSEURS DANS UNE SESSION
 // ============================================
