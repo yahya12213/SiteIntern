@@ -445,20 +445,25 @@ export class CertificateTemplateEngine {
 
     const align = element.align || 'left';
 
+    // Use maxWidth if available, otherwise use width (from canvas editor)
+    const elementWidth = element.maxWidth || element.width;
+
+    // CRITICAL FIX: Adjust X coordinate based on alignment
+    // The stored X is the LEFT edge of the bounding box
+    // jsPDF expects X to be at the alignment point
+    let adjustedX = x;
+    if (elementWidth && (align === 'center' || align === 'right')) {
+      const widthMm = this.pxToMm(elementWidth, 'x');
+      if (align === 'center') {
+        adjustedX = x + (widthMm / 2); // Move to center of bounding box
+      } else if (align === 'right') {
+        adjustedX = x + widthMm; // Move to right edge of bounding box
+      }
+    }
+
     // Gérer le maxWidth (retour à la ligne automatique)
     if (element.maxWidth) {
       const maxWidthMm = this.pxToMm(element.maxWidth, 'x');
-
-      // CRITICAL FIX: Adjust X coordinate based on alignment
-      // The stored X is the LEFT edge of the bounding box
-      // jsPDF expects X to be at the alignment point
-      let adjustedX = x;
-      if (align === 'center') {
-        adjustedX = x + (maxWidthMm / 2); // Move to center of bounding box
-      } else if (align === 'right') {
-        adjustedX = x + maxWidthMm; // Move to right edge of bounding box
-      }
-
       const lines = this.doc.splitTextToSize(text, maxWidthMm);
 
       if (lines.length === 1) {
@@ -471,7 +476,7 @@ export class CertificateTemplateEngine {
         });
       }
     } else {
-      this.doc.text(text, x, y, { align });
+      this.doc.text(text, adjustedX, y, { align });
     }
   }
 
