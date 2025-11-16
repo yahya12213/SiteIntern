@@ -386,6 +386,28 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
     setSelectedId(id);
   };
 
+  // Wrapper for canvas toolbar - duplicate with element parameter
+  const handleCanvasDuplicate = (element: TemplateElement) => {
+    const id = `element-${nextElementId}`;
+    setNextElementId(nextElementId + 1);
+
+    const duplicatedElement: TemplateElement = {
+      ...element,
+      id,
+      x: typeof element.x === 'number' ? element.x + 20 : element.x,
+      y: typeof element.y === 'number' ? element.y + 20 : element.y,
+    };
+
+    setElements([...elements, duplicatedElement]);
+    setSelectedId(id);
+  };
+
+  // Wrapper for canvas toolbar - delete with ID parameter
+  const handleCanvasDelete = (elementId: string) => {
+    setElements(elements.filter((el) => el.id !== elementId));
+    setSelectedId(null);
+  };
+
   // Gérer drag start depuis palette
   const handlePaletteDragStart = (type: string, data: any) => {
     const dragData = { type, ...data };
@@ -666,6 +688,9 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
               handleElementDrop(type, x, y, data);
               delete (window as any).__dragData;
             }}
+            onElementUpdate={handleElementChange}
+            onElementDuplicate={handleCanvasDuplicate}
+            onElementDelete={handleCanvasDelete}
           />
           </div>
         </div>

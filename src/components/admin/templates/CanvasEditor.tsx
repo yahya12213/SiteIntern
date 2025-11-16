@@ -1,5 +1,16 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Grid3x3 } from 'lucide-react';
+import {
+  Grid3x3,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Minus,
+  Plus,
+  Copy,
+  Trash2,
+  Bold,
+  Italic
+} from 'lucide-react';
 import type { TemplateElement } from '@/types/certificateTemplate';
 
 interface CanvasEditorProps {
@@ -12,6 +23,9 @@ interface CanvasEditorProps {
   onElementResize: (id: string, w: number, h: number) => void;
   onElementSelect: (id: string | null) => void;
   onElementDrop: (type: string, x: number, y: number, data: any) => void;
+  onElementUpdate?: (element: TemplateElement) => void;
+  onElementDuplicate?: (element: TemplateElement) => void;
+  onElementDelete?: (elementId: string) => void;
 }
 
 interface DraggingState {
@@ -40,6 +54,9 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   onElementResize,
   onElementSelect,
   onElementDrop,
+  onElementUpdate,
+  onElementDuplicate,
+  onElementDelete,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<DraggingState | null>(null);
@@ -203,6 +220,115 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           >
             {element.content || 'Texte vide'}
           </div>
+          {/* Quick action toolbar for text elements */}
+          {isSelected && (
+            <div
+              style={{
+                position: 'absolute',
+                left: `${x}px`,
+                top: `${y - 44}px`,
+                zIndex: 1001,
+              }}
+              className="flex items-center gap-1 bg-white rounded-lg shadow-lg border border-gray-200 p-1.5"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              {/* Text alignment */}
+              <button
+                onClick={() => onElementUpdate?.({ ...element, align: 'left' })}
+                className={`p-1.5 rounded hover:bg-gray-100 ${element.align === 'left' || !element.align ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                title="Aligner à gauche"
+              >
+                <AlignLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => onElementUpdate?.({ ...element, align: 'center' })}
+                className={`p-1.5 rounded hover:bg-gray-100 ${element.align === 'center' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                title="Centrer"
+              >
+                <AlignCenter className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => onElementUpdate?.({ ...element, align: 'right' })}
+                className={`p-1.5 rounded hover:bg-gray-100 ${element.align === 'right' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                title="Aligner à droite"
+              >
+                <AlignRight className="h-4 w-4" />
+              </button>
+
+              <div className="w-px h-5 bg-gray-300 mx-1" />
+
+              {/* Font style */}
+              <button
+                onClick={() => {
+                  const currentStyle = element.fontStyle || 'normal';
+                  const isBold = currentStyle.includes('bold');
+                  const isItalic = currentStyle.includes('italic');
+                  let newStyle = isBold
+                    ? isItalic ? 'italic' : 'normal'
+                    : isItalic ? 'bolditalic' : 'bold';
+                  onElementUpdate?.({ ...element, fontStyle: newStyle });
+                }}
+                className={`p-1.5 rounded hover:bg-gray-100 ${element.fontStyle?.includes('bold') ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                title="Gras"
+              >
+                <Bold className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => {
+                  const currentStyle = element.fontStyle || 'normal';
+                  const isBold = currentStyle.includes('bold');
+                  const isItalic = currentStyle.includes('italic');
+                  let newStyle = isItalic
+                    ? isBold ? 'bold' : 'normal'
+                    : isBold ? 'bolditalic' : 'italic';
+                  onElementUpdate?.({ ...element, fontStyle: newStyle });
+                }}
+                className={`p-1.5 rounded hover:bg-gray-100 ${element.fontStyle?.includes('italic') ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                title="Italique"
+              >
+                <Italic className="h-4 w-4" />
+              </button>
+
+              <div className="w-px h-5 bg-gray-300 mx-1" />
+
+              {/* Font size controls */}
+              <button
+                onClick={() => onElementUpdate?.({ ...element, fontSize: Math.max(8, (element.fontSize || 12) - 2) })}
+                className="p-1.5 rounded hover:bg-gray-100 text-gray-600"
+                title="Réduire la taille"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <span className="text-xs font-medium text-gray-700 min-w-[32px] text-center">
+                {element.fontSize || 12}px
+              </span>
+              <button
+                onClick={() => onElementUpdate?.({ ...element, fontSize: Math.min(200, (element.fontSize || 12) + 2) })}
+                className="p-1.5 rounded hover:bg-gray-100 text-gray-600"
+                title="Augmenter la taille"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+
+              <div className="w-px h-5 bg-gray-300 mx-1" />
+
+              {/* Duplicate and delete */}
+              <button
+                onClick={() => onElementDuplicate?.(element)}
+                className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
+                title="Dupliquer"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => onElementDelete?.(element.id)}
+                className="p-1.5 rounded hover:bg-red-100 text-red-600"
+                title="Supprimer"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           {isSelected && (
             <div
               className="resize-handle"
@@ -242,6 +368,34 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             }}
             onMouseDown={(e) => handleMouseDown(e, element)}
           />
+          {/* Quick action toolbar for shapes */}
+          {isSelected && (
+            <div
+              style={{
+                position: 'absolute',
+                left: `${x}px`,
+                top: `${y - 44}px`,
+                zIndex: 1001,
+              }}
+              className="flex items-center gap-1 bg-white rounded-lg shadow-lg border border-gray-200 p-1.5"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => onElementDuplicate?.(element)}
+                className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
+                title="Dupliquer"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => onElementDelete?.(element.id)}
+                className="p-1.5 rounded hover:bg-red-100 text-red-600"
+                title="Supprimer"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           {isSelected && (
             <div
               className="resize-handle"
@@ -269,18 +423,47 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       const radius = element.radius || 20;
 
       return (
-        <div
-          key={element.id}
-          style={{
-            ...baseStyle,
-            width: `${radius * 2}px`,
-            height: `${radius * 2}px`,
-            borderRadius: '50%',
-            border: `${element.lineWidth || 1}px solid ${element.color || '#000000'}`,
-            backgroundColor: element.fillColor || 'transparent',
-          }}
-          onMouseDown={(e) => handleMouseDown(e, element)}
-        />
+        <div key={element.id}>
+          <div
+            style={{
+              ...baseStyle,
+              width: `${radius * 2}px`,
+              height: `${radius * 2}px`,
+              borderRadius: '50%',
+              border: `${element.lineWidth || 1}px solid ${element.color || '#000000'}`,
+              backgroundColor: element.fillColor || 'transparent',
+            }}
+            onMouseDown={(e) => handleMouseDown(e, element)}
+          />
+          {/* Quick action toolbar for circle */}
+          {isSelected && (
+            <div
+              style={{
+                position: 'absolute',
+                left: `${x}px`,
+                top: `${y - 44}px`,
+                zIndex: 1001,
+              }}
+              className="flex items-center gap-1 bg-white rounded-lg shadow-lg border border-gray-200 p-1.5"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => onElementDuplicate?.(element)}
+                className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
+                title="Dupliquer"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => onElementDelete?.(element.id)}
+                className="p-1.5 rounded hover:bg-red-100 text-red-600"
+                title="Supprimer"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </div>
       );
     }
 
@@ -295,22 +478,51 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
 
       return (
-        <div
-          key={element.id}
-          style={{
-            position: 'absolute',
-            left: `${x1}px`,
-            top: `${y1}px`,
-            width: `${length}px`,
-            height: `${element.lineWidth || 1}px`,
-            backgroundColor: element.color || '#000000',
-            transform: `rotate(${angle}deg)`,
-            transformOrigin: '0 0',
-            cursor: 'grab',
-            border: isSelected ? '2px solid #3B82F6' : 'none',
-          }}
-          onMouseDown={(e) => handleMouseDown(e, element)}
-        />
+        <div key={element.id}>
+          <div
+            style={{
+              position: 'absolute',
+              left: `${x1}px`,
+              top: `${y1}px`,
+              width: `${length}px`,
+              height: `${element.lineWidth || 1}px`,
+              backgroundColor: element.color || '#000000',
+              transform: `rotate(${angle}deg)`,
+              transformOrigin: '0 0',
+              cursor: 'grab',
+              border: isSelected ? '2px solid #3B82F6' : 'none',
+            }}
+            onMouseDown={(e) => handleMouseDown(e, element)}
+          />
+          {/* Quick action toolbar for line */}
+          {isSelected && (
+            <div
+              style={{
+                position: 'absolute',
+                left: `${x1}px`,
+                top: `${Math.min(y1, y2) - 44}px`,
+                zIndex: 1001,
+              }}
+              className="flex items-center gap-1 bg-white rounded-lg shadow-lg border border-gray-200 p-1.5"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => onElementDuplicate?.(element)}
+                className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
+                title="Dupliquer"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => onElementDelete?.(element.id)}
+                className="p-1.5 rounded hover:bg-red-100 text-red-600"
+                title="Supprimer"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </div>
       );
     }
 
@@ -338,6 +550,34 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
               {element.source ? element.source.substring(0, 20) + '...' : 'Image'}
             </span>
           </div>
+          {/* Quick action toolbar for image */}
+          {isSelected && (
+            <div
+              style={{
+                position: 'absolute',
+                left: `${x}px`,
+                top: `${y - 44}px`,
+                zIndex: 1001,
+              }}
+              className="flex items-center gap-1 bg-white rounded-lg shadow-lg border border-gray-200 p-1.5"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => onElementDuplicate?.(element)}
+                className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
+                title="Dupliquer"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => onElementDelete?.(element.id)}
+                className="p-1.5 rounded hover:bg-red-100 text-red-600"
+                title="Supprimer"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           {isSelected && (
             <div
               className="resize-handle"

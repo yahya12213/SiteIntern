@@ -21,6 +21,12 @@ import {
   Home,
   User,
   Cake,
+  BookOpen,
+  CalendarRange,
+  Tag,
+  Layers,
+  Camera,
+  KeyRound,
 } from 'lucide-react';
 
 interface ElementPaletteProps {
@@ -49,9 +55,18 @@ export const ElementPalette: React.FC<ElementPaletteProps> = ({ onDragStart }) =
 
     // Données Certificat
     { type: 'text', icon: Hash, label: 'Numéro certificat', variable: '{certificate_number}', category: 'Certificat', color: 'purple' },
+    { type: 'text', icon: KeyRound, label: 'Série unique', variable: '{certificate_serial}', category: 'Certificat', color: 'purple' },
     { type: 'text', icon: CalendarCheck, label: 'Date complétion', variable: '{completion_date}', category: 'Certificat', color: 'purple' },
     { type: 'text', icon: Calendar, label: 'Date émission', variable: '{issued_date}', category: 'Certificat', color: 'purple' },
     { type: 'text', icon: Award, label: 'Note/Grade', variable: '{grade}', category: 'Certificat', color: 'purple' },
+
+    // Données Session
+    { type: 'text', icon: BookOpen, label: 'Titre session', variable: '{session_title}', category: 'Session', color: 'teal' },
+    { type: 'text', icon: CalendarRange, label: 'Date début session', variable: '{session_date_debut}', category: 'Session', color: 'teal' },
+    { type: 'text', icon: CalendarRange, label: 'Date fin session', variable: '{session_date_fin}', category: 'Session', color: 'teal' },
+    { type: 'text', icon: MapPin, label: 'Ville session', variable: '{session_ville}', category: 'Session', color: 'teal' },
+    { type: 'text', icon: Tag, label: 'Segment session', variable: '{session_segment}', category: 'Session', color: 'teal' },
+    { type: 'text', icon: Layers, label: 'Corps formation', variable: '{session_corps_formation}', category: 'Session', color: 'teal' },
 
     // Données Organisation
     { type: 'text', icon: Building2, label: 'Nom organisation', variable: '{organization_name}', category: 'Organisation', color: 'orange' },
@@ -61,6 +76,7 @@ export const ElementPalette: React.FC<ElementPaletteProps> = ({ onDragStart }) =
 
   // Images
   const imageElements = [
+    { type: 'image', icon: Camera, label: 'Photo étudiant', source: '{student_photo_url}', color: 'indigo' },
     { type: 'image', icon: ImageIcon, label: 'Logo', source: '{logo_url}', color: 'indigo' },
     { type: 'image', icon: ImageIcon, label: 'Signature', source: '{signature_url}', color: 'indigo' },
     { type: 'image', icon: ImageIcon, label: 'Image personnalisée', source: '', color: 'indigo' },
@@ -90,6 +106,7 @@ export const ElementPalette: React.FC<ElementPaletteProps> = ({ onDragStart }) =
     purple: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
     orange: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
     indigo: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
+    teal: { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
     gray: { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' },
     slate: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' },
   };

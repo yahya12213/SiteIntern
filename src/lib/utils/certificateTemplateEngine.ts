@@ -290,11 +290,19 @@ export class CertificateTemplateEngine {
       '{issued_date}': this.formatDate(this.certificate.issued_at, 'long'),
       '{issued_date_short}': this.formatDate(this.certificate.issued_at, 'short'),
       '{certificate_number}': this.certificate.certificate_number || '',
+      '{certificate_serial}': (this.certificate.metadata as any)?.certificate_serial || '',
       '{grade}': this.certificate.grade !== null && this.certificate.grade !== undefined ? this.certificate.grade : '',
       '{grade_rounded}':
         this.certificate.grade !== null && this.certificate.grade !== undefined
           ? Math.round(this.certificate.grade)
           : '',
+      // Session fields
+      '{session_title}': (this.certificate.metadata as any)?.session_title || '',
+      '{session_date_debut}': (this.certificate.metadata as any)?.session_date_debut ? this.formatDate((this.certificate.metadata as any)?.session_date_debut, 'short') : '',
+      '{session_date_fin}': (this.certificate.metadata as any)?.session_date_fin ? this.formatDate((this.certificate.metadata as any)?.session_date_fin, 'short') : '',
+      '{session_ville}': (this.certificate.metadata as any)?.session_ville || '',
+      '{session_segment}': (this.certificate.metadata as any)?.session_segment || '',
+      '{session_corps_formation}': (this.certificate.metadata as any)?.session_corps_formation || '',
       // Other fields
       '{current_year}': new Date().getFullYear(),
       '{current_date}': this.formatDate(new Date(), 'long'),
@@ -304,6 +312,7 @@ export class CertificateTemplateEngine {
       '{director_name}': (this.certificate.metadata as any)?.director_name || 'Directeur',
       '{logo_url}': (this.certificate.metadata as any)?.logo_url || '',
       '{signature_url}': (this.certificate.metadata as any)?.signature_url || '',
+      '{student_photo_url}': (this.certificate.metadata as any)?.student_photo_url || '',
     };
 
     let result = text;
@@ -552,8 +561,25 @@ export class CertificateTemplateEngine {
     }
 
     try {
+      // Resolve variable in source (e.g., {student_photo_url}, {logo_url})
+      let imageUrl = this.replaceVariables(element.source);
+
+      // Skip if no URL after variable replacement
+      if (!imageUrl || imageUrl === element.source && element.source.startsWith('{')) {
+        console.warn('Image source variable not resolved:', element.source);
+        return;
+      }
+
+      // Handle relative URLs (from uploads folder)
+      if (imageUrl.startsWith('/uploads/')) {
+        // Construct full URL using API base
+        const apiUrl = (window as any).__API_URL__ || import.meta.env?.VITE_API_URL || 'http://localhost:3001/api';
+        const baseUrl = apiUrl.replace('/api', '');
+        imageUrl = `${baseUrl}${imageUrl}`;
+      }
+
       // Charger l'image
-      const response = await fetch(element.source);
+      const response = await fetch(imageUrl);
       const blob = await response.blob();
       const base64 = await this.blobToBase64(blob);
 

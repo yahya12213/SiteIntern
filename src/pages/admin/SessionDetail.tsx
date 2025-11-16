@@ -117,6 +117,17 @@ export const SessionDetail: React.FC = () => {
           lieu_naissance: etudiant.student_birth_place || '',
           adresse: etudiant.student_address || '',
           organization_name: session?.titre || 'Session de Formation',
+          // Session data
+          session_title: session?.titre || '',
+          session_date_debut: session?.date_debut || '',
+          session_date_fin: session?.date_fin || '',
+          session_ville: session?.ville_name || '',
+          session_segment: session?.segment_name || '',
+          session_corps_formation: session?.corps_formation_name || '',
+          // Student photo
+          student_photo_url: etudiant.profile_image_url || '',
+          // Certificate serial (to be generated)
+          certificate_serial: `${etudiant.student_id?.substring(0, 8) || 'XXXX'}-${Date.now().toString(36).toUpperCase()}`,
         },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
