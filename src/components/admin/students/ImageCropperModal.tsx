@@ -228,6 +228,7 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
                     ref={imageRef}
                     src={imageSrc}
                     alt="Crop me"
+                    crossOrigin="anonymous"
                     style={{ maxHeight: '400px', maxWidth: '100%' }}
                     onLoad={() => {
                       // Set initial crop when image loads
