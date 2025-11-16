@@ -948,18 +948,46 @@ router.post('/:id/upload-background', (req, res, next) => {
       message: 'Background image uploaded successfully',
     });
   } catch (error) {
-    // Supprimer le fichier uploadé en cas d'erreur
-    if (req.file) {
-      deleteFile(req.file.path);
-    }
     console.error('Error uploading background image:');
     console.error('Error message:', error.message);
     console.error('Error stack:', error.stack);
+    console.error('Error code:', error.code);
     console.error('Request file:', req.file);
     console.error('Request params:', req.params);
+
+    // Vérifier si c'est une erreur de connexion à la base de données
+    const isDbConnectionError =
+      error.code === 'ECONNREFUSED' ||
+      error.code === 'ENOTFOUND' ||
+      error.code === 'ETIMEDOUT' ||
+      error.message?.includes('ECONNREFUSED') ||
+      error.message?.includes('connection') ||
+      error instanceof AggregateError;
+
+    if (isDbConnectionError) {
+      console.error('❌ Database connection error detected');
+      // Ne PAS supprimer le fichier - il est sauvegardé correctement
+      // Retourner l'URL du fichier même si la DB est inaccessible
+      if (req.file) {
+        const fileUrl = `/uploads/backgrounds/${req.file.filename}`;
+        console.log('📁 File saved successfully at:', fileUrl);
+        return res.status(503).json({
+          success: false,
+          error: 'Database temporarily unavailable. File uploaded but not registered. Please try again.',
+          background_url: fileUrl, // Fournir l'URL quand même
+          retry: true,
+        });
+      }
+    }
+
+    // Pour les autres erreurs, supprimer le fichier uploadé
+    if (req.file) {
+      deleteFile(req.file.path);
+    }
+
     res.status(500).json({
       success: false,
-      error: error.message,
+      error: error.message || 'Upload failed',
     });
   }
 });
