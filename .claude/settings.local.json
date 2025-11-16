@@ -37,7 +37,19 @@
       "Bash(npm run db:schema:*)",
       "Bash(git log:*)",
       "Bash(timeout:*)",
-      "Bash(if exist nul del /f nul)"
+      "Bash(if exist nul del /f nul)",
+      "Bash(npm install:*)",
+      "Bash(NUL)",
+      "Bash(npx tsc:*)",
+      "Bash(for file in \"src/pages/admin/CalculationSheets.tsx\" \"src/pages/admin/CertificateTemplateCanvasEditor.tsx\" \"src/pages/admin/DeclarationViewer.tsx\" \"src/pages/Login.tsx\")",
+      "Bash(do echo \"=== Checking $file ===\")",
+      "Bash(if grep -q \"AppLayout\" \"$file\")",
+      "Bash(then echo \"HAS AppLayout\")",
+      "Bash(else echo \"NO AppLayout\")",
+      "Bash(done)",
+      "Bash(for file in src/pages/admin/CalculationSheets.tsx src/pages/admin/CertificateTemplateCanvasEditor.tsx src/pages/admin/DeclarationViewer.tsx src/pages/Login.tsx)",
+      "Bash(do echo \"C:\\Users\\pc\\Desktop\\systeme de calcul$file\")",
+      "Bash(if exist NUL del /f NUL)"
     ],
     "deny": [],
     "ask": []

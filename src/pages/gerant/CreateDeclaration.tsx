@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, AlertCircle } from 'lucide-react';
+import { Save, AlertCircle } from 'lucide-react';
 import {
   useGerantSegments,
   useGerantCities,
@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 const CreateDeclaration: React.FC = () => {
   const navigate = useNavigate();
@@ -111,71 +112,46 @@ const CreateDeclaration: React.FC = () => {
 
   if (loadingSegments || loadingCities) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-lg text-gray-600">Chargement...</div>
-      </div>
+      <AppLayout
+        title="Créer une Déclaration"
+        subtitle="Assigner une fiche de session à un professeur"
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg text-gray-600">Chargement...</div>
+        </div>
+      </AppLayout>
     );
   }
 
   if (!segments || segments.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center gap-4">
-              <Link to="/dashboard">
-                <Button variant="outline" size="sm">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Retour
-                </Button>
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900">Créer une Déclaration</h1>
+      <AppLayout
+        title="Créer une Déclaration"
+        subtitle="Assigner une fiche de session à un professeur"
+      >
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+              <p className="text-lg text-gray-700 font-medium mb-2">
+                Aucun segment assigné
+              </p>
+              <p className="text-sm text-gray-500">
+                Contactez un administrateur pour vous assigner des segments et villes.
+              </p>
             </div>
-          </div>
-        </header>
-        <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center py-12">
-                <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-                <p className="text-lg text-gray-700 font-medium mb-2">
-                  Aucun segment assigné
-                </p>
-                <p className="text-sm text-gray-500">
-                  Contactez un administrateur pour vous assigner des segments et villes.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
+          </CardContent>
+        </Card>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <Link to="/dashboard">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Retour
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Créer une Déclaration</h1>
-              <p className="text-sm text-gray-600">
-                Assigner une fiche de session à un professeur
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <AppLayout
+      title="Créer une Déclaration"
+      subtitle="Assigner une fiche de session à un professeur"
+    >
+      <div className="space-y-6">
         <form onSubmit={handleSubmit}>
           <Card>
             <CardHeader>
@@ -355,8 +331,8 @@ const CreateDeclaration: React.FC = () => {
             </Button>
           </div>
         </form>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Eye, Edit3, Trash2, Send, FileText, AlertCircle } from 'lucide-react';
+import { Plus, Eye, Edit3, Trash2, Send, FileText, AlertCircle } from 'lucide-react';
 import { useProfessorDeclarations, useDeleteDeclaration, useSubmitDeclaration } from '@/hooks/useProfessorDeclarations';
 import DeclarationStatusBadge from '@/components/professor/DeclarationStatusBadge';
 import NewDeclarationModal from '@/components/professor/NewDeclarationModal';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 const Declarations: React.FC = () => {
   const { data: declarations, isLoading } = useProfessorDeclarations();
@@ -40,52 +41,39 @@ const Declarations: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des déclarations...</p>
+      <AppLayout
+        title="Mes Déclarations"
+        subtitle="Gérez vos déclarations de sessions"
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Chargement des déclarations...</p>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link
-                to="/dashboard"
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                title="Retour au tableau de bord"
-              >
-                <ArrowLeft className="w-6 h-6 text-gray-600" />
-              </Link>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Mes Déclarations</h1>
-                <p className="text-sm text-gray-600 mt-1">
-                  Gérez vos déclarations de sessions
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setIsNewModalOpen(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Nouvelle Déclaration
-            </button>
-          </div>
+    <AppLayout
+      title="Mes Déclarations"
+      subtitle="Gérez vos déclarations de sessions"
+    >
+      <div className="space-y-6">
+        {/* Header Actions */}
+        <div className="flex justify-end">
+          <button
+            onClick={() => setIsNewModalOpen(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Nouvelle Déclaration
+          </button>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div className="bg-white rounded-lg shadow-sm p-4">
             <p className="text-sm text-gray-600">Total</p>
             <p className="text-2xl font-bold text-gray-900">{declarations?.length || 0}</p>
@@ -263,7 +251,7 @@ const Declarations: React.FC = () => {
       {isNewModalOpen && (
         <NewDeclarationModal onClose={() => setIsNewModalOpen(false)} />
       )}
-    </div>
+    </AppLayout>
   );
 };
 

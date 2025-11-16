@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Save, Send, AlertCircle, EyeOff, Upload, X, FileText, Download, ExternalLink, Link as LinkIcon } from 'lucide-react';
+import { Save, Send, AlertCircle, EyeOff, Upload, X, FileText, Download, ExternalLink, Link as LinkIcon } from 'lucide-react';
 import { useProfessorDeclaration, useUpdateDeclaration, useSubmitDeclaration } from '@/hooks/useProfessorDeclarations';
 import DeclarationStatusBadge from '@/components/professor/DeclarationStatusBadge';
 import { calculateAllValues } from '@/lib/formula/dependency';
 import type { FieldDefinition, FormulaContext } from '@/lib/formula/types';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 const DeclarationForm: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -488,63 +489,58 @@ const DeclarationForm: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement de la déclaration...</p>
+      <AppLayout
+        title="Déclaration"
+        subtitle="Chargement en cours..."
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Chargement de la déclaration...</p>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   if (!declaration) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">Déclaration introuvable</h2>
-          <Link
-            to="/professor/declarations"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Retour à la liste
-          </Link>
+      <AppLayout
+        title="Déclaration"
+        subtitle="Formulaire de déclaration"
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-700 mb-2">Déclaration introuvable</h2>
+            <Link
+              to="/professor/declarations"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retour à la liste
+            </Link>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+    <AppLayout
+      title={declaration.sheet_title}
+      subtitle={`${declaration.segment_name} • ${declaration.city_name} • Du ${new Date(declaration.start_date).toLocaleDateString('fr-FR')} au ${new Date(declaration.end_date).toLocaleDateString('fr-FR')}`}
+    >
+      <div className="space-y-6">
+        {/* Header Actions */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              to="/professor/declarations"
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Retour à la liste"
-            >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
-            </Link>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-gray-900">{declaration.sheet_title}</h1>
-                <DeclarationStatusBadge status={declaration.status} />
-                {isReadOnly && (
-                  <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium flex items-center gap-1">
-                    <EyeOff className="w-3 h-3" />
-                    Lecture seule
-                  </span>
-                )}
-              </div>
-              <div className="text-sm text-gray-500 mt-1">
-                {declaration.segment_name} • {declaration.city_name} • Du{' '}
-                {new Date(declaration.start_date).toLocaleDateString('fr-FR')} au{' '}
-                {new Date(declaration.end_date).toLocaleDateString('fr-FR')}
-              </div>
-            </div>
+          <div className="flex items-center gap-3">
+            <DeclarationStatusBadge status={declaration.status} />
+            {isReadOnly && (
+              <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium flex items-center gap-1">
+                <EyeOff className="w-3 h-3" />
+                Lecture seule
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -578,38 +574,36 @@ const DeclarationForm: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
 
-      {/* Message pour déclaration créée par un gérant */}
-      {(declaration.status as any) === 'a_declarer' && (
-        <div className="bg-orange-50 border-b border-orange-200 px-6 py-4">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-orange-800">Fiche assignée par un gérant</p>
-              <p className="text-sm text-orange-700 mt-1">
-                Cette fiche de session vous a été assignée. Veuillez la remplir et la soumettre.
-              </p>
+        {/* Message pour déclaration créée par un gérant */}
+        {(declaration.status as any) === 'a_declarer' && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg px-6 py-4">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-orange-800">Fiche assignée par un gérant</p>
+                <p className="text-sm text-orange-700 mt-1">
+                  Cette fiche de session vous a été assignée. Veuillez la remplir et la soumettre.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Rejection reason */}
-      {declaration.rejection_reason && (
-        <div className="bg-red-50 border-b border-red-200 px-6 py-4">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-red-800">Déclaration refusée</p>
-              <p className="text-sm text-red-700 mt-1">{declaration.rejection_reason}</p>
+        {/* Rejection reason */}
+        {declaration.rejection_reason && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-6 py-4">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800">Déclaration refusée</p>
+                <p className="text-sm text-red-700 mt-1">{declaration.rejection_reason}</p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Canvas */}
-      <div className="p-4">
+        {/* Canvas */}
         <div className="bg-white rounded-lg shadow-sm overflow-auto">
           <div
             className="relative bg-white"
@@ -622,7 +616,7 @@ const DeclarationForm: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 };
 

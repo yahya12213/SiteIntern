@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Filter } from 'lucide-react';
+import { Filter } from 'lucide-react';
 import { useGerantDeclarations } from '@/hooks/useGerantDeclarations';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import DeclarationStatusBadge from '@/components/professor/DeclarationStatusBadge';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 const GerantDeclarations: React.FC = () => {
   const { data: declarations, isLoading } = useGerantDeclarations();
@@ -35,48 +36,35 @@ const GerantDeclarations: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-lg text-gray-600">Chargement...</div>
-      </div>
+      <AppLayout
+        title="Mes Déclarations Créées"
+        subtitle="Suivez les déclarations que vous avez assignées aux professeurs"
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg text-gray-600">Chargement...</div>
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/dashboard">
-                <Button variant="outline" size="sm">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Retour
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Mes Déclarations Créées
-                </h1>
-                <p className="text-sm text-gray-600">
-                  Suivez les déclarations que vous avez assignées aux professeurs
-                </p>
-              </div>
-            </div>
-            <Link to="/gerant/create-declaration">
-              <Button>
-                <Filter className="w-4 h-4 mr-2" />
-                Créer une déclaration
-              </Button>
-            </Link>
-          </div>
+    <AppLayout
+      title="Mes Déclarations Créées"
+      subtitle="Suivez les déclarations que vous avez assignées aux professeurs"
+    >
+      <div className="space-y-6">
+        {/* Header Actions */}
+        <div className="flex justify-end">
+          <Link to="/gerant/create-declaration">
+            <Button>
+              <Filter className="w-4 h-4 mr-2" />
+              Créer une déclaration
+            </Button>
+          </Link>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Statistiques */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Card>
             <CardContent className="pt-6">
               <div className="text-center">
@@ -208,8 +196,8 @@ const GerantDeclarations: React.FC = () => {
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

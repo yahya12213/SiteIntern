@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, AlertCircle, Download, FileText, Eye, Save, Link, ExternalLink, Trash2, Image as ImageIcon } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Download, FileText, Eye, Save, Link, ExternalLink, Trash2, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   useAdminDeclaration,
@@ -13,6 +13,7 @@ import { useUpdateDeclaration } from '@/hooks/useProfessorDeclarations';
 import { calculateAllValues } from '@/lib/formula/dependency';
 import type { FieldDefinition, FormulaContext } from '@/lib/formula/types';
 import FilePreviewModal from '@/components/admin/FilePreviewModal';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 const DeclarationViewer: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -509,65 +510,61 @@ const DeclarationViewer: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement...</p>
+      <AppLayout
+        title="Visualisation Déclaration"
+        subtitle="Chargement en cours..."
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Chargement...</p>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   if (!declaration) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-600">Déclaration introuvable</p>
-          <Button onClick={() => navigate('/admin/declarations')} className="mt-4">
-            Retour
-          </Button>
+      <AppLayout
+        title="Visualisation Déclaration"
+        subtitle="Mode administrateur"
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-gray-600">Déclaration introuvable</p>
+            <Button onClick={() => navigate('/admin/declarations')} className="mt-4">
+              Retour
+            </Button>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/admin/declarations')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Retour à la liste"
+    <AppLayout
+      title={declaration.sheet_title}
+      subtitle={`${declaration.professor_name} • ${declaration.segment_name} • ${declaration.city_name} • Du ${new Date(declaration.start_date).toLocaleDateString('fr-FR')} au ${new Date(declaration.end_date).toLocaleDateString('fr-FR')}`}
+    >
+      <div className="space-y-6">
+        {/* Header Actions */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span
+              className={`px-3 py-1 rounded-full text-sm font-medium ${
+                (statusConfig as any)[declaration.status].color
+              }`}
             >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
-            </button>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-gray-900">{declaration.sheet_title}</h1>
-                <span
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    (statusConfig as any)[declaration.status].color
-                  }`}
-                >
-                  {(statusConfig as any)[declaration.status].label}
-                </span>
-                <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium flex items-center gap-1">
-                  <Eye className="w-3 h-3" />
-                  Mode Admin
-                </span>
-              </div>
-              <div className="text-sm text-gray-500 mt-1">
-                {declaration.professor_name} • {declaration.segment_name} • {declaration.city_name} • Du{' '}
-                {new Date(declaration.start_date).toLocaleDateString('fr-FR')} au{' '}
-                {new Date(declaration.end_date).toLocaleDateString('fr-FR')}
-              </div>
-            </div>
+              {(statusConfig as any)[declaration.status].label}
+            </span>
+            <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium flex items-center gap-1">
+              <Eye className="w-3 h-3" />
+              Mode Admin
+            </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {/* Message de sauvegarde */}
             {saveMessage && (
               <div className="flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-lg">
@@ -623,25 +620,24 @@ const DeclarationViewer: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
 
-      {/* Rejection reason */}
-      {declaration.rejection_reason && (
-        <div className="bg-red-50 border-b border-red-200 px-6 py-4">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-red-800">
-                {declaration.status === 'refusee' ? 'Déclaration refusée' : 'Modifications demandées'}
-              </p>
-              <p className="text-sm text-red-700 mt-1">{declaration.rejection_reason}</p>
+        {/* Rejection reason */}
+        {declaration.rejection_reason && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-6 py-4">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800">
+                  {declaration.status === 'refusee' ? 'Déclaration refusée' : 'Modifications demandées'}
+                </p>
+                <p className="text-sm text-red-700 mt-1">{declaration.rejection_reason}</p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Canvas */}
-      <div className="p-4">
+        {/* Canvas */}
+        <div>
         <div className="bg-white rounded-lg shadow-sm overflow-auto">
           <div
             className="relative bg-white"
@@ -744,7 +740,8 @@ const DeclarationViewer: React.FC = () => {
           onNavigate={(index: number) => setCurrentFileIndex(index)}
         />
       )}
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

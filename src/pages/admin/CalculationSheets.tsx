@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Calculator, Edit3, Save, CheckCircle2, ArrowLeft, Upload, X, FileText, Download, Eye, EyeOff, User, Shield } from 'lucide-react';
+import { Calculator, Edit3, Save, CheckCircle2, Upload, X, FileText, Download, Eye, EyeOff, User, Shield } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { calculateAllValues } from '@/lib/formula/dependency';
 import type { FormulaContext, FieldDefinition } from '@/lib/formula/types';
 import { useCalculationSheet } from '@/hooks/useCalculationSheets';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 // Mode test - Affichage de la fiche sans padding pour alignement parfait
 
@@ -385,82 +386,77 @@ export default function CalculationSheets() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement de la fiche...</p>
+      <AppLayout
+        title="Test Fiche de Calcul"
+        subtitle="Chargement en cours..."
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Chargement de la fiche...</p>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   if (!sheetData || fields.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Calculator className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">Aucune fiche trouvée</h2>
-          <p className="text-gray-500 mb-4">Cette fiche n'existe pas ou n'a pas encore de champs.</p>
-          <Link
-            to="/admin/calculation-sheets"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Retour à la liste
-          </Link>
+      <AppLayout
+        title="Test Fiche de Calcul"
+        subtitle="Aucune fiche trouvée"
+      >
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Calculator className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-700 mb-2">Aucune fiche trouvée</h2>
+            <p className="text-gray-500 mb-4">Cette fiche n'existe pas ou n'a pas encore de champs.</p>
+            <Link
+              to="/admin/calculation-sheets"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retour à la liste
+            </Link>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* En-tête */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div className="flex items-start sm:items-center gap-3 sm:gap-4 w-full lg:w-auto">
-            <Link
-              to="/admin/calculation-sheets"
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-              title="Retour à la liste"
-            >
-              <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
-            </Link>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 truncate">{sheetTitle}</h1>
-                <span className={`px-2.5 sm:px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit ${
-                  viewMode === 'admin'
-                    ? 'bg-purple-100 text-purple-800'
-                    : 'bg-blue-100 text-blue-800'
-                }`}>
-                  {viewMode === 'admin' ? (
-                    <>
-                      <Shield className="w-3 h-3" />
-                      Mode Admin
-                    </>
-                  ) : (
-                    <>
-                      <User className="w-3 h-3" />
-                      Mode Utilisateur
-                    </>
-                  )}
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1 hidden sm:block">
-                {viewMode === 'admin'
-                  ? 'Tous les champs visibles - Simulation complète'
-                  : 'Mode Test - Vérifiez vos calculs'}
-              </p>
-            </div>
+    <AppLayout
+      title={sheetTitle}
+      subtitle={viewMode === 'admin' ? 'Tous les champs visibles - Simulation complète' : 'Mode Test - Vérifiez vos calculs'}
+    >
+      <div className="space-y-6">
+        {/* Header Actions */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className={`px-2.5 sm:px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit ${
+              viewMode === 'admin'
+                ? 'bg-purple-100 text-purple-800'
+                : 'bg-blue-100 text-blue-800'
+            }`}>
+              {viewMode === 'admin' ? (
+                <>
+                  <Shield className="w-3 h-3" />
+                  Mode Admin
+                </>
+              ) : (
+                <>
+                  <User className="w-3 h-3" />
+                  Mode Utilisateur
+                </>
+              )}
+            </span>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full lg:w-auto">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {/* Basculer entre les modes */}
             <div className="flex gap-2">
               <button
                 onClick={() => setSearchParams({ mode: 'admin' })}
-                className={`flex-1 sm:flex-none px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm ${
+                className={`px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm ${
                   viewMode === 'admin'
                     ? 'bg-purple-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -471,7 +467,7 @@ export default function CalculationSheets() {
               </button>
               <button
                 onClick={() => setSearchParams({ mode: 'user' })}
-                className={`flex-1 sm:flex-none px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm ${
+                className={`px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm ${
                   viewMode === 'user'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -492,7 +488,7 @@ export default function CalculationSheets() {
 
             <button
               onClick={handleSave}
-              className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+              className="px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <Save className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Sauvegarder Test</span>
@@ -500,17 +496,15 @@ export default function CalculationSheets() {
 
             <Link
               to={`/admin/calculation-sheets/${id}/editor`}
-              className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+              className="px-3 sm:px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <Edit3 className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Modifier</span>
             </Link>
           </div>
         </div>
-      </div>
 
-      {/* Canvas de la fiche */}
-      <div className="p-4">
+        {/* Canvas de la fiche */}
         <div className="bg-white rounded-lg shadow-sm overflow-auto">
           <div
             className="relative bg-white"
@@ -524,7 +518,7 @@ export default function CalculationSheets() {
         </div>
 
         {/* Aide */}
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
             <Calculator className="w-5 h-5" />
             Mode Test - Comment utiliser
@@ -538,6 +532,6 @@ export default function CalculationSheets() {
           </div>
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }
