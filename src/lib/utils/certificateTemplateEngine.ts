@@ -255,6 +255,45 @@ export class CertificateTemplateEngine {
   }
 
   /**
+   * Ajouter les pages du template à un document PDF existant (pour la génération en masse)
+   */
+  async appendToDocument(existingDoc: jsPDF): Promise<void> {
+    // Charger les polices personnalisées
+    await this.loadCustomFonts();
+
+    // Utiliser le document existant au lieu du doc interne
+    this.doc = existingDoc;
+
+    // Récupérer les pages du template
+    const pages = getTemplatePages(
+      this.template.template_config,
+      {
+        url: this.template.background_image_url,
+        type: this.template.background_image_type,
+      }
+    );
+
+    // Générer chaque page (toujours ajouter une nouvelle page car on append)
+    for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+      const page = pages[pageIndex];
+
+      // Ajouter une nouvelle page PDF
+      this.doc.addPage();
+
+      // Charger le background spécifique à cette page
+      await this.loadBackgroundImage(page.background_image_url);
+
+      // Dessiner chaque élément de la page dans l'ordre
+      for (const element of page.elements) {
+        if (element.condition && !this.checkCondition(element.condition)) {
+          continue;
+        }
+        await this.renderElement(element);
+      }
+    }
+  }
+
+  /**
    * Vérifier une condition (ex: "grade" pour afficher seulement si grade existe)
    */
   private checkCondition(condition: string): boolean {

@@ -56,6 +56,10 @@ export const SessionDetail: React.FC = () => {
   const [availableDocuments, setAvailableDocuments] = useState<Record<string, any[]>>({});
   const [loadingDocuments, setLoadingDocuments] = useState<string | null>(null);
   const [generatingDocument, setGeneratingDocument] = useState<string | null>(null);
+  const [showBulkDocumentModal, setShowBulkDocumentModal] = useState(false);
+  const [bulkTemplates, setBulkTemplates] = useState<any[]>([]);
+  const [generatingBulkDocuments, setGeneratingBulkDocuments] = useState(false);
+  const [bulkGenerationProgress, setBulkGenerationProgress] = useState({ current: 0, total: 0, templateName: '' });
 
   // Charger les documents disponibles pour un étudiant
   const loadAvailableDocuments = async (studentId: string) => {
@@ -186,10 +190,13 @@ export const SessionDetail: React.FC = () => {
   const toggleAllStudents = () => {
     if (!session?.etudiants) return;
 
-    if (selectedStudents.size === session.etudiants.length) {
+    // Exclure les étudiants abandonnés de la sélection
+    const validStudents = session.etudiants.filter((e: any) => e.student_status !== 'abandonne');
+
+    if (selectedStudents.size === validStudents.length && validStudents.length > 0) {
       setSelectedStudents(new Set());
     } else {
-      setSelectedStudents(new Set(session.etudiants.map((e: any) => e.student_id)));
+      setSelectedStudents(new Set(validStudents.map((e: any) => e.student_id)));
     }
   };
 
@@ -219,6 +226,188 @@ export const SessionDetail: React.FC = () => {
       alert('Erreur lors du changement de statut: ' + error.message);
     } finally {
       setIsChangingStatus(false);
+    }
+  };
+
+  // Charger les templates communs pour la génération en masse
+  const loadBulkTemplates = async () => {
+    if (selectedStudents.size === 0) {
+      alert('Veuillez sélectionner au moins un étudiant');
+      return;
+    }
+
+    try {
+      // Récupérer les étudiants sélectionnés (exclure les abandonnés)
+      const selectedEtudiants = session?.etudiants?.filter(
+        (e: any) => selectedStudents.has(e.student_id) && e.student_status !== 'abandonne'
+      ) || [];
+
+      if (selectedEtudiants.length === 0) {
+        alert('Aucun étudiant valide sélectionné');
+        return;
+      }
+
+      // Récupérer les formation_ids uniques
+      const formationIds = [...new Set(selectedEtudiants.map((e: any) => e.formation_id))];
+
+      // Charger les templates pour chaque formation
+      const templatesMap: Record<string, any[]> = {};
+      for (const formationId of formationIds) {
+        const studentForFormation = selectedEtudiants.find((e: any) => e.formation_id === formationId);
+        if (studentForFormation) {
+          const response = await apiClient.get(`/sessions-formation/${id}/etudiants/${studentForFormation.student_id}/available-documents`) as { templates: any[] };
+          templatesMap[formationId] = response.templates || [];
+        }
+      }
+
+      // Trouver les templates communs à toutes les formations
+      let commonTemplates: any[] = [];
+      const allTemplateArrays = Object.values(templatesMap);
+
+      if (allTemplateArrays.length > 0) {
+        commonTemplates = allTemplateArrays[0];
+        for (let i = 1; i < allTemplateArrays.length; i++) {
+          const currentTemplateIds = new Set(allTemplateArrays[i].map((t: any) => t.template_id));
+          commonTemplates = commonTemplates.filter((t: any) => currentTemplateIds.has(t.template_id));
+        }
+      }
+
+      if (commonTemplates.length === 0) {
+        alert('Aucun template commun trouvé pour les formations sélectionnées');
+        return;
+      }
+
+      setBulkTemplates(commonTemplates);
+      setShowBulkDocumentModal(true);
+    } catch (error: any) {
+      console.error('Error loading bulk templates:', error);
+      alert('Erreur lors du chargement des templates: ' + error.message);
+    }
+  };
+
+  // Générer les documents en masse
+  const handleBulkDocumentGeneration = async (template: any) => {
+    const selectedEtudiants = session?.etudiants?.filter(
+      (e: any) => selectedStudents.has(e.student_id) && e.student_status !== 'abandonne'
+    ) || [];
+
+    if (selectedEtudiants.length === 0) {
+      alert('Aucun étudiant valide sélectionné');
+      return;
+    }
+
+    setGeneratingBulkDocuments(true);
+    setBulkGenerationProgress({ current: 0, total: selectedEtudiants.length, templateName: template.template_name });
+
+    try {
+      // Récupérer le template complet
+      const templateResponse = await apiClient.get(`/certificate-templates/${template.template_id}`) as { success: boolean; template: CertificateTemplate };
+      const fullTemplate: CertificateTemplate = templateResponse.template;
+
+      // Générer le premier document pour l'utiliser comme base
+      const firstEtudiant = selectedEtudiants[0];
+      setBulkGenerationProgress(prev => ({ ...prev, current: 1 }));
+
+      const firstCertificateData: Certificate = {
+        id: `temp-${Date.now()}-0`,
+        student_id: firstEtudiant.student_id,
+        formation_id: firstEtudiant.formation_id,
+        student_name: firstEtudiant.student_name,
+        student_email: firstEtudiant.student_email || '',
+        formation_title: firstEtudiant.formation_title || '',
+        formation_description: '',
+        duration_hours: 0,
+        certificate_number: `DOC-${Date.now()}-0`,
+        issued_at: new Date().toISOString(),
+        completion_date: new Date().toISOString(),
+        grade: null,
+        metadata: {
+          student_first_name: firstEtudiant.student_first_name || firstEtudiant.student_name?.split(' ')[0] || '',
+          student_last_name: firstEtudiant.student_last_name || firstEtudiant.student_name?.split(' ').slice(1).join(' ') || '',
+          cin: firstEtudiant.student_cin || '',
+          phone: firstEtudiant.student_phone || '',
+          whatsapp: firstEtudiant.student_whatsapp || '',
+          date_naissance: firstEtudiant.student_birth_date || '',
+          lieu_naissance: firstEtudiant.student_birth_place || '',
+          adresse: firstEtudiant.student_address || '',
+          organization_name: session?.titre || 'Session de Formation',
+          session_title: session?.titre || '',
+          session_date_debut: session?.date_debut || '',
+          session_date_fin: session?.date_fin || '',
+          session_ville: session?.ville_name || '',
+          session_segment: session?.segment_name || '',
+          session_corps_formation: session?.corps_formation_name || '',
+          student_photo_url: firstEtudiant.profile_image_url || '',
+          certificate_serial: `${firstEtudiant.student_id?.substring(0, 8) || 'XXXX'}-${Date.now().toString(36).toUpperCase()}`,
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const firstEngine = new CertificateTemplateEngine(firstCertificateData, fullTemplate);
+      const combinedDoc = await firstEngine.generate();
+
+      // Ajouter les pages pour les autres étudiants
+      for (let i = 1; i < selectedEtudiants.length; i++) {
+        const etudiant = selectedEtudiants[i];
+        setBulkGenerationProgress(prev => ({ ...prev, current: i + 1 }));
+
+        const certificateData: Certificate = {
+          id: `temp-${Date.now()}-${i}`,
+          student_id: etudiant.student_id,
+          formation_id: etudiant.formation_id,
+          student_name: etudiant.student_name,
+          student_email: etudiant.student_email || '',
+          formation_title: etudiant.formation_title || '',
+          formation_description: '',
+          duration_hours: 0,
+          certificate_number: `DOC-${Date.now()}-${i}`,
+          issued_at: new Date().toISOString(),
+          completion_date: new Date().toISOString(),
+          grade: null,
+          metadata: {
+            student_first_name: etudiant.student_first_name || etudiant.student_name?.split(' ')[0] || '',
+            student_last_name: etudiant.student_last_name || etudiant.student_name?.split(' ').slice(1).join(' ') || '',
+            cin: etudiant.student_cin || '',
+            phone: etudiant.student_phone || '',
+            whatsapp: etudiant.student_whatsapp || '',
+            date_naissance: etudiant.student_birth_date || '',
+            lieu_naissance: etudiant.student_birth_place || '',
+            adresse: etudiant.student_address || '',
+            organization_name: session?.titre || 'Session de Formation',
+            session_title: session?.titre || '',
+            session_date_debut: session?.date_debut || '',
+            session_date_fin: session?.date_fin || '',
+            session_ville: session?.ville_name || '',
+            session_segment: session?.segment_name || '',
+            session_corps_formation: session?.corps_formation_name || '',
+            student_photo_url: etudiant.profile_image_url || '',
+            certificate_serial: `${etudiant.student_id?.substring(0, 8) || 'XXXX'}-${Date.now().toString(36).toUpperCase()}`,
+          },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        // Créer l'engine avec le document combiné existant
+        const engine = new CertificateTemplateEngine(certificateData, fullTemplate);
+        await engine.appendToDocument(combinedDoc);
+      }
+
+      // Nom du fichier combiné
+      const sessionName = session?.titre?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Session';
+      const templateName = template.document_type?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Document';
+      const filename = `${templateName}_${sessionName}_${selectedEtudiants.length}_etudiants.pdf`;
+
+      combinedDoc.save(filename);
+
+      setShowBulkDocumentModal(false);
+      alert(`PDF combiné généré avec succès pour ${selectedEtudiants.length} étudiant(s)`);
+    } catch (error: any) {
+      console.error('Error generating bulk documents:', error);
+      alert('Erreur lors de la génération: ' + error.message);
+    } finally {
+      setGeneratingBulkDocuments(false);
+      setBulkGenerationProgress({ current: 0, total: 0, templateName: '' });
     }
   };
 
@@ -868,6 +1057,15 @@ export const SessionDetail: React.FC = () => {
                           <ShieldX className="h-4 w-4" />
                           Abandonner
                         </button>
+                        <div className="h-6 w-px bg-gray-300" />
+                        <button
+                          onClick={loadBulkTemplates}
+                          disabled={isChangingStatus || generatingBulkDocuments}
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <FileDown className="h-4 w-4" />
+                          Générer Documents
+                        </button>
                         <button
                           onClick={() => setSelectedStudents(new Set())}
                           className="px-3 py-2 text-gray-600 hover:text-gray-800 transition-colors"
@@ -1070,6 +1268,85 @@ export const SessionDetail: React.FC = () => {
             setSelectedStudent(null);
           }}
         />
+      )}
+
+      {/* Modal de génération de documents en masse */}
+      {showBulkDocumentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Générer Documents en Masse
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {selectedStudents.size} étudiant(s) sélectionné(s) - Choisissez le type de document
+              </p>
+            </div>
+
+            {generatingBulkDocuments ? (
+              <div className="p-6">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+                  <p className="text-sm font-medium text-gray-900">
+                    Génération en cours...
+                  </p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {bulkGenerationProgress.templateName}
+                  </p>
+                  <div className="mt-4 bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${(bulkGenerationProgress.current / bulkGenerationProgress.total) * 100}%`
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {bulkGenerationProgress.current} / {bulkGenerationProgress.total} étudiants
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 space-y-3 max-h-96 overflow-y-auto">
+                {bulkTemplates.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">
+                    Aucun template disponible
+                  </p>
+                ) : (
+                  bulkTemplates.map((template: any) => (
+                    <button
+                      key={template.template_id}
+                      onClick={() => handleBulkDocumentGeneration(template)}
+                      className="w-full p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {template.template_name}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {template.document_type}
+                          </p>
+                        </div>
+                        <FileDown className="h-5 w-5 text-blue-600" />
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            <div className="p-6 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setShowBulkDocumentModal(false)}
+                disabled={generatingBulkDocuments}
+                className="px-4 py-2 text-gray-700 hover:text-gray-900 disabled:opacity-50"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   );
