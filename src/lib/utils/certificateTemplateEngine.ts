@@ -461,22 +461,33 @@ export class CertificateTemplateEngine {
       }
     }
 
+    // CRITICAL FIX: Adjust Y coordinate for vertical centering
+    // The stored Y is the TOP of the bounding box
+    // jsPDF expects Y to be the text baseline (bottom of text)
+    let adjustedY = y;
+    if (element.height) {
+      const heightMm = this.pxToMm(element.height, 'y');
+      const fontSizeMm = fontSize * 0.3527; // Convert pt to mm
+      // Center text vertically: move to middle of box, then adjust for baseline
+      adjustedY = y + (heightMm / 2) + (fontSizeMm / 3);
+    }
+
     // Gérer le maxWidth (retour à la ligne automatique)
     if (element.maxWidth) {
       const maxWidthMm = this.pxToMm(element.maxWidth, 'x');
       const lines = this.doc.splitTextToSize(text, maxWidthMm);
 
       if (lines.length === 1) {
-        this.doc.text(lines[0], adjustedX, y, { align });
+        this.doc.text(lines[0], adjustedX, adjustedY, { align });
       } else {
         // Afficher plusieurs lignes avec un espacement
         const lineHeightMm = (fontSize * 0.3527) * 1.2; // Conversion points → mm avec espacement
         lines.forEach((line: string, index: number) => {
-          this.doc.text(line, adjustedX, y + index * lineHeightMm, { align });
+          this.doc.text(line, adjustedX, adjustedY + index * lineHeightMm, { align });
         });
       }
     } else {
-      this.doc.text(text, adjustedX, y, { align });
+      this.doc.text(text, adjustedX, adjustedY, { align });
     }
   }
 
