@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Plus, Calculator, Edit3, Eye, Trash2, FileSpreadsheet, Layers, MapPin, Settings, Upload, XCircle, Copy, Download, ArrowLeft } from 'lucide-react';
+import { Plus, Calculator, Edit3, Eye, Trash2, FileSpreadsheet, Layers, MapPin, Settings, Upload, XCircle, Copy, Download } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { useCalculationSheets, useDeleteCalculationSheet, useCreateCalculationSheet, useUpdateCalculationSheet, useTogglePublishCalculationSheet, useDuplicateCalculationSheet, type CalculationSheetData } from '@/hooks/useCalculationSheets';
 import { useSegments, type Segment } from '@/hooks/useSegments';
 import { useCities, type City } from '@/hooks/useCities';
 
 export default function CalculationSheetsList() {
-  const navigate = useNavigate();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingSheet, setEditingSheet] = useState<any>(null);
 
@@ -94,24 +94,13 @@ export default function CalculationSheetsList() {
   };
 
   return (
-    <div className="p-6">
-      {/* En-tête */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Retour au tableau de bord"
-            >
-              <ArrowLeft className="w-6 h-6 text-gray-600" />
-            </button>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <FileSpreadsheet className="w-8 h-8 text-blue-600" />
-              Gestion des Fiches de Calcul
-            </h1>
-          </div>
-
+    <AppLayout
+      title="Gestion des Fiches de Calcul"
+      subtitle="Créer et gérer les templates de fiches de calcul pour les sessions"
+    >
+      <div className="space-y-6">
+        {/* Header Actions */}
+        <div className="flex justify-end">
           <button
             onClick={() => setIsCreateModalOpen(true)}
             className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
@@ -120,12 +109,8 @@ export default function CalculationSheetsList() {
             Nouvelle Fiche
           </button>
         </div>
-        <p className="text-gray-600 ml-14">
-          Créer et gérer les templates de fiches de calcul pour les sessions
-        </p>
-      </div>
 
-      {/* Liste des fiches */}
+        {/* Liste des fiches */}
       {isLoading ? (
         <div className="bg-white rounded-lg shadow-sm p-12 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -317,7 +302,8 @@ export default function CalculationSheetsList() {
           onClose={() => setEditingSheet(null)}
         />
       )}
-    </div>
+      </div>
+    </AppLayout>
   );
 }
 

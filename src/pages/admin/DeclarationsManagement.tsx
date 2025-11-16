@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, CheckCircle, XCircle, Clock, AlertCircle, ExternalLink, Trash2, Edit3 } from 'lucide-react';
+import { FileText, CheckCircle, XCircle, Clock, AlertCircle, ExternalLink, Trash2, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AppLayout } from '@/components/layout/AppLayout';
 import {
   useAdminDeclarations,
   useDeclarationStats,
@@ -172,28 +173,11 @@ const DeclarationsManagement: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')} className="w-full sm:w-auto">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Retour
-            </Button>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-                Gestion des Déclarations
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">
-                Valider, refuser ou demander des modifications
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <AppLayout
+      title="Gestion des Déclarations"
+      subtitle="Valider, refuser ou demander des modifications"
+    >
+      <div className="space-y-6">
         {/* Statistiques */}
         {stats && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
@@ -608,7 +592,7 @@ const DeclarationsManagement: React.FC = () => {
           }}
         />
       )}
-    </div>
+    </AppLayout>
   );
 };
 

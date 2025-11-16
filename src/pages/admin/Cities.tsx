@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, MapPin, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Plus, Search, Edit2, Trash2, MapPin } from 'lucide-react';
 import { useCities, useDeleteCity, type City } from '@/hooks/useCities';
 import { useSegments, type Segment } from '@/hooks/useSegments';
+import { AppLayout } from '@/components/layout/AppLayout';
 import CityFormModal from '@/components/admin/CityFormModal';
 
 export default function Cities() {
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
@@ -81,25 +80,9 @@ export default function Cities() {
   };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8">
-      <div className="mb-4 sm:mb-6">
-        <div className="flex items-center gap-3 sm:gap-4 mb-2">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
-            title="Retour au tableau de bord"
-          >
-            <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
-          </button>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <MapPin className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-green-600" />
-            <span className="truncate">Gestion des Villes</span>
-          </h1>
-        </div>
-        <p className="text-sm sm:text-base text-gray-600 mt-2 ml-10 sm:ml-12 md:ml-14">Gérer les villes et leur affectation</p>
-      </div>
-
-      {/* Barre d'actions */}
+    <AppLayout title="Gestion des Villes" subtitle="Gérer les villes et leur affectation">
+      <div className="space-y-6">
+        {/* Barre d'actions */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
@@ -274,6 +257,7 @@ export default function Cities() {
           onClose={handleCloseForm}
         />
       )}
-    </div>
+      </div>
+    </AppLayout>
   );
 }

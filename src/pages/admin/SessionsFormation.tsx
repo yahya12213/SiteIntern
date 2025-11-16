@@ -112,7 +112,7 @@ export const SessionsFormation: React.FC = () => {
 
   if (isLoading) {
     return (
-      <AppLayout>
+      <AppLayout title="Sessions de Formation" subtitle="Gérez les sessions de formation (classes)">
         <div className="flex items-center justify-center h-64">
           <div className="text-gray-500">Chargement des sessions...</div>
         </div>
@@ -122,7 +122,7 @@ export const SessionsFormation: React.FC = () => {
 
   if (error) {
     return (
-      <AppLayout>
+      <AppLayout title="Sessions de Formation" subtitle="Gérez les sessions de formation (classes)">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center gap-2 text-red-800">
             <AlertCircle className="h-5 w-5" />
@@ -134,20 +134,10 @@ export const SessionsFormation: React.FC = () => {
   }
 
   return (
-    <AppLayout>
+    <AppLayout title="Sessions de Formation" subtitle="Gérez les sessions de formation (classes)">
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Calendar className="h-7 w-7 text-blue-600" />
-              Sessions de Formation
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Gérez les sessions de formation (classes)
-            </p>
-          </div>
-
+        {/* Header Actions */}
+        <div className="flex justify-end">
           <button
             onClick={() => {
               setEditingSession(null);

@@ -11,6 +11,7 @@ import {
   Users,
   Activity,
 } from 'lucide-react';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { useForumStats } from '@/hooks/useForums';
 import { useFormations } from '@/hooks/useCours';
 import { Button } from '@/components/ui/button';
@@ -32,18 +33,12 @@ export const ForumModeration: React.FC = () => {
     : formations;
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Modération des Forums
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Gérez les discussions et modérez le contenu des forums
-        </p>
-      </div>
-
-      {/* Stats Cards */}
+    <AppLayout
+      title="Modération des Forums"
+      subtitle="Gérez les discussions et modérez le contenu des forums"
+    >
+      <div className="space-y-6">
+        {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-5 text-white">
           <div className="flex items-center justify-between mb-2">
@@ -236,6 +231,7 @@ export const ForumModeration: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </AppLayout>
   );
 };

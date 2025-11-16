@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Edit, Trash2, ArrowLeft, Upload } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Plus, Edit, Trash2, Upload } from 'lucide-react';
+import { AppLayout } from '@/components/layout/AppLayout';
 import ImportCitiesModal from '@/components/admin/ImportCitiesModal';
 import { useSegments, useCreateSegment, useUpdateSegment, useDeleteSegment } from '@/hooks/useSegments';
 import type { Segment } from '@/hooks/useSegments';
@@ -79,29 +79,19 @@ export default function Segments() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-800">Erreur lors du chargement des segments: {(error as Error).message}</p>
-          </div>
+      <AppLayout title="Gestion des Segments" subtitle="Gérer les segments de formation">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">Erreur lors du chargement des segments: {(error as Error).message}</p>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <Link to="/dashboard">
-              <Button variant="outline" size="icon">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <h1 className="text-2xl sm:text-3xl font-bold">Gestion des Segments</h1>
-          </div>
+    <AppLayout title="Gestion des Segments" subtitle="Gérer les segments de formation">
+      <div className="space-y-6">
+        {/* Header Actions */}
+        <div className="flex justify-end">
           <Button onClick={() => setShowForm(!showForm)} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             Nouveau Segment
@@ -230,6 +220,6 @@ export default function Segments() {
           }}
         />
       )}
-    </div>
+    </AppLayout>
   );
 }

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Edit, Trash2, MapPin, Calculator, Shield, User, Users as UsersIcon, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit, Trash2, MapPin, Calculator, Shield, User, Users as UsersIcon, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AppLayout } from '@/components/layout/AppLayout';
 import {
   useUsers,
   useCreateUser,
@@ -69,37 +69,19 @@ const Users: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-col sm:flex-row w-full sm:w-auto">
-              <Link to="/dashboard">
-                <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Retour
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-                  Gestion des Utilisateurs
-                </h1>
-                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">
-                  Créer et gérer les comptes utilisateurs (admin, professeur, gérant)
-                </p>
-              </div>
-            </div>
-            <Button onClick={() => setIsCreateModalOpen(true)} className="w-full sm:w-auto">
-              <Plus className="w-4 h-4 mr-2" />
-              Nouvel utilisateur
-            </Button>
-          </div>
+    <AppLayout
+      title="Gestion des Utilisateurs"
+      subtitle="Créer et gérer les comptes utilisateurs (admin, professeur, gérant)"
+    >
+      <div className="space-y-6">
+        {/* Header Actions */}
+        <div className="flex justify-end">
+          <Button onClick={() => setIsCreateModalOpen(true)} className="w-full sm:w-auto">
+            <Plus className="w-4 h-4 mr-2" />
+            Nouvel utilisateur
+          </Button>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Statistiques */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card>
@@ -288,7 +270,6 @@ const Users: React.FC = () => {
             )}
           </CardContent>
         </Card>
-      </main>
 
       {/* Modals */}
       {isCreateModalOpen && (
@@ -328,7 +309,8 @@ const Users: React.FC = () => {
           }}
         />
       )}
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

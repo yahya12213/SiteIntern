@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Edit, Trash2, BookOpen, Package, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Plus, Edit, Trash2, BookOpen, Package } from 'lucide-react';
+import { AppLayout } from '@/components/layout/AppLayout';
 import {
   useCorpsFormation,
   useCreateCorpsFormation,
@@ -91,34 +91,21 @@ export default function CorpsFormationPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-800">Erreur lors du chargement: {(error as Error).message}</p>
-          </div>
+      <AppLayout title="Corps de Formation" subtitle="Gérez les catégories de formations">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">Erreur lors du chargement: {(error as Error).message}</p>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   const totalFormations = corpsList.reduce((sum, corps) => sum + (corps.formations_count || 0), 0);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <Link to="/dashboard">
-              <Button variant="outline" size="icon">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Corps de Formation</h1>
-              <p className="text-sm text-gray-600 mt-1">Gérez les catégories de formations</p>
-            </div>
-          </div>
+    <AppLayout title="Corps de Formation" subtitle="Gérez les catégories de formations">
+      <div className="space-y-6">
+        {/* Header Actions */}
+        <div className="flex justify-end">
           <Button onClick={() => setShowForm(!showForm)} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Nouveau corps
@@ -358,6 +345,6 @@ export default function CorpsFormationPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </AppLayout>
   );
 }
