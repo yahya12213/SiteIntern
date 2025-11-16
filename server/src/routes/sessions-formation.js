@@ -539,7 +539,7 @@ router.put('/:sessionId/etudiants/:etudiantId', async (req, res) => {
 
     // Récupérer les données actuelles incluant formation_original_price
     const currentResult = await pool.query(
-      'SELECT montant_total, discount_amount, discount_percentage, formation_original_price FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
+      'SELECT montant_total, discount_amount, discount_percentage, formation_original_price, montant_paye FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
       [sessionId, etudiantId]
     );
 
@@ -553,6 +553,7 @@ router.put('/:sessionId/etudiants/:etudiantId', async (req, res) => {
     let montant_total = parseFloat(currentResult.rows[0].montant_total);
     const current_discount_amount = parseFloat(currentResult.rows[0].discount_amount) || 0;
     const current_discount_percentage = parseFloat(currentResult.rows[0].discount_percentage) || 0;
+    const current_montant_paye = parseFloat(currentResult.rows[0].montant_paye) || 0;
     const formation_original_price = parseFloat(currentResult.rows[0].formation_original_price) || (montant_total + current_discount_amount);
 
     // Si un nouveau pourcentage de remise est fourni, recalculer
@@ -567,14 +568,30 @@ router.put('/:sessionId/etudiants/:etudiantId', async (req, res) => {
     }
 
     const new_montant_paye = montant_paye !== undefined ? parseFloat(montant_paye) : null;
-    const montant_du = new_montant_paye !== null ? montant_total - new_montant_paye : null;
+    // Recalculer montant_du si on change le discount OU si on change le montant_paye
+    let montant_du = null;
+    if (new_montant_paye !== null) {
+      montant_du = montant_total - new_montant_paye;
+    } else if (new_discount_percentage !== null) {
+      // Si on change le discount mais pas le montant_paye, recalculer montant_du avec le montant_paye actuel
+      montant_du = montant_total - current_montant_paye;
+    }
 
-    // Déterminer automatiquement le statut si montant_paye fourni
+    // Déterminer automatiquement le statut si montant_paye fourni ou si discount change
     let new_statut = statut_paiement;
     if (new_montant_paye !== null) {
       if (new_montant_paye >= montant_total) {
         new_statut = 'paye';
       } else if (new_montant_paye > 0) {
+        new_statut = 'partiellement_paye';
+      } else {
+        new_statut = 'impaye';
+      }
+    } else if (new_discount_percentage !== null) {
+      // Recalculer le statut basé sur le montant_paye actuel et le nouveau total
+      if (current_montant_paye >= montant_total) {
+        new_statut = 'paye';
+      } else if (current_montant_paye > 0) {
         new_statut = 'partiellement_paye';
       } else {
         new_statut = 'impaye';

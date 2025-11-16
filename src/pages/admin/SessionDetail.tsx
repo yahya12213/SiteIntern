@@ -414,7 +414,7 @@ export const SessionDetail: React.FC = () => {
                                     <img
                                       src={getImageUrl(etudiant.profile_image_url)}
                                       alt={etudiant.student_name}
-                                      className="h-20 w-20 rounded-full object-cover border-3 border-gray-300 shadow-sm cursor-pointer hover:border-blue-500 transition-all"
+                                      className="h-20 w-20 rounded-lg object-cover border-3 border-gray-300 shadow-sm cursor-pointer hover:border-blue-500 transition-all"
                                       onClick={() => {
                                         setSelectedStudent(etudiant);
                                         setShowCropModal(true);
@@ -425,7 +425,7 @@ export const SessionDetail: React.FC = () => {
                                     />
                                   ) : (
                                     <div
-                                      className="h-20 w-20 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold text-xl border-3 border-blue-300 shadow-sm cursor-pointer hover:border-blue-500 transition-all"
+                                      className="h-20 w-20 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-semibold text-xl border-3 border-blue-300 shadow-sm cursor-pointer hover:border-blue-500 transition-all"
                                       onClick={() => {
                                         setSelectedStudent(etudiant);
                                         setShowCropModal(true);
