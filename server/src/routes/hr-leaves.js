@@ -1,12 +1,13 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
+import pool from '../config/database.js';
 
 const router = express.Router();
 
 // Get leave types
 router.get('/types', authenticateToken, async (req, res) => {
   try {
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       SELECT * FROM hr_leave_types
       WHERE is_active = true
       ORDER BY sort_order
@@ -65,7 +66,7 @@ router.get('/requests', authenticateToken, async (req, res) => {
 
     query += ' ORDER BY r.created_at DESC';
 
-    const result = await req.pool.query(query, params);
+    const result = await pool.query(query, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching leave requests:', error);
@@ -97,7 +98,7 @@ router.post('/requests', authenticateToken, async (req, res) => {
     if (start_half_day) days_requested -= 0.5;
     if (end_half_day) days_requested -= 0.5;
 
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       INSERT INTO hr_leave_requests (
         employee_id, leave_type_id, start_date, end_date,
         start_half_day, end_half_day, days_requested, reason,
@@ -124,7 +125,7 @@ router.put('/requests/:id/approve', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { level, comment } = req.body; // level: 'n1', 'n2', or 'hr'
 
-    const request = await req.pool.query(
+    const request = await pool.query(
       'SELECT * FROM hr_leave_requests WHERE id = $1',
       [id]
     );
@@ -166,7 +167,7 @@ router.put('/requests/:id/approve', authenticateToken, async (req, res) => {
       newStatus = 'approved';
     }
 
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       UPDATE hr_leave_requests
       SET ${updateQuery}, status = $4, updated_at = NOW()
       WHERE id = $1
@@ -203,7 +204,7 @@ router.put('/requests/:id/reject', authenticateToken, async (req, res) => {
       `;
     }
 
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       UPDATE hr_leave_requests
       SET ${updateQuery}, status = 'rejected', updated_at = NOW()
       WHERE id = $1
@@ -227,7 +228,7 @@ router.get('/balances/:employee_id', authenticateToken, async (req, res) => {
     const { employee_id } = req.params;
     const year = new Date().getFullYear();
 
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       SELECT
         b.*,
         t.name as leave_type_name,
@@ -252,7 +253,7 @@ router.put('/balances/:id/adjust', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { adjustment, reason } = req.body;
 
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       UPDATE hr_leave_balances
       SET
         adjusted = adjusted + $2,
@@ -279,7 +280,7 @@ router.get('/holidays', authenticateToken, async (req, res) => {
   const targetYear = year || new Date().getFullYear();
 
   try {
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       SELECT * FROM hr_holidays
       WHERE year = $1
       ORDER BY holiday_date
@@ -307,7 +308,7 @@ router.post('/holidays', authenticateToken, async (req, res) => {
 
     const year = new Date(holiday_date).getFullYear();
 
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       INSERT INTO hr_holidays (
         name, description, holiday_date, holiday_type,
         year, is_recurring, recurring_month, recurring_day,
@@ -332,7 +333,7 @@ router.get('/calendar', authenticateToken, async (req, res) => {
   const { start_date, end_date } = req.query;
 
   try {
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       SELECT
         r.id,
         r.start_date,

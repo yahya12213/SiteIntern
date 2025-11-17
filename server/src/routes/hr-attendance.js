@@ -1,5 +1,6 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
+import pool from '../config/database.js';
 
 const router = express.Router();
 
@@ -46,7 +47,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
     query += ' ORDER BY a.attendance_date DESC, e.last_name';
 
-    const result = await req.pool.query(query, params);
+    const result = await pool.query(query, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching attendance:', error);
@@ -76,7 +77,7 @@ router.post('/record', authenticateToken, async (req, res) => {
       worked_minutes = (outH * 60 + outM) - (inH * 60 + inM) - (break_minutes || 0);
     }
 
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       INSERT INTO hr_attendance_records (
         employee_id, attendance_date, check_in_time, check_out_time,
         break_minutes, worked_minutes, status, notes, source
@@ -111,7 +112,7 @@ router.put('/:id/correct', authenticateToken, async (req, res) => {
     const { check_in_time, check_out_time, correction_reason } = req.body;
 
     // Save original values first
-    const original = await req.pool.query(
+    const original = await pool.query(
       'SELECT check_in_time, check_out_time FROM hr_attendance_records WHERE id = $1',
       [id]
     );
@@ -128,7 +129,7 @@ router.put('/:id/correct', authenticateToken, async (req, res) => {
       worked_minutes = (outH * 60 + outM) - (inH * 60 + inM);
     }
 
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       UPDATE hr_attendance_records
       SET
         original_check_in = COALESCE(original_check_in, $2),
@@ -164,7 +165,7 @@ router.put('/:id/correct', authenticateToken, async (req, res) => {
 // Get anomalies
 router.get('/anomalies', authenticateToken, async (req, res) => {
   try {
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       SELECT
         a.*,
         e.first_name || ' ' || e.last_name as employee_name,
@@ -187,7 +188,7 @@ router.put('/anomalies/:id/resolve', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { resolution_note } = req.body;
 
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       UPDATE hr_attendance_records
       SET
         anomaly_resolved = true,
@@ -234,7 +235,7 @@ router.get('/overtime/requests', authenticateToken, async (req, res) => {
 
     query += ' ORDER BY o.created_at DESC';
 
-    const result = await req.pool.query(query, params);
+    const result = await pool.query(query, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching overtime requests:', error);
@@ -261,7 +262,7 @@ router.post('/overtime/requests', authenticateToken, async (req, res) => {
     const [endH, endM] = end_time.split(':').map(Number);
     const estimated_hours = ((endH * 60 + endM) - (startH * 60 + startM)) / 60;
 
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       INSERT INTO hr_overtime_requests (
         employee_id, request_date, start_time, end_time,
         estimated_hours, reason, project_code, request_type,
@@ -297,7 +298,7 @@ router.put('/overtime/requests/:id/approve', authenticateToken, async (req, res)
       statusField = 'n2_approved_at';
     }
 
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       UPDATE hr_overtime_requests
       SET
         ${updateField} = $2,
@@ -326,7 +327,7 @@ router.put('/overtime/requests/:id/approve', authenticateToken, async (req, res)
 // Get work schedules
 router.get('/schedules', authenticateToken, async (req, res) => {
   try {
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       SELECT * FROM hr_work_schedules
       WHERE is_active = true
       ORDER BY name
@@ -342,7 +343,7 @@ router.get('/schedules', authenticateToken, async (req, res) => {
 router.get('/summary/:year/:month', authenticateToken, async (req, res) => {
   try {
     const { year, month } = req.params;
-    const result = await req.pool.query(`
+    const result = await pool.query(`
       SELECT
         e.id,
         e.first_name || ' ' || e.last_name as employee_name,
