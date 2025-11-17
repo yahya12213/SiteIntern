@@ -16,7 +16,7 @@ router.use(authenticateToken);
  * GET /api/roles
  * Get all roles with their permission counts
  */
-router.get('/', requirePermission('users.view', 'users.manage_roles'), async (req, res) => {
+router.get('/', requirePermission('accounting.roles.view_page'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -47,7 +47,7 @@ router.get('/', requirePermission('users.view', 'users.manage_roles'), async (re
  * GET /api/roles/:id
  * Get a specific role with its permissions
  */
-router.get('/:id', requirePermission('users.view', 'users.manage_roles'), async (req, res) => {
+router.get('/:id', requirePermission('accounting.roles.view_page'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -93,7 +93,7 @@ router.get('/:id', requirePermission('users.view', 'users.manage_roles'), async 
  * POST /api/roles
  * Create a new role
  */
-router.post('/', requirePermission('users.manage_roles'), async (req, res) => {
+router.post('/', requirePermission('accounting.roles.create'), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -159,7 +159,7 @@ router.post('/', requirePermission('users.manage_roles'), async (req, res) => {
  * PUT /api/roles/:id
  * Update a role's details and permissions
  */
-router.put('/:id', requirePermission('users.manage_roles'), async (req, res) => {
+router.put('/:id', requirePermission('accounting.roles.update'), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -240,7 +240,7 @@ router.put('/:id', requirePermission('users.manage_roles'), async (req, res) => 
  * DELETE /api/roles/:id
  * Delete a role (only non-system roles with no users)
  */
-router.delete('/:id', requirePermission('users.manage_roles'), async (req, res) => {
+router.delete('/:id', requirePermission('accounting.roles.delete'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -323,7 +323,7 @@ router.get('/permissions/all', requirePermission('users.view', 'users.manage_rol
  * PUT /api/roles/user/:userId/role
  * Assign a role to a user
  */
-router.put('/user/:userId/role', requirePermission('users.manage_roles'), async (req, res) => {
+router.put('/user/:userId/role', requirePermission('accounting.users.assign_roles'), async (req, res) => {
   try {
     const { userId } = req.params;
     const { role_id } = req.body;

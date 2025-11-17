@@ -1,10 +1,11 @@
 import express from 'express';
 import pool from '../config/database.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// GET toutes les villes
-router.get('/', async (req, res) => {
+// GET toutes les villes - requires view permission
+router.get('/', authenticateToken, requirePermission('accounting.cities.view_page'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT c.id, c.name, c.code, c.segment_id, c.created_at,
@@ -20,8 +21,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET villes par segment
-router.get('/by-segment/:segmentId', async (req, res) => {
+// GET villes par segment - requires view permission
+router.get('/by-segment/:segmentId', authenticateToken, requirePermission('accounting.cities.view_page'), async (req, res) => {
   try {
     const { segmentId } = req.params;
     const result = await pool.query(
@@ -35,8 +36,8 @@ router.get('/by-segment/:segmentId', async (req, res) => {
   }
 });
 
-// POST créer une ville
-router.post('/', async (req, res) => {
+// POST créer une ville - requires create permission
+router.post('/', authenticateToken, requirePermission('accounting.cities.create'), async (req, res) => {
   try {
     const { id, name, code, segment_id } = req.body;
 
@@ -56,8 +57,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT mettre à jour une ville
-router.put('/:id', async (req, res) => {
+// PUT mettre à jour une ville - requires update permission
+router.put('/:id', authenticateToken, requirePermission('accounting.cities.update'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, code, segment_id } = req.body;
@@ -78,8 +79,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE supprimer une ville
-router.delete('/:id', async (req, res) => {
+// DELETE supprimer une ville - requires delete permission
+router.delete('/:id', authenticateToken, requirePermission('accounting.cities.delete'), async (req, res) => {
   try {
     const { id } = req.params;
 
