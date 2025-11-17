@@ -68,6 +68,8 @@ import migration037Router from './routes/migration-037-fix-role-id.js';
 import migration038Router from './routes/migration-038-check-role-id.js';
 import migration039Router from './routes/migration-039-sync-role-id.js';
 import migration040Router from './routes/migration-040-hierarchical-rbac.js';
+import migration041Router from './routes/migration-041-hr-employees.js';
+import migration042Router from './routes/migration-042-hr-attendance.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -145,6 +147,8 @@ app.use('/api/migration-037', migration037Router); // Migration 037 - Fix role_i
 app.use('/api/migration-038', migration038Router); // Migration 038 - Debug role_id
 app.use('/api/migration-039', migration039Router); // Migration 039 - Sync role_id with role text
 app.use('/api/migration-040', migration040Router); // Migration 040 - Hierarchical RBAC (module.menu.action)
+app.use('/api/migration-041', migration041Router); // Migration 041 - HR Employees Core Tables
+app.use('/api/migration-042', migration042Router); // Migration 042 - HR Attendance & Time Tracking
 
 // Health check
 app.get('/api/health', async (req, res) => {
