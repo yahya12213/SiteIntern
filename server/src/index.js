@@ -66,6 +66,7 @@ import migration035Router from './routes/migration-035-copy-gerant-permissions.j
 import migration036Router from './routes/migration-036-debug-permissions.js';
 import migration037Router from './routes/migration-037-fix-role-id.js';
 import migration038Router from './routes/migration-038-check-role-id.js';
+import migration039Router from './routes/migration-039-sync-role-id.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -139,6 +140,7 @@ app.use('/api/migration-035', migration035Router); // Migration 035 - Copy geran
 app.use('/api/migration-036', migration036Router); // Migration 036 - Debug permissions assignment
 app.use('/api/migration-037', migration037Router); // Migration 037 - Fix role_id assignment
 app.use('/api/migration-038', migration038Router); // Migration 038 - Debug role_id
+app.use('/api/migration-039', migration039Router); // Migration 039 - Sync role_id with role text
 
 // Health check
 app.get('/api/health', async (req, res) => {
