@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import AttendanceRecordForm from '@/components/admin/hr/AttendanceRecordForm';
+import OvertimeApprovalModal from '@/components/admin/hr/OvertimeApprovalModal';
 
 interface AttendanceRecord {
   id: string;
@@ -50,6 +51,8 @@ export default function HRAttendance() {
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState(new Date().toISOString().split('T')[0]);
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+  const [showOvertimeApprovalModal, setShowOvertimeApprovalModal] = useState(false);
+  const [selectedOvertimeRequestId, setSelectedOvertimeRequestId] = useState<string | null>(null);
 
   // Fetch attendance records
   const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
@@ -402,7 +405,14 @@ export default function HRAttendance() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {overtime.map((request: OvertimeRequest) => (
-                      <tr key={request.id} className="hover:bg-gray-50">
+                      <tr
+                        key={request.id}
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => {
+                          setSelectedOvertimeRequestId(request.id);
+                          setShowOvertimeApprovalModal(true);
+                        }}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="font-medium text-gray-900">{request.employee_name}</div>
                           <div className="text-sm text-gray-500">{request.employee_number}</div>
@@ -423,16 +433,16 @@ export default function HRAttendance() {
                           {getStatusBadge(request.status)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          {request.status === 'pending' && hr.canApproveOvertime && (
-                            <div className="flex justify-end gap-2">
-                              <button className="text-green-600 hover:text-green-900">
-                                <Check className="h-5 w-5" />
-                              </button>
-                              <button className="text-red-600 hover:text-red-900">
-                                <X className="h-5 w-5" />
-                              </button>
-                            </div>
-                          )}
+                          <button
+                            className="text-blue-600 hover:text-blue-900"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedOvertimeRequestId(request.id);
+                              setShowOvertimeApprovalModal(true);
+                            }}
+                          >
+                            Voir détails
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -441,6 +451,17 @@ export default function HRAttendance() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Overtime Approval Modal */}
+        {showOvertimeApprovalModal && selectedOvertimeRequestId && (
+          <OvertimeApprovalModal
+            requestId={selectedOvertimeRequestId}
+            onClose={() => {
+              setShowOvertimeApprovalModal(false);
+              setSelectedOvertimeRequestId(null);
+            }}
+          />
         )}
       </div>
     </AppLayout>
