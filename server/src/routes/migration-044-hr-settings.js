@@ -30,7 +30,7 @@ router.post('/run', async (req, res) => {
         description TEXT,
         is_editable BOOLEAN DEFAULT TRUE,
         updated_at TIMESTAMP DEFAULT NOW(),
-        updated_by UUID REFERENCES profiles(id)
+        updated_by TEXT REFERENCES profiles(id)
       )
     `);
 
@@ -165,17 +165,17 @@ router.post('/run', async (req, res) => {
         -- Status
         status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'generated', 'reviewed', 'validated', 'exported', 'locked')),
         generated_at TIMESTAMP,
-        reviewed_by UUID REFERENCES profiles(id),
+        reviewed_by TEXT REFERENCES profiles(id),
         reviewed_at TIMESTAMP,
         review_notes TEXT,
-        validated_by UUID REFERENCES profiles(id),
+        validated_by TEXT REFERENCES profiles(id),
         validated_at TIMESTAMP,
         validation_notes TEXT,
         exported_at TIMESTAMP,
-        exported_by UUID REFERENCES profiles(id),
+        exported_by TEXT REFERENCES profiles(id),
         export_reference TEXT,
         locked_at TIMESTAMP,
-        locked_by UUID REFERENCES profiles(id),
+        locked_by TEXT REFERENCES profiles(id),
 
         -- Metadata
         data_snapshot JSONB,
@@ -203,7 +203,7 @@ router.post('/run', async (req, res) => {
         reason TEXT,
         ip_address TEXT,
         user_agent TEXT,
-        performed_by UUID REFERENCES profiles(id),
+        performed_by TEXT REFERENCES profiles(id),
         performed_at TIMESTAMP DEFAULT NOW()
       )
     `);

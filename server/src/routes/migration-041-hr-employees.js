@@ -25,7 +25,7 @@ router.post('/run', async (req, res) => {
     await client.query(`
       CREATE TABLE IF NOT EXISTS hr_employees (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        profile_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+        profile_id TEXT REFERENCES profiles(id) ON DELETE SET NULL,
         employee_number TEXT UNIQUE NOT NULL,
         first_name TEXT NOT NULL,
         last_name TEXT NOT NULL,
@@ -95,7 +95,7 @@ router.post('/run', async (req, res) => {
         previous_contract_id UUID REFERENCES hr_contracts(id),
         document_url TEXT,
         notes TEXT,
-        created_by UUID REFERENCES profiles(id),
+        created_by TEXT REFERENCES profiles(id),
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       )
@@ -118,9 +118,9 @@ router.post('/run', async (req, res) => {
         mime_type TEXT,
         expiry_date DATE,
         is_verified BOOLEAN DEFAULT FALSE,
-        verified_by UUID REFERENCES profiles(id),
+        verified_by TEXT REFERENCES profiles(id),
         verified_at TIMESTAMP,
-        uploaded_by UUID REFERENCES profiles(id),
+        uploaded_by TEXT REFERENCES profiles(id),
         uploaded_at TIMESTAMP DEFAULT NOW()
       )
     `);
@@ -147,8 +147,8 @@ router.post('/run', async (req, res) => {
         response_date DATE,
         appeal_status TEXT CHECK (appeal_status IN ('none', 'pending', 'accepted', 'rejected')),
         is_final BOOLEAN DEFAULT FALSE,
-        created_by UUID REFERENCES profiles(id),
-        approved_by UUID REFERENCES profiles(id),
+        created_by TEXT REFERENCES profiles(id),
+        approved_by TEXT REFERENCES profiles(id),
         approved_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
