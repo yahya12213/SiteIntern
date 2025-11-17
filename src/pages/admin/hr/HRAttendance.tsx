@@ -16,6 +16,7 @@ import {
 import { apiClient } from '@/lib/api/client';
 import AttendanceRecordForm from '@/components/admin/hr/AttendanceRecordForm';
 import OvertimeApprovalModal from '@/components/admin/hr/OvertimeApprovalModal';
+import AnomalyResolutionModal from '@/components/admin/hr/AnomalyResolutionModal';
 
 interface AttendanceRecord {
   id: string;
@@ -53,6 +54,8 @@ export default function HRAttendance() {
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
   const [showOvertimeApprovalModal, setShowOvertimeApprovalModal] = useState(false);
   const [selectedOvertimeRequestId, setSelectedOvertimeRequestId] = useState<string | null>(null);
+  const [showAnomalyResolutionModal, setShowAnomalyResolutionModal] = useState(false);
+  const [selectedAnomalyId, setSelectedAnomalyId] = useState<string | null>(null);
 
   // Fetch attendance records
   const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
@@ -351,7 +354,13 @@ export default function HRAttendance() {
                         </p>
                       </div>
                       {hr.canCorrectAttendance && (
-                        <button className="flex items-center gap-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700">
+                        <button
+                          onClick={() => {
+                            setSelectedAnomalyId(anomaly.id);
+                            setShowAnomalyResolutionModal(true);
+                          }}
+                          className="flex items-center gap-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700"
+                        >
                           Résoudre
                         </button>
                       )}
@@ -460,6 +469,17 @@ export default function HRAttendance() {
             onClose={() => {
               setShowOvertimeApprovalModal(false);
               setSelectedOvertimeRequestId(null);
+            }}
+          />
+        )}
+
+        {/* Anomaly Resolution Modal */}
+        {showAnomalyResolutionModal && selectedAnomalyId && (
+          <AnomalyResolutionModal
+            attendanceId={selectedAnomalyId}
+            onClose={() => {
+              setShowAnomalyResolutionModal(false);
+              setSelectedAnomalyId(null);
             }}
           />
         )}
