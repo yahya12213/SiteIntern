@@ -32,14 +32,18 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
     enabled: isImpressionRole,
   });
 
-  // Filtrer pour ne garder que les professeurs
-  const professors = allProfiles.filter(p => p.role === 'professor' || (p.segment_ids && p.segment_ids.length > 0));
+  // Filtrer pour ne garder que les professeurs (exclure l'utilisateur actuel)
+  const professors = allProfiles.filter(p =>
+    p.id !== user?.id && // Exclure l'utilisateur connecté (rôle impression)
+    (p.role === 'professor' || (p.segment_ids && p.segment_ids.length > 0))
+  );
 
   // Utiliser les hooks Supabase pour récupérer segments et villes
   const { data: segments = [], isLoading: segmentsLoading } = useProfessorSegments();
   const { data: cities = [], isLoading: citiesLoading } = useProfessorCities();
 
   const [filteredCities, setFilteredCities] = useState<ProfessorCity[]>([]);
+  const [filteredProfessors, setFilteredProfessors] = useState<typeof professors>([]);
   const [selectedProfessor, setSelectedProfessor] = useState('');
 
   const [selectedSegment, setSelectedSegment] = useState('');
@@ -63,6 +67,30 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
     }
   }, [selectedSegment, cities, selectedCity]);
 
+  // Filtrer les professeurs en fonction du segment et de la ville sélectionnés
+  useEffect(() => {
+    if (isImpressionRole && selectedSegment && selectedCity) {
+      // Trouver les professeurs qui ont ce segment ET cette ville assignés
+      const filtered = professors.filter(p =>
+        p.segment_ids?.includes(selectedSegment) &&
+        p.city_ids?.includes(selectedCity)
+      );
+      setFilteredProfessors(filtered);
+
+      // Sélection automatique si un seul professeur correspond
+      if (filtered.length === 1) {
+        setSelectedProfessor(filtered[0].id);
+      } else if (filtered.length === 0 || !filtered.find(p => p.id === selectedProfessor)) {
+        setSelectedProfessor('');
+      }
+    } else {
+      setFilteredProfessors([]);
+      if (isImpressionRole) {
+        setSelectedProfessor('');
+      }
+    }
+  }, [selectedSegment, selectedCity, professors, isImpressionRole, selectedProfessor]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -76,6 +104,12 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
     // Si rôle impression, un professeur doit être sélectionné
     if (isImpressionRole && !selectedProfessor) {
       setError('Veuillez sélectionner un professeur');
+      return;
+    }
+
+    // Vérifier qu'un professeur est disponible pour ce segment/ville
+    if (isImpressionRole && filteredProfessors.length === 0) {
+      setError('Aucun professeur n\'est assigné à ce segment et cette ville');
       return;
     }
 
@@ -142,28 +176,6 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
             </div>
           )}
 
-          {/* Sélection de professeur (uniquement pour rôle impression) */}
-          {isImpressionRole && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Professeur <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={selectedProfessor}
-                onChange={(e) => setSelectedProfessor(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Sélectionner un professeur</option>
-                {professors.map((prof) => (
-                  <option key={prof.id} value={prof.id}>
-                    {prof.full_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
           {/* Segment */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -220,6 +232,43 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
               </p>
             )}
           </div>
+
+          {/* Sélection de professeur (uniquement pour rôle impression, après segment et ville) */}
+          {isImpressionRole && selectedSegment && selectedCity && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Professeur <span className="text-red-500">*</span>
+              </label>
+              {filteredProfessors.length === 0 ? (
+                <p className="text-sm text-red-500 bg-red-50 p-3 rounded-lg">
+                  Aucun professeur trouvé pour ce segment et cette ville
+                </p>
+              ) : filteredProfessors.length === 1 ? (
+                <div className="bg-green-50 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-green-800">
+                    Professeur sélectionné automatiquement :
+                  </p>
+                  <p className="text-sm text-green-700 mt-1">
+                    {filteredProfessors[0].full_name}
+                  </p>
+                </div>
+              ) : (
+                <select
+                  value={selectedProfessor}
+                  onChange={(e) => setSelectedProfessor(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Sélectionner un professeur ({filteredProfessors.length} disponibles)</option>
+                  {filteredProfessors.map((prof) => (
+                    <option key={prof.id} value={prof.id}>
+                      {prof.full_name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
 
           {/* Date de début */}
           <div>
