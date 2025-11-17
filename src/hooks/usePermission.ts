@@ -11,7 +11,7 @@ import { useCallback, useMemo } from 'react';
  * - training.formations.delete
  */
 export function usePermission() {
-  const { user, permissions, hasPermission: contextHasPermission, hasAnyPermission: contextHasAnyPermission } = useAuth();
+  const { user, permissions } = useAuth();
 
   // Check if user has a specific permission
   const can = useCallback((permissionCode: string): boolean => {

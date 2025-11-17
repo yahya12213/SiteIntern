@@ -42,7 +42,7 @@ export const RolesManagement: React.FC = () => {
   const [formDescription, setFormDescription] = useState('');
   const [formPermissions, setFormPermissions] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [useNewTree, setUseNewTree] = useState(true); // Toggle between old and new UI
+  const useNewTree = true; // Always use new hierarchical tree UI
 
   useEffect(() => {
     checkMigration();

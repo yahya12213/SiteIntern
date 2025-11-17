@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { permissionsApi, type PermissionModule, type PermissionMenu } from '@/lib/api/permissions';
 import { ChevronDown, ChevronRight, Check, Minus, Folder, FileText } from 'lucide-react';
 
 interface PermissionTreeProps {
-  roleId?: string;
   selectedPermissions: string[]; // Array of permission IDs
   onSelectionChange: (permissionIds: string[]) => void;
   readOnly?: boolean;
