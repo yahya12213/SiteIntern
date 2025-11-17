@@ -237,8 +237,8 @@ const Users: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end gap-2">
-                            {/* Assigner segments (seulement pour professeur et gérant) */}
-                            {(user.role === 'professor' || user.role === 'gerant') && (
+                            {/* Assigner segments (pour tous les rôles sauf admin) */}
+                            {user.role !== 'admin' && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -252,8 +252,8 @@ const Users: React.FC = () => {
                               </Button>
                             )}
 
-                            {/* Assigner villes (seulement pour professeur et gérant) */}
-                            {(user.role === 'professor' || user.role === 'gerant') && (
+                            {/* Assigner villes (pour tous les rôles sauf admin) */}
+                            {user.role !== 'admin' && (
                               <Button
                                 variant="outline"
                                 size="sm"
