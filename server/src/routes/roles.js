@@ -64,7 +64,7 @@ router.get('/:id', requirePermission('accounting.roles.view_page'), async (req, 
       FROM permissions p
       INNER JOIN role_permissions rp ON p.id = rp.permission_id
       WHERE rp.role_id = $1
-      ORDER BY p.module, p.name
+      ORDER BY p.module, p.label
     `, [id]);
 
     const usersResult = await pool.query(`
