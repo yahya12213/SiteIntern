@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { rolesApi, type Role, type Permission, type GroupedPermissions } from '@/lib/api/roles';
+import { rolesApi, type Role, type GroupedPermissions } from '@/lib/api/roles';
 import {
   Shield,
   Plus,
@@ -14,13 +14,10 @@ import {
   ChevronRight,
   Lock,
   Unlock,
-  CheckSquare,
-  Square,
 } from 'lucide-react';
 
 export const RolesManagement: React.FC = () => {
   const [roles, setRoles] = useState<Role[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
   const [groupedPermissions, setGroupedPermissions] = useState<GroupedPermissions>({});
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [rolePermissions, setRolePermissions] = useState<string[]>([]);
@@ -50,7 +47,6 @@ export const RolesManagement: React.FC = () => {
 
       if (rolesRes.success) setRoles(rolesRes.roles);
       if (permsRes.success) {
-        setPermissions(permsRes.permissions);
         setGroupedPermissions(permsRes.grouped);
       }
     } catch (error: any) {
