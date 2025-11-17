@@ -246,6 +246,23 @@ export const RolesManagement: React.FC = () => {
   };
 
   const moduleLabels: Record<string, string> = {
+    // Hierarchical structure - Gestion Comptable
+    'gestion_comptable.tableau_bord': 'Tableau de bord',
+    'gestion_comptable.segments': 'Segments',
+    'gestion_comptable.villes': 'Villes',
+    'gestion_comptable.utilisateurs': 'Utilisateurs',
+    'gestion_comptable.roles': 'Rôles & Permissions',
+    'gestion_comptable.fiches_calcul': 'Fiches de calcul',
+    'gestion_comptable.creer_declaration': 'Créer déclaration',
+    'gestion_comptable.gerer_declarations': 'Gérer déclarations',
+    // Hierarchical structure - Formation en Ligne
+    'formation_en_ligne.formations': 'Gestion des Formations',
+    'formation_en_ligne.sessions': 'Sessions de Formation',
+    'formation_en_ligne.analytics': 'Analytics',
+    'formation_en_ligne.rapports': 'Rapports Étudiants',
+    'formation_en_ligne.certificats': 'Certificats',
+    'formation_en_ligne.templates': 'Templates de Certificats',
+    'formation_en_ligne.forums': 'Forums',
     // Menu-based structure (simplified)
     gestion_comptable: 'Gestion Comptable',
     formation_en_ligne: 'Formation en Ligne',
