@@ -207,11 +207,11 @@ export const refreshToken = (req, res) => {
 import rateLimit from 'express-rate-limit';
 
 export const loginRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts per window
+  windowMs: 5 * 60 * 1000, // 5 minutes (reduced from 15)
+  max: 20, // 20 attempts per window (increased from 5)
   message: {
     success: false,
-    error: 'Too many login attempts. Please try again in 15 minutes.',
+    error: 'Too many login attempts. Please try again in 5 minutes.',
     code: 'RATE_LIMITED',
   },
   standardHeaders: true,
