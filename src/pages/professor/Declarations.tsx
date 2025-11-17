@@ -5,11 +5,16 @@ import { useProfessorDeclarations, useDeleteDeclaration, useSubmitDeclaration } 
 import DeclarationStatusBadge from '@/components/professor/DeclarationStatusBadge';
 import NewDeclarationModal from '@/components/professor/NewDeclarationModal';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Declarations: React.FC = () => {
   const { data: declarations, isLoading } = useProfessorDeclarations();
   const deleteDeclaration = useDeleteDeclaration();
   const submitDeclaration = useSubmitDeclaration();
+  const { user } = useAuth();
+
+  // Le rôle "impression" voit toutes les déclarations en lecture seule
+  const isImpressionRole = user?.role === 'impression';
 
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
 
@@ -134,6 +139,11 @@ const Declarations: React.FC = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    {isImpressionRole && (
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Professeur
+                      </th>
+                    )}
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Segment
                     </th>
@@ -149,15 +159,24 @@ const Declarations: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Statut
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    {!isImpressionRole && (
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {declarations.map((declaration) => (
                     <React.Fragment key={declaration.id}>
                       <tr className="hover:bg-gray-50">
+                      {isImpressionRole && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {declaration.professor_name || 'N/A'}
+                          </div>
+                        </td>
+                      )}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
                           {declaration.segment_name}
@@ -179,55 +198,57 @@ const Declarations: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <DeclarationStatusBadge status={declaration.status} />
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end gap-2">
-                          {/* Voir/Modifier */}
-                          <Link
-                            to={`/professor/declarations/${declaration.id}/fill`}
-                            className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
-                            title={
-                              declaration.status === 'brouillon' || declaration.status === 'refusee' || (declaration.status as any) === 'a_declarer' || (declaration.status as any) === 'en_cours'
-                                ? 'Remplir'
-                                : 'Voir'
-                            }
-                          >
-                            {declaration.status === 'brouillon' || declaration.status === 'refusee' || (declaration.status as any) === 'a_declarer' || (declaration.status as any) === 'en_cours' ? (
-                              <Edit3 className="w-4 h-4" />
-                            ) : (
-                              <Eye className="w-4 h-4" />
+                      {!isImpressionRole && (
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex items-center justify-end gap-2">
+                            {/* Voir/Modifier */}
+                            <Link
+                              to={`/professor/declarations/${declaration.id}/fill`}
+                              className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded transition-colors"
+                              title={
+                                declaration.status === 'brouillon' || declaration.status === 'refusee' || (declaration.status as any) === 'a_declarer' || (declaration.status as any) === 'en_cours'
+                                  ? 'Remplir'
+                                  : 'Voir'
+                              }
+                            >
+                              {declaration.status === 'brouillon' || declaration.status === 'refusee' || (declaration.status as any) === 'a_declarer' || (declaration.status as any) === 'en_cours' ? (
+                                <Edit3 className="w-4 h-4" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                            </Link>
+
+                            {/* Soumettre */}
+                            {(declaration.status === 'brouillon' || (declaration.status as any) === 'a_declarer' || (declaration.status as any) === 'en_cours') && (
+                              <button
+                                onClick={() => handleSubmit(declaration.id)}
+                                className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded transition-colors"
+                                title="Soumettre"
+                              >
+                                <Send className="w-4 h-4" />
+                              </button>
                             )}
-                          </Link>
 
-                          {/* Soumettre */}
-                          {(declaration.status === 'brouillon' || (declaration.status as any) === 'a_declarer' || (declaration.status as any) === 'en_cours') && (
-                            <button
-                              onClick={() => handleSubmit(declaration.id)}
-                              className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded transition-colors"
-                              title="Soumettre"
-                            >
-                              <Send className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* Supprimer - seulement pour brouillons créés par le prof */}
-                          {declaration.status === 'brouillon' && (
-                            <button
-                              onClick={() => handleDelete(declaration.id)}
-                              className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
-                              title="Supprimer"
-                              disabled={deleteDeclaration.isPending}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                            {/* Supprimer - seulement pour brouillons créés par le prof */}
+                            {declaration.status === 'brouillon' && (
+                              <button
+                                onClick={() => handleDelete(declaration.id)}
+                                className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded transition-colors"
+                                title="Supprimer"
+                                disabled={deleteDeclaration.isPending}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
 
                     {/* Alerte pour modifications demandées */}
                     {(declaration.status as any) === 'en_cours' && declaration.rejection_reason && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-3 bg-yellow-50 border-l-4 border-yellow-400">
+                        <td colSpan={isImpressionRole ? 6 : 6} className="px-6 py-3 bg-yellow-50 border-l-4 border-yellow-400">
                           <div className="flex items-start gap-2">
                             <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                             <div>

@@ -8,6 +8,9 @@ import {
   type ProfessorCity,
 } from '@/hooks/useProfessorDeclarations';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { profilesApi } from '@/lib/api/profiles';
+import { useQuery } from '@tanstack/react-query';
 
 interface NewDeclarationModalProps {
   onClose: () => void;
@@ -17,12 +20,27 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
   const navigate = useNavigate();
   const createDeclaration = useCreateDeclaration();
   const { data: availableSheets } = useAvailableCalculationSheets();
+  const { user } = useAuth();
+
+  // Le rôle "impression" peut créer des déclarations pour d'autres professeurs
+  const isImpressionRole = user?.role === 'impression';
+
+  // Charger tous les professeurs si c'est le rôle "impression"
+  const { data: allProfiles = [] } = useQuery({
+    queryKey: ['all-profiles'],
+    queryFn: () => profilesApi.getAll(),
+    enabled: isImpressionRole,
+  });
+
+  // Filtrer pour ne garder que les professeurs
+  const professors = allProfiles.filter(p => p.role === 'professor' || p.segment_ids?.length > 0);
 
   // Utiliser les hooks Supabase pour récupérer segments et villes
   const { data: segments = [], isLoading: segmentsLoading } = useProfessorSegments();
   const { data: cities = [], isLoading: citiesLoading } = useProfessorCities();
 
   const [filteredCities, setFilteredCities] = useState<ProfessorCity[]>([]);
+  const [selectedProfessor, setSelectedProfessor] = useState('');
 
   const [selectedSegment, setSelectedSegment] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
@@ -55,6 +73,12 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
       return;
     }
 
+    // Si rôle impression, un professeur doit être sélectionné
+    if (isImpressionRole && !selectedProfessor) {
+      setError('Veuillez sélectionner un professeur');
+      return;
+    }
+
     if (new Date(endDate) <= new Date(startDate)) {
       setError('La date de fin doit être postérieure à la date de début');
       return;
@@ -79,10 +103,16 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
         start_date: startDate,
         end_date: endDate,
         form_data: {},
+        professor_id: isImpressionRole ? selectedProfessor : undefined,
       });
 
-      // Rediriger vers le formulaire de remplissage avec l'ID extrait
-      navigate(`/professor/declarations/${declaration.id}/fill`);
+      // Pour le rôle impression, ne pas rediriger vers le formulaire (lecture seule)
+      if (isImpressionRole) {
+        onClose();
+      } else {
+        // Rediriger vers le formulaire de remplissage avec l'ID extrait
+        navigate(`/professor/declarations/${declaration.id}/fill`);
+      }
     } catch (err) {
       console.error('Error creating declaration:', err);
       setError('Erreur lors de la création de la déclaration');
@@ -109,6 +139,28 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
           {(segmentsLoading || citiesLoading) && (
             <div className="text-center py-4">
               <p className="text-gray-600">Chargement...</p>
+            </div>
+          )}
+
+          {/* Sélection de professeur (uniquement pour rôle impression) */}
+          {isImpressionRole && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Professeur <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={selectedProfessor}
+                onChange={(e) => setSelectedProfessor(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <option value="">Sélectionner un professeur</option>
+                {professors.map((prof) => (
+                  <option key={prof.id} value={prof.id}>
+                    {prof.full_name}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

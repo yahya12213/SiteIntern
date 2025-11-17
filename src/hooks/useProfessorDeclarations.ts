@@ -24,6 +24,7 @@ export interface CreateDeclarationInput {
   start_date: string;
   end_date: string;
   form_data?: Record<string, unknown>;
+  professor_id?: string; // Pour créer une déclaration pour un autre professeur
 }
 
 export interface UpdateDeclarationInput {
@@ -33,6 +34,7 @@ export interface UpdateDeclarationInput {
 
 // Hook pour récupérer les déclarations du professeur connecté
 // Si l'utilisateur a des city_ids (gestionnaire), filtre par villes
+// Si le rôle est "impression", voir toutes les déclarations
 // Sinon, filtre par professor_id (professeur classique)
 export function useProfessorDeclarations() {
   const { user, isAdmin } = useAuth();
@@ -45,6 +47,11 @@ export function useProfessorDeclarations() {
       // Vérifier si l'utilisateur a des villes assignées (gestionnaire)
       const profile = await profilesApi.getById(user.id);
       const hasCities = profile?.city_ids && profile.city_ids.length > 0;
+
+      // Rôle "impression" voit toutes les déclarations (lecture seule)
+      if (profile?.role === 'impression') {
+        return declarationsApi.getAll(undefined, false, true); // viewAll = true
+      }
 
       // Si gestionnaire (avec des villes assignées) mais pas admin ni professeur pur
       const isManager = hasCities && profile?.role !== 'professor' && !isAdmin;
@@ -80,10 +87,18 @@ export function useCreateDeclaration() {
       if (!user?.id) throw new Error('Utilisateur non connecté');
 
       const id = uuidv4();
+      // Si professor_id est fourni (rôle impression), utiliser celui-ci
+      // Sinon utiliser l'utilisateur connecté
+      const professorId = input.professor_id || user.id;
+
       return declarationsApi.create({
         id,
-        professor_id: user.id,
-        ...input,
+        professor_id: professorId,
+        calculation_sheet_id: input.calculation_sheet_id,
+        segment_id: input.segment_id,
+        city_id: input.city_id,
+        start_date: input.start_date,
+        end_date: input.end_date,
         form_data: JSON.stringify(input.form_data || {}),
       });
     },

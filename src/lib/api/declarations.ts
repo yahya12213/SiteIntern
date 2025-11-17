@@ -61,10 +61,11 @@ export const declarationsApi = {
   /**
    * Récupérer toutes les déclarations (avec filtre optionnel par professeur ou utilisateur)
    */
-  async getAll(professorId?: string, filterByUser?: boolean): Promise<Declaration[]> {
+  async getAll(professorId?: string, filterByUser?: boolean, viewAll?: boolean): Promise<Declaration[]> {
     const params: Record<string, string> = {};
     if (professorId) params.professor_id = professorId;
     if (filterByUser) params.filter_by_user = 'true';
+    if (viewAll) params.view_all = 'true';
     return apiClient.get<Declaration[]>('/declarations', Object.keys(params).length > 0 ? params : undefined);
   },
 

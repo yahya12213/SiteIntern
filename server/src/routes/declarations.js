@@ -7,16 +7,17 @@ const router = express.Router();
 // Filtre automatiquement par les villes assignées à l'utilisateur connecté
 router.get('/', async (req, res) => {
   try {
-    const { professor_id, filter_by_user } = req.query;
+    const { professor_id, filter_by_user, view_all } = req.query;
     const userId = req.user?.id;
 
-    console.log('Declarations request:', { professor_id, filter_by_user, userId, hasUser: !!req.user });
+    console.log('Declarations request:', { professor_id, filter_by_user, view_all, userId, hasUser: !!req.user });
 
     // Récupérer les city_ids de l'utilisateur connecté
     let userCityIds = [];
     let isAdmin = false;
+    let userRole = '';
 
-    if (userId && filter_by_user === 'true') {
+    if (userId && (filter_by_user === 'true' || view_all === 'true')) {
       try {
         const userProfile = await pool.query(
           'SELECT city_ids, role FROM profiles WHERE id = $1',
@@ -28,13 +29,14 @@ router.get('/', async (req, res) => {
         if (userProfile.rows.length > 0) {
           const profile = userProfile.rows[0];
           isAdmin = profile.role === 'admin';
+          userRole = profile.role || '';
           // Ensure city_ids is an array
           if (Array.isArray(profile.city_ids)) {
             userCityIds = profile.city_ids;
           } else {
             userCityIds = [];
           }
-          console.log('Parsed city_ids:', userCityIds, 'isAdmin:', isAdmin);
+          console.log('Parsed city_ids:', userCityIds, 'isAdmin:', isAdmin, 'role:', userRole);
         }
       } catch (profileError) {
         console.error('Error fetching user profile:', profileError);
@@ -64,8 +66,13 @@ router.get('/', async (req, res) => {
       params.push(professor_id);
     }
 
+    // Si view_all est demandé et le rôle est "impression", retourner toutes les déclarations
+    if (view_all === 'true' && (isAdmin || userRole === 'impression')) {
+      // Pas de filtrage - voir toutes les déclarations
+      console.log('View all mode for admin or impression role');
+    }
     // Filtrer par villes de l'utilisateur (sauf admin qui voit tout)
-    if (filter_by_user === 'true' && !isAdmin && userCityIds.length > 0) {
+    else if (filter_by_user === 'true' && !isAdmin && userCityIds.length > 0) {
       conditions.push(`pd.city_id = ANY($${params.length + 1}::uuid[])`);
       params.push(userCityIds);
     } else if (filter_by_user === 'true' && !isAdmin && userCityIds.length === 0) {
