@@ -297,7 +297,7 @@ router.get('/permissions/all', requirePermission('users.view', 'users.manage_rol
     `);
 
     // Group by module
-    const grouped: Record<string, any[]> = {};
+    const grouped = {};
     for (const perm of result.rows) {
       if (!grouped[perm.module]) {
         grouped[perm.module] = [];
