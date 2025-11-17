@@ -59,6 +59,7 @@ import migration029Router from './routes/migration-029-rbac-system.js';
 import migration030Router from './routes/migration-030-comptabilite-permissions.js';
 import migration031Router from './routes/migration-031-simplified-permissions.js';
 import migration032Router from './routes/migration-032-remove-role-check.js';
+import migration033Router from './routes/migration-033-menu-based-permissions.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -126,6 +127,7 @@ app.use('/api/migration-029', migration029Router); // Migration 029 - RBAC syste
 app.use('/api/migration-030', migration030Router); // Migration 030 - Add Gestion Comptable permissions
 app.use('/api/migration-031', migration031Router); // Migration 031 - Simplified permission system
 app.use('/api/migration-032', migration032Router); // Migration 032 - Remove role CHECK constraint
+app.use('/api/migration-033', migration033Router); // Migration 033 - Menu-based permissions
 
 // Health check
 app.get('/api/health', async (req, res) => {
