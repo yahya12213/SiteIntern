@@ -14,7 +14,6 @@ interface ExpandState {
 }
 
 export function PermissionTree({
-  roleId,
   selectedPermissions,
   onSelectionChange,
   readOnly = false,
