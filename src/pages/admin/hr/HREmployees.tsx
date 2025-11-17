@@ -14,7 +14,7 @@ import {
   Filter,
   Download,
 } from 'lucide-react';
-import api from '@/lib/api';
+import { apiClient } from '@/lib/api/client';
 
 interface Employee {
   id: string;
@@ -47,7 +47,7 @@ export default function HREmployees() {
       if (statusFilter) params.append('status', statusFilter);
       if (departmentFilter) params.append('department', departmentFilter);
 
-      const response = await api.get(`/hr/employees?${params.toString()}`);
+      const response = await apiClient.get<{ success: boolean; data: Employee[] }>(`/hr/employees?${params.toString()}`);
       return response.data;
     },
   });
@@ -56,13 +56,13 @@ export default function HREmployees() {
   const { data: departmentsData } = useQuery({
     queryKey: ['hr-departments'],
     queryFn: async () => {
-      const response = await api.get('/hr/employees/meta/departments');
+      const response = await apiClient.get<{ success: boolean; data: string[] }>('/hr/employees/meta/departments');
       return response.data;
     },
   });
 
-  const employees = employeesData?.data || [];
-  const departments = departmentsData?.data || [];
+  const employees = employeesData || [];
+  const departments = departmentsData || [];
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
