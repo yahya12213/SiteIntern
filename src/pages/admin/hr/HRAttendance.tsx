@@ -320,7 +320,8 @@ export default function HRAttendance() {
               </div>
             )}
           </div>
-        )}
+        </>
+      )}
 
         {activeTab === 'anomalies' && (
           <div className="bg-white rounded-lg shadow overflow-hidden">
