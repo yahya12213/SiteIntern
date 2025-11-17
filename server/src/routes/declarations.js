@@ -10,20 +10,35 @@ router.get('/', async (req, res) => {
     const { professor_id, filter_by_user } = req.query;
     const userId = req.user?.id;
 
+    console.log('Declarations request:', { professor_id, filter_by_user, userId, hasUser: !!req.user });
+
     // Récupérer les city_ids de l'utilisateur connecté
     let userCityIds = [];
     let isAdmin = false;
 
     if (userId && filter_by_user === 'true') {
-      const userProfile = await pool.query(
-        'SELECT city_ids, role FROM profiles WHERE id = $1',
-        [userId]
-      );
+      try {
+        const userProfile = await pool.query(
+          'SELECT city_ids, role FROM profiles WHERE id = $1',
+          [userId]
+        );
 
-      if (userProfile.rows.length > 0) {
-        const profile = userProfile.rows[0];
-        isAdmin = profile.role === 'admin';
-        userCityIds = profile.city_ids || [];
+        console.log('User profile result:', userProfile.rows[0]);
+
+        if (userProfile.rows.length > 0) {
+          const profile = userProfile.rows[0];
+          isAdmin = profile.role === 'admin';
+          // Ensure city_ids is an array
+          if (Array.isArray(profile.city_ids)) {
+            userCityIds = profile.city_ids;
+          } else {
+            userCityIds = [];
+          }
+          console.log('Parsed city_ids:', userCityIds, 'isAdmin:', isAdmin);
+        }
+      } catch (profileError) {
+        console.error('Error fetching user profile:', profileError);
+        // Continue without filtering
       }
     }
 
