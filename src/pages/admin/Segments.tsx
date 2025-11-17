@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, Upload } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import ImportCitiesModal from '@/components/admin/ImportCitiesModal';
 import { useSegments, useCreateSegment, useUpdateSegment, useDeleteSegment } from '@/hooks/useSegments';
+import { usePermission } from '@/hooks/usePermission';
 import type { Segment } from '@/hooks/useSegments';
 
 export default function Segments() {
@@ -13,6 +14,7 @@ export default function Segments() {
   const createSegment = useCreateSegment();
   const updateSegment = useUpdateSegment();
   const deleteSegment = useDeleteSegment();
+  const { accounting } = usePermission();
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -92,10 +94,12 @@ export default function Segments() {
       <div className="space-y-6">
         {/* Header Actions */}
         <div className="flex justify-end">
-          <Button onClick={() => setShowForm(!showForm)} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Nouveau Segment
-          </Button>
+          {accounting.canCreateSegment && (
+            <Button onClick={() => setShowForm(!showForm)} className="w-full sm:w-auto">
+              <Plus className="mr-2 h-4 w-4" />
+              Nouveau Segment
+            </Button>
+          )}
         </div>
 
         {/* Form */}
@@ -170,30 +174,36 @@ export default function Segments() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-col gap-2">
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      onClick={() => handleOpenImport(segment)}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Importer des villes
-                    </Button>
+                    {accounting.canImportCities && (
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        onClick={() => handleOpenImport(segment)}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Importer des villes
+                      </Button>
+                    )}
                     <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEdit(segment)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(segment.id)}
-                        disabled={deleteSegment.isPending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {accounting.canUpdateSegment && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEdit(segment)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {accounting.canDeleteSegment && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDelete(segment.id)}
+                          disabled={deleteSegment.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
