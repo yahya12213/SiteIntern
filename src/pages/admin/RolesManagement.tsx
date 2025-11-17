@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { rolesApi, type Role, type GroupedPermissions } from '@/lib/api/roles';
+import { permissionsApi } from '@/lib/api/permissions';
+import { PermissionTree } from '@/components/admin/PermissionTree';
 import {
   Shield,
   Plus,
@@ -38,8 +40,9 @@ export const RolesManagement: React.FC = () => {
   // Form states
   const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
-  const [formPermissions, setFormPermissions] = useState<Set<string>>(new Set());
+  const [formPermissions, setFormPermissions] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [useNewTree, setUseNewTree] = useState(true); // Toggle between old and new UI
 
   useEffect(() => {
     checkMigration();
@@ -123,10 +126,11 @@ export const RolesManagement: React.FC = () => {
 
     setIsSaving(true);
     try {
+      // Use new permissions API if available
       const res = await rolesApi.createRole({
         name: formName.trim(),
         description: formDescription.trim() || undefined,
-        permission_ids: Array.from(formPermissions),
+        permission_ids: formPermissions,
       });
 
       if (res.success) {
@@ -147,10 +151,15 @@ export const RolesManagement: React.FC = () => {
 
     setIsSaving(true);
     try {
+      // Try new permissions API first
+      if (useNewTree) {
+        await permissionsApi.updateRolePermissions(selectedRole.id, formPermissions);
+      }
+
       const res = await rolesApi.updateRole(selectedRole.id, {
         name: formName.trim() || undefined,
         description: formDescription.trim(),
-        permission_ids: Array.from(formPermissions),
+        permission_ids: formPermissions,
       });
 
       if (res.success) {
@@ -194,13 +203,13 @@ export const RolesManagement: React.FC = () => {
   const resetForm = () => {
     setFormName('');
     setFormDescription('');
-    setFormPermissions(new Set());
+    setFormPermissions([]);
   };
 
   const openEditModal = (role: Role) => {
     setFormName(role.name);
     setFormDescription(role.description || '');
-    setFormPermissions(new Set(rolePermissions));
+    setFormPermissions([...rolePermissions]);
     setShowEditModal(true);
   };
 
@@ -218,30 +227,25 @@ export const RolesManagement: React.FC = () => {
 
   const togglePermission = (permId: string) => {
     setFormPermissions(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(permId)) {
-        newSet.delete(permId);
+      if (prev.includes(permId)) {
+        return prev.filter(id => id !== permId);
       } else {
-        newSet.add(permId);
+        return [...prev, permId];
       }
-      return newSet;
     });
   };
 
   const toggleAllInModule = (module: string) => {
     const modulePerms = groupedPermissions[module] || [];
-    const allSelected = modulePerms.every(p => formPermissions.has(p.id));
+    const allSelected = modulePerms.every(p => formPermissions.includes(p.id));
 
     setFormPermissions(prev => {
-      const newSet = new Set(prev);
-      modulePerms.forEach(p => {
-        if (allSelected) {
-          newSet.delete(p.id);
-        } else {
-          newSet.add(p.id);
-        }
-      });
-      return newSet;
+      if (allSelected) {
+        return prev.filter(id => !modulePerms.some(p => p.id === id));
+      } else {
+        const newIds = modulePerms.map(p => p.id).filter(id => !prev.includes(id));
+        return [...prev, ...newIds];
+      }
     });
   };
 
@@ -608,58 +612,65 @@ export const RolesManagement: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Permissions ({formPermissions.size} sélectionnées)
+                    Permissions ({formPermissions.length} sélectionnées)
                   </label>
-                  <div className="border border-gray-300 rounded-lg max-h-[300px] overflow-y-auto">
-                    {Object.entries(groupedPermissions).map(([module, perms]) => (
-                      <div key={module} className="border-b border-gray-200 last:border-0">
-                        <div
-                          className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
-                          onClick={() => toggleModule(module)}
-                        >
-                          <div className="flex items-center gap-2">
-                            {expandedModules.has(module) ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                            <span className="font-medium">{moduleLabels[module] || module}</span>
-                            <span className="text-xs text-gray-500">({perms.length})</span>
-                          </div>
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              toggleAllInModule(module);
-                            }}
-                            className="text-xs text-purple-600 hover:text-purple-800"
+                  {useNewTree ? (
+                    <PermissionTree
+                      selectedPermissions={formPermissions}
+                      onSelectionChange={setFormPermissions}
+                    />
+                  ) : (
+                    <div className="border border-gray-300 rounded-lg max-h-[300px] overflow-y-auto">
+                      {Object.entries(groupedPermissions).map(([module, perms]) => (
+                        <div key={module} className="border-b border-gray-200 last:border-0">
+                          <div
+                            className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
+                            onClick={() => toggleModule(module)}
                           >
-                            {perms.every(p => formPermissions.has(p.id)) ? 'Désélectionner tout' : 'Sélectionner tout'}
-                          </button>
-                        </div>
-                        {expandedModules.has(module) && (
-                          <div className="p-3 space-y-2">
-                            {perms.map(perm => (
-                              <label
-                                key={perm.id}
-                                className="flex items-start gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={formPermissions.has(perm.id)}
-                                  onChange={() => togglePermission(perm.id)}
-                                  className="mt-1"
-                                />
-                                <div>
-                                  <div className="font-medium text-sm">{perm.name}</div>
-                                  <div className="text-xs text-gray-500">{perm.description}</div>
-                                </div>
-                              </label>
-                            ))}
+                            <div className="flex items-center gap-2">
+                              {expandedModules.has(module) ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                              <span className="font-medium">{moduleLabels[module] || module}</span>
+                              <span className="text-xs text-gray-500">({perms.length})</span>
+                            </div>
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                toggleAllInModule(module);
+                              }}
+                              className="text-xs text-purple-600 hover:text-purple-800"
+                            >
+                              {perms.every(p => formPermissions.includes(p.id)) ? 'Désélectionner tout' : 'Sélectionner tout'}
+                            </button>
                           </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                          {expandedModules.has(module) && (
+                            <div className="p-3 space-y-2">
+                              {perms.map(perm => (
+                                <label
+                                  key={perm.id}
+                                  className="flex items-start gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={formPermissions.includes(perm.id)}
+                                    onChange={() => togglePermission(perm.id)}
+                                    className="mt-1"
+                                  />
+                                  <div>
+                                    <div className="font-medium text-sm">{perm.name}</div>
+                                    <div className="text-xs text-gray-500">{perm.description}</div>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -725,54 +736,61 @@ export const RolesManagement: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Permissions ({formPermissions.size} sélectionnées)
+                    Permissions ({formPermissions.length} sélectionnées)
                   </label>
-                  <div className="border border-gray-300 rounded-lg max-h-[300px] overflow-y-auto">
-                    {Object.entries(groupedPermissions).map(([module, perms]) => (
-                      <div key={module} className="border-b border-gray-200 last:border-0">
-                        <div
-                          className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
-                          onClick={() => toggleModule(module)}
-                        >
-                          <div className="flex items-center gap-2">
-                            {expandedModules.has(module) ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                            <span className="font-medium">{moduleLabels[module] || module}</span>
-                          </div>
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              toggleAllInModule(module);
-                            }}
-                            className="text-xs text-purple-600 hover:text-purple-800"
+                  {useNewTree ? (
+                    <PermissionTree
+                      selectedPermissions={formPermissions}
+                      onSelectionChange={setFormPermissions}
+                    />
+                  ) : (
+                    <div className="border border-gray-300 rounded-lg max-h-[300px] overflow-y-auto">
+                      {Object.entries(groupedPermissions).map(([module, perms]) => (
+                        <div key={module} className="border-b border-gray-200 last:border-0">
+                          <div
+                            className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100"
+                            onClick={() => toggleModule(module)}
                           >
-                            {perms.every(p => formPermissions.has(p.id)) ? 'Désélectionner' : 'Tout sélectionner'}
-                          </button>
-                        </div>
-                        {expandedModules.has(module) && (
-                          <div className="p-3 space-y-2">
-                            {perms.map(perm => (
-                              <label key={perm.id} className="flex items-start gap-2 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={formPermissions.has(perm.id)}
-                                  onChange={() => togglePermission(perm.id)}
-                                  className="mt-1"
-                                />
-                                <div>
-                                  <div className="font-medium text-sm">{perm.name}</div>
-                                  <div className="text-xs text-gray-500">{perm.description}</div>
-                                </div>
-                              </label>
-                            ))}
+                            <div className="flex items-center gap-2">
+                              {expandedModules.has(module) ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                              <span className="font-medium">{moduleLabels[module] || module}</span>
+                            </div>
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                toggleAllInModule(module);
+                              }}
+                              className="text-xs text-purple-600 hover:text-purple-800"
+                            >
+                              {perms.every(p => formPermissions.includes(p.id)) ? 'Désélectionner' : 'Tout sélectionner'}
+                            </button>
                           </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                          {expandedModules.has(module) && (
+                            <div className="p-3 space-y-2">
+                              {perms.map(perm => (
+                                <label key={perm.id} className="flex items-start gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={formPermissions.includes(perm.id)}
+                                    onChange={() => togglePermission(perm.id)}
+                                    className="mt-1"
+                                  />
+                                  <div>
+                                    <div className="font-medium text-sm">{perm.name}</div>
+                                    <div className="text-xs text-gray-500">{perm.description}</div>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
