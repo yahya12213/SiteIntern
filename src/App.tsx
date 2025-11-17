@@ -29,6 +29,10 @@ import { SessionDetail } from './pages/admin/SessionDetail';
 import CorpsFormation from './pages/admin/CorpsFormation';
 import { RolesManagement } from './pages/admin/RolesManagement';
 import HREmployees from './pages/admin/hr/HREmployees';
+import HRDashboard from './pages/admin/hr/HRDashboard';
+import HRAttendance from './pages/admin/hr/HRAttendance';
+import HRLeaves from './pages/admin/hr/HRLeaves';
+import HRSettings from './pages/admin/hr/HRSettings';
 import StudentDashboard from './pages/student/StudentDashboard';
 import FormationCatalog from './pages/student/FormationCatalog';
 import FormationViewer from './pages/student/FormationViewer';
@@ -315,6 +319,42 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute adminOnly>
             <HREmployees />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/hr/dashboard"
+        element={
+          <ProtectedRoute adminOnly>
+            <HRDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/hr/attendance"
+        element={
+          <ProtectedRoute adminOnly>
+            <HRAttendance />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/hr/leaves"
+        element={
+          <ProtectedRoute adminOnly>
+            <HRLeaves />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/hr/settings"
+        element={
+          <ProtectedRoute adminOnly>
+            <HRSettings />
           </ProtectedRoute>
         }
       />

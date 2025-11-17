@@ -80,6 +80,8 @@ import permissionsRouter from './routes/permissions.js';
 import hrEmployeesRouter from './routes/hr-employees.js';
 import hrAttendanceRouter from './routes/hr-attendance.js';
 import hrLeavesRouter from './routes/hr-leaves.js';
+import hrDashboardRouter from './routes/hr-dashboard.js';
+import hrSettingsRouter from './routes/hr-settings.js';
 
 dotenv.config();
 
@@ -116,6 +118,8 @@ app.use('/api/permissions', permissionsRouter);
 app.use('/api/hr/employees', hrEmployeesRouter);
 app.use('/api/hr/attendance', hrAttendanceRouter);
 app.use('/api/hr/leaves', hrLeavesRouter);
+app.use('/api/hr/dashboard', hrDashboardRouter);
+app.use('/api/hr/settings', hrSettingsRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
 app.use('/api/setup-certificates', setupCertificatesRouter); // TEMPORARY - Run once to create certificates table
