@@ -56,6 +56,7 @@ import migration026Router from './routes/migration-026-create-student-payments.j
 import migration027Router from './routes/migration-027-fix-student-payments.js';
 import migration028Router from './routes/migration-028-student-status.js';
 import migration029Router from './routes/migration-029-rbac-system.js';
+import migration030Router from './routes/migration-030-comptabilite-permissions.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -120,6 +121,7 @@ app.use('/api/migration-026', migration026Router); // Migration 026 - Create stu
 app.use('/api/migration-027', migration027Router); // Migration 027 - Fix student_payments table structure
 app.use('/api/migration-028', migration028Router); // Migration 028 - Add student status (valide/abandonne)
 app.use('/api/migration-029', migration029Router); // Migration 029 - RBAC system (roles and permissions)
+app.use('/api/migration-030', migration030Router); // Migration 030 - Add Gestion Comptable permissions
 
 // Health check
 app.get('/api/health', async (req, res) => {

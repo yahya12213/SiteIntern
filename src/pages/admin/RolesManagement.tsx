@@ -246,6 +246,7 @@ export const RolesManagement: React.FC = () => {
   };
 
   const moduleLabels: Record<string, string> = {
+    declarations: 'Gestion Comptable',
     users: 'Utilisateurs',
     students: 'Étudiants',
     sessions: 'Sessions',
