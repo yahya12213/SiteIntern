@@ -5,6 +5,22 @@ import { generateToken, loginRateLimiter, authenticateToken, getUserPermissions 
 
 const router = express.Router();
 
+// Helper function to check if RBAC tables exist
+const checkRbacTablesExist = async () => {
+  try {
+    const result = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_name = 'roles'
+      ) as exists
+    `);
+    return result.rows[0].exists;
+  } catch (err) {
+    console.warn('Could not check for RBAC tables:', err.message);
+    return false;
+  }
+};
+
 // POST login with JWT token generation
 router.post('/login', loginRateLimiter, async (req, res) => {
   try {
@@ -17,14 +33,26 @@ router.post('/login', loginRateLimiter, async (req, res) => {
       });
     }
 
-    // Find user with role information
-    const result = await pool.query(
-      `SELECT p.*, r.name as role_name, r.description as role_description
-       FROM profiles p
-       LEFT JOIN roles r ON p.role_id = r.id
-       WHERE p.username = $1`,
-      [username]
-    );
+    // Check if RBAC tables exist (backward compatibility)
+    const rbacEnabled = await checkRbacTablesExist();
+
+    // Find user with role information (if RBAC is enabled)
+    let result;
+    if (rbacEnabled) {
+      result = await pool.query(
+        `SELECT p.*, r.name as role_name, r.description as role_description
+         FROM profiles p
+         LEFT JOIN roles r ON p.role_id = r.id
+         WHERE p.username = $1`,
+        [username]
+      );
+    } else {
+      // Fallback to old query without role join (backward compatibility)
+      result = await pool.query(
+        'SELECT * FROM profiles WHERE username = $1',
+        [username]
+      );
+    }
 
     if (result.rows.length === 0) {
       return res.status(401).json({
@@ -45,12 +73,14 @@ router.post('/login', loginRateLimiter, async (req, res) => {
       });
     }
 
-    // Get user permissions
+    // Get user permissions (only if RBAC is enabled)
     let permissions = [];
-    try {
-      permissions = await getUserPermissions(user.id);
-    } catch (err) {
-      console.warn('Could not load permissions (tables may not exist yet):', err.message);
+    if (rbacEnabled) {
+      try {
+        permissions = await getUserPermissions(user.id);
+      } catch (err) {
+        console.warn('Could not load permissions (tables may not exist yet):', err.message);
+      }
     }
 
     // Remove password from response
@@ -79,13 +109,25 @@ router.post('/login', loginRateLimiter, async (req, res) => {
 // GET current user (verify token and get fresh user data)
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT p.*, r.name as role_name, r.description as role_description
-       FROM profiles p
-       LEFT JOIN roles r ON p.role_id = r.id
-       WHERE p.id = $1`,
-      [req.user.id]
-    );
+    // Check if RBAC tables exist (backward compatibility)
+    const rbacEnabled = await checkRbacTablesExist();
+
+    let result;
+    if (rbacEnabled) {
+      result = await pool.query(
+        `SELECT p.*, r.name as role_name, r.description as role_description
+         FROM profiles p
+         LEFT JOIN roles r ON p.role_id = r.id
+         WHERE p.id = $1`,
+        [req.user.id]
+      );
+    } else {
+      // Fallback to old query without role join
+      result = await pool.query(
+        'SELECT * FROM profiles WHERE id = $1',
+        [req.user.id]
+      );
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -97,12 +139,14 @@ router.get('/me', authenticateToken, async (req, res) => {
     const user = result.rows[0];
     const { password: _, ...userWithoutPassword } = user;
 
-    // Get fresh permissions
+    // Get fresh permissions (only if RBAC is enabled)
     let permissions = [];
-    try {
-      permissions = await getUserPermissions(user.id);
-    } catch (err) {
-      console.warn('Could not load permissions:', err.message);
+    if (rbacEnabled) {
+      try {
+        permissions = await getUserPermissions(user.id);
+      } catch (err) {
+        console.warn('Could not load permissions:', err.message);
+      }
     }
 
     res.json({
