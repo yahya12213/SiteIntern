@@ -9,7 +9,7 @@ export interface User {
   username: string;
   password: string;
   full_name: string;
-  role: 'admin' | 'professor' | 'gerant';
+  role: string; // Dynamic role from database (admin, gerant, professor, assistante, comptable, superviseur, etc.)
   created_at: string;
 }
 
@@ -29,7 +29,7 @@ export interface CreateUserInput {
   username: string;
   password: string;
   full_name: string;
-  role: 'admin' | 'professor' | 'gerant';
+  role: string; // Dynamic role from database
 }
 
 export interface UpdateUserInput {
@@ -37,23 +37,23 @@ export interface UpdateUserInput {
   username?: string;
   password?: string;
   full_name?: string;
-  role?: 'admin' | 'professor' | 'gerant';
+  role?: string; // Dynamic role from database
 }
 
 export interface AssignSegmentsInput {
   user_id: string;
   segment_ids: string[];
-  role: 'professor' | 'gerant';
+  role: string; // professor, gerant, etc.
 }
 
 export interface AssignCitiesInput {
   user_id: string;
   city_ids: string[];
-  role: 'professor' | 'gerant';
+  role: string; // professor, gerant, etc.
 }
 
 // Hook pour récupérer tous les utilisateurs
-export function useUsers(roleFilter?: 'admin' | 'professor' | 'gerant' | 'all') {
+export function useUsers(roleFilter?: string) {
   return useQuery({
     queryKey: ['users', roleFilter],
     queryFn: async () => {

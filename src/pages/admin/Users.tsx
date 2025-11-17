@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Edit, Trash2, MapPin, Calculator, Shield, User, Users as UsersIcon, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Edit, Trash2, MapPin, Calculator, Shield, User, Users as UsersIcon, Eye, EyeOff, Briefcase, FileCheck, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -16,19 +16,36 @@ import {
   useAllCities,
   type User as UserType,
 } from '@/hooks/useUsers';
+import { rolesApi, type Role } from '@/lib/api/roles';
 
 const Users: React.FC = () => {
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'professor' | 'gerant'>('all');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAssignSegmentsModalOpen, setIsAssignSegmentsModalOpen] = useState(false);
   const [isAssignCitiesModalOpen, setIsAssignCitiesModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
+  const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
 
-  const { data: users, isLoading } = useUsers(roleFilter);
+  const { data: users, isLoading } = useUsers(roleFilter as any);
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const deleteUser = useDeleteUser();
+
+  // Fetch available roles from database
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await rolesApi.getAllRoles();
+        if (response.success) {
+          setAvailableRoles(response.roles);
+        }
+      } catch (error) {
+        console.error('Error fetching roles:', error);
+      }
+    };
+    fetchRoles();
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
@@ -42,14 +59,25 @@ const Users: React.FC = () => {
   };
 
   const getRoleBadge = (role: string) => {
-    const config = {
+    const config: Record<string, { label: string; color: string; icon: any }> = {
       admin: { label: 'Administrateur', color: 'bg-red-100 text-red-800', icon: Shield },
       professor: { label: 'Professeur', color: 'bg-blue-100 text-blue-800', icon: User },
       gerant: { label: 'Gérant', color: 'bg-green-100 text-green-800', icon: UsersIcon },
+      assistante: { label: 'Assistante', color: 'bg-purple-100 text-purple-800', icon: Briefcase },
+      comptable: { label: 'Comptable', color: 'bg-yellow-100 text-yellow-800', icon: FileCheck },
+      superviseur: { label: 'Superviseur', color: 'bg-orange-100 text-orange-800', icon: ClipboardList },
     };
 
-    const cfg = config[role as keyof typeof config];
-    if (!cfg) return null;
+    const cfg = config[role];
+    if (!cfg) {
+      // Fallback for unknown roles - use the role name directly
+      return (
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          <User className="w-3.5 h-3.5" />
+          {role}
+        </span>
+      );
+    }
 
     const Icon = cfg.icon;
 
@@ -276,6 +304,7 @@ const Users: React.FC = () => {
         <CreateUserModal
           onClose={() => setIsCreateModalOpen(false)}
           createUser={createUser}
+          availableRoles={availableRoles}
         />
       )}
 
@@ -287,6 +316,7 @@ const Users: React.FC = () => {
             setSelectedUser(null);
           }}
           updateUser={updateUser}
+          availableRoles={availableRoles}
         />
       )}
 
@@ -318,12 +348,13 @@ const Users: React.FC = () => {
 const CreateUserModal: React.FC<{
   onClose: () => void;
   createUser: ReturnType<typeof useCreateUser>;
-}> = ({ onClose, createUser }) => {
+  availableRoles: Role[];
+}> = ({ onClose, createUser, availableRoles }) => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
     full_name: '',
-    role: 'professor' as 'admin' | 'professor' | 'gerant',
+    role: 'professor',
   });
   const [showPassword, setShowPassword] = useState(false);
 
@@ -408,13 +439,15 @@ const CreateUserModal: React.FC<{
             </label>
             <select
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             >
-              <option value="professor">Professeur</option>
-              <option value="gerant">Gérant</option>
-              <option value="admin">Administrateur</option>
+              {availableRoles.map((role) => (
+                <option key={role.id} value={role.name}>
+                  {role.name.charAt(0).toUpperCase() + role.name.slice(1)}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -437,7 +470,8 @@ const EditUserModal: React.FC<{
   user: UserType;
   onClose: () => void;
   updateUser: ReturnType<typeof useUpdateUser>;
-}> = ({ user, onClose, updateUser }) => {
+  availableRoles: Role[];
+}> = ({ user, onClose, updateUser, availableRoles }) => {
   const [formData, setFormData] = useState({
     username: user.username,
     password: '',
@@ -528,12 +562,14 @@ const EditUserModal: React.FC<{
             </label>
             <select
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="professor">Professeur</option>
-              <option value="gerant">Gérant</option>
-              <option value="admin">Administrateur</option>
+              {availableRoles.map((role) => (
+                <option key={role.id} value={role.name}>
+                  {role.name.charAt(0).toUpperCase() + role.name.slice(1)}
+                </option>
+              ))}
             </select>
           </div>
 
