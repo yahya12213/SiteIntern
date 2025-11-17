@@ -150,21 +150,36 @@ export const requirePermission = (...requiredPermissions) => {
 };
 
 // Get user's permissions from database
+// Supports both old system (profiles.role_id) and new system (user_roles table)
 export const getUserPermissions = async (userId) => {
   try {
-    const query = `
+    // First try the new user_roles table (N-N relationship)
+    let query = `
       SELECT DISTINCT p.code
       FROM permissions p
       INNER JOIN role_permissions rp ON p.id = rp.permission_id
-      INNER JOIN roles r ON rp.role_id = r.id
-      INNER JOIN profiles pr ON pr.role_id = r.id
-      WHERE pr.id = $1
+      INNER JOIN user_roles ur ON rp.role_id = ur.role_id
+      WHERE ur.user_id = $1
     `;
-    const result = await pool.query(query, [userId]);
+    let result = await pool.query(query, [userId]);
+
+    // If no results from user_roles, fallback to old profiles.role_id system
+    if (result.rows.length === 0) {
+      query = `
+        SELECT DISTINCT p.code
+        FROM permissions p
+        INNER JOIN role_permissions rp ON p.id = rp.permission_id
+        INNER JOIN roles r ON rp.role_id = r.id
+        INNER JOIN profiles pr ON pr.role_id = r.id
+        WHERE pr.id = $1
+      `;
+      result = await pool.query(query, [userId]);
+    }
+
     return result.rows.map(row => row.code);
   } catch (error) {
     // If tables don't exist yet (before migration), fall back to role-based
-    console.warn('Permission tables not available, using role-based fallback');
+    console.warn('Permission tables not available, using role-based fallback:', error.message);
     return [];
   }
 };

@@ -67,9 +67,11 @@ import migration036Router from './routes/migration-036-debug-permissions.js';
 import migration037Router from './routes/migration-037-fix-role-id.js';
 import migration038Router from './routes/migration-038-check-role-id.js';
 import migration039Router from './routes/migration-039-sync-role-id.js';
+import migration040Router from './routes/migration-040-hierarchical-rbac.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
+import permissionsRouter from './routes/permissions.js';
 
 dotenv.config();
 
@@ -102,6 +104,7 @@ app.use('/api/sessions-formation', sessionsFormationRouter);
 app.use('/api/students', studentsRouter);
 app.use('/api/centres', centresRouter);
 app.use('/api/roles', rolesRouter);
+app.use('/api/permissions', permissionsRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
 app.use('/api/setup-certificates', setupCertificatesRouter); // TEMPORARY - Run once to create certificates table
@@ -141,6 +144,7 @@ app.use('/api/migration-036', migration036Router); // Migration 036 - Debug perm
 app.use('/api/migration-037', migration037Router); // Migration 037 - Fix role_id assignment
 app.use('/api/migration-038', migration038Router); // Migration 038 - Debug role_id
 app.use('/api/migration-039', migration039Router); // Migration 039 - Sync role_id with role text
+app.use('/api/migration-040', migration040Router); // Migration 040 - Hierarchical RBAC (module.menu.action)
 
 // Health check
 app.get('/api/health', async (req, res) => {
