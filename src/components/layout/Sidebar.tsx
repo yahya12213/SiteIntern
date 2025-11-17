@@ -20,6 +20,7 @@ import {
   Palette,
   Shield,
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface NavSection {
   id: string;
@@ -32,10 +33,12 @@ interface NavItem {
   to: string;
   icon: React.ElementType;
   label: string;
+  permission?: string; // Permission code required to see this menu item
 }
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
+  const { hasPermission } = useAuth();
   const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation-en-ligne']);
 
   const toggleSection = (sectionId: string) => {
@@ -52,14 +55,14 @@ export const Sidebar: React.FC = () => {
       title: 'Gestion Comptable',
       icon: Calculator,
       items: [
-        { to: '/dashboard', icon: Home, label: 'Tableau de bord' },
-        { to: '/admin/segments', icon: Calculator, label: 'Segments' },
-        { to: '/admin/cities', icon: MapPin, label: 'Villes' },
-        { to: '/admin/users', icon: Users, label: 'Utilisateurs' },
-        { to: '/admin/roles', icon: Shield, label: 'Rôles & Permissions' },
-        { to: '/admin/calculation-sheets', icon: FileSpreadsheet, label: 'Fiches de calcul' },
-        { to: '/admin/create-declaration', icon: FilePlus, label: 'Créer déclaration' },
-        { to: '/admin/declarations', icon: ClipboardCheck, label: 'Gérer déclarations' },
+        { to: '/dashboard', icon: Home, label: 'Tableau de bord', permission: 'page.dashboard' },
+        { to: '/admin/segments', icon: Calculator, label: 'Segments', permission: 'page.segments' },
+        { to: '/admin/cities', icon: MapPin, label: 'Villes', permission: 'page.villes' },
+        { to: '/admin/users', icon: Users, label: 'Utilisateurs', permission: 'page.utilisateurs' },
+        { to: '/admin/roles', icon: Shield, label: 'Rôles & Permissions', permission: 'page.roles' },
+        { to: '/admin/calculation-sheets', icon: FileSpreadsheet, label: 'Fiches de calcul', permission: 'page.fiches_calcul' },
+        { to: '/admin/create-declaration', icon: FilePlus, label: 'Créer déclaration', permission: 'declarations.creer' },
+        { to: '/admin/declarations', icon: ClipboardCheck, label: 'Gérer déclarations', permission: 'page.declarations' },
       ],
     },
     {
@@ -67,23 +70,33 @@ export const Sidebar: React.FC = () => {
       title: 'Formation en Ligne',
       icon: GraduationCap,
       items: [
-        { to: '/admin/formations-management', icon: BookOpen, label: 'Gestion des Formations' },
-        { to: '/admin/sessions-formation', icon: CalendarCheck, label: 'Sessions de Formation' },
-        { to: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
-        { to: '/admin/student-reports', icon: FileText, label: 'Rapports Étudiants' },
-        { to: '/admin/certificates', icon: Award, label: 'Certificats' },
-        { to: '/admin/certificate-templates', icon: Palette, label: 'Templates de Certificats' },
-        { to: '/admin/forums', icon: MessageSquare, label: 'Forums' },
+        { to: '/admin/formations-management', icon: BookOpen, label: 'Gestion des Formations', permission: 'page.formations' },
+        { to: '/admin/sessions-formation', icon: CalendarCheck, label: 'Sessions de Formation', permission: 'page.sessions' },
+        { to: '/admin/analytics', icon: BarChart3, label: 'Analytics', permission: 'page.analytics' },
+        { to: '/admin/student-reports', icon: FileText, label: 'Rapports Étudiants', permission: 'page.rapports' },
+        { to: '/admin/certificates', icon: Award, label: 'Certificats', permission: 'page.certificats' },
+        { to: '/admin/certificate-templates', icon: Palette, label: 'Templates de Certificats', permission: 'page.templates' },
+        { to: '/admin/forums', icon: MessageSquare, label: 'Forums', permission: 'page.forums' },
       ],
     },
   ];
+
+  // Filter sections based on user permissions
+  const filteredSections = sections
+    .map(section => ({
+      ...section,
+      items: section.items.filter(item =>
+        !item.permission || hasPermission(item.permission)
+      ),
+    }))
+    .filter(section => section.items.length > 0); // Hide empty sections
 
   const isActive = (path: string) => location.pathname === path;
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-72 bg-white border-r border-gray-200 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto">
       <nav className="flex-1 px-3 py-4 space-y-2">
-        {sections.map((section) => {
+        {filteredSections.map((section) => {
           const isExpanded = expandedSections.includes(section.id);
           const SectionIcon = section.icon;
 
