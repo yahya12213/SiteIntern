@@ -13,6 +13,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
+import LeaveRequestFormModal from '@/components/admin/hr/LeaveRequestFormModal';
 
 interface LeaveRequest {
   id: string;
@@ -53,6 +54,7 @@ export default function HRLeaves() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [showLeaveRequestModal, setShowLeaveRequestModal] = useState(false);
 
   // Fetch leave requests
   const { data: requestsData, isLoading: requestsLoading } = useQuery({
@@ -139,7 +141,10 @@ export default function HRLeaves() {
             </p>
           </div>
           {hr.canRequestLeave && (
-            <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+            <button
+              onClick={() => setShowLeaveRequestModal(true)}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
               <Plus className="h-5 w-5" />
               Nouvelle Demande
             </button>
@@ -397,6 +402,13 @@ export default function HRLeaves() {
               ))}
             </div>
           </div>
+        )}
+
+        {/* Leave Request Form Modal */}
+        {showLeaveRequestModal && (
+          <LeaveRequestFormModal
+            onClose={() => setShowLeaveRequestModal(false)}
+          />
         )}
       </div>
     </AppLayout>

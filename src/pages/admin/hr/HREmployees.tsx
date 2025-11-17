@@ -15,6 +15,7 @@ import {
   Download,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
+import EmployeeFormModal from '@/components/admin/hr/EmployeeFormModal';
 
 interface Employee {
   id: string;
@@ -37,6 +38,8 @@ export default function HREmployees() {
   const [statusFilter, setStatusFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [activeTab, setActiveTab] = useState<'list' | 'contracts' | 'documents' | 'disciplinary'>('list');
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   // Fetch employees
   const { data: employeesData, isLoading } = useQuery({
@@ -99,7 +102,13 @@ export default function HREmployees() {
             </p>
           </div>
           {hr.canCreateEmployee && (
-            <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+            <button
+              onClick={() => {
+                setSelectedEmployeeId(null);
+                setShowEmployeeModal(true);
+              }}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
               <Plus className="h-5 w-5" />
               Nouvel Employé
             </button>
@@ -228,7 +237,13 @@ export default function HREmployees() {
                 <Users className="h-12 w-12 text-gray-400 mx-auto" />
                 <p className="mt-2 text-gray-600">Aucun employé trouvé</p>
                 {hr.canCreateEmployee && (
-                  <button className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                  <button
+                    onClick={() => {
+                      setSelectedEmployeeId(null);
+                      setShowEmployeeModal(true);
+                    }}
+                    className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  >
                     Ajouter un employé
                   </button>
                 )}
@@ -290,12 +305,28 @@ export default function HREmployees() {
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end gap-2">
                             {hr.canUpdateEmployee && (
-                              <button className="text-blue-600 hover:text-blue-900">
+                              <button
+                                onClick={() => {
+                                  setSelectedEmployeeId(employee.id);
+                                  setShowEmployeeModal(true);
+                                }}
+                                className="text-blue-600 hover:text-blue-900"
+                                title="Modifier l'employé"
+                              >
                                 <Edit className="h-4 w-4" />
                               </button>
                             )}
                             {hr.canDeleteEmployee && (
-                              <button className="text-red-600 hover:text-red-900">
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Êtes-vous sûr de vouloir supprimer ${employee.first_name} ${employee.last_name} ?`)) {
+                                    // TODO: Implement delete
+                                    console.log('Delete employee:', employee.id);
+                                  }
+                                }}
+                                className="text-red-600 hover:text-red-900"
+                                title="Supprimer l'employé"
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </button>
                             )}
@@ -365,6 +396,17 @@ export default function HREmployees() {
             </div>
           </div>
         </div>
+
+        {/* Employee Form Modal */}
+        {showEmployeeModal && (
+          <EmployeeFormModal
+            employeeId={selectedEmployeeId}
+            onClose={() => {
+              setShowEmployeeModal(false);
+              setSelectedEmployeeId(null);
+            }}
+          />
+        )}
       </div>
     </AppLayout>
   );
