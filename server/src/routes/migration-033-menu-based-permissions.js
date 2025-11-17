@@ -10,7 +10,6 @@
 
 import express from 'express';
 import pool from '../config/database.js';
-import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
@@ -200,13 +199,13 @@ router.post('/run', async (req, res) => {
     const permissionMap = {};
 
     for (const perm of MENU_PERMISSIONS) {
-      const id = uuidv4();
-      await client.query(
+      const result = await client.query(
         `INSERT INTO permissions (id, code, name, module, description)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [id, perm.code, perm.name, perm.module, perm.description]
+         VALUES (gen_random_uuid(), $1, $2, $3, $4)
+         RETURNING id`,
+        [perm.code, perm.name, perm.module, perm.description]
       );
-      permissionMap[perm.code] = id;
+      permissionMap[perm.code] = result.rows[0].id;
     }
     console.log(`    ✅ Created ${MENU_PERMISSIONS.length} permissions`);
 
