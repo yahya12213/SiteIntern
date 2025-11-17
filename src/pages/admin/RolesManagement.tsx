@@ -246,6 +246,17 @@ export const RolesManagement: React.FC = () => {
   };
 
   const moduleLabels: Record<string, string> = {
+    // New simplified structure
+    pages_comptabilite: 'Pages - Gestion Comptable',
+    pages_formation: 'Pages - Formation en Ligne',
+    actions_utilisateurs: 'Actions - Utilisateurs',
+    actions_parametres: 'Actions - Segments & Villes',
+    actions_fiches: 'Actions - Fiches de Calcul',
+    actions_declarations: 'Actions - Déclarations',
+    actions_formations: 'Actions - Formations',
+    actions_sessions: 'Actions - Sessions',
+    actions_speciales: 'Actions Spéciales',
+    // Old structure (backward compatibility)
     declarations: 'Gestion Comptable',
     users: 'Utilisateurs',
     students: 'Étudiants',
