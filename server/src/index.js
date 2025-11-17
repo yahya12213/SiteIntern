@@ -65,6 +65,7 @@ import migration034Router from './routes/migration-034-hierarchical-permissions.
 import migration035Router from './routes/migration-035-copy-gerant-permissions.js';
 import migration036Router from './routes/migration-036-debug-permissions.js';
 import migration037Router from './routes/migration-037-fix-role-id.js';
+import migration038Router from './routes/migration-038-check-role-id.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -137,6 +138,7 @@ app.use('/api/migration-034', migration034Router); // Migration 034 - Hierarchic
 app.use('/api/migration-035', migration035Router); // Migration 035 - Copy gerant permissions to custom roles
 app.use('/api/migration-036', migration036Router); // Migration 036 - Debug permissions assignment
 app.use('/api/migration-037', migration037Router); // Migration 037 - Fix role_id assignment
+app.use('/api/migration-038', migration038Router); // Migration 038 - Debug role_id
 
 // Health check
 app.get('/api/health', async (req, res) => {
