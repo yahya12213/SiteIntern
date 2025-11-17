@@ -8,10 +8,8 @@ import {
   Clock,
   CalendarDays,
   AlertTriangle,
-  FileText,
   Download,
   TrendingUp,
-  TrendingDown,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 
@@ -83,7 +81,7 @@ interface Alert {
 
 export default function HRDashboard() {
   const { hr } = usePermission();
-  const [selectedPeriod, setSelectedPeriod] = useState(new Date());
+  const [selectedPeriod] = useState(new Date());
 
   // Fetch HR statistics
   const { data: statsData, isLoading: statsLoading } = useQuery({
@@ -149,7 +147,7 @@ export default function HRDashboard() {
               Vue d'ensemble et indicateurs clés - {stats && getMonthName(stats.period.month)} {stats?.period.year}
             </p>
           </div>
-          {hr.canExportReports && (
+          {hr.canExportPayroll && (
             <button
               onClick={handleExportMonthly}
               className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"

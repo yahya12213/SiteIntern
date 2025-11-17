@@ -4,14 +4,12 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { usePermission } from '@/hooks/usePermission';
 import {
   Clock,
-  Calendar,
   AlertTriangle,
   TrendingUp,
   Search,
   Filter,
   Plus,
   Check,
-  X,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import AttendanceRecordForm from '@/components/admin/hr/AttendanceRecordForm';

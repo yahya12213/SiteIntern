@@ -356,7 +356,6 @@ export default function HRSettings() {
 
                         <div className="grid grid-cols-3 md:grid-cols-7 gap-3 text-sm">
                           {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => {
-                            const dayKey = day as keyof WorkSchedule;
                             const startKey = `${day}_start` as keyof WorkSchedule;
                             const endKey = `${day}_end` as keyof WorkSchedule;
                             const start = schedule[startKey];

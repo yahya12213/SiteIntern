@@ -5,8 +5,6 @@ import { usePermission } from '@/hooks/usePermission';
 import {
   CalendarDays,
   Plus,
-  Check,
-  X,
   Clock,
   TrendingUp,
   Search,
@@ -30,17 +28,6 @@ interface LeaveRequest {
   reason: string;
 }
 
-interface LeaveBalance {
-  id: string;
-  leave_type_name: string;
-  leave_type_code: string;
-  leave_type_color: string;
-  total: number;
-  used: number;
-  adjusted: number;
-  remaining: number;
-}
-
 interface Holiday {
   id: string;
   name: string;
@@ -54,7 +41,6 @@ export default function HRLeaves() {
   const [activeTab, setActiveTab] = useState<'requests' | 'balances' | 'calendar' | 'holidays'>('requests');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [selectedEmployee, setSelectedEmployee] = useState('');
   const [showLeaveRequestModal, setShowLeaveRequestModal] = useState(false);
   const [showLeaveApprovalModal, setShowLeaveApprovalModal] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
