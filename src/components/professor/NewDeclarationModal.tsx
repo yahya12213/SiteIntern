@@ -138,6 +138,7 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
         end_date: endDate,
         form_data: {},
         professor_id: isImpressionRole ? selectedProfessor : undefined,
+        status: isImpressionRole ? 'a_declarer' : undefined, // Statut "à déclarer" pour rôle impression
       });
 
       // Pour le rôle impression, ne pas rediriger vers le formulaire (lecture seule)

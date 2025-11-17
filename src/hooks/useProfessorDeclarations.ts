@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { declarationsApi } from '@/lib/api/declarations';
-import type { Declaration } from '@/lib/api/declarations';
+import type { Declaration, DeclarationStatus } from '@/lib/api/declarations';
 import { calculationSheetsApi } from '@/lib/api/calculationSheets';
 import { citiesApi } from '@/lib/api/cities';
 import { segmentsApi } from '@/lib/api/segments';
@@ -25,6 +25,7 @@ export interface CreateDeclarationInput {
   end_date: string;
   form_data?: Record<string, unknown>;
   professor_id?: string; // Pour créer une déclaration pour un autre professeur
+  status?: DeclarationStatus; // Statut initial (ex: 'a_declarer' pour rôle impression)
 }
 
 export interface UpdateDeclarationInput {
@@ -100,6 +101,7 @@ export function useCreateDeclaration() {
         start_date: input.start_date,
         end_date: input.end_date,
         form_data: JSON.stringify(input.form_data || {}),
+        status: input.status, // Permet de spécifier le statut initial
       });
     },
     onSuccess: () => {
