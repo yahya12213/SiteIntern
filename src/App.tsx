@@ -27,6 +27,7 @@ import { ForumModeration } from './pages/admin/ForumModeration';
 import { SessionsFormation } from './pages/admin/SessionsFormation';
 import { SessionDetail } from './pages/admin/SessionDetail';
 import CorpsFormation from './pages/admin/CorpsFormation';
+import { RolesManagement } from './pages/admin/RolesManagement';
 import StudentDashboard from './pages/student/StudentDashboard';
 import FormationCatalog from './pages/student/FormationCatalog';
 import FormationViewer from './pages/student/FormationViewer';
@@ -294,6 +295,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute adminOnly>
             <ForumModeration />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/roles"
+        element={
+          <ProtectedRoute adminOnly>
+            <RolesManagement />
           </ProtectedRoute>
         }
       />

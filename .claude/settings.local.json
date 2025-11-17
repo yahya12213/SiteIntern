@@ -50,7 +50,8 @@
       "Bash(for file in src/pages/admin/CalculationSheets.tsx src/pages/admin/CertificateTemplateCanvasEditor.tsx src/pages/admin/DeclarationViewer.tsx src/pages/Login.tsx)",
       "Bash(do echo \"C:\\Users\\pc\\Desktop\\systeme de calcul$file\")",
       "Bash(if exist NUL del /f NUL)",
-      "Bash(.gitignore)"
+      "Bash(.gitignore)",
+      "Bash(if not exist \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\src\\middleware\" mkdir \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\src\\middleware\")"
     ],
     "deny": [],
     "ask": []

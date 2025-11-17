@@ -55,8 +55,10 @@ import migration025Router from './routes/migration-025-add-discount-percentage.j
 import migration026Router from './routes/migration-026-create-student-payments.js';
 import migration027Router from './routes/migration-027-fix-student-payments.js';
 import migration028Router from './routes/migration-028-student-status.js';
+import migration029Router from './routes/migration-029-rbac-system.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
+import rolesRouter from './routes/roles.js';
 
 dotenv.config();
 
@@ -88,6 +90,7 @@ app.use('/api/corps-formation', corpsFormationRouter);
 app.use('/api/sessions-formation', sessionsFormationRouter);
 app.use('/api/students', studentsRouter);
 app.use('/api/centres', centresRouter);
+app.use('/api/roles', rolesRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
 app.use('/api/setup-certificates', setupCertificatesRouter); // TEMPORARY - Run once to create certificates table
@@ -116,6 +119,7 @@ app.use('/api/migration-025', migration025Router); // Migration 025 - Add discou
 app.use('/api/migration-026', migration026Router); // Migration 026 - Create student_payments table
 app.use('/api/migration-027', migration027Router); // Migration 027 - Fix student_payments table structure
 app.use('/api/migration-028', migration028Router); // Migration 028 - Add student status (valide/abandonne)
+app.use('/api/migration-029', migration029Router); // Migration 029 - RBAC system (roles and permissions)
 
 // Health check
 app.get('/api/health', async (req, res) => {

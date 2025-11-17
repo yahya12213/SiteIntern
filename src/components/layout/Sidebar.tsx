@@ -18,6 +18,7 @@ import {
   Award,
   MessageSquare,
   Palette,
+  Shield,
 } from 'lucide-react';
 
 interface NavSection {
@@ -55,6 +56,7 @@ export const Sidebar: React.FC = () => {
         { to: '/admin/segments', icon: Calculator, label: 'Segments' },
         { to: '/admin/cities', icon: MapPin, label: 'Villes' },
         { to: '/admin/users', icon: Users, label: 'Utilisateurs' },
+        { to: '/admin/roles', icon: Shield, label: 'Rôles & Permissions' },
         { to: '/admin/calculation-sheets', icon: FileSpreadsheet, label: 'Fiches de calcul' },
         { to: '/admin/create-declaration', icon: FilePlus, label: 'Créer déclaration' },
         { to: '/admin/declarations', icon: ClipboardCheck, label: 'Gérer déclarations' },

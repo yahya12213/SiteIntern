@@ -1,9 +1,15 @@
 /**
  * Client API générique pour communiquer avec le backend Express
  * Remplace les appels Supabase par des appels REST classiques
+ * Inclut l'authentification JWT automatique
  */
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
+// Token storage keys
+const TOKEN_KEY = 'auth_token';
+const USER_KEY = 'current_user';
+const PERMISSIONS_KEY = 'user_permissions';
 
 export class ApiError extends Error {
   status?: number;
@@ -19,10 +25,90 @@ export class ApiError extends Error {
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string>;
+  skipAuth?: boolean; // Skip adding auth token (for login endpoint)
 }
 
 /**
- * Client HTTP générique avec gestion d'erreurs
+ * Auth token management
+ */
+export const tokenManager = {
+  getToken: (): string | null => {
+    return localStorage.getItem(TOKEN_KEY);
+  },
+
+  setToken: (token: string): void => {
+    localStorage.setItem(TOKEN_KEY, token);
+  },
+
+  removeToken: (): void => {
+    localStorage.removeItem(TOKEN_KEY);
+  },
+
+  getUser: (): any | null => {
+    const userStr = localStorage.getItem(USER_KEY);
+    if (userStr) {
+      try {
+        return JSON.parse(userStr);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  },
+
+  setUser: (user: any): void => {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  },
+
+  removeUser: (): void => {
+    localStorage.removeItem(USER_KEY);
+  },
+
+  getPermissions: (): string[] => {
+    const permsStr = localStorage.getItem(PERMISSIONS_KEY);
+    if (permsStr) {
+      try {
+        return JSON.parse(permsStr);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  },
+
+  setPermissions: (permissions: string[]): void => {
+    localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(permissions));
+  },
+
+  removePermissions: (): void => {
+    localStorage.removeItem(PERMISSIONS_KEY);
+  },
+
+  clearAll: (): void => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(PERMISSIONS_KEY);
+  },
+
+  hasPermission: (permission: string): boolean => {
+    const user = tokenManager.getUser();
+    // Admin has all permissions
+    if (user?.role === 'admin') return true;
+    const permissions = tokenManager.getPermissions();
+    return permissions.includes(permission) || permissions.includes('*');
+  },
+
+  hasAnyPermission: (...perms: string[]): boolean => {
+    return perms.some(p => tokenManager.hasPermission(p));
+  },
+
+  hasAllPermissions: (...perms: string[]): boolean => {
+    return perms.every(p => tokenManager.hasPermission(p));
+  },
+};
+
+/**
+ * Client HTTP générique avec gestion d'erreurs et authentification JWT
  */
 class ApiClient {
   private baseURL: string;
@@ -35,7 +121,7 @@ class ApiClient {
     endpoint: string,
     options: RequestOptions = {}
   ): Promise<T> {
-    const { params, ...fetchOptions } = options;
+    const { params, skipAuth, ...fetchOptions } = options;
 
     // Construire l'URL avec les query params si fournis
     let url = `${this.baseURL}${endpoint}`;
@@ -56,11 +142,47 @@ class ApiClient {
           ...fetchOptions.headers,
         };
 
+    // Add JWT Authorization header if token exists and not skipped
+    if (!skipAuth) {
+      const token = tokenManager.getToken();
+      if (token) {
+        (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+      }
+    }
+
     try {
       const response = await fetch(url, {
         ...fetchOptions,
         headers,
       });
+
+      // Handle authentication errors
+      if (response.status === 401) {
+        const errorData = await response.json().catch(() => ({}));
+
+        // If token expired, clear auth state
+        if (errorData.code === 'TOKEN_EXPIRED' || errorData.code === 'INVALID_TOKEN') {
+          tokenManager.clearAll();
+          // Optionally trigger a re-login flow
+          window.dispatchEvent(new CustomEvent('auth:token-expired'));
+        }
+
+        throw new ApiError(
+          errorData.error || 'Authentication required',
+          response.status,
+          errorData.code
+        );
+      }
+
+      // Handle permission errors
+      if (response.status === 403) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new ApiError(
+          errorData.error || 'Permission denied',
+          response.status,
+          errorData.code || 'FORBIDDEN'
+        );
+      }
 
       // Gestion des erreurs HTTP
       if (!response.ok) {
@@ -104,13 +226,14 @@ class ApiClient {
   /**
    * POST request
    */
-  async post<T>(endpoint: string, data?: unknown): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown, options?: { skipAuth?: boolean }): Promise<T> {
     // Si data est FormData, l'envoyer tel quel (ne pas stringifier)
     const body = data instanceof FormData ? data : JSON.stringify(data);
 
     return this.request<T>(endpoint, {
       method: 'POST',
       body,
+      skipAuth: options?.skipAuth,
     });
   }
 
