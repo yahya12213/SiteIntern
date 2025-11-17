@@ -174,8 +174,7 @@ router.post('/run', async (req, res) => {
         recurring_month INT,
         recurring_day INT,
         created_by TEXT REFERENCES profiles(id),
-        created_at TIMESTAMP DEFAULT NOW(),
-        UNIQUE(holiday_date, COALESCE(segment_id, ''), COALESCE(centre_id, '00000000-0000-0000-0000-000000000000'::UUID))
+        created_at TIMESTAMP DEFAULT NOW()
       )
     `);
 
@@ -217,6 +216,7 @@ router.post('/run', async (req, res) => {
 
       CREATE INDEX IF NOT EXISTS idx_hr_holidays_date ON hr_holidays(holiday_date);
       CREATE INDEX IF NOT EXISTS idx_hr_holidays_year ON hr_holidays(year);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_hr_holidays_unique ON hr_holidays(holiday_date, COALESCE(segment_id, ''), COALESCE(centre_id, '00000000-0000-0000-0000-000000000000'::UUID));
     `);
 
     // Step 6: Create triggers
