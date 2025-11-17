@@ -59,11 +59,13 @@ export interface UpdateDeclarationInput {
  */
 export const declarationsApi = {
   /**
-   * Récupérer toutes les déclarations (avec filtre optionnel par professeur)
+   * Récupérer toutes les déclarations (avec filtre optionnel par professeur ou utilisateur)
    */
-  async getAll(professorId?: string): Promise<Declaration[]> {
-    const params = professorId ? { professor_id: professorId } : undefined;
-    return apiClient.get<Declaration[]>('/declarations', params);
+  async getAll(professorId?: string, filterByUser?: boolean): Promise<Declaration[]> {
+    const params: Record<string, string> = {};
+    if (professorId) params.professor_id = professorId;
+    if (filterByUser) params.filter_by_user = 'true';
+    return apiClient.get<Declaration[]>('/declarations', Object.keys(params).length > 0 ? params : undefined);
   },
 
   /**

@@ -4,9 +4,28 @@ import pool from '../config/database.js';
 const router = express.Router();
 
 // GET toutes les déclarations (avec infos jointes)
+// Filtre automatiquement par les villes assignées à l'utilisateur connecté
 router.get('/', async (req, res) => {
   try {
-    const { professor_id } = req.query;
+    const { professor_id, filter_by_user } = req.query;
+    const userId = req.user?.id;
+
+    // Récupérer les city_ids de l'utilisateur connecté
+    let userCityIds = [];
+    let isAdmin = false;
+
+    if (userId && filter_by_user === 'true') {
+      const userProfile = await pool.query(
+        'SELECT city_ids, role FROM profiles WHERE id = $1',
+        [userId]
+      );
+
+      if (userProfile.rows.length > 0) {
+        const profile = userProfile.rows[0];
+        isAdmin = profile.role === 'admin';
+        userCityIds = profile.city_ids || [];
+      }
+    }
 
     let query = `
       SELECT pd.*,
@@ -22,9 +41,25 @@ router.get('/', async (req, res) => {
     `;
 
     const params = [];
+    const conditions = [];
+
+    // Filtrer par professeur si spécifié
     if (professor_id) {
-      query += ' WHERE pd.professor_id = $1';
+      conditions.push(`pd.professor_id = $${params.length + 1}`);
       params.push(professor_id);
+    }
+
+    // Filtrer par villes de l'utilisateur (sauf admin qui voit tout)
+    if (filter_by_user === 'true' && !isAdmin && userCityIds.length > 0) {
+      conditions.push(`pd.city_id = ANY($${params.length + 1})`);
+      params.push(userCityIds);
+    } else if (filter_by_user === 'true' && !isAdmin && userCityIds.length === 0) {
+      // Utilisateur non-admin sans villes assignées = aucune déclaration
+      return res.json([]);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
     }
 
     query += ' ORDER BY pd.created_at DESC';

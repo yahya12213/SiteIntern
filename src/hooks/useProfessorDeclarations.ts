@@ -32,12 +32,31 @@ export interface UpdateDeclarationInput {
 }
 
 // Hook pour récupérer les déclarations du professeur connecté
+// Si l'utilisateur a des city_ids (gestionnaire), filtre par villes
+// Sinon, filtre par professor_id (professeur classique)
 export function useProfessorDeclarations() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return useQuery({
     queryKey: ['professor-declarations', user?.id],
-    queryFn: () => declarationsApi.getAll(user?.id),
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      // Vérifier si l'utilisateur a des villes assignées (gestionnaire)
+      const profile = await profilesApi.getById(user.id);
+      const hasCities = profile?.city_ids && profile.city_ids.length > 0;
+
+      // Si gestionnaire (avec des villes assignées) mais pas admin ni professeur pur
+      const isManager = hasCities && profile?.role !== 'professor' && !isAdmin;
+
+      if (isManager) {
+        // Récupérer les déclarations des villes assignées
+        return declarationsApi.getAll(undefined, true);
+      } else {
+        // Professeur classique : ses propres déclarations
+        return declarationsApi.getAll(user.id);
+      }
+    },
     enabled: !!user?.id,
   });
 }

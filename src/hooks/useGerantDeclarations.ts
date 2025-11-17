@@ -146,15 +146,19 @@ export function useCreateGerantDeclaration() {
   });
 }
 
-// Hook pour récupérer les déclarations créées par le gérant
+// Hook pour récupérer les déclarations du gérant (filtrées par ses villes assignées)
 export function useGerantDeclarations() {
+  const { user } = useAuth();
+
   return useQuery<Declaration[]>({
-    queryKey: ['gerant-declarations'],
+    queryKey: ['gerant-declarations', user?.id],
     queryFn: async () => {
-      const declarations = await declarationsApi.getAll();
-      // Filtrer par statut 'a_declarer' qui sont créées par le gérant
-      return declarations.filter(d => (d.status as string) === 'a_declarer');
+      // Récupérer les déclarations filtrées par les villes de l'utilisateur
+      const declarations = await declarationsApi.getAll(undefined, true);
+      // Retourner toutes les déclarations des villes assignées (tous statuts)
+      return declarations;
     },
+    enabled: !!user?.id,
   });
 }
 
