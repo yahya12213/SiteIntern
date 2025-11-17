@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
+import AttendanceRecordForm from '@/components/admin/hr/AttendanceRecordForm';
 
 interface AttendanceRecord {
   id: string;
@@ -241,8 +242,12 @@ export default function HRAttendance() {
 
         {/* Content */}
         {activeTab === 'records' && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {attendanceLoading ? (
+          <>
+            {/* Attendance Record Form */}
+            {hr.canRecordAttendance && <AttendanceRecordForm />}
+
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              {attendanceLoading ? (
               <div className="p-8 text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="mt-2 text-gray-600">Chargement...</p>
