@@ -62,6 +62,7 @@ import migration031Router from './routes/migration-031-simplified-permissions.js
 import migration032Router from './routes/migration-032-remove-role-check.js';
 import migration033Router from './routes/migration-033-menu-based-permissions.js';
 import migration034Router from './routes/migration-034-hierarchical-permissions.js';
+import migration035Router from './routes/migration-035-copy-gerant-permissions.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -131,6 +132,7 @@ app.use('/api/migration-031', migration031Router); // Migration 031 - Simplified
 app.use('/api/migration-032', migration032Router); // Migration 032 - Remove role CHECK constraint
 app.use('/api/migration-033', migration033Router); // Migration 033 - Menu-based permissions
 app.use('/api/migration-034', migration034Router); // Migration 034 - Hierarchical permissions (page + actions)
+app.use('/api/migration-035', migration035Router); // Migration 035 - Copy gerant permissions to custom roles
 
 // Health check
 app.get('/api/health', async (req, res) => {
