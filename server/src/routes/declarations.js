@@ -51,7 +51,7 @@ router.get('/', async (req, res) => {
 
     // Filtrer par villes de l'utilisateur (sauf admin qui voit tout)
     if (filter_by_user === 'true' && !isAdmin && userCityIds.length > 0) {
-      conditions.push(`pd.city_id = ANY($${params.length + 1})`);
+      conditions.push(`pd.city_id = ANY($${params.length + 1}::uuid[])`);
       params.push(userCityIds);
     } else if (filter_by_user === 'true' && !isAdmin && userCityIds.length === 0) {
       // Utilisateur non-admin sans villes assignées = aucune déclaration
