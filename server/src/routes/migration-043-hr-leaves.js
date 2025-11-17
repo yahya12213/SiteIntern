@@ -185,15 +185,15 @@ router.post('/run', async (req, res) => {
     if (parseInt(holidaysExist.rows[0].count) === 0) {
       await client.query(`
         INSERT INTO hr_holidays (name, holiday_date, holiday_type, year, is_recurring, recurring_month, recurring_day) VALUES
-        ('Jour de l''An', $1 || '-01-01', 'paid', $2, true, 1, 1),
-        ('Manifeste de l''Independance', $1 || '-01-11', 'paid', $2, true, 1, 11),
-        ('Fete du Travail', $1 || '-05-01', 'paid', $2, true, 5, 1),
-        ('Fete du Trone', $1 || '-07-30', 'paid', $2, true, 7, 30),
-        ('Oued Ed-Dahab', $1 || '-08-14', 'paid', $2, true, 8, 14),
-        ('Revolution du Roi et du Peuple', $1 || '-08-20', 'paid', $2, true, 8, 20),
-        ('Fete de la Jeunesse', $1 || '-08-21', 'paid', $2, true, 8, 21),
-        ('Marche Verte', $1 || '-11-06', 'paid', $2, true, 11, 6),
-        ('Fete de l''Independance', $1 || '-11-18', 'paid', $2, true, 11, 18)
+        ('Jour de l''An', ($1 || '-01-01')::DATE, 'paid', $2, true, 1, 1),
+        ('Manifeste de l''Independance', ($1 || '-01-11')::DATE, 'paid', $2, true, 1, 11),
+        ('Fete du Travail', ($1 || '-05-01')::DATE, 'paid', $2, true, 5, 1),
+        ('Fete du Trone', ($1 || '-07-30')::DATE, 'paid', $2, true, 7, 30),
+        ('Oued Ed-Dahab', ($1 || '-08-14')::DATE, 'paid', $2, true, 8, 14),
+        ('Revolution du Roi et du Peuple', ($1 || '-08-20')::DATE, 'paid', $2, true, 8, 20),
+        ('Fete de la Jeunesse', ($1 || '-08-21')::DATE, 'paid', $2, true, 8, 21),
+        ('Marche Verte', ($1 || '-11-06')::DATE, 'paid', $2, true, 11, 6),
+        ('Fete de l''Independance', ($1 || '-11-18')::DATE, 'paid', $2, true, 11, 18)
       `, [currentYear.toString(), currentYear]);
     }
 
