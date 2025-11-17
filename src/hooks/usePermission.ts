@@ -125,6 +125,54 @@ export function usePermission() {
     canRequestModification: can('accounting.declarations.request_modification'),
   }), [can]);
 
+  // HR module specific checks
+  const hr = useMemo(() => ({
+    // Employees
+    canViewEmployees: can('hr.employees.view_page'),
+    canCreateEmployee: can('hr.employees.create'),
+    canUpdateEmployee: can('hr.employees.update'),
+    canDeleteEmployee: can('hr.employees.delete'),
+    canViewContracts: can('hr.employees.view_contracts'),
+    canManageDocuments: can('hr.employees.manage_documents'),
+    canViewDisciplinary: can('hr.employees.view_disciplinary'),
+    canManageDisciplinary: can('hr.employees.manage_disciplinary'),
+
+    // Attendance
+    canViewAttendance: can('hr.attendance.view_page'),
+    canRecordAttendance: can('hr.attendance.record'),
+    canCorrectAttendance: can('hr.attendance.correct'),
+    canValidateAttendance: can('hr.attendance.validate'),
+    canExportAttendance: can('hr.attendance.export'),
+
+    // Overtime
+    canRequestOvertime: can('hr.overtime.request'),
+    canApproveOvertime: can('hr.overtime.approve'),
+    canValidateOvertimePayroll: can('hr.overtime.validate_payroll'),
+    canViewOvertimeReports: can('hr.overtime.view_reports'),
+
+    // Leaves
+    canViewLeaves: can('hr.leaves.view_page'),
+    canRequestLeave: can('hr.leaves.request'),
+    canApproveLeave: can('hr.leaves.approve'),
+    canManageBalances: can('hr.leaves.manage_balances'),
+    canViewCalendar: can('hr.leaves.view_calendar'),
+    canManageHolidays: can('hr.leaves.manage_holidays'),
+    canExportLeaves: can('hr.leaves.export'),
+
+    // Dashboard
+    canViewHRDashboard: can('hr.dashboard.view_page'),
+    canViewMonthlyReports: can('hr.dashboard.view_monthly_reports'),
+    canGeneratePayrollSummary: can('hr.dashboard.generate_payroll_summary'),
+    canExportPayroll: can('hr.dashboard.export_payroll'),
+    canViewAlerts: can('hr.dashboard.view_alerts'),
+
+    // Settings
+    canViewSettings: can('hr.settings.view_page'),
+    canUpdateSettings: can('hr.settings.update'),
+    canManageLeaveTypes: can('hr.settings.manage_leave_types'),
+    canManageSchedules: can('hr.settings.manage_schedules'),
+  }), [can]);
+
   // Training module specific checks
   const training = useMemo(() => ({
     // Formations
@@ -198,6 +246,7 @@ export function usePermission() {
     // Module-specific permissions
     accounting,
     training,
+    hr,
   };
 }
 
@@ -220,4 +269,11 @@ export type PermissionCode =
   | 'training.student_reports.view_page' | 'training.student_reports.search' | 'training.student_reports.export_csv' | 'training.student_reports.export_pdf'
   | 'training.certificates.view_page' | 'training.certificates.download' | 'training.certificates.delete' | 'training.certificates.search'
   | 'training.certificate_templates.view_page' | 'training.certificate_templates.create_folder' | 'training.certificate_templates.create_template' | 'training.certificate_templates.rename' | 'training.certificate_templates.delete' | 'training.certificate_templates.duplicate' | 'training.certificate_templates.edit_canvas' | 'training.certificate_templates.organize'
-  | 'training.forums.view_page' | 'training.forums.pin_discussion' | 'training.forums.lock_discussion' | 'training.forums.delete_content' | 'training.forums.moderate';
+  | 'training.forums.view_page' | 'training.forums.pin_discussion' | 'training.forums.lock_discussion' | 'training.forums.delete_content' | 'training.forums.moderate'
+  // HR module
+  | 'hr.employees.view_page' | 'hr.employees.create' | 'hr.employees.update' | 'hr.employees.delete' | 'hr.employees.view_contracts' | 'hr.employees.manage_documents' | 'hr.employees.view_disciplinary' | 'hr.employees.manage_disciplinary'
+  | 'hr.attendance.view_page' | 'hr.attendance.record' | 'hr.attendance.correct' | 'hr.attendance.validate' | 'hr.attendance.export'
+  | 'hr.overtime.request' | 'hr.overtime.approve' | 'hr.overtime.validate_payroll' | 'hr.overtime.view_reports'
+  | 'hr.leaves.view_page' | 'hr.leaves.request' | 'hr.leaves.approve' | 'hr.leaves.manage_balances' | 'hr.leaves.view_calendar' | 'hr.leaves.manage_holidays' | 'hr.leaves.export'
+  | 'hr.dashboard.view_page' | 'hr.dashboard.view_monthly_reports' | 'hr.dashboard.generate_payroll_summary' | 'hr.dashboard.export_payroll' | 'hr.dashboard.view_alerts'
+  | 'hr.settings.view_page' | 'hr.settings.update' | 'hr.settings.manage_leave_types' | 'hr.settings.manage_schedules';

@@ -77,6 +77,9 @@ import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
 import permissionsRouter from './routes/permissions.js';
+import hrEmployeesRouter from './routes/hr-employees.js';
+import hrAttendanceRouter from './routes/hr-attendance.js';
+import hrLeavesRouter from './routes/hr-leaves.js';
 
 dotenv.config();
 
@@ -110,6 +113,9 @@ app.use('/api/students', studentsRouter);
 app.use('/api/centres', centresRouter);
 app.use('/api/roles', rolesRouter);
 app.use('/api/permissions', permissionsRouter);
+app.use('/api/hr/employees', hrEmployeesRouter);
+app.use('/api/hr/attendance', hrAttendanceRouter);
+app.use('/api/hr/leaves', hrLeavesRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
 app.use('/api/setup-certificates', setupCertificatesRouter); // TEMPORARY - Run once to create certificates table

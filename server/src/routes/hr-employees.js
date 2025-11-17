@@ -1,0 +1,383 @@
+import express from 'express';
+import { authenticateToken } from '../middleware/auth.js';
+
+const router = express.Router();
+
+// Get all employees with filters
+router.get('/', authenticateToken, async (req, res) => {
+  const { search, status, department, segment_id } = req.query;
+
+  try {
+    let query = `
+      SELECT
+        e.*,
+        p.username as profile_username,
+        s.name as segment_name,
+        m.first_name || ' ' || m.last_name as manager_name
+      FROM hr_employees e
+      LEFT JOIN profiles p ON e.profile_id = p.id
+      LEFT JOIN segments s ON e.segment_id = s.id
+      LEFT JOIN hr_employees m ON e.manager_id = m.id
+      WHERE 1=1
+    `;
+    const params = [];
+    let paramCount = 1;
+
+    if (search) {
+      query += ` AND (
+        e.first_name ILIKE $${paramCount} OR
+        e.last_name ILIKE $${paramCount} OR
+        e.employee_number ILIKE $${paramCount} OR
+        e.cin ILIKE $${paramCount} OR
+        e.email ILIKE $${paramCount}
+      )`;
+      params.push(`%${search}%`);
+      paramCount++;
+    }
+
+    if (status) {
+      query += ` AND e.employment_status = $${paramCount}`;
+      params.push(status);
+      paramCount++;
+    }
+
+    if (department) {
+      query += ` AND e.department = $${paramCount}`;
+      params.push(department);
+      paramCount++;
+    }
+
+    if (segment_id) {
+      query += ` AND e.segment_id = $${paramCount}`;
+      params.push(segment_id);
+      paramCount++;
+    }
+
+    query += ' ORDER BY e.last_name, e.first_name';
+
+    const result = await req.pool.query(query, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching employees:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get single employee with all details
+router.get('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get employee
+    const employee = await req.pool.query(`
+      SELECT
+        e.*,
+        p.username as profile_username,
+        s.name as segment_name,
+        m.first_name || ' ' || m.last_name as manager_name
+      FROM hr_employees e
+      LEFT JOIN profiles p ON e.profile_id = p.id
+      LEFT JOIN segments s ON e.segment_id = s.id
+      LEFT JOIN hr_employees m ON e.manager_id = m.id
+      WHERE e.id = $1
+    `, [id]);
+
+    if (employee.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Employee not found' });
+    }
+
+    // Get contracts
+    const contracts = await req.pool.query(`
+      SELECT * FROM hr_contracts
+      WHERE employee_id = $1
+      ORDER BY start_date DESC
+    `, [id]);
+
+    // Get documents
+    const documents = await req.pool.query(`
+      SELECT * FROM hr_employee_documents
+      WHERE employee_id = $1
+      ORDER BY uploaded_at DESC
+    `, [id]);
+
+    // Get disciplinary actions
+    const disciplinary = await req.pool.query(`
+      SELECT * FROM hr_disciplinary_actions
+      WHERE employee_id = $1
+      ORDER BY issue_date DESC
+    `, [id]);
+
+    res.json({
+      success: true,
+      data: {
+        ...employee.rows[0],
+        contracts: contracts.rows,
+        documents: documents.rows,
+        disciplinary_actions: disciplinary.rows
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching employee:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Create new employee
+router.post('/', authenticateToken, async (req, res) => {
+  try {
+    const {
+      profile_id,
+      employee_number,
+      first_name,
+      last_name,
+      cin,
+      birth_date,
+      birth_place,
+      email,
+      phone,
+      address,
+      emergency_contact_name,
+      emergency_contact_phone,
+      hire_date,
+      employment_type,
+      position,
+      department,
+      segment_id,
+      manager_id,
+      photo_url,
+      notes
+    } = req.body;
+
+    const result = await req.pool.query(`
+      INSERT INTO hr_employees (
+        profile_id, employee_number, first_name, last_name, cin,
+        birth_date, birth_place, email, phone, address,
+        emergency_contact_name, emergency_contact_phone,
+        hire_date, employment_type, position, department,
+        segment_id, manager_id, photo_url, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      RETURNING *
+    `, [
+      profile_id, employee_number, first_name, last_name, cin,
+      birth_date, birth_place, email, phone, address,
+      emergency_contact_name, emergency_contact_phone,
+      hire_date, employment_type, position, department,
+      segment_id, manager_id, photo_url, notes
+    ]);
+
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error creating employee:', error);
+    if (error.code === '23505') {
+      res.status(400).json({ success: false, error: 'Employee number or CIN already exists' });
+    } else {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+});
+
+// Update employee
+router.put('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Build dynamic update query
+    const fields = Object.keys(updates).filter(k => k !== 'id');
+    if (fields.length === 0) {
+      return res.status(400).json({ success: false, error: 'No fields to update' });
+    }
+
+    const setClause = fields.map((field, i) => `${field} = $${i + 2}`).join(', ');
+    const values = fields.map(f => updates[f]);
+
+    const result = await req.pool.query(
+      `UPDATE hr_employees SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [id, ...values]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Employee not found' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating employee:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Delete employee
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await req.pool.query('DELETE FROM hr_employees WHERE id = $1 RETURNING id', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Employee not found' });
+    }
+
+    res.json({ success: true, message: 'Employee deleted' });
+  } catch (error) {
+    console.error('Error deleting employee:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// === CONTRACTS ===
+
+// Add contract
+router.post('/:id/contracts', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      contract_type,
+      start_date,
+      end_date,
+      trial_period_end,
+      base_salary,
+      salary_currency,
+      payment_frequency,
+      work_hours_per_week,
+      position,
+      department,
+      document_url,
+      notes
+    } = req.body;
+
+    const result = await req.pool.query(`
+      INSERT INTO hr_contracts (
+        employee_id, contract_type, start_date, end_date,
+        trial_period_end, base_salary, salary_currency,
+        payment_frequency, work_hours_per_week, position,
+        department, document_url, notes, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      RETURNING *
+    `, [
+      id, contract_type, start_date, end_date,
+      trial_period_end, base_salary, salary_currency || 'MAD',
+      payment_frequency || 'monthly', work_hours_per_week || 44,
+      position, department, document_url, notes, req.user.id
+    ]);
+
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error creating contract:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// === DOCUMENTS ===
+
+// Add document
+router.post('/:id/documents', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      document_type,
+      title,
+      description,
+      file_url,
+      file_name,
+      file_size,
+      mime_type,
+      expiry_date
+    } = req.body;
+
+    const result = await req.pool.query(`
+      INSERT INTO hr_employee_documents (
+        employee_id, document_type, title, description,
+        file_url, file_name, file_size, mime_type,
+        expiry_date, uploaded_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *
+    `, [
+      id, document_type, title, description,
+      file_url, file_name, file_size, mime_type,
+      expiry_date, req.user.id
+    ]);
+
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error uploading document:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Verify document
+router.put('/documents/:docId/verify', authenticateToken, async (req, res) => {
+  try {
+    const { docId } = req.params;
+    const result = await req.pool.query(`
+      UPDATE hr_employee_documents
+      SET is_verified = true, verified_by = $1, verified_at = NOW()
+      WHERE id = $2
+      RETURNING *
+    `, [req.user.id, docId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Document not found' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error verifying document:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// === DISCIPLINARY ===
+
+// Add disciplinary action
+router.post('/:id/disciplinary', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      action_type,
+      severity,
+      issue_date,
+      reason,
+      description,
+      document_url,
+      duration_days,
+      salary_impact,
+      witnesses
+    } = req.body;
+
+    const result = await req.pool.query(`
+      INSERT INTO hr_disciplinary_actions (
+        employee_id, action_type, severity, issue_date,
+        reason, description, document_url, duration_days,
+        salary_impact, witnesses, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING *
+    `, [
+      id, action_type, severity, issue_date,
+      reason, description, document_url, duration_days,
+      salary_impact, witnesses || [], req.user.id
+    ]);
+
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error creating disciplinary action:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get departments list
+router.get('/meta/departments', authenticateToken, async (req, res) => {
+  try {
+    const result = await req.pool.query(`
+      SELECT DISTINCT department
+      FROM hr_employees
+      WHERE department IS NOT NULL
+      ORDER BY department
+    `);
+    res.json({ success: true, data: result.rows.map(r => r.department) });
+  } catch (error) {
+    console.error('Error fetching departments:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+export default router;

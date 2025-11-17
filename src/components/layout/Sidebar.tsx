@@ -19,6 +19,11 @@ import {
   MessageSquare,
   Palette,
   Shield,
+  Briefcase,
+  UserCheck,
+  Clock,
+  CalendarDays,
+  Settings,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -39,7 +44,7 @@ interface NavItem {
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const { hasPermission } = useAuth();
-  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation-en-ligne']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation-en-ligne', 'ressources-humaines']);
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev =>
@@ -77,6 +82,18 @@ export const Sidebar: React.FC = () => {
         { to: '/admin/certificates', icon: Award, label: 'Certificats', permission: 'training.certificates.view_page' },
         { to: '/admin/certificate-templates', icon: Palette, label: 'Templates de Certificats', permission: 'training.certificate_templates.view_page' },
         { to: '/admin/forums', icon: MessageSquare, label: 'Forums', permission: 'training.forums.view_page' },
+      ],
+    },
+    {
+      id: 'ressources-humaines',
+      title: 'Ressources Humaines',
+      icon: Briefcase,
+      items: [
+        { to: '/admin/hr/employees', icon: UserCheck, label: 'Dossiers du Personnel', permission: 'hr.employees.view_page' },
+        { to: '/admin/hr/attendance', icon: Clock, label: 'Temps & Présence', permission: 'hr.attendance.view_page' },
+        { to: '/admin/hr/leaves', icon: CalendarDays, label: 'Congés & Planning', permission: 'hr.leaves.view_page' },
+        { to: '/admin/hr/dashboard', icon: BarChart3, label: 'Tableau de bord RH', permission: 'hr.dashboard.view_page' },
+        { to: '/admin/hr/settings', icon: Settings, label: 'Paramètres RH', permission: 'hr.settings.view_page' },
       ],
     },
   ];
