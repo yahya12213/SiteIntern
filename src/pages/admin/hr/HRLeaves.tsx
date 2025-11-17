@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import LeaveRequestFormModal from '@/components/admin/hr/LeaveRequestFormModal';
+import LeaveApprovalModal from '@/components/admin/hr/LeaveApprovalModal';
 
 interface LeaveRequest {
   id: string;
@@ -55,6 +56,8 @@ export default function HRLeaves() {
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [showLeaveRequestModal, setShowLeaveRequestModal] = useState(false);
+  const [showLeaveApprovalModal, setShowLeaveApprovalModal] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
   // Fetch leave requests
   const { data: requestsData, isLoading: requestsLoading } = useQuery({
@@ -276,7 +279,14 @@ export default function HRLeaves() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {requests.map((request: LeaveRequest) => (
-                      <tr key={request.id} className="hover:bg-gray-50">
+                      <tr
+                        key={request.id}
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => {
+                          setSelectedRequestId(request.id);
+                          setShowLeaveApprovalModal(true);
+                        }}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="font-medium text-gray-900">{request.employee_name}</div>
                           <div className="text-sm text-gray-500">{request.employee_number}</div>
@@ -307,20 +317,16 @@ export default function HRLeaves() {
                           {request.current_approver_level}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          {request.status === 'pending' && (
-                            <div className="flex justify-end gap-2">
-                              {hr.canApproveLeaveN1 && (
-                                <button className="text-green-600 hover:text-green-900">
-                                  <Check className="h-5 w-5" />
-                                </button>
-                              )}
-                              {hr.canApproveLeaveN1 && (
-                                <button className="text-red-600 hover:text-red-900">
-                                  <X className="h-5 w-5" />
-                                </button>
-                              )}
-                            </div>
-                          )}
+                          <button
+                            className="text-blue-600 hover:text-blue-900"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRequestId(request.id);
+                              setShowLeaveApprovalModal(true);
+                            }}
+                          >
+                            Voir détails
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -408,6 +414,17 @@ export default function HRLeaves() {
         {showLeaveRequestModal && (
           <LeaveRequestFormModal
             onClose={() => setShowLeaveRequestModal(false)}
+          />
+        )}
+
+        {/* Leave Approval Modal */}
+        {showLeaveApprovalModal && selectedRequestId && (
+          <LeaveApprovalModal
+            requestId={selectedRequestId}
+            onClose={() => {
+              setShowLeaveApprovalModal(false);
+              setSelectedRequestId(null);
+            }}
           />
         )}
       </div>
