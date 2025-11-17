@@ -14,6 +14,9 @@ import {
   ChevronRight,
   Lock,
   Unlock,
+  Database,
+  CheckCircle,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const RolesManagement: React.FC = () => {
@@ -27,6 +30,11 @@ export const RolesManagement: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
 
+  // Migration states
+  const [migrationComplete, setMigrationComplete] = useState<boolean | null>(null);
+  const [migrationChecks, setMigrationChecks] = useState<any>(null);
+  const [isRunningMigration, setIsRunningMigration] = useState(false);
+
   // Form states
   const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
@@ -34,11 +42,50 @@ export const RolesManagement: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    loadData();
+    checkMigration();
   }, []);
 
-  const loadData = async () => {
+  const checkMigration = async () => {
     setIsLoading(true);
+    try {
+      const statusRes = await rolesApi.checkMigrationStatus();
+      setMigrationComplete(statusRes.migrationComplete);
+      setMigrationChecks(statusRes.checks);
+
+      if (statusRes.migrationComplete) {
+        await loadData();
+      }
+    } catch (error: any) {
+      console.error('Error checking migration:', error);
+      setMigrationComplete(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const runMigration = async () => {
+    if (!confirm('Voulez-vous exécuter la migration RBAC ? Cette opération va créer les tables de rôles et permissions, et migrer vos utilisateurs actuels vers le nouveau système. Vos données existantes seront préservées.')) {
+      return;
+    }
+
+    setIsRunningMigration(true);
+    try {
+      const result = await rolesApi.runMigration();
+      if (result.success) {
+        alert(`Migration réussie !\n\n- ${result.details?.rolesCreated} rôles créés\n- ${result.details?.permissionsCreated} permissions créées\n- ${result.details?.usersMigrated} utilisateurs migrés\n\nVos utilisateurs conservent leur niveau d'accès actuel.`);
+        await checkMigration();
+      } else {
+        alert('Erreur lors de la migration: ' + result.message);
+      }
+    } catch (error: any) {
+      console.error('Migration error:', error);
+      alert('Erreur lors de la migration: ' + error.message);
+    } finally {
+      setIsRunningMigration(false);
+    }
+  };
+
+  const loadData = async () => {
     try {
       const [rolesRes, permsRes] = await Promise.all([
         rolesApi.getAllRoles(),
@@ -52,8 +99,6 @@ export const RolesManagement: React.FC = () => {
     } catch (error: any) {
       console.error('Error loading data:', error);
       alert('Erreur lors du chargement: ' + error.message);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -216,6 +261,110 @@ export const RolesManagement: React.FC = () => {
       <AppLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-gray-500">Chargement...</div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Show migration UI if not complete
+  if (migrationComplete === false) {
+    return (
+      <AppLayout>
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Shield className="h-8 w-8 text-purple-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Gestion des Rôles</h1>
+              <p className="text-sm text-gray-600">
+                Configuration initiale requise
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 max-w-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <Database className="h-6 w-6 text-orange-500" />
+              <h2 className="text-lg font-semibold text-gray-900">
+                Migration RBAC requise
+              </h2>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                <div>
+                  <p className="text-sm text-yellow-800 font-medium mb-2">
+                    Le système de rôles et permissions n'est pas encore initialisé.
+                  </p>
+                  <p className="text-sm text-yellow-700">
+                    Cette migration va créer les tables nécessaires et migrer vos utilisateurs existants
+                    vers le nouveau système. <strong>Vos données actuelles seront préservées</strong> et
+                    chaque utilisateur conservera son niveau d'accès actuel.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Ce qui va être créé :</h3>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  Tables : roles, permissions, role_permissions
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  6 rôles par défaut (admin, gerant, professor, assistante, comptable, superviseur)
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  35+ permissions granulaires (utilisateurs, étudiants, sessions, documents, finances...)
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  Migration automatique de vos utilisateurs existants
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-blue-800">
+                <strong>Exemple :</strong> Si vous avez un utilisateur avec le rôle "admin",
+                il sera automatiquement migré vers le nouveau rôle "admin" avec toutes les permissions.
+                Un "gerant" aura les permissions de gestion quotidienne, etc.
+              </p>
+            </div>
+
+            <button
+              onClick={runMigration}
+              disabled={isRunningMigration}
+              className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              {isRunningMigration ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                  Migration en cours...
+                </>
+              ) : (
+                <>
+                  <Database className="h-4 w-4" />
+                  Exécuter la Migration
+                </>
+              )}
+            </button>
+
+            {migrationChecks && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">État actuel :</h3>
+                <div className="space-y-1 text-xs text-gray-500">
+                  <p>Table roles : {migrationChecks.rolesTableExists ? '✅' : '❌'}</p>
+                  <p>Table permissions : {migrationChecks.permissionsTableExists ? '✅' : '❌'}</p>
+                  <p>Table role_permissions : {migrationChecks.rolePermissionsTableExists ? '✅' : '❌'}</p>
+                  <p>Colonne role_id dans profiles : {migrationChecks.roleIdColumnExists ? '✅' : '❌'}</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </AppLayout>
     );

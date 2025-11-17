@@ -96,4 +96,38 @@ export const rolesApi = {
   ): Promise<{ success: boolean; user: any; message: string }> {
     return apiClient.put(`/roles/user/${userId}/role`, { role_id: roleId });
   },
+
+  /**
+   * Check migration status
+   */
+  async checkMigrationStatus(): Promise<{
+    success: boolean;
+    migrationComplete: boolean;
+    checks: {
+      rolesTableExists: boolean;
+      permissionsTableExists: boolean;
+      rolePermissionsTableExists: boolean;
+      roleIdColumnExists: boolean;
+      rolesCount?: number;
+      permissionsCount?: number;
+      migratedUsersCount?: number;
+    };
+  }> {
+    return apiClient.get('/migration-029/status');
+  },
+
+  /**
+   * Run RBAC migration
+   */
+  async runMigration(): Promise<{
+    success: boolean;
+    message: string;
+    details?: {
+      rolesCreated: number;
+      permissionsCreated: number;
+      usersMigrated: number;
+    };
+  }> {
+    return apiClient.post('/migration-029/run', {});
+  },
 };
