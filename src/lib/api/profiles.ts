@@ -4,7 +4,7 @@ export interface Profile {
   id: string;
   username: string;
   full_name: string;
-  role: 'admin' | 'professor' | 'gerant';
+  role: string; // Dynamic role from database (admin, gerant, professor, assistante, comptable, superviseur, etc.)
   segment_ids?: string[];
   city_ids?: string[];
   created_at: string;
@@ -15,7 +15,7 @@ export interface CreateProfileInput {
   username: string;
   password: string;
   full_name: string;
-  role: 'admin' | 'professor' | 'gerant';
+  role: string; // Dynamic role from database
   segment_ids?: string[];
   city_ids?: string[];
 }
@@ -24,7 +24,7 @@ export interface UpdateProfileInput {
   id: string;
   username?: string;
   full_name?: string;
-  role?: 'admin' | 'professor' | 'gerant';
+  role?: string; // Dynamic role from database
   password?: string;
   segment_ids?: string[];
   city_ids?: string[];
