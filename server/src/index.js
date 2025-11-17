@@ -70,6 +70,9 @@ import migration039Router from './routes/migration-039-sync-role-id.js';
 import migration040Router from './routes/migration-040-hierarchical-rbac.js';
 import migration041Router from './routes/migration-041-hr-employees.js';
 import migration042Router from './routes/migration-042-hr-attendance.js';
+import migration043Router from './routes/migration-043-hr-leaves.js';
+import migration044Router from './routes/migration-044-hr-settings.js';
+import migration045Router from './routes/migration-045-hr-permissions.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -149,6 +152,9 @@ app.use('/api/migration-039', migration039Router); // Migration 039 - Sync role_
 app.use('/api/migration-040', migration040Router); // Migration 040 - Hierarchical RBAC (module.menu.action)
 app.use('/api/migration-041', migration041Router); // Migration 041 - HR Employees Core Tables
 app.use('/api/migration-042', migration042Router); // Migration 042 - HR Attendance & Time Tracking
+app.use('/api/migration-043', migration043Router); // Migration 043 - HR Leaves Management
+app.use('/api/migration-044', migration044Router); // Migration 044 - HR Settings & Monthly Summaries
+app.use('/api/migration-045', migration045Router); // Migration 045 - HR Permissions (33 permissions)
 
 // Health check
 app.get('/api/health', async (req, res) => {
