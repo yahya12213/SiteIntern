@@ -46,7 +46,7 @@ router.post('/run', async (req, res) => {
         position TEXT,
         department TEXT,
         segment_id TEXT REFERENCES segments(id) ON DELETE SET NULL,
-        centre_id UUID REFERENCES centres(id) ON DELETE SET NULL,
+        centre_id UUID, -- Optional: centres table may not exist
         manager_id UUID,
         photo_url TEXT,
         notes TEXT,

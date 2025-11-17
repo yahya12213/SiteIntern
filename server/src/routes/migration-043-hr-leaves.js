@@ -167,7 +167,7 @@ router.post('/run', async (req, res) => {
         compensatory_days DECIMAL(3,1) DEFAULT 0,
         applies_to_all BOOLEAN DEFAULT TRUE,
         segment_id TEXT REFERENCES segments(id) ON DELETE CASCADE,
-        centre_id UUID REFERENCES centres(id) ON DELETE CASCADE,
+        centre_id UUID, -- Optional: centres table may not exist
         department TEXT,
         year INT NOT NULL,
         is_recurring BOOLEAN DEFAULT TRUE,

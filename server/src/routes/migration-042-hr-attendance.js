@@ -43,7 +43,7 @@ router.post('/run', async (req, res) => {
         is_default BOOLEAN DEFAULT FALSE,
         is_active BOOLEAN DEFAULT TRUE,
         segment_id TEXT REFERENCES segments(id) ON DELETE SET NULL,
-        centre_id UUID REFERENCES centres(id) ON DELETE SET NULL,
+        centre_id UUID, -- Optional: centres table may not exist
         created_by TEXT REFERENCES profiles(id),
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
