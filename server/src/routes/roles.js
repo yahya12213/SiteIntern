@@ -293,7 +293,7 @@ router.get('/permissions/all', requirePermission('users.view', 'users.manage_rol
   try {
     const result = await pool.query(`
       SELECT * FROM permissions
-      ORDER BY module, name
+      ORDER BY module, label
     `);
 
     // Group by module
