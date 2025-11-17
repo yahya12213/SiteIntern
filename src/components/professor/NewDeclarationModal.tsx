@@ -33,7 +33,7 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
   });
 
   // Filtrer pour ne garder que les professeurs
-  const professors = allProfiles.filter(p => p.role === 'professor' || p.segment_ids?.length > 0);
+  const professors = allProfiles.filter(p => p.role === 'professor' || (p.segment_ids && p.segment_ids.length > 0));
 
   // Utiliser les hooks Supabase pour récupérer segments et villes
   const { data: segments = [], isLoading: segmentsLoading } = useProfessorSegments();
