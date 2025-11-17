@@ -17,25 +17,34 @@ router.post('/run', async (req, res) => {
     console.log('🔄 Starting Migration 035 - Copy Gerant Permissions...');
     await client.query('BEGIN');
 
-    // Find the gerant role
-    const gerantResult = await client.query(
-      "SELECT id FROM roles WHERE LOWER(name) = 'gerant'"
+    // Define the specific permissions for a "Gestionnaire" role
+    // These are the key permissions for session and declaration management
+    const gestionnairePermCodes = [
+      'menu.tableau_bord.voir',
+      'menu.gerer_declarations.voir',
+      'menu.gerer_declarations.modifier',
+      'menu.gerer_declarations.approuver',
+      'menu.creer_declaration.creer',
+      'menu.fiches_calcul.voir',
+      'menu.sessions.voir',
+      'menu.sessions.creer',
+      'menu.sessions.modifier',
+      'menu.sessions.gerer_etudiants',
+      'menu.certificats.voir',
+      'menu.certificats.generer',
+      'menu.certificats.telecharger',
+      'menu.rapports.voir',
+      'menu.rapports.exporter',
+    ];
+
+    // Get permission IDs for these codes
+    const permsResult = await client.query(
+      'SELECT id FROM permissions WHERE code = ANY($1)',
+      [gestionnairePermCodes]
     );
 
-    if (gerantResult.rows.length === 0) {
-      throw new Error('Role "gerant" not found');
-    }
-
-    const gerantRoleId = gerantResult.rows[0].id;
-
-    // Get gerant's permissions
-    const gerantPermsResult = await client.query(
-      'SELECT permission_id FROM role_permissions WHERE role_id = $1',
-      [gerantRoleId]
-    );
-
-    const gerantPermissions = gerantPermsResult.rows.map(r => r.permission_id);
-    console.log(`  📦 Gerant has ${gerantPermissions.length} permissions`);
+    const gestionnairePermissions = permsResult.rows.map(r => r.id);
+    console.log(`  📦 Found ${gestionnairePermissions.length} permissions for Gestionnaire role`);
 
     // Find all roles that have "gestionnaire" in the name (case insensitive)
     const customRolesResult = await client.query(
@@ -56,7 +65,7 @@ router.post('/run', async (req, res) => {
 
       // Only assign if the role has few or no permissions
       if (existingCount < 5) {
-        for (const permId of gerantPermissions) {
+        for (const permId of gestionnairePermissions) {
           await client.query(
             `INSERT INTO role_permissions (role_id, permission_id)
              VALUES ($1, $2)
@@ -64,8 +73,8 @@ router.post('/run', async (req, res) => {
             [role.id, permId]
           );
         }
-        totalAssigned += gerantPermissions.length;
-        console.log(`    ✅ Assigned ${gerantPermissions.length} permissions to ${role.name}`);
+        totalAssigned += gestionnairePermissions.length;
+        console.log(`    ✅ Assigned ${gestionnairePermissions.length} permissions to ${role.name}`);
       } else {
         console.log(`    ⏭️ Skipping ${role.name} - already has ${existingCount} permissions`);
       }
@@ -76,9 +85,9 @@ router.post('/run', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Gerant permissions copied to custom roles',
+      message: 'Gestionnaire permissions assigned to custom roles',
       details: {
-        gerantPermissionsCount: gerantPermissions.length,
+        permissionsCount: gestionnairePermissions.length,
         rolesUpdated: customRolesResult.rows.map(r => r.name),
         totalAssigned,
       },
