@@ -74,6 +74,8 @@ import migration043Router from './routes/migration-043-hr-leaves.js';
 import migration044Router from './routes/migration-044-hr-settings.js';
 import migration045Router from './routes/migration-045-hr-permissions.js';
 import migration046Router from './routes/migration-046-fix-worked-minutes-column.js';
+import migration047Router from './routes/migration-047-fix-schema-mismatches.js';
+import migration048Router from './routes/migration-048-add-missing-permissions.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -167,6 +169,8 @@ app.use('/api/migration-043', migration043Router); // Migration 043 - HR Leaves 
 app.use('/api/migration-044', migration044Router); // Migration 044 - HR Settings & Monthly Summaries
 app.use('/api/migration-045', migration045Router); // Migration 045 - HR Permissions (33 permissions)
 app.use('/api/migration-046', migration046Router); // Migration 046 - Fix worked_minutes column name
+app.use('/api/migration-047', migration047Router); // Migration 047 - Fix schema mismatches (contracts, disciplinary, schedules)
+app.use('/api/migration-048', migration048Router); // Migration 048 - Add missing HR permissions (11 permissions)
 
 // Health check
 app.get('/api/health', async (req, res) => {
