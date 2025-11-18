@@ -10,10 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+server/dist
 *.local
-
-# Exception: Allow server/dist (frontend build copied for Railway deployment)
-!server/dist
 
 # Environment variables
 .env
