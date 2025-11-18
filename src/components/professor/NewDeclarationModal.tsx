@@ -96,10 +96,30 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
   // Filtrer les fiches de calcul en fonction du segment et de la ville sélectionnés
   useEffect(() => {
     if (selectedSegment && selectedCity) {
+      // Debug: log toutes les fiches disponibles
+      console.log('=== DEBUG FILTRAGE FICHES ===');
+      console.log('Segment sélectionné:', selectedSegment);
+      console.log('Ville sélectionnée:', selectedCity);
+      console.log('Toutes les fiches disponibles:', availableSheets);
+
       // Trouver les fiches qui ont ce segment ET cette ville assignés
       const filtered = (availableSheets || []).filter(
-        (s: any) => s.segment_ids?.includes(selectedSegment) && s.city_ids?.includes(selectedCity)
+        (s: any) => {
+          const hasSegment = s.segment_ids?.includes(selectedSegment);
+          const hasCity = s.city_ids?.includes(selectedCity);
+          console.log(`Fiche "${s.title}":`, {
+            id: s.id,
+            segment_ids: s.segment_ids,
+            city_ids: s.city_ids,
+            hasSegment,
+            hasCity,
+            passes: hasSegment && hasCity
+          });
+          return hasSegment && hasCity;
+        }
       );
+      console.log('Fiches filtrées:', filtered);
+      console.log('=== FIN DEBUG ===');
       setFilteredSheets(filtered);
 
       // Sélection automatique si une seule fiche correspond
@@ -324,7 +344,7 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
                   <option value="">Sélectionner une fiche ({filteredSheets.length} disponibles)</option>
                   {filteredSheets.map((sheet: any) => (
                     <option key={sheet.id} value={sheet.id}>
-                      {sheet.title}
+                      {sheet.title} ({sheet.city_ids?.length || 0} villes)
                     </option>
                   ))}
                 </select>
