@@ -51,7 +51,9 @@
       "Bash(do echo \"C:\\Users\\pc\\Desktop\\systeme de calcul$file\")",
       "Bash(if exist NUL del /f NUL)",
       "Bash(.gitignore)",
-      "Bash(if not exist \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\src\\middleware\" mkdir \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\src\\middleware\")"
+      "Bash(if not exist \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\src\\middleware\" mkdir \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\src\\middleware\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path src -Filter *.tsx -Recurse | ForEach-Object { (Get-Content $_.FullName) -replace ''response\\.data'', ''(response as any).data'' | Set-Content $_.FullName }\")",
+      "Bash(powershell -Command:*)"
     ],
     "deny": [],
     "ask": []

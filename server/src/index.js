@@ -76,6 +76,9 @@ import migration045Router from './routes/migration-045-hr-permissions.js';
 import migration046Router from './routes/migration-046-fix-worked-minutes-column.js';
 import migration047Router from './routes/migration-047-fix-schema-mismatches.js';
 import migration048Router from './routes/migration-048-add-missing-permissions.js';
+import migration049Router from './routes/migration-049-add-requires-clocking.js';
+import migration050Router from './routes/migration-050-add-public-holidays.js';
+import migration051Router from './routes/migration-051-add-break-rules.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -85,6 +88,8 @@ import hrAttendanceRouter from './routes/hr-attendance.js';
 import hrLeavesRouter from './routes/hr-leaves.js';
 import hrDashboardRouter from './routes/hr-dashboard.js';
 import hrSettingsRouter from './routes/hr-settings.js';
+import hrClockingRouter from './routes/hr-clocking.js';
+import hrPublicHolidaysRouter from './routes/hr-public-holidays.js';
 
 dotenv.config();
 
@@ -123,6 +128,8 @@ app.use('/api/hr/attendance', hrAttendanceRouter);
 app.use('/api/hr/leaves', hrLeavesRouter);
 app.use('/api/hr/dashboard', hrDashboardRouter);
 app.use('/api/hr/settings', hrSettingsRouter);
+app.use('/api/hr/clocking', hrClockingRouter);
+app.use('/api/hr/public-holidays', hrPublicHolidaysRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
 app.use('/api/setup-certificates', setupCertificatesRouter); // TEMPORARY - Run once to create certificates table
@@ -171,6 +178,9 @@ app.use('/api/migration-045', migration045Router); // Migration 045 - HR Permiss
 app.use('/api/migration-046', migration046Router); // Migration 046 - Fix worked_minutes column name
 app.use('/api/migration-047', migration047Router); // Migration 047 - Fix schema mismatches (contracts, disciplinary, schedules)
 app.use('/api/migration-048', migration048Router); // Migration 048 - Add missing HR permissions (11 permissions)
+app.use('/api/migration-049', migration049Router); // Migration 049 - Add requires_clocking to hr_employees
+app.use('/api/migration-050', migration050Router); // Migration 050 - Create hr_public_holidays table
+app.use('/api/migration-051', migration051Router); // Migration 051 - Add break_rules to hr_settings
 
 // Health check
 app.get('/api/health', async (req, res) => {

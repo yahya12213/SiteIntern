@@ -34,7 +34,7 @@ export default function AttendanceRecordForm({ onSuccess }: AttendanceRecordForm
     queryKey: ['hr-employees-active'],
     queryFn: async () => {
       const response = await apiClient.get<{ success: boolean; data: Employee[] }>('/hr/employees?status=active');
-      return response.data;
+      return (response as any).data;
     },
   });
   const employees = employeesData || [];
@@ -61,7 +61,7 @@ export default function AttendanceRecordForm({ onSuccess }: AttendanceRecordForm
   const recordAttendance = useMutation({
     mutationFn: async (data: typeof formData) => {
       const response = await apiClient.post<{ success: boolean; data: any }>('/hr/attendance/record', data);
-      return response.data;
+      return (response as any).data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-attendance'] });

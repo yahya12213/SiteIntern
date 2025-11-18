@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import SettingEditorModal from '@/components/admin/hr/SettingEditorModal';
+import PublicHolidaysManager from '@/components/admin/hr/PublicHolidaysManager';
+import BreakRulesEditor from '@/components/admin/hr/BreakRulesEditor';
 
 interface LeaveType {
   id: string;
@@ -65,7 +67,7 @@ interface HRSetting {
 
 export default function HRSettings() {
   const { hr } = usePermission();
-  const [activeTab, setActiveTab] = useState<'general' | 'leave-types' | 'schedules'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'leave-types' | 'schedules' | 'holidays' | 'clocking'>('general');
   const [showSettingEditor, setShowSettingEditor] = useState(false);
   const [selectedSetting, setSelectedSetting] = useState<HRSetting | null>(null);
 
@@ -73,8 +75,8 @@ export default function HRSettings() {
   const { data: leaveTypesData, isLoading: leaveTypesLoading } = useQuery({
     queryKey: ['hr-leave-types'],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: LeaveType[] }>('/hr/settings/leave-types/all');
-      return response.data;
+      const response = await apiClient.get('/hr/settings/leave-types/all');
+      return (response as any).data as LeaveType[];
     },
     enabled: activeTab === 'leave-types',
   });
@@ -83,8 +85,8 @@ export default function HRSettings() {
   const { data: schedulesData, isLoading: schedulesLoading } = useQuery({
     queryKey: ['hr-work-schedules'],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: WorkSchedule[] }>('/hr/settings/schedules/all');
-      return response.data;
+      const response = await apiClient.get('/hr/settings/schedules/all');
+      return (response as any).data as WorkSchedule[];
     },
     enabled: activeTab === 'schedules',
   });
@@ -93,10 +95,10 @@ export default function HRSettings() {
   const { data: settingsData, isLoading: settingsLoading } = useQuery({
     queryKey: ['hr-settings'],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: HRSetting[] }>('/hr/settings');
-      return response.data;
+      const response = await apiClient.get('/hr/settings');
+      return (response as any).data as HRSetting[];
     },
-    enabled: activeTab === 'general',
+    enabled: activeTab === 'general' || activeTab === 'clocking',
   });
 
   const leaveTypes = leaveTypesData || [];
@@ -198,6 +200,28 @@ export default function HRSettings() {
             >
               <Clock className="h-4 w-4 inline mr-2" />
               Horaires de Travail
+            </button>
+            <button
+              onClick={() => setActiveTab('holidays')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'holidays'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <CalendarDays className="h-4 w-4 inline mr-2" />
+              Jours Fériés
+            </button>
+            <button
+              onClick={() => setActiveTab('clocking')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'clocking'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Clock className="h-4 w-4 inline mr-2" />
+              Pointage & Pauses
             </button>
           </nav>
         </div>
@@ -446,6 +470,31 @@ export default function HRSettings() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Content - Public Holidays */}
+        {activeTab === 'holidays' && (
+          <div className="space-y-6">
+            <PublicHolidaysManager />
+          </div>
+        )}
+
+        {/* Content - Clocking & Break Rules */}
+        {activeTab === 'clocking' && (
+          <div className="space-y-6">
+            {settingsLoading ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-gray-600">Chargement...</p>
+              </div>
+            ) : (
+              settingsData?.find((s: HRSetting) => s.setting_key === 'break_rules') && (
+                <BreakRulesEditor
+                  currentRules={settingsData.find((s: HRSetting) => s.setting_key === 'break_rules')!.setting_value}
+                />
+              )
             )}
           </div>
         )}

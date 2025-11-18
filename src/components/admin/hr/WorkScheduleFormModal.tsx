@@ -70,7 +70,7 @@ export default function WorkScheduleFormModal({ scheduleId, onClose }: WorkSched
     queryFn: async () => {
       if (!scheduleId) return null;
       const response = await apiClient.get<{ success: boolean; data: WorkSchedule }>(`/hr/settings/work-schedules/${scheduleId}`);
-      return response.data;
+      return (response as any).data;
     },
     enabled: !!scheduleId,
   });
@@ -105,7 +105,7 @@ export default function WorkScheduleFormModal({ scheduleId, onClose }: WorkSched
   const createSchedule = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiClient.post<{ success: boolean; data: WorkSchedule }>('/hr/settings/work-schedules', data);
-      return response.data;
+      return (response as any).data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-work-schedules'] });
@@ -118,7 +118,7 @@ export default function WorkScheduleFormModal({ scheduleId, onClose }: WorkSched
   const updateSchedule = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiClient.put<{ success: boolean; data: WorkSchedule }>(`/hr/settings/work-schedules/${scheduleId}`, data);
-      return response.data;
+      return (response as any).data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-work-schedules'] });

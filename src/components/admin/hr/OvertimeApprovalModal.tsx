@@ -41,7 +41,7 @@ export default function OvertimeApprovalModal({ requestId, onClose }: OvertimeAp
     queryKey: ['hr-overtime-request', requestId],
     queryFn: async () => {
       const response = await apiClient.get<{ success: boolean; data: OvertimeRequest }>(`/hr/attendance/overtime/requests/${requestId}`);
-      return response.data;
+      return (response as any).data;
     },
   });
 
@@ -51,7 +51,7 @@ export default function OvertimeApprovalModal({ requestId, onClose }: OvertimeAp
   const approveMutation = useMutation({
     mutationFn: async (data: { comment: string }) => {
       const response = await apiClient.put<{ success: boolean; data: any }>(`/hr/attendance/overtime/requests/${requestId}/approve`, data);
-      return response.data;
+      return (response as any).data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-overtime-requests'] });
@@ -65,7 +65,7 @@ export default function OvertimeApprovalModal({ requestId, onClose }: OvertimeAp
   const rejectMutation = useMutation({
     mutationFn: async (data: { reason: string }) => {
       const response = await apiClient.put<{ success: boolean; data: any }>(`/hr/attendance/overtime/requests/${requestId}/reject`, data);
-      return response.data;
+      return (response as any).data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-overtime-requests'] });

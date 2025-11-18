@@ -84,8 +84,8 @@ export const AddStudentToSessionModal: React.FC<AddStudentToSessionModalProps> =
   const fetchSessions = async () => {
     try {
       setLoadingSessions(true);
-      const response = await apiClient.get<any>(`/sessions-formation?corps_formation_id=${corpsFormationId}&statut=en_cours`);
-      setSessions(response.sessions || []);
+      const response = await apiClient.get(`/sessions-formation?corps_formation_id=${corpsFormationId}&statut=en_cours`);
+      setSessions((response as any).sessions || []);
     } catch (error) {
       console.error('Error fetching sessions:', error);
       setSessions([]);

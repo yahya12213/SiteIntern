@@ -33,6 +33,7 @@ import HRDashboard from './pages/admin/hr/HRDashboard';
 import HRAttendance from './pages/admin/hr/HRAttendance';
 import HRLeaves from './pages/admin/hr/HRLeaves';
 import HRSettings from './pages/admin/hr/HRSettings';
+import Clocking from './pages/employee/Clocking';
 import StudentDashboard from './pages/student/StudentDashboard';
 import FormationCatalog from './pages/student/FormationCatalog';
 import FormationViewer from './pages/student/FormationViewer';
@@ -355,6 +356,16 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute adminOnly>
             <HRSettings />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Employee Routes */}
+      <Route
+        path="/employee/clocking"
+        element={
+          <ProtectedRoute>
+            <Clocking />
           </ProtectedRoute>
         }
       />

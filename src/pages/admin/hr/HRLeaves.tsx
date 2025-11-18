@@ -53,7 +53,7 @@ export default function HRLeaves() {
       if (statusFilter) params.append('status', statusFilter);
 
       const response = await apiClient.get<{ success: boolean; data: LeaveRequest[] }>(`/hr/leaves/requests?${params.toString()}`);
-      return response.data;
+      return (response as any).data;
     },
     enabled: activeTab === 'requests',
   });
@@ -63,7 +63,7 @@ export default function HRLeaves() {
     queryKey: ['hr-holidays'],
     queryFn: async () => {
       const response = await apiClient.get<{ success: boolean; data: Holiday[] }>('/hr/leaves/holidays');
-      return response.data;
+      return (response as any).data;
     },
     enabled: activeTab === 'holidays',
   });

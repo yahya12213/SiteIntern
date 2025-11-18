@@ -41,8 +41,8 @@ export default function AnomalyResolutionModal({ attendanceId, onClose }: Anomal
   const { data: recordData, isLoading } = useQuery({
     queryKey: ['hr-attendance-record', attendanceId],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: AttendanceRecord }>(`/hr/attendance/${attendanceId}`);
-      return response.data;
+      const response = await apiClient.get(`/hr/attendance/${attendanceId}`);
+      return (response as any).data as AttendanceRecord;
     },
   });
 
@@ -63,8 +63,8 @@ export default function AnomalyResolutionModal({ attendanceId, onClose }: Anomal
   // Resolve anomaly mutation
   const resolveAnomaly = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await apiClient.put<{ success: boolean; data: any }>(`/hr/attendance/${attendanceId}/resolve`, data);
-      return response.data;
+      const response = await apiClient.put(`/hr/attendance/${attendanceId}/resolve`, data);
+      return (response as any).data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-attendance'] });

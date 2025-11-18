@@ -54,7 +54,7 @@ export default function LeaveApprovalModal({ requestId, onClose }: LeaveApproval
     queryKey: ['hr-leave-request', requestId],
     queryFn: async () => {
       const response = await apiClient.get<{ success: boolean; data: LeaveRequest }>(`/hr/leaves/requests/${requestId}`);
-      return response.data;
+      return (response as any).data;
     },
   });
 
@@ -64,7 +64,7 @@ export default function LeaveApprovalModal({ requestId, onClose }: LeaveApproval
   const approveMutation = useMutation({
     mutationFn: async (data: { comment: string }) => {
       const response = await apiClient.put<{ success: boolean; data: any }>(`/hr/leaves/requests/${requestId}/approve`, data);
-      return response.data;
+      return (response as any).data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-leave-requests'] });
@@ -78,7 +78,7 @@ export default function LeaveApprovalModal({ requestId, onClose }: LeaveApproval
   const rejectMutation = useMutation({
     mutationFn: async (data: { reason: string }) => {
       const response = await apiClient.put<{ success: boolean; data: any }>(`/hr/leaves/requests/${requestId}/reject`, data);
-      return response.data;
+      return (response as any).data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-leave-requests'] });

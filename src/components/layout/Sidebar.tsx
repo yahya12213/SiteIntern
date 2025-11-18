@@ -89,6 +89,7 @@ export const Sidebar: React.FC = () => {
       title: 'Ressources Humaines',
       icon: Briefcase,
       items: [
+        { to: '/employee/clocking', icon: Clock, label: 'Mon Pointage', permission: 'hr.clocking.self' },
         { to: '/admin/hr/employees', icon: UserCheck, label: 'Dossiers du Personnel', permission: 'hr.employees.view_page' },
         { to: '/admin/hr/attendance', icon: Clock, label: 'Temps & Présence', permission: 'hr.attendance.view_page' },
         { to: '/admin/hr/leaves', icon: CalendarDays, label: 'Congés & Planning', permission: 'hr.leaves.view_page' },

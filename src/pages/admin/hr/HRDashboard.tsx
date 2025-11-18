@@ -88,7 +88,7 @@ export default function HRDashboard() {
     queryKey: ['hr-dashboard-stats'],
     queryFn: async () => {
       const response = await apiClient.get<{ success: boolean; data: HRStats }>('/hr/dashboard/stats');
-      return response.data;
+      return (response as any).data;
     },
   });
 
@@ -97,7 +97,7 @@ export default function HRDashboard() {
     queryKey: ['hr-dashboard-alerts'],
     queryFn: async () => {
       const response = await apiClient.get<{ success: boolean; data: Alert }>('/hr/dashboard/alerts');
-      return response.data;
+      return (response as any).data;
     },
   });
 
@@ -259,7 +259,7 @@ export default function HRDashboard() {
             <div className="p-4">
               {alerts?.expiring_contracts && alerts.expiring_contracts.length > 0 ? (
                 <div className="space-y-3">
-                  {alerts.expiring_contracts.slice(0, 5).map((contract) => (
+                  {alerts.expiring_contracts.slice(0, 5).map((contract: any) => (
                     <div key={contract.id} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{contract.employee_name}</p>
@@ -292,7 +292,7 @@ export default function HRDashboard() {
             <div className="p-4">
               {alerts?.attendance_anomalies && alerts.attendance_anomalies.length > 0 ? (
                 <div className="space-y-3">
-                  {alerts.attendance_anomalies.slice(0, 5).map((anomaly) => (
+                  {alerts.attendance_anomalies.slice(0, 5).map((anomaly: any) => (
                     <div key={anomaly.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{anomaly.employee_name}</p>
@@ -325,7 +325,7 @@ export default function HRDashboard() {
             <div className="p-4">
               {alerts?.pending_leave_approvals && alerts.pending_leave_approvals.length > 0 ? (
                 <div className="space-y-3">
-                  {alerts.pending_leave_approvals.slice(0, 5).map((leave) => (
+                  {alerts.pending_leave_approvals.slice(0, 5).map((leave: any) => (
                     <div key={leave.id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{leave.employee_name}</p>
@@ -361,7 +361,7 @@ export default function HRDashboard() {
             <div className="p-4">
               {alerts?.pending_overtime_approvals && alerts.pending_overtime_approvals.length > 0 ? (
                 <div className="space-y-3">
-                  {alerts.pending_overtime_approvals.slice(0, 5).map((overtime) => (
+                  {alerts.pending_overtime_approvals.slice(0, 5).map((overtime: any) => (
                     <div key={overtime.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{overtime.employee_name}</p>

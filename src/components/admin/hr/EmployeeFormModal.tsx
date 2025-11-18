@@ -33,6 +33,7 @@ interface Employee {
   segment_id?: string;
   manager_id?: string;
   notes?: string;
+  requires_clocking?: boolean;
 }
 
 export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormModalProps) {
@@ -60,6 +61,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     segment_id: '',
     manager_id: '',
     notes: '',
+    requires_clocking: false,
   });
 
   const isEdit = !!employeeId;
@@ -69,8 +71,8 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     queryKey: ['hr-employee', employeeId],
     queryFn: async () => {
       if (!employeeId) return null;
-      const response = await apiClient.get<{ success: boolean; data: Employee }>(`/hr/employees/${employeeId}`);
-      return response.data;
+      const response = await apiClient.get(`/hr/employees/${employeeId}`);
+      return (response as any).data as Employee;
     },
     enabled: !!employeeId,
   });
@@ -82,8 +84,8 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
   const { data: departmentsData } = useQuery({
     queryKey: ['hr-departments'],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: string[] }>('/hr/employees/meta/departments');
-      return response.data;
+      const response = await apiClient.get('/hr/employees/meta/departments');
+      return (response as any).data as string[];
     },
   });
   const departments = departmentsData || [];
@@ -92,8 +94,8 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
   const { data: managersData } = useQuery({
     queryKey: ['hr-potential-managers'],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: Employee[] }>('/hr/employees?status=active');
-      return response.data;
+      const response = await apiClient.get('/hr/employees?status=active');
+      return (response as any).data as Employee[];
     },
   });
   const managers = managersData || [];
@@ -124,6 +126,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         segment_id: employeeData.segment_id || '',
         manager_id: employeeData.manager_id || '',
         notes: employeeData.notes || '',
+        requires_clocking: employeeData.requires_clocking || false,
       });
     }
   }, [employeeData]);
@@ -131,8 +134,8 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
   // Create mutation
   const createEmployee = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await apiClient.post<{ success: boolean; data: Employee }>('/hr/employees', data);
-      return response.data;
+      const response = await apiClient.post('/hr/employees', data);
+      return (response as any).data as Employee;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-employees'] });
@@ -144,8 +147,8 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
   // Update mutation
   const updateEmployee = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await apiClient.put<{ success: boolean; data: Employee }>(`/hr/employees/${employeeId}`, data);
-      return response.data;
+      const response = await apiClient.put(`/hr/employees/${employeeId}`, data);
+      return (response as any).data as Employee;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-employees'] });
@@ -176,7 +179,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     }
   };
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -590,6 +593,26 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Requires Clocking Checkbox */}
+          <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <input
+              type="checkbox"
+              id="requires_clocking"
+              checked={formData.requires_clocking}
+              onChange={(e) => handleChange('requires_clocking', e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-1"
+            />
+            <label htmlFor="requires_clocking" className="flex-1">
+              <div className="text-sm font-medium text-gray-900">
+                Cet employé doit pointer
+              </div>
+              <div className="text-xs text-gray-600 mt-1">
+                Si coché, l'employé devra enregistrer ses heures d'arrivée et de départ.
+                Les vacataires et partenaires ne doivent pas pointer.
+              </div>
+            </label>
           </div>
 
           {/* Notes */}

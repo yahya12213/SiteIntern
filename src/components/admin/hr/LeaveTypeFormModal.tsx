@@ -58,7 +58,7 @@ export default function LeaveTypeFormModal({ leaveTypeId, onClose }: LeaveTypeFo
     queryFn: async () => {
       if (!leaveTypeId) return null;
       const response = await apiClient.get<{ success: boolean; data: LeaveType }>(`/hr/leaves/types/${leaveTypeId}`);
-      return response.data;
+      return (response as any).data;
     },
     enabled: !!leaveTypeId,
   });
@@ -86,7 +86,7 @@ export default function LeaveTypeFormModal({ leaveTypeId, onClose }: LeaveTypeFo
   const createLeaveType = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiClient.post<{ success: boolean; data: LeaveType }>('/hr/leaves/types', data);
-      return response.data;
+      return (response as any).data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-leave-types'] });
@@ -99,7 +99,7 @@ export default function LeaveTypeFormModal({ leaveTypeId, onClose }: LeaveTypeFo
   const updateLeaveType = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiClient.put<{ success: boolean; data: LeaveType }>(`/hr/leaves/types/${leaveTypeId}`, data);
-      return response.data;
+      return (response as any).data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-leave-types'] });

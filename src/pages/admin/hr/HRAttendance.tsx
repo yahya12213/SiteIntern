@@ -65,7 +65,7 @@ export default function HRAttendance() {
       if (statusFilter) params.append('status', statusFilter);
 
       const response = await apiClient.get<{ success: boolean; data: AttendanceRecord[] }>(`/hr/attendance?${params.toString()}`);
-      return response.data;
+      return (response as any).data;
     },
     enabled: activeTab === 'records',
   });
@@ -75,7 +75,7 @@ export default function HRAttendance() {
     queryKey: ['hr-attendance-anomalies'],
     queryFn: async () => {
       const response = await apiClient.get<{ success: boolean; data: AttendanceRecord[] }>('/hr/attendance/anomalies');
-      return response.data;
+      return (response as any).data;
     },
     enabled: activeTab === 'anomalies',
   });
@@ -88,7 +88,7 @@ export default function HRAttendance() {
       if (statusFilter) params.append('status', statusFilter);
 
       const response = await apiClient.get<{ success: boolean; data: OvertimeRequest[] }>(`/hr/attendance/overtime/requests?${params.toString()}`);
-      return response.data;
+      return (response as any).data;
     },
     enabled: activeTab === 'overtime',
   });

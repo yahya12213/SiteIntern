@@ -30,6 +30,7 @@ interface Employee {
   employment_status: string;
   hire_date: string;
   segment_name: string;
+  requires_clocking: boolean;
 }
 
 export default function HREmployees() {
@@ -51,7 +52,7 @@ export default function HREmployees() {
       if (departmentFilter) params.append('department', departmentFilter);
 
       const response = await apiClient.get<{ success: boolean; data: Employee[] }>(`/hr/employees?${params.toString()}`);
-      return response.data;
+      return (response as any).data;
     },
   });
 
@@ -60,7 +61,7 @@ export default function HREmployees() {
     queryKey: ['hr-departments'],
     queryFn: async () => {
       const response = await apiClient.get<{ success: boolean; data: string[] }>('/hr/employees/meta/departments');
-      return response.data;
+      return (response as any).data;
     },
   });
 
@@ -271,6 +272,9 @@ export default function HREmployees() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Date d'embauche
                       </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Pointage
+                      </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
@@ -301,6 +305,17 @@ export default function HREmployees() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {new Date(employee.hire_date).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          {employee.requires_clocking ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              🔔 Pointeur
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                              📋 Non
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex justify-end gap-2">

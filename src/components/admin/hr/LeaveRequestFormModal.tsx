@@ -47,7 +47,7 @@ export default function LeaveRequestFormModal({ employeeId, onClose }: LeaveRequ
     queryKey: ['hr-leave-types'],
     queryFn: async () => {
       const response = await apiClient.get<{ success: boolean; data: LeaveType[] }>('/hr/leaves/types');
-      return response.data;
+      return (response as any).data;
     },
   });
   const leaveTypes = leaveTypesData || [];
@@ -57,7 +57,7 @@ export default function LeaveRequestFormModal({ employeeId, onClose }: LeaveRequ
     queryKey: ['hr-employees-active'],
     queryFn: async () => {
       const response = await apiClient.get<{ success: boolean; data: Employee[] }>('/hr/employees?status=active');
-      return response.data;
+      return (response as any).data;
     },
     enabled: !employeeId, // Only fetch if employee not pre-selected
   });
@@ -89,7 +89,7 @@ export default function LeaveRequestFormModal({ employeeId, onClose }: LeaveRequ
   const createLeaveRequest = useMutation({
     mutationFn: async (data: typeof formData) => {
       const response = await apiClient.post<{ success: boolean; data: any }>('/hr/leaves/requests', data);
-      return response.data;
+      return (response as any).data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-leave-requests'] });
