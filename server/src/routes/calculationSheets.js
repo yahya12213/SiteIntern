@@ -3,6 +3,65 @@ import pool from '../config/database.js';
 
 const router = express.Router();
 
+// GET diagnostic - Affiche toutes les fiches avec les noms complets des segments et villes
+router.get('/diagnostic', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const sheetsResult = await client.query('SELECT * FROM calculation_sheets ORDER BY created_at DESC');
+    const sheets = sheetsResult.rows;
+
+    const diagnosticData = [];
+
+    for (const sheet of sheets) {
+      // Récupérer les segments avec leurs noms
+      const segmentsResult = await client.query(
+        `SELECT s.id, s.name, s.color
+         FROM calculation_sheet_segments css
+         JOIN segments s ON css.segment_id = s.id
+         WHERE css.sheet_id = $1
+         ORDER BY s.name`,
+        [sheet.id]
+      );
+
+      // Récupérer les villes avec leurs noms
+      const citiesResult = await client.query(
+        `SELECT c.id, c.name, s.name as segment_name
+         FROM calculation_sheet_cities csc
+         JOIN cities c ON csc.city_id = c.id
+         JOIN segments s ON c.segment_id = s.id
+         WHERE csc.sheet_id = $1
+         ORDER BY c.name`,
+        [sheet.id]
+      );
+
+      diagnosticData.push({
+        id: sheet.id,
+        title: sheet.title,
+        status: sheet.status,
+        sheet_date: sheet.sheet_date,
+        created_at: sheet.created_at,
+        segments: segmentsResult.rows,
+        segment_count: segmentsResult.rows.length,
+        segment_ids: segmentsResult.rows.map(s => s.id),
+        cities: citiesResult.rows,
+        city_count: citiesResult.rows.length,
+        city_ids: citiesResult.rows.map(c => c.id),
+        city_names: citiesResult.rows.map(c => c.name),
+      });
+    }
+
+    res.json({
+      total_sheets: diagnosticData.length,
+      sheets: diagnosticData,
+    });
+  } catch (error) {
+    console.error('Error fetching diagnostic data:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
 // GET toutes les fiches
 router.get('/', async (req, res) => {
   const client = await pool.connect();

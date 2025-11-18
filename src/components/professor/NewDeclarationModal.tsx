@@ -120,10 +120,39 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
 
     // Vérifier qu'une fiche publiée existe pour ce segment et cette ville
     // Les fiches ont maintenant segment_ids et city_ids (tableaux)
+
+    // ============ DÉBOGAGE: Afficher les données de sélection ============
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔍 DÉBOGAGE: Sélection de fiche de calcul');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📍 Segment sélectionné:', selectedSegment);
+    console.log('📍 Ville sélectionnée:', selectedCity);
+    console.log('📋 Nombre de fiches disponibles:', availableSheets?.length || 0);
+    console.log('\n📚 Toutes les fiches disponibles:');
+    availableSheets?.forEach((sheet: any, index: number) => {
+      console.log(`\n  Fiche #${index + 1}: "${sheet.title}"`);
+      console.log(`    ├─ ID: ${sheet.id}`);
+      console.log(`    ├─ Statut: ${sheet.status}`);
+      console.log(`    ├─ Segments (${sheet.segment_ids?.length || 0}):`, sheet.segment_ids);
+      console.log(`    └─ Villes (${sheet.city_ids?.length || 0}):`, sheet.city_ids);
+    });
+
     // Trouver TOUTES les fiches qui correspondent au segment ET à la ville
-    const matchingSheets = availableSheets?.filter(
-      (s: any) => s.segment_ids?.includes(selectedSegment) && s.city_ids?.includes(selectedCity)
-    ) || [];
+    console.log('\n🔎 Filtrage des fiches...');
+    const matchingSheets = availableSheets?.filter((s: any) => {
+      const hasSegment = s.segment_ids?.includes(selectedSegment);
+      const hasCity = s.city_ids?.includes(selectedCity);
+      const matches = hasSegment && hasCity;
+
+      console.log(`\n  ➜ Fiche: "${s.title}"`);
+      console.log(`    ├─ Contient le segment? ${hasSegment ? '✅ OUI' : '❌ NON'}`);
+      console.log(`    ├─ Contient la ville? ${hasCity ? '✅ OUI' : '❌ NON'}`);
+      console.log(`    └─ MATCH FINAL? ${matches ? '✅ OUI' : '❌ NON'}`);
+
+      return matches;
+    }) || [];
+
+    console.log(`\n📊 Résultat du filtrage: ${matchingSheets.length} fiche(s) correspondent`);
 
     // Si plusieurs fiches correspondent, choisir la plus spécifique (moins de villes = plus spécifique)
     // Cela garantit que "Charge Centre Prolean" (1 ville) est préférée à "Prolean Fiche de calcule" (29 villes)
@@ -132,9 +161,27 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
       ? matchingSheets.reduce((mostSpecific, current) => {
           const currentCityCount = current.city_ids?.length || 0;
           const specificCityCount = mostSpecific.city_ids?.length || 0;
-          return currentCityCount < specificCityCount ? current : mostSpecific;
+          const isCurrentMoreSpecific = currentCityCount < specificCityCount;
+
+          console.log(`\n  ⚖️  Comparaison de spécificité:`);
+          console.log(`    ├─ "${current.title}": ${currentCityCount} ville(s)`);
+          console.log(`    ├─ "${mostSpecific.title}": ${specificCityCount} ville(s)`);
+          console.log(`    └─ Plus spécifique: "${isCurrentMoreSpecific ? current.title : mostSpecific.title}"`);
+
+          return isCurrentMoreSpecific ? current : mostSpecific;
         })
       : undefined;
+
+    console.log('\n🎯 FICHE FINALE SÉLECTIONNÉE:');
+    if (sheet) {
+      console.log(`  ✅ Titre: "${sheet.title}"`);
+      console.log(`  ├─ ID: ${sheet.id}`);
+      console.log(`  ├─ Nombre de segments: ${sheet.segment_ids?.length || 0}`);
+      console.log(`  └─ Nombre de villes: ${sheet.city_ids?.length || 0}`);
+    } else {
+      console.log('  ❌ Aucune fiche trouvée');
+    }
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
     if (!sheet) {
       setError('Aucune fiche de calcul publiée n\'existe pour ce segment et cette ville');
