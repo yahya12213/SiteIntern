@@ -2,22 +2,30 @@ import React, { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Calendar, Plus, Edit2, Trash2, Users, AlertCircle } from 'lucide-react';
-import { useSessions, useDeleteSession, useFormationStats } from '@/hooks/useFormations';
+import { useSessionsFormation, useDeleteSession } from '@/hooks/useSessionsFormation';
 import { SessionFormModal } from '@/components/admin/formations/SessionFormModal';
-import { EnrollmentModal } from '@/components/admin/formations/EnrollmentModal';
-import type { FormationSession } from '@/types/formations';
+import type { SessionFormation } from '@/types/sessions';
 
 const Sessions: React.FC = () => {
-  const { data: sessions, isLoading, error } = useSessions();
-  const { data: stats } = useFormationStats();
+  const { data: sessions, isLoading, error } = useSessionsFormation();
   const deleteSession = useDeleteSession();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [sessionToEdit, setSessionToEdit] = useState<FormationSession | null>(null);
-  const [sessionToEnroll, setSessionToEnroll] = useState<FormationSession | null>(null);
+  const [sessionToEdit, setSessionToEdit] = useState<SessionFormation | null>(null);
 
-  const handleDelete = async (session: FormationSession) => {
-    if (window.confirm(`Êtes-vous sûr de vouloir supprimer la session "${session.name}" ?`)) {
+  // Calculate stats from sessions data
+  const stats = sessions ? {
+    sessions: {
+      total: sessions.length,
+      planned: sessions.filter(s => s.statut === 'planifiee').length,
+      active: sessions.filter(s => s.statut === 'en_cours').length,
+      completed: sessions.filter(s => s.statut === 'terminee').length,
+    },
+    total_students_enrolled: sessions.reduce((sum, s) => sum + (s.nombre_etudiants || 0), 0),
+  } : null;
+
+  const handleDelete = async (session: SessionFormation) => {
+    if (window.confirm(`Êtes-vous sûr de vouloir supprimer la session "${session.titre}" ?`)) {
       try {
         await deleteSession.mutateAsync(session.id);
       } catch (error) {
@@ -29,20 +37,20 @@ const Sessions: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     const colors = {
-      planned: 'bg-blue-100 text-blue-700',
-      active: 'bg-green-100 text-green-700',
-      completed: 'bg-gray-100 text-gray-700',
-      cancelled: 'bg-red-100 text-red-700',
+      planifiee: 'bg-blue-100 text-blue-700',
+      en_cours: 'bg-green-100 text-green-700',
+      terminee: 'bg-gray-100 text-gray-700',
+      annulee: 'bg-red-100 text-red-700',
     };
     return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-700';
   };
 
   const getStatusLabel = (status: string) => {
     const labels = {
-      planned: 'Planifiée',
-      active: 'Active',
-      completed: 'Terminée',
-      cancelled: 'Annulée',
+      planifiee: 'Planifiée',
+      en_cours: 'Active',
+      terminee: 'Terminée',
+      annulee: 'Annulée',
     };
     return labels[status as keyof typeof labels] || status;
   };
@@ -186,36 +194,36 @@ const Sessions: React.FC = () => {
                     <tr key={session.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{session.name}</p>
+                          <p className="text-sm font-medium text-gray-900">{session.titre}</p>
                           {session.description && (
                             <p className="text-xs text-gray-500 mt-1 line-clamp-2">{session.description}</p>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {session.formation_title ? (
+                        {session.corps_formation_name ? (
                           <div className="flex items-center gap-2">
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                              {session.formation_title}
+                              {session.corps_formation_name}
                             </span>
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-400">Aucune formation</p>
+                          <p className="text-sm text-gray-400">Aucun corps de formation</p>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <p className="text-sm text-gray-900">{session.segment_name || '-'}</p>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <p className="text-sm text-gray-900">{session.city_name || '-'}</p>
+                        <p className="text-sm text-gray-900">{session.ville_name || '-'}</p>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm">
                           <p className="text-gray-900">
-                            {new Date(session.start_date).toLocaleDateString('fr-FR')}
+                            {session.date_debut && new Date(session.date_debut).toLocaleDateString('fr-FR')}
                           </p>
                           <p className="text-gray-500">
-                            {new Date(session.end_date).toLocaleDateString('fr-FR')}
+                            {session.date_fin && new Date(session.date_fin).toLocaleDateString('fr-FR')}
                           </p>
                         </div>
                       </td>
@@ -223,26 +231,18 @@ const Sessions: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-gray-400" />
                           <span className="text-sm text-gray-900">
-                            {session.enrolled_count || 0}
-                            {session.max_capacity && ` / ${session.max_capacity}`}
+                            {session.nombre_etudiants || 0}
+                            {session.nombre_places && ` / ${session.nombre_places}`}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(session.status)}`}>
-                          {getStatusLabel(session.status)}
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(session.statut)}`}>
+                          {getStatusLabel(session.statut)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSessionToEnroll(session)}
-                            className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                          >
-                            <Users className="h-4 w-4" />
-                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -296,13 +296,6 @@ const Sessions: React.FC = () => {
         <SessionFormModal
           session={sessionToEdit}
           onClose={() => setSessionToEdit(null)}
-        />
-      )}
-
-      {sessionToEnroll && (
-        <EnrollmentModal
-          session={sessionToEnroll}
-          onClose={() => setSessionToEnroll(null)}
         />
       )}
     </AppLayout>

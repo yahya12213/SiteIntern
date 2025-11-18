@@ -4,12 +4,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCreateSession, useUpdateSession } from '@/hooks/useSessionsFormation';
 import { SessionFormationSelector } from '@/components/formations/SessionFormationSelector';
-import type { FormationSession, SessionStatus } from '@/types/formations';
+import type { SessionFormation, SessionStatut } from '@/types/sessions';
 
 interface SessionFormModalProps {
-  session?: FormationSession;
+  session?: SessionFormation;
   onClose: () => void;
 }
+
+// Helper function to map backend status to frontend status
+const mapBackendStatusToFrontend = (backendStatus: SessionStatut): 'planned' | 'active' | 'completed' | 'cancelled' => {
+  const statusMap: Record<SessionStatut, 'planned' | 'active' | 'completed' | 'cancelled'> = {
+    'planifiee': 'planned',
+    'en_cours': 'active',
+    'terminee': 'completed',
+    'annulee': 'cancelled',
+  };
+  return statusMap[backendStatus] || 'planned';
+};
 
 export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onClose }) => {
   const isEdit = !!session;
@@ -17,19 +28,19 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
   const updateSession = useUpdateSession();
 
   const [formData, setFormData] = useState({
-    name: session?.name || '',
+    name: session?.titre || '',
     description: session?.description || '',
     corps_formation_id: session?.corps_formation_id || '',
-    start_date: session?.start_date ? session.start_date.split('T')[0] : '',
-    end_date: session?.end_date ? session.end_date.split('T')[0] : '',
+    start_date: session?.date_debut ? session.date_debut.split('T')[0] : '',
+    end_date: session?.date_fin ? session.date_fin.split('T')[0] : '',
     session_type: (session?.session_type || 'presentielle') as 'presentielle' | 'en_ligne',
     segment_id: session?.segment_id || '',
-    city_id: session?.city_id || '',
+    city_id: session?.ville_id || '',
     meeting_platform: session?.meeting_platform || '',
     meeting_link: session?.meeting_link || '',
-    instructor_id: session?.instructor_id || '',
-    max_capacity: session?.max_capacity?.toString() || '',
-    status: (session?.status || 'planned') as SessionStatus,
+    instructor_id: '',
+    max_capacity: session?.nombre_places?.toString() || '',
+    status: (session?.statut ? mapBackendStatusToFrontend(session.statut) : 'planned') as 'planned' | 'active' | 'completed' | 'cancelled',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -86,7 +97,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
 
     try {
       // Mapping des statuts anglais vers français
-      const statusMap: Record<SessionStatus, 'planifiee' | 'en_cours' | 'terminee' | 'annulee'> = {
+      const statusMap: Record<'planned' | 'active' | 'completed' | 'cancelled', SessionStatut> = {
         'planned': 'planifiee',
         'active': 'en_cours',
         'completed': 'terminee',
@@ -336,7 +347,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
             </label>
             <select
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as SessionStatus })}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as 'planned' | 'active' | 'completed' | 'cancelled' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             >
               <option value="planned">Planifiée</option>
