@@ -59,7 +59,9 @@
       "Bash(do echo \"=== Tentative $i/10 ===\")",
       "Bash(exit 0)",
       "Bash(git fetch:*)",
-      "Bash(for:*)"
+      "Bash(for:*)",
+      "Bash(grep:*)",
+      "Bash(if exist \"server\\dist\" rd /s /q \"server\\dist\")"
     ],
     "deny": [],
     "ask": []
