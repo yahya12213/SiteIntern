@@ -498,7 +498,10 @@ export const SessionDetail: React.FC = () => {
                 {session.segment_name && (
                   <span
                     className="px-2 py-1 rounded text-xs font-medium"
-                    style={{ backgroundColor: session.segment_color + '20', color: session.segment_color }}
+                    style={{
+                      backgroundColor: session.segment_color ? session.segment_color + '20' : '#e5e7eb',
+                      color: session.segment_color || '#6b7280'
+                    }}
                   >
                     {session.segment_name}
                   </span>

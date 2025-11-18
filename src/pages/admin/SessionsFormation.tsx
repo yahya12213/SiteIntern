@@ -305,8 +305,8 @@ export const SessionsFormation: React.FC = () => {
                           <span
                             className="inline-flex px-2 py-1 text-xs font-medium rounded-full"
                             style={{
-                              backgroundColor: session.segment_color + '20',
-                              color: session.segment_color,
+                              backgroundColor: session.segment_color ? session.segment_color + '20' : '#e5e7eb',
+                              color: session.segment_color || '#6b7280',
                             }}
                           >
                             {session.segment_name}
