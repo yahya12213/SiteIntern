@@ -20,19 +20,19 @@ router.post('/run', async (req, res) => {
 
     console.log('=== Migration 048: Add Missing HR Permissions ===');
 
-    // List of missing permissions to add
+    // List of missing permissions to add (using hierarchical structure: module.menu.action)
     const missingPermissions = [
-      { code: 'hr.attendance.record', name: 'Enregistrer présence', description: 'Enregistrer les heures d\'arrivée et de départ manuellement' },
-      { code: 'hr.attendance.validate', name: 'Valider présence', description: 'Valider et approuver les enregistrements de présence' },
-      { code: 'hr.attendance.export', name: 'Exporter présences', description: 'Exporter les données de présence en CSV/Excel' },
-      { code: 'hr.overtime.view_reports', name: 'Voir rapports heures sup', description: 'Consulter les rapports d\'heures supplémentaires' },
-      { code: 'hr.leaves.view_calendar', name: 'Voir calendrier congés', description: 'Afficher le calendrier des congés' },
-      { code: 'hr.leaves.export', name: 'Exporter congés', description: 'Exporter les données de congés' },
-      { code: 'hr.dashboard.view_monthly_reports', name: 'Voir rapports mensuels', description: 'Consulter les rapports mensuels RH' },
-      { code: 'hr.dashboard.generate_payroll_summary', name: 'Générer résumé paie', description: 'Générer le résumé de paie mensuel' },
-      { code: 'hr.dashboard.export_payroll', name: 'Exporter paie', description: 'Exporter les données de paie' },
-      { code: 'hr.dashboard.view_alerts', name: 'Voir alertes RH', description: 'Voir les alertes et notifications RH' },
-      { code: 'hr.settings.update', name: 'Modifier paramètres RH', description: 'Modifier les paramètres du module RH' }
+      { module: 'hr', menu: 'attendance', action: 'record', code: 'hr.attendance.record', label: 'Enregistrer présence', description: 'Enregistrer les heures d\'arrivée et de départ manuellement' },
+      { module: 'hr', menu: 'attendance', action: 'validate', code: 'hr.attendance.validate', label: 'Valider présence', description: 'Valider et approuver les enregistrements de présence' },
+      { module: 'hr', menu: 'attendance', action: 'export', code: 'hr.attendance.export', label: 'Exporter présences', description: 'Exporter les données de présence en CSV/Excel' },
+      { module: 'hr', menu: 'overtime', action: 'view_reports', code: 'hr.overtime.view_reports', label: 'Voir rapports heures sup', description: 'Consulter les rapports d\'heures supplémentaires' },
+      { module: 'hr', menu: 'leaves', action: 'view_calendar', code: 'hr.leaves.view_calendar', label: 'Voir calendrier congés', description: 'Afficher le calendrier des congés' },
+      { module: 'hr', menu: 'leaves', action: 'export', code: 'hr.leaves.export', label: 'Exporter congés', description: 'Exporter les données de congés' },
+      { module: 'hr', menu: 'dashboard', action: 'view_monthly_reports', code: 'hr.dashboard.view_monthly_reports', label: 'Voir rapports mensuels', description: 'Consulter les rapports mensuels RH' },
+      { module: 'hr', menu: 'dashboard', action: 'generate_payroll_summary', code: 'hr.dashboard.generate_payroll_summary', label: 'Générer résumé paie', description: 'Générer le résumé de paie mensuel' },
+      { module: 'hr', menu: 'dashboard', action: 'export_payroll', code: 'hr.dashboard.export_payroll', label: 'Exporter paie', description: 'Exporter les données de paie' },
+      { module: 'hr', menu: 'dashboard', action: 'view_alerts', code: 'hr.dashboard.view_alerts', label: 'Voir alertes RH', description: 'Voir les alertes et notifications RH' },
+      { module: 'hr', menu: 'settings', action: 'update', code: 'hr.settings.update', label: 'Modifier paramètres RH', description: 'Modifier les paramètres du module RH' }
     ];
 
     console.log(`Adding ${missingPermissions.length} missing permissions...`);
@@ -44,11 +44,11 @@ router.post('/run', async (req, res) => {
       `, [perm.code]);
 
       if (checkExisting.rows.length === 0) {
-        // Insert permission
+        // Insert permission using hierarchical structure
         await client.query(`
-          INSERT INTO permissions (code, name, description, module, created_at)
-          VALUES ($1, $2, $3, 'hr', NOW())
-        `, [perm.code, perm.name, perm.description]);
+          INSERT INTO permissions (module, menu, action, code, label, description, sort_order, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, 0, NOW())
+        `, [perm.module, perm.menu, perm.action, perm.code, perm.label, perm.description]);
         console.log(`  ✓ Added: ${perm.code}`);
       } else {
         console.log(`  - Already exists: ${perm.code}`);
