@@ -45,6 +45,8 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
   const [filteredCities, setFilteredCities] = useState<ProfessorCity[]>([]);
   const [filteredProfessors, setFilteredProfessors] = useState<typeof professors>([]);
   const [selectedProfessor, setSelectedProfessor] = useState('');
+  const [filteredSheets, setFilteredSheets] = useState<any[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState('');
 
   const [selectedSegment, setSelectedSegment] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
@@ -91,6 +93,27 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
     }
   }, [selectedSegment, selectedCity, professors, isImpressionRole, selectedProfessor]);
 
+  // Filtrer les fiches de calcul en fonction du segment et de la ville sélectionnés
+  useEffect(() => {
+    if (selectedSegment && selectedCity) {
+      // Trouver les fiches qui ont ce segment ET cette ville assignés
+      const filtered = (availableSheets || []).filter(
+        (s: any) => s.segment_ids?.includes(selectedSegment) && s.city_ids?.includes(selectedCity)
+      );
+      setFilteredSheets(filtered);
+
+      // Sélection automatique si une seule fiche correspond
+      if (filtered.length === 1) {
+        setSelectedSheet(filtered[0].id);
+      } else if (filtered.length === 0 || !filtered.find((s: any) => s.id === selectedSheet)) {
+        setSelectedSheet('');
+      }
+    } else {
+      setFilteredSheets([]);
+      setSelectedSheet('');
+    }
+  }, [selectedSegment, selectedCity, availableSheets, selectedSheet]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -118,79 +141,21 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
       return;
     }
 
-    // Vérifier qu'une fiche publiée existe pour ce segment et cette ville
-    // Les fiches ont maintenant segment_ids et city_ids (tableaux)
-
-    // ============ DÉBOGAGE: Afficher les données de sélection ============
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🔍 DÉBOGAGE: Sélection de fiche de calcul');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('📍 Segment sélectionné:', selectedSegment);
-    console.log('📍 Ville sélectionnée:', selectedCity);
-    console.log('📋 Nombre de fiches disponibles:', availableSheets?.length || 0);
-    console.log('\n📚 Toutes les fiches disponibles:');
-    availableSheets?.forEach((sheet: any, index: number) => {
-      console.log(`\n  Fiche #${index + 1}: "${sheet.title}"`);
-      console.log(`    ├─ ID: ${sheet.id}`);
-      console.log(`    ├─ Statut: ${sheet.status}`);
-      console.log(`    ├─ Segments (${sheet.segment_ids?.length || 0}):`, sheet.segment_ids);
-      console.log(`    └─ Villes (${sheet.city_ids?.length || 0}):`, sheet.city_ids);
-    });
-
-    // Trouver TOUTES les fiches qui correspondent au segment ET à la ville
-    console.log('\n🔎 Filtrage des fiches...');
-    const matchingSheets = availableSheets?.filter((s: any) => {
-      const hasSegment = s.segment_ids?.includes(selectedSegment);
-      const hasCity = s.city_ids?.includes(selectedCity);
-      const matches = hasSegment && hasCity;
-
-      console.log(`\n  ➜ Fiche: "${s.title}"`);
-      console.log(`    ├─ Contient le segment? ${hasSegment ? '✅ OUI' : '❌ NON'}`);
-      console.log(`    ├─ Contient la ville? ${hasCity ? '✅ OUI' : '❌ NON'}`);
-      console.log(`    └─ MATCH FINAL? ${matches ? '✅ OUI' : '❌ NON'}`);
-
-      return matches;
-    }) || [];
-
-    console.log(`\n📊 Résultat du filtrage: ${matchingSheets.length} fiche(s) correspondent`);
-
-    // Si plusieurs fiches correspondent, choisir la plus spécifique (moins de villes = plus spécifique)
-    // Cela garantit que "Charge Centre Prolean" (1 ville) est préférée à "Prolean Fiche de calcule" (29 villes)
-    // quand on crée une déclaration pour la ville "Charge Centre"
-    const sheet = matchingSheets.length > 0
-      ? matchingSheets.reduce((mostSpecific, current) => {
-          const currentCityCount = current.city_ids?.length || 0;
-          const specificCityCount = mostSpecific.city_ids?.length || 0;
-          const isCurrentMoreSpecific = currentCityCount < specificCityCount;
-
-          console.log(`\n  ⚖️  Comparaison de spécificité:`);
-          console.log(`    ├─ "${current.title}": ${currentCityCount} ville(s)`);
-          console.log(`    ├─ "${mostSpecific.title}": ${specificCityCount} ville(s)`);
-          console.log(`    └─ Plus spécifique: "${isCurrentMoreSpecific ? current.title : mostSpecific.title}"`);
-
-          return isCurrentMoreSpecific ? current : mostSpecific;
-        })
-      : undefined;
-
-    console.log('\n🎯 FICHE FINALE SÉLECTIONNÉE:');
-    if (sheet) {
-      console.log(`  ✅ Titre: "${sheet.title}"`);
-      console.log(`  ├─ ID: ${sheet.id}`);
-      console.log(`  ├─ Nombre de segments: ${sheet.segment_ids?.length || 0}`);
-      console.log(`  └─ Nombre de villes: ${sheet.city_ids?.length || 0}`);
-    } else {
-      console.log('  ❌ Aucune fiche trouvée');
+    // Vérifier qu'une fiche est sélectionnée
+    if (!selectedSheet) {
+      setError('Veuillez sélectionner une fiche de calcul');
+      return;
     }
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-    if (!sheet) {
+    // Vérifier qu'une fiche publiée existe pour ce segment et cette ville
+    if (filteredSheets.length === 0) {
       setError('Aucune fiche de calcul publiée n\'existe pour ce segment et cette ville');
       return;
     }
 
     try {
       const declaration = await createDeclaration.mutateAsync({
-        calculation_sheet_id: sheet.id,
+        calculation_sheet_id: selectedSheet,
         segment_id: selectedSegment,
         city_id: selectedCity,
         start_date: startDate,
@@ -323,6 +288,43 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
                   {filteredProfessors.map((prof) => (
                     <option key={prof.id} value={prof.id}>
                       {prof.full_name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {/* Sélection de fiche de calcul (après segment et ville) */}
+          {selectedSegment && selectedCity && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Fiche de calcul <span className="text-red-500">*</span>
+              </label>
+              {filteredSheets.length === 0 ? (
+                <p className="text-sm text-red-500 bg-red-50 p-3 rounded-lg">
+                  Aucune fiche de calcul trouvée pour ce segment et cette ville
+                </p>
+              ) : filteredSheets.length === 1 ? (
+                <div className="bg-green-50 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-green-800">
+                    Fiche sélectionnée automatiquement :
+                  </p>
+                  <p className="text-sm text-green-700 mt-1">
+                    {filteredSheets[0].title}
+                  </p>
+                </div>
+              ) : (
+                <select
+                  value={selectedSheet}
+                  onChange={(e) => setSelectedSheet(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Sélectionner une fiche ({filteredSheets.length} disponibles)</option>
+                  {filteredSheets.map((sheet: any) => (
+                    <option key={sheet.id} value={sheet.id}>
+                      {sheet.title}
                     </option>
                   ))}
                 </select>
