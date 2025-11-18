@@ -120,9 +120,21 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
 
     // Vérifier qu'une fiche publiée existe pour ce segment et cette ville
     // Les fiches ont maintenant segment_ids et city_ids (tableaux)
-    const sheet = availableSheets?.find(
+    // Trouver TOUTES les fiches qui correspondent au segment ET à la ville
+    const matchingSheets = availableSheets?.filter(
       (s: any) => s.segment_ids?.includes(selectedSegment) && s.city_ids?.includes(selectedCity)
-    );
+    ) || [];
+
+    // Si plusieurs fiches correspondent, choisir la plus spécifique (moins de villes = plus spécifique)
+    // Cela garantit que "Charge Centre Prolean" (1 ville) est préférée à "Prolean Fiche de calcule" (29 villes)
+    // quand on crée une déclaration pour la ville "Charge Centre"
+    const sheet = matchingSheets.length > 0
+      ? matchingSheets.reduce((mostSpecific, current) => {
+          const currentCityCount = current.city_ids?.length || 0;
+          const specificCityCount = mostSpecific.city_ids?.length || 0;
+          return currentCityCount < specificCityCount ? current : mostSpecific;
+        })
+      : undefined;
 
     if (!sheet) {
       setError('Aucune fiche de calcul publiée n\'existe pour ce segment et cette ville');
