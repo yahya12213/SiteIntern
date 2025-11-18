@@ -443,7 +443,7 @@ export const SessionDetail: React.FC = () => {
   const getImageUrl = (relativeUrl: string | null | undefined): string => {
     if (!relativeUrl) return '';
     if (relativeUrl.startsWith('http')) return relativeUrl;
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    const API_URL = import.meta.env.VITE_API_URL || '/api';
     const baseUrl = API_URL.replace('/api', '');
     return `${baseUrl}${relativeUrl}`;
   };

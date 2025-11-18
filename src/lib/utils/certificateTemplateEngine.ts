@@ -612,7 +612,7 @@ export class CertificateTemplateEngine {
       // Handle relative URLs (from uploads folder)
       if (imageUrl.startsWith('/uploads/')) {
         // Construct full URL using API base
-        const apiUrl = (window as any).__API_URL__ || import.meta.env?.VITE_API_URL || 'http://localhost:3001/api';
+        const apiUrl = (window as any).__API_URL__ || import.meta.env?.VITE_API_URL || '/api';
         const baseUrl = apiUrl.replace('/api', '');
         imageUrl = `${baseUrl}${imageUrl}`;
       }

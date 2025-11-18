@@ -4,7 +4,10 @@
  * Inclut l'authentification JWT automatique
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Détection automatique de l'URL API:
+// - Production (build): URL relative /api (même domaine que le frontend)
+// - Dev (vite dev): URL relative /api (proxy Vite vers localhost:3001)
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Token storage keys
 const TOKEN_KEY = 'auth_token';

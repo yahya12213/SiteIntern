@@ -117,7 +117,7 @@ export default function HRDashboard() {
       const year = selectedPeriod.getFullYear();
       const month = selectedPeriod.getMonth() + 1;
       const url = `/hr/dashboard/monthly-summary/${year}/${month}?format=csv`;
-      window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}${url}`, '_blank');
+      window.open(`${import.meta.env.VITE_API_URL || '/api'}${url}`, '_blank');
     } catch (error) {
       console.error('Export error:', error);
     }
