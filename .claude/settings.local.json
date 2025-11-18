@@ -53,7 +53,13 @@
       "Bash(.gitignore)",
       "Bash(if not exist \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\src\\middleware\" mkdir \"C:\\Users\\pc\\Desktop\\systeme de calcul\\server\\src\\middleware\")",
       "Bash(powershell -Command \"Get-ChildItem -Path src -Filter *.tsx -Recurse | ForEach-Object { (Get-Content $_.FullName) -replace ''response\\.data'', ''(response as any).data'' | Set-Content $_.FullName }\")",
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(for i in 1 2 3 4 5 6 7 8 9 10)",
+      "Bash(do echo \"=== Tentative $i/10 ===\")",
+      "Bash(exit 0)",
+      "Bash(git fetch:*)",
+      "Bash(for:*)"
     ],
     "deny": [],
     "ask": []
