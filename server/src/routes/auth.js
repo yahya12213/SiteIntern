@@ -36,7 +36,7 @@ router.post('/login', loginRateLimiter, async (req, res) => {
     // Check if RBAC tables exist (backward compatibility)
     const rbacEnabled = await checkRbacTablesExist();
 
-    // Find user with role information (if RBAC is enabled)
+    // Strategy 1: Try to find user by username in profiles table
     let result;
     if (rbacEnabled) {
       result = await pool.query(
@@ -54,14 +54,71 @@ router.post('/login', loginRateLimiter, async (req, res) => {
       );
     }
 
+    // Strategy 2: If not found by username, try to find student by CIN
+    let user = null;
+    let isStudentCINLogin = false;
+
     if (result.rows.length === 0) {
+      // Check if username is a CIN in students table
+      const studentResult = await pool.query(
+        `SELECT s.*, p.id as profile_id, p.password as profile_password
+         FROM students s
+         LEFT JOIN profiles p ON p.username = s.cin
+         WHERE s.cin = $1`,
+        [username.toUpperCase()] // CIN is usually uppercase
+      );
+
+      if (studentResult.rows.length > 0) {
+        const student = studentResult.rows[0];
+        isStudentCINLogin = true;
+
+        // Check if student has a linked profile account
+        if (student.profile_id) {
+          // Profile exists, use it for authentication
+          user = {
+            id: student.profile_id,
+            username: student.cin,
+            full_name: `${student.prenom} ${student.nom}`,
+            role: 'student',
+            password: student.profile_password,
+            student_id: student.id,
+            student_cin: student.cin,
+            student_email: student.email,
+            student_phone: student.phone
+          };
+        } else {
+          // No profile exists yet - create one automatically for CIN-based login
+          const hashedPassword = await bcrypt.hash(password, 10);
+
+          const newProfileResult = await pool.query(
+            `INSERT INTO profiles (username, password, full_name, role, created_at)
+             VALUES ($1, $2, $3, 'student', NOW())
+             RETURNING *`,
+            [student.cin, hashedPassword, `${student.prenom} ${student.nom}`]
+          );
+
+          user = {
+            ...newProfileResult.rows[0],
+            student_id: student.id,
+            student_cin: student.cin,
+            student_email: student.email,
+            student_phone: student.phone
+          };
+
+          console.log(`✅ Auto-created profile for student CIN: ${student.cin}`);
+        }
+      }
+    } else {
+      user = result.rows[0];
+    }
+
+    // If still no user found, return error
+    if (!user) {
       return res.status(401).json({
         success: false,
         error: 'Invalid credentials',
       });
     }
-
-    const user = result.rows[0];
 
     // Verify password
     const isValid = await bcrypt.compare(password, user.password);
@@ -71,6 +128,30 @@ router.post('/login', loginRateLimiter, async (req, res) => {
         success: false,
         error: 'Invalid credentials',
       });
+    }
+
+    // Additional check for CIN-based login: Verify student is enrolled in at least one online session
+    if (isStudentCINLogin && user.student_id) {
+      const enrollmentCheck = await pool.query(
+        `SELECT COUNT(*) as count
+         FROM session_etudiants se
+         JOIN sessions_formation sf ON se.session_id = sf.id
+         WHERE se.student_id = $1
+         AND sf.session_type = 'en_ligne'
+         AND se.student_status != 'abandonne'`,
+        [user.student_id]
+      );
+
+      const enrollmentCount = parseInt(enrollmentCheck.rows[0]?.count || 0);
+
+      if (enrollmentCount === 0) {
+        return res.status(403).json({
+          success: false,
+          error: 'Vous n\'êtes pas inscrit à une session de formation en ligne. Veuillez contacter l\'administration.',
+        });
+      }
+
+      console.log(`✅ Student ${user.student_cin} verified: enrolled in ${enrollmentCount} online session(s)`);
     }
 
     // Get user permissions (only if RBAC is enabled)

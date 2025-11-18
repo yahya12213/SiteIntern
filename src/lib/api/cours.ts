@@ -40,6 +40,11 @@ export const coursApi = {
   deleteFormation: (id: string) =>
     apiClient.delete<{ message: string; formation: Formation }>(`/cours/formations/${id}`),
 
+  checkOnlineAccess: (formationId: string) =>
+    apiClient.get<{ success: boolean; hasOnlineAccess: boolean; message: string }>(
+      `/cours/formations/${formationId}/check-online-access`
+    ),
+
   // ============================================
   // Modules
   // ============================================

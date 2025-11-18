@@ -45,6 +45,23 @@ const StudentDashboard: React.FC = () => {
     return labels[status as keyof typeof labels] || status;
   };
 
+  const getSessionTypeBadge = (sessionType?: string) => {
+    if (sessionType === 'en_ligne') {
+      return {
+        bg: 'bg-blue-100',
+        text: 'text-blue-700',
+        icon: '💻',
+        label: 'En ligne',
+      };
+    }
+    return {
+      bg: 'bg-amber-100',
+      text: 'text-amber-700',
+      icon: '🏫',
+      label: 'Présentielle',
+    };
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
       day: 'numeric',
@@ -166,7 +183,17 @@ const StudentDashboard: React.FC = () => {
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-1">{session.name}</h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-gray-900">{session.name}</h3>
+                        {(() => {
+                          const badge = getSessionTypeBadge(session.session_type);
+                          return (
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${badge.bg} ${badge.text}`}>
+                              {badge.icon} {badge.label}
+                            </span>
+                          );
+                        })()}
+                      </div>
                       {session.formation_title && (
                         <p className="text-sm text-green-700 font-medium">
                           📚 {session.formation_title}
@@ -238,7 +265,17 @@ const StudentDashboard: React.FC = () => {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-2">{session.name}</h3>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-gray-900">{session.name}</h3>
+                        {(() => {
+                          const badge = getSessionTypeBadge(session.session_type);
+                          return (
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${badge.bg} ${badge.text}`}>
+                              {badge.icon} {badge.label}
+                            </span>
+                          );
+                        })()}
+                      </div>
                       {session.formation_title && (
                         <p className="text-sm text-gray-600 mb-2">
                           📚 {session.formation_title}
@@ -292,7 +329,17 @@ const StudentDashboard: React.FC = () => {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-2">{session.name}</h3>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-gray-900">{session.name}</h3>
+                        {(() => {
+                          const badge = getSessionTypeBadge(session.session_type);
+                          return (
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${badge.bg} ${badge.text}`}>
+                              {badge.icon} {badge.label}
+                            </span>
+                          );
+                        })()}
+                      </div>
                       {session.formation_title && (
                         <p className="text-sm text-gray-600">📚 {session.formation_title}</p>
                       )}

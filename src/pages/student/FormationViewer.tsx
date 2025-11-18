@@ -15,7 +15,7 @@ import {
   CheckCircle,
   MessageSquare,
 } from 'lucide-react';
-import { useFormation } from '@/hooks/useCours';
+import { useFormation, useCheckOnlineAccess } from '@/hooks/useCours';
 import { useFormationProgress } from '@/hooks/useProgress';
 import { useStudentCertificates } from '@/hooks/useCertificates';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +29,7 @@ const FormationViewer: React.FC = () => {
   const { data: formation, isLoading, error } = useFormation(id);
   const { data: progressData } = useFormationProgress(id);
   const { data: certificatesData } = useStudentCertificates(user?.id || null);
+  const { data: accessData, isLoading: accessLoading } = useCheckOnlineAccess(id);
 
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
 
@@ -94,7 +95,7 @@ const FormationViewer: React.FC = () => {
     return true;
   };
 
-  if (isLoading) {
+  if (isLoading || accessLoading) {
     return (
       <AppLayout title="Chargement..." subtitle="Chargement de la formation">
         <div className="flex justify-center items-center py-12">
@@ -114,6 +115,48 @@ const FormationViewer: React.FC = () => {
           <Button onClick={() => navigate('/student/catalog')} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Retour au catalogue
+          </Button>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Check if student has online access
+  if (accessData && !accessData.hasOnlineAccess) {
+    return (
+      <AppLayout title="Accès restreint" subtitle="Formation en présentiel uniquement">
+        <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-8 text-center max-w-2xl mx-auto mt-12">
+          <div className="mb-6">
+            <div className="bg-yellow-500 rounded-full p-4 w-20 h-20 mx-auto flex items-center justify-center mb-4">
+              <Lock className="h-10 w-10 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              Formation en Présentiel
+            </h2>
+            <div className="text-5xl mb-6">🏫</div>
+          </div>
+
+          <div className="bg-white rounded-lg p-6 mb-6">
+            <p className="text-gray-700 text-lg leading-relaxed">
+              Vous êtes inscrit à cette formation en <span className="font-semibold text-yellow-700">session présentielle</span>.
+              <br /><br />
+              Le contenu en ligne n'est pas accessible pour les formations en présentiel.
+              <br />
+              Veuillez vous présenter aux cours en salle de classe selon le calendrier qui vous a été communiqué.
+            </p>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-blue-800">
+              <strong>💡 Besoin d'accéder au contenu en ligne ?</strong>
+              <br />
+              Contactez l'administration pour vous inscrire à une session en ligne.
+            </p>
+          </div>
+
+          <Button onClick={() => navigate('/student/dashboard')} variant="outline" size="lg">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Retour au tableau de bord
           </Button>
         </div>
       </AppLayout>

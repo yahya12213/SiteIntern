@@ -13,6 +13,8 @@ export interface Formation {
   association_date?: string;
 }
 
+export type SessionType = 'presentielle' | 'en_ligne';
+
 export interface FormationSession {
   id: string;
   name: string;
@@ -21,6 +23,9 @@ export interface FormationSession {
   formation_title?: string; // Legacy - kept for backward compatibility
   formations?: Formation[]; // New - array of formations associated with this session
   corps_formation_id?: string; // Corps de Formation association
+  session_type?: SessionType; // Type de session: présentielle ou en ligne
+  meeting_platform?: string; // Plateforme de réunion (pour en_ligne)
+  meeting_link?: string; // Lien de réunion (pour en_ligne)
   start_date: string;
   end_date: string;
   segment_id?: string;

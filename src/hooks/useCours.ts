@@ -55,6 +55,20 @@ export function useFormation(id: string | undefined) {
 }
 
 /**
+ * Vérifie si l'étudiant a accès au contenu en ligne d'une formation
+ */
+export function useCheckOnlineAccess(formationId: string | undefined) {
+  return useQuery({
+    queryKey: [...coursKeys.formation(formationId!), 'online-access'] as const,
+    queryFn: async () => {
+      const response = await coursApi.checkOnlineAccess(formationId!);
+      return response;
+    },
+    enabled: !!formationId,
+  });
+}
+
+/**
  * Crée une nouvelle formation
  */
 export function useCreateFormation() {

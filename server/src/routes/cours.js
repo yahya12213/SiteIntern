@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../config/database.js';
 import { nanoid } from 'nanoid';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -120,6 +121,74 @@ router.get('/formations/:id', async (req, res) => {
   } catch (error) {
     console.error('Error fetching formation:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/cours/formations/:id/check-online-access - Vérifier l'accès en ligne pour un étudiant
+router.get('/formations/:id/check-online-access', authenticateToken, async (req, res) => {
+  try {
+    const { id: formation_id } = req.params;
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        hasOnlineAccess: false,
+        error: 'Non authentifié'
+      });
+    }
+
+    // Find student record by profile username (CIN or username)
+    const studentQuery = `
+      SELECT s.id as student_id
+      FROM students s
+      LEFT JOIN profiles p ON s.cin = p.username
+      WHERE p.id = $1 OR s.cin = $2
+      LIMIT 1
+    `;
+    const studentResult = await pool.query(studentQuery, [user.id, user.username]);
+
+    if (studentResult.rows.length === 0) {
+      // User is not a student, might be admin/professor
+      // Allow access (only students enrolled in présentielle sessions are restricted)
+      return res.json({
+        success: true,
+        hasOnlineAccess: true,
+        message: 'Accès autorisé'
+      });
+    }
+
+    const student_id = studentResult.rows[0].student_id;
+
+    // Check if student is enrolled in any en_ligne session for this formation
+    const enrollmentQuery = `
+      SELECT COUNT(*) as count
+      FROM session_etudiants se
+      JOIN sessions_formation sf ON se.session_id = sf.id
+      WHERE se.student_id = $1
+      AND se.formation_id = $2
+      AND sf.session_type = 'en_ligne'
+      AND se.student_status != 'abandonne'
+    `;
+    const enrollmentResult = await pool.query(enrollmentQuery, [student_id, formation_id]);
+
+    const onlineEnrollmentCount = parseInt(enrollmentResult.rows[0]?.count || 0);
+    const hasOnlineAccess = onlineEnrollmentCount > 0;
+
+    res.json({
+      success: true,
+      hasOnlineAccess,
+      message: hasOnlineAccess
+        ? 'Accès en ligne autorisé'
+        : 'Accès en ligne non autorisé. Cette formation est uniquement disponible en session présentielle.'
+    });
+  } catch (error) {
+    console.error('Error checking online access:', error);
+    res.status(500).json({
+      success: false,
+      hasOnlineAccess: false,
+      error: error.message
+    });
   }
 });
 

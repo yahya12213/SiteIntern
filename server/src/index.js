@@ -79,6 +79,7 @@ import migration048Router from './routes/migration-048-add-missing-permissions.j
 import migration049Router from './routes/migration-049-add-requires-clocking.js';
 import migration050Router from './routes/migration-050-add-public-holidays.js';
 import migration051Router from './routes/migration-051-add-break-rules.js';
+import migration052Router from './routes/migration-052-add-session-type.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -181,6 +182,7 @@ app.use('/api/migration-048', migration048Router); // Migration 048 - Add missin
 app.use('/api/migration-049', migration049Router); // Migration 049 - Add requires_clocking to hr_employees
 app.use('/api/migration-050', migration050Router); // Migration 050 - Create hr_public_holidays table
 app.use('/api/migration-051', migration051Router); // Migration 051 - Add break_rules to hr_settings
+app.use('/api/migration-052', migration052Router); // Migration 052 - Add session_type to sessions_formation
 
 // Health check
 app.get('/api/health', async (req, res) => {

@@ -22,8 +22,11 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
     corps_formation_id: session?.corps_formation_id || '',
     start_date: session?.start_date ? session.start_date.split('T')[0] : '',
     end_date: session?.end_date ? session.end_date.split('T')[0] : '',
+    session_type: (session?.session_type || 'presentielle') as 'presentielle' | 'en_ligne',
     segment_id: session?.segment_id || '',
     city_id: session?.city_id || '',
+    meeting_platform: session?.meeting_platform || '',
+    meeting_link: session?.meeting_link || '',
     instructor_id: session?.instructor_id || '',
     max_capacity: session?.max_capacity?.toString() || '',
     status: (session?.status || 'planned') as SessionStatus,
@@ -63,8 +66,9 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
       newErrors.segment = 'Le segment est obligatoire';
     }
 
-    if (!formData.city_id) {
-      newErrors.city = 'La ville est obligatoire';
+    // Ville obligatoire seulement pour les sessions présentielles
+    if (formData.session_type === 'presentielle' && !formData.city_id) {
+      newErrors.city = 'La ville est obligatoire pour les sessions présentielles';
     }
 
     setErrors(newErrors);
@@ -95,8 +99,11 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
         corps_formation_id: formData.corps_formation_id,
         date_debut: formData.start_date,
         date_fin: formData.end_date,
+        session_type: formData.session_type,
         segment_id: formData.segment_id,
-        ville_id: formData.city_id,
+        ville_id: formData.session_type === 'presentielle' ? formData.city_id : undefined,
+        meeting_platform: formData.session_type === 'en_ligne' ? formData.meeting_platform || undefined : undefined,
+        meeting_link: formData.session_type === 'en_ligne' ? formData.meeting_link || undefined : undefined,
         nombre_places: formData.max_capacity ? parseInt(formData.max_capacity) : 0,
         statut: statusMap[formData.status],
         prix_total: 0,
@@ -181,6 +188,45 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
             />
           </div>
 
+          {/* Session Type Selector */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Type de session <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, session_type: 'presentielle' })}
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  formData.session_type === 'presentielle'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                <div className="text-center">
+                  <div className="text-2xl mb-2">🏫</div>
+                  <div className="font-semibold">Présentielle</div>
+                  <div className="text-xs mt-1">Formation en salle de classe</div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, session_type: 'en_ligne' })}
+                className={`p-4 rounded-lg border-2 transition-all ${
+                  formData.session_type === 'en_ligne'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                <div className="text-center">
+                  <div className="text-2xl mb-2">💻</div>
+                  <div className="font-semibold">En ligne</div>
+                  <div className="text-xs mt-1">Formation à distance</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
           {/* Cascade Selector: Segment → City → Corps de Formation */}
           <SessionFormationSelector
             selectedSegmentId={formData.segment_id}
@@ -238,6 +284,50 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
             />
             {errors.max_capacity && <p className="text-xs text-red-600 mt-1">{errors.max_capacity}</p>}
           </div>
+
+          {/* Meeting fields (only for online sessions) */}
+          {formData.session_type === 'en_ligne' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-4">
+              <div className="flex items-center gap-2 text-blue-900 font-medium mb-2">
+                <span className="text-xl">💻</span>
+                <span>Informations de la réunion en ligne</span>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Plateforme de réunion
+                </label>
+                <select
+                  value={formData.meeting_platform}
+                  onChange={(e) => setFormData({ ...formData, meeting_platform: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                >
+                  <option value="">Sélectionner une plateforme (optionnel)</option>
+                  <option value="zoom">Zoom</option>
+                  <option value="teams">Microsoft Teams</option>
+                  <option value="meet">Google Meet</option>
+                  <option value="webex">Cisco Webex</option>
+                  <option value="autre">Autre</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lien de la réunion
+                </label>
+                <Input
+                  type="url"
+                  value={formData.meeting_link}
+                  onChange={(e) => setFormData({ ...formData, meeting_link: e.target.value })}
+                  placeholder="https://..."
+                  className="text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Le lien sera partagé avec les étudiants inscrits
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Status */}
           <div>

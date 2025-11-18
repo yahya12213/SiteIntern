@@ -3,6 +3,7 @@
  */
 
 export type SessionStatut = 'planifiee' | 'en_cours' | 'terminee' | 'annulee';
+export type SessionType = 'presentielle' | 'en_ligne';
 export type StatutPaiement = 'paye' | 'partiellement_paye' | 'impaye';
 export type TypeFichier = 'test' | 'presence';
 export type StudentStatus = 'valide' | 'abandonne';
@@ -16,6 +17,7 @@ export interface SessionFormation {
   description?: string;
   date_debut?: string;
   date_fin?: string;
+  session_type: SessionType; // Type de session: présentielle ou en ligne
   ville_id?: string;
   ville_name?: string; // JOIN avec villes
   segment_id?: string;
@@ -24,6 +26,8 @@ export interface SessionFormation {
   corps_formation_id?: string;
   corps_formation_name?: string; // JOIN avec corps_formation
   corps_formation_description?: string; // JOIN avec corps_formation
+  meeting_platform?: string; // Plateforme de réunion (pour en_ligne)
+  meeting_link?: string; // Lien de réunion (pour en_ligne)
   statut: SessionStatut;
   prix_total: number | string; // DECIMAL renvoyé comme string
   nombre_places: number;
@@ -139,9 +143,12 @@ export interface CreateSessionFormationInput {
   description?: string;
   date_debut?: string;
   date_fin?: string;
+  session_type: SessionType;
   ville_id?: string;
   segment_id?: string;
   corps_formation_id?: string;
+  meeting_platform?: string;
+  meeting_link?: string;
   statut?: SessionStatut;
   prix_total?: number;
   nombre_places?: number;
@@ -152,9 +159,12 @@ export interface UpdateSessionFormationInput {
   description?: string;
   date_debut?: string;
   date_fin?: string;
+  session_type?: SessionType;
   ville_id?: string;
   segment_id?: string;
   corps_formation_id?: string;
+  meeting_platform?: string;
+  meeting_link?: string;
   statut?: SessionStatut;
   prix_total?: number;
   nombre_places?: number;
