@@ -12,6 +12,7 @@ import {
   Sliders,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
+import SettingEditorModal from '@/components/admin/hr/SettingEditorModal';
 
 interface LeaveType {
   id: string;
@@ -65,6 +66,8 @@ interface HRSetting {
 export default function HRSettings() {
   const { hr } = usePermission();
   const [activeTab, setActiveTab] = useState<'general' | 'leave-types' | 'schedules'>('general');
+  const [showSettingEditor, setShowSettingEditor] = useState(false);
+  const [selectedSetting, setSelectedSetting] = useState<HRSetting | null>(null);
 
   // Fetch leave types
   const { data: leaveTypesData, isLoading: leaveTypesLoading } = useQuery({
@@ -108,6 +111,41 @@ export default function HRSettings() {
     acc[setting.category].push(setting);
     return acc;
   }, {});
+
+  // Format setting value for display
+  const formatSettingValue = (setting: HRSetting) => {
+    if (setting.setting_key === 'attendance_rules') {
+      const rules = setting.setting_value;
+      return (
+        <div className="text-sm space-y-1">
+          <div><span className="text-gray-600">Tolérance retard:</span> <span className="font-medium">{rules.late_tolerance_minutes} min</span></div>
+          <div><span className="text-gray-600">Tolérance départ:</span> <span className="font-medium">{rules.early_leave_tolerance_minutes} min</span></div>
+          <div><span className="text-gray-600">Heures journée complète:</span> <span className="font-medium">{rules.min_hours_for_full_day}h</span></div>
+          <div><span className="text-gray-600">Heures demi-journée:</span> <span className="font-medium">{rules.min_hours_for_half_day}h</span></div>
+        </div>
+      );
+    }
+
+    if (setting.setting_key === 'leave_rules') {
+      const rules = setting.setting_value;
+      return (
+        <div className="text-sm space-y-1">
+          <div><span className="text-gray-600">Congés annuels max:</span> <span className="font-medium">{rules.annual_leave_max_days} jours</span></div>
+          <div><span className="text-gray-600">Taux accumulation:</span> <span className="font-medium">{rules.annual_leave_accrual_rate} j/mois</span></div>
+          <div><span className="text-gray-600">Report autorisé:</span> <span className="font-medium">{rules.carry_over_allowed ? 'Oui' : 'Non'}</span></div>
+          <div><span className="text-gray-600">Préavis minimum:</span> <span className="font-medium">{rules.min_advance_notice_days} jours</span></div>
+        </div>
+      );
+    }
+
+    // Fallback for other settings
+    return <div className="text-sm text-gray-700">{JSON.stringify(setting.setting_value)}</div>;
+  };
+
+  const handleEditSetting = (setting: HRSetting) => {
+    setSelectedSetting(setting);
+    setShowSettingEditor(true);
+  };
 
   return (
     <AppLayout>
@@ -182,22 +220,26 @@ export default function HRSettings() {
                   </div>
                   <div className="p-4 space-y-4">
                     {settingsByCategory[category].map((setting) => (
-                      <div key={setting.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{setting.setting_key}</p>
-                          {setting.description && (
-                            <p className="text-sm text-gray-600 mt-1">{setting.description}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-sm text-gray-700 font-mono bg-gray-100 px-3 py-1 rounded">
-                            {JSON.stringify(setting.setting_value)}
+                      <div key={setting.id} className="py-4 border-b border-gray-100 last:border-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{setting.setting_key}</p>
+                            {setting.description && (
+                              <p className="text-sm text-gray-600 mt-1">{setting.description}</p>
+                            )}
                           </div>
                           {setting.is_editable && hr.canUpdateSettings && (
-                            <button className="text-blue-600 hover:text-blue-900">
+                            <button
+                              onClick={() => handleEditSetting(setting)}
+                              className="text-blue-600 hover:text-blue-900 flex items-center gap-1 text-sm"
+                            >
                               <Edit className="h-4 w-4" />
+                              Modifier
                             </button>
                           )}
+                        </div>
+                        <div className="bg-gray-50 px-4 py-3 rounded-lg">
+                          {formatSettingValue(setting)}
                         </div>
                       </div>
                     ))}
@@ -408,6 +450,19 @@ export default function HRSettings() {
           </div>
         )}
       </div>
+
+      {/* Setting Editor Modal */}
+      {showSettingEditor && selectedSetting && (
+        <SettingEditorModal
+          settingKey={selectedSetting.setting_key}
+          settingName={selectedSetting.setting_key}
+          currentValue={selectedSetting.setting_value}
+          onClose={() => {
+            setShowSettingEditor(false);
+            setSelectedSetting(null);
+          }}
+        />
+      )}
     </AppLayout>
   );
 }
