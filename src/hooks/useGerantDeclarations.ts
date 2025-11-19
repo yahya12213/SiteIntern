@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 export interface GerantSegment {
   id: string;
   name: string;
-  color: string;
+  color?: string;
 }
 
 export interface GerantCity {
