@@ -20,8 +20,8 @@ export default function CalculationSheetsList() {
   // Enrichir les sheets avec les données complètes de segments et villes
   const enrichedSheets = sheets.map((sheet: CalculationSheetData) => ({
     ...sheet,
-    segments: segments.filter((s: Segment) => sheet.segment_ids?.includes(s.id)),
-    cities: cities.filter((c: City) => sheet.city_ids?.includes(c.id)),
+    segments: segments.filter((s: Segment) => s && sheet.segment_ids?.includes(s.id)),
+    cities: cities.filter((c: City) => c && sheet.city_ids?.includes(c.id)),
   }));
 
   const handleDelete = async (id: string, title: string) => {
@@ -165,7 +165,7 @@ export default function CalculationSheetsList() {
                     <span className="font-medium">Segments ({sheet.segments.length})</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {sheet.segments.map((segment) => (
+                    {sheet.segments.filter((segment): segment is Segment => !!segment).map((segment) => (
                       <span
                         key={segment.id}
                         className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
