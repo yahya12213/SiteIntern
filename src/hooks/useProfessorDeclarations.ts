@@ -174,18 +174,27 @@ export function useAvailableCalculationSheets() {
 }
 
 // Hook pour récupérer les segments du professeur connecté
+// Si admin: retourne TOUS les segments
+// Si professeur: retourne uniquement ses segments assignés
 export function useProfessorSegments() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return useQuery({
-    queryKey: ['professor-segments', user?.id],
+    queryKey: ['professor-segments', user?.id, isAdmin],
     queryFn: async () => {
       if (!user?.id) return [];
 
+      const allSegments = await segmentsApi.getAll();
+
+      // Si admin, retourner tous les segments
+      if (isAdmin) {
+        return allSegments;
+      }
+
+      // Si professeur, filtrer par segments assignés
       const professor = await profilesApi.getById(user.id);
       if (!professor || !professor.segment_ids) return [];
 
-      const allSegments = await segmentsApi.getAll();
       return allSegments.filter(segment => professor.segment_ids?.includes(segment.id));
     },
     enabled: !!user?.id,
@@ -193,18 +202,32 @@ export function useProfessorSegments() {
 }
 
 // Hook pour récupérer les villes du professeur connecté
+// Si admin: retourne TOUTES les villes
+// Si professeur: retourne uniquement ses villes assignées
 export function useProfessorCities(): { data: ProfessorCity[] | undefined; isLoading: boolean } {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const query = useQuery({
-    queryKey: ['professor-cities', user?.id],
+    queryKey: ['professor-cities', user?.id, isAdmin],
     queryFn: async (): Promise<ProfessorCity[]> => {
       if (!user?.id) return [];
 
+      const allCities = await citiesApi.getAll();
+
+      // Si admin, retourner toutes les villes
+      if (isAdmin) {
+        return allCities.map(city => ({
+          id: city.id,
+          name: city.name,
+          segment_id: city.segment_id,
+          segment_name: city.segment_name,
+        }));
+      }
+
+      // Si professeur, filtrer par villes assignées
       const professor = await profilesApi.getById(user.id);
       if (!professor || !professor.city_ids) return [];
 
-      const allCities = await citiesApi.getAll();
       return allCities
         .filter(city => professor.city_ids?.includes(city.id))
         .map(city => ({
