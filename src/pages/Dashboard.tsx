@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { Users, MapPin, FileSpreadsheet, Calculator, ClipboardCheck, FilePlus, List, BarChart3, FileText } from 'lucide-react';
+import { Users, MapPin, FileSpreadsheet, Calculator, ClipboardCheck, List, BarChart3, FileText } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import DashboardStats from '@/components/Dashboard/DashboardStats';
 
@@ -37,13 +37,6 @@ const Dashboard: React.FC = () => {
       icon: FileSpreadsheet,
       link: '/admin/calculation-sheets',
       color: 'bg-orange-500',
-    },
-    {
-      title: 'Créer des Déclarations',
-      description: 'Assigner des fiches de sessions aux professeurs',
-      icon: FilePlus,
-      link: '/admin/create-declaration',
-      color: 'bg-teal-500',
     },
     {
       title: 'Gestion des Déclarations',

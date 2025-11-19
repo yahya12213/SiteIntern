@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Users, MapPin, FileSpreadsheet, Calculator, LogOut, FilePlus, ClipboardCheck, List, ChevronDown, ChevronUp, GraduationCap, BookOpen, CalendarCheck, BarChart3, FileText, Award, Palette, MessageSquare } from 'lucide-react';
+import { Menu, X, Home, Users, MapPin, FileSpreadsheet, Calculator, LogOut, ClipboardCheck, List, ChevronDown, ChevronUp, GraduationCap, BookOpen, CalendarCheck, BarChart3, FileText, Award, Palette, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -53,7 +53,6 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
         { to: '/admin/cities', icon: MapPin, label: 'Villes' },
         { to: '/admin/users', icon: Users, label: 'Utilisateurs' },
         { to: '/admin/calculation-sheets', icon: FileSpreadsheet, label: 'Fiches de calcul' },
-        { to: '/admin/create-declaration', icon: FilePlus, label: 'Créer déclaration' },
         { to: '/admin/declarations', icon: ClipboardCheck, label: 'Gérer déclarations' },
       ],
     },

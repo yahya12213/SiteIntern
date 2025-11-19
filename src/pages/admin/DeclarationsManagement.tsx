@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, CheckCircle, XCircle, Clock, AlertCircle, ExternalLink, Trash2, Edit3 } from 'lucide-react';
+import { FileText, CheckCircle, XCircle, Clock, AlertCircle, ExternalLink, Trash2, Edit3, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -13,6 +13,7 @@ import {
   type AdminDeclaration,
 } from '@/hooks/useAdminDeclarations';
 import EditDeclarationModal from '@/components/admin/EditDeclarationModal';
+import NewDeclarationModal from '@/components/professor/NewDeclarationModal';
 
 const DeclarationsManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ const DeclarationsManagement: React.FC = () => {
   const [showModificationModal, setShowModificationModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [declarationToEdit, setDeclarationToEdit] = useState<AdminDeclaration | null>(null);
+  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
 
   const { data: allDeclarations = [], isLoading } = useAdminDeclarations(selectedStatus);
   const { data: stats } = useDeclarationStats();
@@ -178,6 +180,17 @@ const DeclarationsManagement: React.FC = () => {
       subtitle="Valider, refuser ou demander des modifications"
     >
       <div className="space-y-6">
+        {/* Header with New Declaration Button */}
+        <div className="flex justify-end">
+          <button
+            onClick={() => setIsNewModalOpen(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Nouvelle Déclaration
+          </button>
+        </div>
+
         {/* Statistiques */}
         {stats && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
@@ -591,6 +604,11 @@ const DeclarationsManagement: React.FC = () => {
             setDeclarationToEdit(null);
           }}
         />
+      )}
+
+      {/* New Declaration Modal */}
+      {isNewModalOpen && (
+        <NewDeclarationModal onClose={() => setIsNewModalOpen(false)} />
       )}
     </AppLayout>
   );
