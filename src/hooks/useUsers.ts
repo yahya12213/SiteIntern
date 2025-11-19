@@ -16,7 +16,7 @@ export interface User {
 export interface Segment {
   id: string;
   name: string;
-  color: string;
+  color?: string;
 }
 
 export interface City {
