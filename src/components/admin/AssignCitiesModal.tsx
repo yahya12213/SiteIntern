@@ -21,7 +21,7 @@ export default function AssignCitiesModal({ professorId, professorName, onClose 
   const unassignCity = useUnassignCityFromProfessor();
 
   // Filtrer les villes disponibles (non affectées au professeur ET appartenant aux segments affectés)
-  const professorSegmentIds = professorSegments.map((s: { id: string; name: string; color: string }) => s.id);
+  const professorSegmentIds = professorSegments.map((s: { id: string; name: string; color?: string }) => s.id);
   const availableCities = (allCities as any[]).filter(
     (city: { id: string; name: string; segment_id: string; segment_name?: string; created_at: string }) =>
       !professorCities.some((pc: { id: string; name: string; segment_name: string }) => pc.id === city.id) &&
@@ -199,7 +199,7 @@ export default function AssignCitiesModal({ professorId, professorName, onClose 
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               >
                 <option value="all">Tous les segments</option>
-                {professorSegments.map((segment: { id: string; name: string; color: string }) => (
+                {professorSegments.map((segment: { id: string; name: string; color?: string }) => (
                   <option key={segment.id} value={segment.id}>
                     {segment.name}
                   </option>

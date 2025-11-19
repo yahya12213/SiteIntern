@@ -19,7 +19,7 @@ export default function AssignSegmentsModal({ professorId, professorName, onClos
 
   // Filtrer les segments disponibles (non affectés au professeur)
   const availableSegments = allSegments.filter(
-    (segment: { id: string; name: string; color: string; created_at: string }) => !professorSegments.some((ps: { id: string; name: string; color: string }) => ps.id === segment.id)
+    (segment: { id: string; name: string; color?: string; created_at: string }) => !professorSegments.some((ps: { id: string; name: string; color?: string }) => ps.id === segment.id)
   );
 
   const handleAssign = async () => {
@@ -133,7 +133,7 @@ export default function AssignSegmentsModal({ professorId, professorName, onClos
                       : 'Tous les segments sont déjà affectés'}
                   </option>
                 ) : (
-                  availableSegments.map((segment: { id: string; name: string; color: string; created_at: string }) => (
+                  availableSegments.map((segment: { id: string; name: string; color?: string; created_at: string }) => (
                     <option key={segment.id} value={segment.id}>
                       {segment.name}
                     </option>

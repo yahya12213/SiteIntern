@@ -184,7 +184,7 @@ export const useUnassignCityFromProfessor = () => {
 export const useProfessorSegments = (professorId: string) => {
   return useQuery({
     queryKey: ['professors', professorId, 'segments'],
-    queryFn: async (): Promise<Array<{ id: string; name: string; color: string }>> => {
+    queryFn: async (): Promise<Array<{ id: string; name: string; color?: string }>> => {
       const professor = await profilesApi.getById(professorId);
       if (!professor || !professor.segment_ids) return [];
 

@@ -3,7 +3,7 @@ import { apiClient } from './client';
 export interface Segment {
   id: string;
   name: string;
-  color: string;
+  color?: string;
   created_at: string;
 }
 
