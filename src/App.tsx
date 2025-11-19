@@ -14,6 +14,7 @@ import DeclarationViewer from './pages/admin/DeclarationViewer';
 import Declarations from './pages/professor/Declarations';
 import DeclarationForm from './pages/professor/DeclarationForm';
 import GerantDeclarations from './pages/gerant/GerantDeclarations';
+import CreateDeclaration from './pages/gerant/CreateDeclaration';
 import Sessions from './pages/admin/formations/Sessions';
 import FormationEditor from './pages/admin/formations/FormationEditor';
 import FormationsManagement from './pages/admin/FormationsManagement';

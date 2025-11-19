@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
-import { Users, MapPin, FileSpreadsheet, Calculator, ClipboardCheck, List, BarChart3, FileText } from 'lucide-react';
+import { Users, MapPin, FileSpreadsheet, Calculator, ClipboardCheck, List, BarChart3, FileText, FilePlus } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import DashboardStats from '@/components/Dashboard/DashboardStats';
 
