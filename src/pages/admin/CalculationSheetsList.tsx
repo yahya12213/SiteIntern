@@ -172,7 +172,7 @@ export default function CalculationSheetsList() {
                       >
                         <span
                           className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: segment.color }}
+                          style={{ backgroundColor: segment.color || '#3B82F6' }}
                         />
                         {segment.name}
                       </span>
@@ -408,7 +408,7 @@ function CreateSheetModal({ onClose }: { onClose: () => void }) {
                     />
                     <div
                       className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: segment.color }}
+                      style={{ backgroundColor: segment.color || '#3B82F6' }}
                     />
                     <span className="flex-1 font-medium text-gray-900">{segment.name}</span>
                   </label>
@@ -592,7 +592,7 @@ function EditSheetModal({ sheet, onClose }: { sheet: any; onClose: () => void })
                     />
                     <div
                       className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: segment.color }}
+                      style={{ backgroundColor: segment.color || '#3B82F6' }}
                     />
                     <span className="flex-1 font-medium text-gray-900">{segment.name}</span>
                   </label>

@@ -653,7 +653,7 @@ const AssignSegmentsModal: React.FC<{
                 </div>
                 <div
                   className="w-4 h-4 rounded-full ml-2"
-                  style={{ backgroundColor: segment.color }}
+                  style={{ backgroundColor: segment.color || '#3B82F6' }}
                 />
               </label>
             ))}

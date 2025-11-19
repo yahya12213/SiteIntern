@@ -67,14 +67,14 @@ export default function ViewProfessorAssignmentsModal({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {professorSegments.map((segment: { id: string; name: string; color: string }) => (
+                  {professorSegments.map((segment: { id: string; name: string; color?: string }) => (
                     <div
                       key={segment.id}
                       className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
                     >
                       <div
                         className="w-4 h-4 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: segment.color }}
+                        style={{ backgroundColor: segment.color || '#3B82F6' }}
                       />
                       <span className="font-medium text-gray-900">{segment.name}</span>
                     </div>

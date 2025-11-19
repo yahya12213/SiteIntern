@@ -51,7 +51,7 @@ export default function Segments() {
   const handleEdit = (segment: Segment) => {
     setFormData({
       name: segment.name,
-      color: segment.color,
+      color: segment.color || '#3B82F6',
     });
     setEditingId(segment.id);
     setShowForm(true);
@@ -162,13 +162,13 @@ export default function Segments() {
         {!isLoading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {segments.map((segment: Segment) => (
-              <Card key={segment.id} style={{ borderLeft: `4px solid ${segment.color}` }}>
+              <Card key={segment.id} style={{ borderLeft: `4px solid ${segment.color || '#3B82F6'}` }}>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <span>{segment.name}</span>
                     <div
                       className="w-6 h-6 rounded"
-                      style={{ backgroundColor: segment.color }}
+                      style={{ backgroundColor: segment.color || '#3B82F6' }}
                     />
                   </CardTitle>
                 </CardHeader>
