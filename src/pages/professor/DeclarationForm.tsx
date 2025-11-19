@@ -334,7 +334,7 @@ const DeclarationForm: React.FC = () => {
             height: `${layout.h}px`,
           }}
         >
-          <div className="w-full h-full border-2 border-teal-400 bg-teal-50 rounded px-3 py-2 flex flex-col gap-2 overflow-y-auto">
+          <div className="w-full h-full border-2 border-teal-400 bg-teal-50 rounded px-3 py-2 flex flex-col gap-2">
             {/* Label et bouton upload */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -369,7 +369,7 @@ const DeclarationForm: React.FC = () => {
 
             {/* Liste des fichiers */}
             {hasFiles ? (
-              <div className="space-y-1 flex-1 overflow-y-auto">
+              <div className="space-y-1 flex-1">
                 {files.map((file: any, index: number) => (
                   <div
                     key={index}
@@ -603,10 +603,10 @@ const DeclarationForm: React.FC = () => {
           </div>
         )}
 
-        {/* Canvas */}
-        <div className="bg-white rounded-lg shadow-sm overflow-auto">
+        {/* Canvas - Full width layout, scroll avec la page principale */}
+        <div className="bg-white rounded-lg shadow-sm">
           <div
-            className="relative bg-white"
+            className="relative bg-white mx-auto"
             style={{
               width: `${canvasSize.width}px`,
               minHeight: `${canvasSize.height}px`,

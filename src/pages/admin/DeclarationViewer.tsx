@@ -385,7 +385,7 @@ const DeclarationViewer: React.FC = () => {
             height: `${layout.h}px`,
           }}
         >
-          <div className={getAdminOnlyClasses("w-full h-full border-2 border-dashed border-teal-300 bg-teal-50/50 rounded px-3 py-2 overflow-y-auto")}>
+          <div className={getAdminOnlyClasses("w-full h-full border-2 border-dashed border-teal-300 bg-teal-50/50 rounded px-3 py-2")}>
             <div className="flex items-center gap-2 mb-2">
               <FileText className="w-5 h-5 text-teal-600" />
               <span className="text-sm font-medium text-teal-700">
@@ -637,11 +637,11 @@ const DeclarationViewer: React.FC = () => {
           </div>
         )}
 
-        {/* Canvas */}
+        {/* Canvas - Full width layout, scroll avec la page principale */}
         <div>
-        <div className="bg-white rounded-lg shadow-sm overflow-auto">
+        <div className="bg-white rounded-lg shadow-sm">
           <div
-            className="relative bg-white"
+            className="relative bg-white mx-auto"
             style={{
               width: `${canvasSize.width}px`,
               minHeight: `${canvasSize.height}px`,
