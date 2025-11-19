@@ -81,6 +81,7 @@ import migration050Router from './routes/migration-050-add-public-holidays.js';
 import migration051Router from './routes/migration-051-add-break-rules.js';
 import migration052Router from './routes/migration-052-add-session-type.js';
 import migrationFixRouter from './routes/migration-fix-segments-and-sheets.js';
+import migrationFixImpressionRouter from './routes/migration-fix-impression-permissions.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -185,6 +186,7 @@ app.use('/api/migration-050', migration050Router); // Migration 050 - Create hr_
 app.use('/api/migration-051', migration051Router); // Migration 051 - Add break_rules to hr_settings
 app.use('/api/migration-052', migration052Router); // Migration 052 - Add session_type to sessions_formation
 app.use('/api/migration-fix-segments-and-sheets', migrationFixRouter); // Migration Fix - Fix segments colors and sheet city associations
+app.use('/api/migration-fix-impression-permissions', migrationFixImpressionRouter); // Migration Fix - Add missing permissions for impression role
 
 // Health check
 app.get('/api/health', async (req, res) => {
