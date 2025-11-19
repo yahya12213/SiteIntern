@@ -33,46 +33,41 @@ router.post('/run', async (req, res) => {
 
     // 2. Ajouter les permissions manquantes pour segments et cities
     const permissionsToAdd = [
-      'accounting.segments.view_page',
-      'accounting.cities.view_page'
+      { code: 'accounting.segments.view_page', module: 'accounting', menu: 'segments', action: 'view_page', label: 'Voir la page Segments' },
+      { code: 'accounting.cities.view_page', module: 'accounting', menu: 'cities', action: 'view_page', label: 'Voir la page Villes' }
     ];
 
     for (const permission of permissionsToAdd) {
       // Vérifier que la permission existe
       const permExists = await client.query(
-        'SELECT id FROM permissions WHERE name = $1',
-        [permission]
+        'SELECT id FROM permissions WHERE code = $1',
+        [permission.code]
       );
 
       if (permExists.rows.length === 0) {
-        console.log(`⚠️ Permission ${permission} n'existe pas, création...`);
-
-        // Extraire module et action
-        const parts = permission.split('.');
-        const module = parts.slice(0, 2).join('.');
-        const action = parts[2];
+        console.log(`⚠️ Permission ${permission.code} n'existe pas, création...`);
 
         // Créer la permission
         await client.query(
-          'INSERT INTO permissions (name, module, action, description) VALUES ($1, $2, $3, $4)',
-          [permission, module, action, `Permet de ${action} pour ${module}`]
+          'INSERT INTO permissions (code, module, menu, action, label) VALUES ($1, $2, $3, $4, $5)',
+          [permission.code, permission.module, permission.menu, permission.action, permission.label]
         );
-        console.log(`✓ Permission ${permission} créée`);
+        console.log(`✓ Permission ${permission.code} créée`);
       }
 
       // Vérifier si l'association existe déjà
       const assocExists = await client.query(
         `SELECT 1 FROM role_permissions rp
          JOIN permissions p ON p.id = rp.permission_id
-         WHERE rp.role_id = $1 AND p.name = $2`,
-        [roleId, permission]
+         WHERE rp.role_id = $1 AND p.code = $2`,
+        [roleId, permission.code]
       );
 
       if (assocExists.rows.length === 0) {
         // Ajouter la permission au rôle
         const perm = await client.query(
-          'SELECT id FROM permissions WHERE name = $1',
-          [permission]
+          'SELECT id FROM permissions WHERE code = $1',
+          [permission.code]
         );
 
         if (perm.rows.length > 0) {
@@ -80,26 +75,26 @@ router.post('/run', async (req, res) => {
             'INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2)',
             [roleId, perm.rows[0].id]
           );
-          console.log(`✓ Permission ${permission} ajoutée au rôle impression`);
+          console.log(`✓ Permission ${permission.code} ajoutée au rôle impression`);
         }
       } else {
-        console.log(`✓ Permission ${permission} déjà présente pour le rôle impression`);
+        console.log(`✓ Permission ${permission.code} déjà présente pour le rôle impression`);
       }
     }
 
     // 3. Vérifier les permissions finales
     const finalPerms = await client.query(
-      `SELECT p.name
+      `SELECT p.code
        FROM role_permissions rp
        JOIN permissions p ON p.id = rp.permission_id
        WHERE rp.role_id = $1
-       ORDER BY p.name`,
+       ORDER BY p.code`,
       [roleId]
     );
 
     console.log('\n📋 Permissions finales pour le rôle impression:');
     finalPerms.rows.forEach(row => {
-      console.log(`  - ${row.name}`);
+      console.log(`  - ${row.code}`);
     });
 
     await client.query('COMMIT');
@@ -113,7 +108,7 @@ router.post('/run', async (req, res) => {
     res.json({
       success: true,
       message: 'Permissions du rôle impression corrigées avec succès',
-      permissions: finalPerms.rows.map(r => r.name)
+      permissions: finalPerms.rows.map(r => r.code)
     });
 
   } catch (error) {
@@ -135,19 +130,19 @@ router.get('/check', async (req, res) => {
   try {
     // Récupérer les permissions actuelles du rôle impression
     const result = await client.query(
-      `SELECT p.name, p.module, p.action, p.description
+      `SELECT p.code, p.module, p.menu, p.action, p.label
        FROM role_permissions rp
        JOIN permissions p ON p.id = rp.permission_id
        JOIN roles r ON r.id = rp.role_id
        WHERE r.name = 'impression'
-       ORDER BY p.name`
+       ORDER BY p.code`
     );
 
     res.json({
       role: 'impression',
       permissions: result.rows,
-      hasSegmentsAccess: result.rows.some(p => p.name === 'accounting.segments.view_page'),
-      hasCitiesAccess: result.rows.some(p => p.name === 'accounting.cities.view_page')
+      hasSegmentsAccess: result.rows.some(p => p.code === 'accounting.segments.view_page'),
+      hasCitiesAccess: result.rows.some(p => p.code === 'accounting.cities.view_page')
     });
   } catch (error) {
     console.error('Erreur:', error);
