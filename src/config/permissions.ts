@@ -33,6 +33,7 @@ export const PERMISSIONS = {
       view_page: 'accounting.sheets.view_page',
       create: 'accounting.sheets.create',
       update: 'accounting.sheets.update',
+      edit: 'accounting.sheets.edit',
       delete: 'accounting.sheets.delete',
       publish: 'accounting.sheets.publish',
     },
@@ -62,6 +63,7 @@ export const PERMISSIONS = {
       view_page: 'training.formations.view_page',
       create: 'training.formations.create',
       update: 'training.formations.update',
+      edit: 'training.formations.edit',
       delete: 'training.formations.delete',
     },
     corps: {
