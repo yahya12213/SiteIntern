@@ -176,6 +176,24 @@ export const getUserPermissions = async (userId) => {
       result = await pool.query(query, [userId]);
     }
 
+    // If still no results, try matching by role name (text) - ultimate fallback
+    if (result.rows.length === 0) {
+      query = `
+        SELECT DISTINCT p.code
+        FROM permissions p
+        INNER JOIN role_permissions rp ON p.id = rp.permission_id
+        INNER JOIN roles r ON rp.role_id = r.id
+        INNER JOIN profiles pr ON pr.role = r.name
+        WHERE pr.id = $1
+      `;
+      result = await pool.query(query, [userId]);
+
+      // Log if this fallback was used (means role_id needs to be synced)
+      if (result.rows.length > 0) {
+        console.warn(`⚠️ User ${userId} loaded permissions via role text fallback - role_id should be synchronized`);
+      }
+    }
+
     return result.rows.map(row => row.code);
   } catch (error) {
     // If tables don't exist yet (before migration), fall back to role-based
