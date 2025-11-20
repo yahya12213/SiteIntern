@@ -33,6 +33,11 @@ import HRDashboard from './pages/admin/hr/HRDashboard';
 import HRAttendance from './pages/admin/hr/HRAttendance';
 import HRLeaves from './pages/admin/hr/HRLeaves';
 import HRSettings from './pages/admin/hr/HRSettings';
+import CommercializationDashboard from './pages/admin/commercialisation/CommercializationDashboard';
+import Clients from './pages/admin/commercialisation/Clients';
+import Prospects from './pages/admin/commercialisation/Prospects';
+import Devis from './pages/admin/commercialisation/Devis';
+import Contrats from './pages/admin/commercialisation/Contrats';
 import Clocking from './pages/employee/Clocking';
 import StudentDashboard from './pages/student/StudentDashboard';
 import FormationCatalog from './pages/student/FormationCatalog';
@@ -347,6 +352,52 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute adminOnly>
             <HRSettings />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Commercialisation Routes */}
+      <Route
+        path="/admin/commercialisation/dashboard"
+        element={
+          <ProtectedRoute adminOnly>
+            <CommercializationDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/commercialisation/clients"
+        element={
+          <ProtectedRoute adminOnly>
+            <Clients />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/commercialisation/prospects"
+        element={
+          <ProtectedRoute adminOnly>
+            <Prospects />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/commercialisation/devis"
+        element={
+          <ProtectedRoute adminOnly>
+            <Devis />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/commercialisation/contrats"
+        element={
+          <ProtectedRoute adminOnly>
+            <Contrats />
           </ProtectedRoute>
         }
       />

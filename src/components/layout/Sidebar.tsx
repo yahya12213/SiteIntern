@@ -23,6 +23,9 @@ import {
   Clock,
   CalendarDays,
   Settings,
+  TrendingUp,
+  Target,
+  FileCheck,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -43,7 +46,7 @@ interface NavItem {
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const { hasPermission } = useAuth();
-  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation-en-ligne', 'ressources-humaines']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation-en-ligne', 'ressources-humaines', 'commercialisation']);
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev =>
@@ -93,6 +96,18 @@ export const Sidebar: React.FC = () => {
         { to: '/admin/hr/leaves', icon: CalendarDays, label: 'Congés & Planning', permission: 'hr.leaves.view_page' },
         { to: '/admin/hr/dashboard', icon: BarChart3, label: 'Tableau de bord RH', permission: 'hr.dashboard.view_page' },
         { to: '/admin/hr/settings', icon: Settings, label: 'Paramètres RH', permission: 'hr.settings.view_page' },
+      ],
+    },
+    {
+      id: 'commercialisation',
+      title: 'Commercialisation',
+      icon: TrendingUp,
+      items: [
+        { to: '/admin/commercialisation/dashboard', icon: BarChart3, label: 'Tableau de bord', permission: 'commercialisation.dashboard.view_page' },
+        { to: '/admin/commercialisation/clients', icon: Users, label: 'Gestion des Clients', permission: 'commercialisation.clients.view_page' },
+        { to: '/admin/commercialisation/prospects', icon: Target, label: 'Prospects', permission: 'commercialisation.prospects.view_page' },
+        { to: '/admin/commercialisation/devis', icon: FileText, label: 'Devis', permission: 'commercialisation.devis.view_page' },
+        { to: '/admin/commercialisation/contrats', icon: FileCheck, label: 'Contrats', permission: 'commercialisation.contrats.view_page' },
       ],
     },
   ];

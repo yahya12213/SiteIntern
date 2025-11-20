@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Users, MapPin, FileSpreadsheet, Calculator, LogOut, ClipboardCheck, List, ChevronDown, ChevronUp, GraduationCap, BookOpen, CalendarCheck, BarChart3, FileText, Award, Palette, MessageSquare } from 'lucide-react';
+import { Menu, X, Home, Users, MapPin, FileSpreadsheet, Calculator, LogOut, ClipboardCheck, List, ChevronDown, ChevronUp, GraduationCap, BookOpen, CalendarCheck, BarChart3, FileText, Award, Palette, MessageSquare, TrendingUp, Target, FileCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -23,7 +23,7 @@ interface NavItem {
 
 export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation-en-ligne']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation-en-ligne', 'commercialisation']);
   const { user, isAdmin, isGerant, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -68,6 +68,18 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
         { to: '/admin/certificates', icon: Award, label: 'Certificats' },
         { to: '/admin/certificate-templates', icon: Palette, label: 'Templates de Certificats' },
         { to: '/admin/forums', icon: MessageSquare, label: 'Forums' },
+      ],
+    },
+    {
+      id: 'commercialisation',
+      title: 'Commercialisation',
+      icon: TrendingUp,
+      items: [
+        { to: '/admin/commercialisation/dashboard', icon: BarChart3, label: 'Tableau de bord' },
+        { to: '/admin/commercialisation/clients', icon: Users, label: 'Gestion des Clients' },
+        { to: '/admin/commercialisation/prospects', icon: Target, label: 'Prospects' },
+        { to: '/admin/commercialisation/devis', icon: FileText, label: 'Devis' },
+        { to: '/admin/commercialisation/contrats', icon: FileCheck, label: 'Contrats' },
       ],
     },
   ];
