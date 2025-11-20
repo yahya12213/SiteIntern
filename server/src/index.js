@@ -84,6 +84,7 @@ import migrationFixRouter from './routes/migration-fix-segments-and-sheets.js';
 import migrationFixImpressionRouter from './routes/migration-fix-impression-permissions.js';
 import migrationFixRoleSyncRouter from './routes/migration-fix-role-sync.js';
 import migration053Router from './routes/migration-053-commercialisation-permissions.js';
+import migration054Router from './routes/migration-054-assign-all-permissions-to-gerant.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -188,6 +189,7 @@ app.use('/api/migration-050', migration050Router); // Migration 050 - Create hr_
 app.use('/api/migration-051', migration051Router); // Migration 051 - Add break_rules to hr_settings
 app.use('/api/migration-052', migration052Router); // Migration 052 - Add session_type to sessions_formation
 app.use('/api/migration-053', migration053Router); // Migration 053 - Add commercialisation module permissions (33 permissions)
+app.use('/api/migration-054', migration054Router); // Migration 054 - Assign all permissions to gérant role (full manager access)
 app.use('/api/migration-fix-segments-and-sheets', migrationFixRouter); // Migration Fix - Fix segments colors and sheet city associations
 app.use('/api/migration-fix-impression-permissions', migrationFixImpressionRouter); // Migration Fix - Add missing permissions for impression role
 app.use('/api/migration-fix-role-sync', migrationFixRoleSyncRouter); // Migration Fix - Synchronize role_id with role text for all users
