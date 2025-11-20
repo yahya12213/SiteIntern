@@ -280,7 +280,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/student-reports"
         element={
-          <ProtectedRoute requiredPermission="training.reports.view_page">
+          <ProtectedRoute requiredPermission="training.student_reports.view_page">
             <StudentReports />
           </ProtectedRoute>
         }
