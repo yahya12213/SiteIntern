@@ -63,8 +63,10 @@ export const PERMISSIONS = {
       view_page: 'training.formations.view_page',
       create: 'training.formations.create',
       update: 'training.formations.update',
-      edit: 'training.formations.edit',
       delete: 'training.formations.delete',
+      duplicate: 'training.formations.duplicate',
+      create_pack: 'training.formations.create_pack',
+      edit_content: 'training.formations.edit_content',
     },
     corps: {
       view_page: 'training.corps.view_page',
@@ -93,9 +95,13 @@ export const PERMISSIONS = {
     },
     certificate_templates: {
       view_page: 'training.certificate_templates.view_page',
-      create: 'training.certificate_templates.create',
-      edit: 'training.certificate_templates.edit',
+      create_folder: 'training.certificate_templates.create_folder',
+      create_template: 'training.certificate_templates.create_template',
+      rename: 'training.certificate_templates.rename',
       delete: 'training.certificate_templates.delete',
+      duplicate: 'training.certificate_templates.duplicate',
+      edit_canvas: 'training.certificate_templates.edit_canvas',
+      organize: 'training.certificate_templates.organize',
     },
     forums: {
       view_page: 'training.forums.view_page',

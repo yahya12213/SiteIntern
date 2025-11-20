@@ -336,7 +336,7 @@ export const CertificateTemplates: React.FC = () => {
 
           <div className="flex gap-3">
             {/* Nouveau Dossier Button - Creates subfolder in current location */}
-            {hasPermission(PERMISSIONS.training.certificate_templates.create) && (
+            {hasPermission(PERMISSIONS.training.certificate_templates.create_folder) && (
               <button
                 onClick={handleCreateFolder}
                 className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
@@ -347,7 +347,7 @@ export const CertificateTemplates: React.FC = () => {
             )}
 
             {/* Ajouter Template Canvas Button - Creates template in current folder */}
-            {hasPermission(PERMISSIONS.training.certificate_templates.create) && (
+            {hasPermission(PERMISSIONS.training.certificate_templates.create_template) && (
               <button
                 onClick={handleCreateCanvasTemplate}
                 className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
@@ -441,7 +441,7 @@ export const CertificateTemplates: React.FC = () => {
 
                           {/* Action Buttons */}
                           <div className="px-5 pb-4 flex gap-2">
-                            {hasPermission(PERMISSIONS.training.certificate_templates.edit) && (
+                            {hasPermission(PERMISSIONS.training.certificate_templates.rename) && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -583,7 +583,7 @@ export const CertificateTemplates: React.FC = () => {
                               {/* Actions */}
                               <td className="px-4 py-3">
                                 <div className="flex items-center justify-end gap-2">
-                                  {hasPermission(PERMISSIONS.training.certificate_templates.edit) && (
+                                  {hasPermission(PERMISSIONS.training.certificate_templates.edit_canvas) && (
                                     <button
                                       onClick={() => navigate(`/admin/certificate-templates/${template.id}/canvas-edit`)}
                                       className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded border border-purple-300 hover:bg-purple-100 transition-colors text-xs font-medium flex items-center gap-1"
@@ -594,7 +594,7 @@ export const CertificateTemplates: React.FC = () => {
                                     </button>
                                   )}
 
-                                  {hasPermission(PERMISSIONS.training.certificate_templates.edit) && (
+                                  {hasPermission(PERMISSIONS.training.certificate_templates.rename) && (
                                     <button
                                       onClick={() => handleRenameClick(template.id, template.name)}
                                       className="px-3 py-1.5 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-xs font-medium flex items-center gap-1"
@@ -605,7 +605,7 @@ export const CertificateTemplates: React.FC = () => {
                                     </button>
                                   )}
 
-                                  {hasPermission(PERMISSIONS.training.certificate_templates.create) && (
+                                  {hasPermission(PERMISSIONS.training.certificate_templates.duplicate) && (
                                     <button
                                       onClick={() => handleDuplicate(template.id)}
                                       disabled={duplicateMutation.isPending}
@@ -617,7 +617,7 @@ export const CertificateTemplates: React.FC = () => {
                                     </button>
                                   )}
 
-                                  {hasPermission(PERMISSIONS.training.certificate_templates.create) && (
+                                  {hasPermission(PERMISSIONS.training.certificate_templates.duplicate) && (
                                     <button
                                       onClick={() => handleDuplicateToFolderClick(template.id, template.name, template.folder_id)}
                                       disabled={duplicateToFolderMutation.isPending}
