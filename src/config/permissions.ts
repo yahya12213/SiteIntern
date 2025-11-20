@@ -33,6 +33,7 @@ export const PERMISSIONS = {
       view_page: 'accounting.calculation_sheets.view_page',
       create: 'accounting.calculation_sheets.create',
       update: 'accounting.calculation_sheets.update',
+      edit: 'accounting.calculation_sheets.edit',
       delete: 'accounting.calculation_sheets.delete',
       publish: 'accounting.calculation_sheets.publish',
     },
