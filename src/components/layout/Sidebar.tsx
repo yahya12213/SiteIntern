@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { PERMISSIONS } from '@/config/permissions';
 import {
   ChevronDown,
   ChevronUp,
@@ -62,13 +63,13 @@ export const Sidebar: React.FC = () => {
       title: 'Gestion Comptable',
       icon: Calculator,
       items: [
-        { to: '/dashboard', icon: Home, label: 'Tableau de bord', permission: 'accounting.dashboard.view_page' },
-        { to: '/admin/segments', icon: Calculator, label: 'Segments', permission: 'accounting.segments.view_page' },
-        { to: '/admin/cities', icon: MapPin, label: 'Villes', permission: 'accounting.cities.view_page' },
-        { to: '/admin/users', icon: Users, label: 'Utilisateurs', permission: 'accounting.users.view_page' },
-        { to: '/admin/roles', icon: Shield, label: 'Rôles & Permissions', permission: 'accounting.roles.view_page' },
-        { to: '/admin/calculation-sheets', icon: FileSpreadsheet, label: 'Fiches de calcul', permission: 'accounting.calculation_sheets.view_page' },
-        { to: '/admin/declarations', icon: ClipboardCheck, label: 'Gérer déclarations', permission: 'accounting.declarations.view_page' },
+        { to: '/dashboard', icon: Home, label: 'Tableau de bord', permission: PERMISSIONS.accounting.dashboard.view_page },
+        { to: '/admin/segments', icon: Calculator, label: 'Segments', permission: PERMISSIONS.accounting.segments.view_page },
+        { to: '/admin/cities', icon: MapPin, label: 'Villes', permission: PERMISSIONS.accounting.cities.view_page },
+        { to: '/admin/users', icon: Users, label: 'Utilisateurs', permission: PERMISSIONS.accounting.users.view_page },
+        { to: '/admin/roles', icon: Shield, label: 'Rôles & Permissions', permission: PERMISSIONS.system.roles.view_page },
+        { to: '/admin/calculation-sheets', icon: FileSpreadsheet, label: 'Fiches de calcul', permission: PERMISSIONS.accounting.sheets.view_page },
+        { to: '/admin/declarations', icon: ClipboardCheck, label: 'Gérer déclarations', permission: PERMISSIONS.accounting.declarations.view_page },
       ],
     },
     {
@@ -76,13 +77,13 @@ export const Sidebar: React.FC = () => {
       title: 'Formation en Ligne',
       icon: GraduationCap,
       items: [
-        { to: '/admin/formations-management', icon: BookOpen, label: 'Gestion des Formations', permission: 'training.formations.view_page' },
-        { to: '/admin/sessions-formation', icon: CalendarCheck, label: 'Sessions de Formation', permission: 'training.sessions.view_page' },
-        { to: '/admin/analytics', icon: BarChart3, label: 'Analytics', permission: 'training.analytics.view_page' },
-        { to: '/admin/student-reports', icon: FileText, label: 'Rapports Étudiants', permission: 'training.student_reports.view_page' },
-        { to: '/admin/certificates', icon: Award, label: 'Certificats', permission: 'training.certificates.view_page' },
-        { to: '/admin/certificate-templates', icon: Palette, label: 'Templates de Certificats', permission: 'training.certificate_templates.view_page' },
-        { to: '/admin/forums', icon: MessageSquare, label: 'Forums', permission: 'training.forums.view_page' },
+        { to: '/admin/formations-management', icon: BookOpen, label: 'Gestion des Formations', permission: PERMISSIONS.training.formations.view_page },
+        { to: '/admin/sessions-formation', icon: CalendarCheck, label: 'Sessions de Formation', permission: PERMISSIONS.training.sessions.view_page },
+        { to: '/admin/analytics', icon: BarChart3, label: 'Analytics', permission: PERMISSIONS.training.analytics.view_page },
+        { to: '/admin/student-reports', icon: FileText, label: 'Rapports Étudiants', permission: PERMISSIONS.training.student_reports.view_page },
+        { to: '/admin/certificates', icon: Award, label: 'Certificats', permission: PERMISSIONS.training.certificates.view_page },
+        { to: '/admin/certificate-templates', icon: Palette, label: 'Templates de Certificats', permission: PERMISSIONS.training.certificate_templates.view_page },
+        { to: '/admin/forums', icon: MessageSquare, label: 'Forums', permission: PERMISSIONS.training.forums.view_page },
       ],
     },
     {
@@ -90,12 +91,12 @@ export const Sidebar: React.FC = () => {
       title: 'Ressources Humaines',
       icon: Briefcase,
       items: [
-        { to: '/employee/clocking', icon: Clock, label: 'Mon Pointage', permission: 'hr.clocking.self' },
-        { to: '/admin/hr/employees', icon: UserCheck, label: 'Dossiers du Personnel', permission: 'hr.employees.view_page' },
-        { to: '/admin/hr/attendance', icon: Clock, label: 'Temps & Présence', permission: 'hr.attendance.view_page' },
-        { to: '/admin/hr/leaves', icon: CalendarDays, label: 'Congés & Planning', permission: 'hr.leaves.view_page' },
-        { to: '/admin/hr/dashboard', icon: BarChart3, label: 'Tableau de bord RH', permission: 'hr.dashboard.view_page' },
-        { to: '/admin/hr/settings', icon: Settings, label: 'Paramètres RH', permission: 'hr.settings.view_page' },
+        { to: '/employee/clocking', icon: Clock, label: 'Mon Pointage', permission: PERMISSIONS.hr.clocking.self },
+        { to: '/admin/hr/employees', icon: UserCheck, label: 'Dossiers du Personnel', permission: PERMISSIONS.hr.employees.view_page },
+        { to: '/admin/hr/attendance', icon: Clock, label: 'Temps & Présence', permission: PERMISSIONS.hr.attendance.view_page },
+        { to: '/admin/hr/leaves', icon: CalendarDays, label: 'Congés & Planning', permission: PERMISSIONS.hr.leaves.view_page },
+        { to: '/admin/hr/dashboard', icon: BarChart3, label: 'Tableau de bord RH', permission: PERMISSIONS.hr.dashboard.view_page },
+        { to: '/admin/hr/settings', icon: Settings, label: 'Paramètres RH', permission: PERMISSIONS.hr.settings.view_page },
       ],
     },
     {
@@ -103,11 +104,11 @@ export const Sidebar: React.FC = () => {
       title: 'Commercialisation',
       icon: TrendingUp,
       items: [
-        { to: '/admin/commercialisation/dashboard', icon: BarChart3, label: 'Tableau de bord', permission: 'commercialisation.dashboard.view_page' },
-        { to: '/admin/commercialisation/clients', icon: Users, label: 'Gestion des Clients', permission: 'commercialisation.clients.view_page' },
-        { to: '/admin/commercialisation/prospects', icon: Target, label: 'Prospects', permission: 'commercialisation.prospects.view_page' },
-        { to: '/admin/commercialisation/devis', icon: FileText, label: 'Devis', permission: 'commercialisation.devis.view_page' },
-        { to: '/admin/commercialisation/contrats', icon: FileCheck, label: 'Contrats', permission: 'commercialisation.contrats.view_page' },
+        { to: '/admin/commercialisation/dashboard', icon: BarChart3, label: 'Tableau de bord', permission: PERMISSIONS.commercialisation.dashboard.view_page },
+        { to: '/admin/commercialisation/clients', icon: Users, label: 'Gestion des Clients', permission: PERMISSIONS.commercialisation.clients.view_page },
+        { to: '/admin/commercialisation/prospects', icon: Target, label: 'Prospects', permission: PERMISSIONS.commercialisation.prospects.view_page },
+        { to: '/admin/commercialisation/devis', icon: FileText, label: 'Devis', permission: PERMISSIONS.commercialisation.devis.view_page },
+        { to: '/admin/commercialisation/contrats', icon: FileCheck, label: 'Contrats', permission: PERMISSIONS.commercialisation.contrats.view_page },
       ],
     },
   ];

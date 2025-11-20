@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { PERMISSIONS } from './config/permissions';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Segments from './pages/admin/Segments';
@@ -144,7 +145,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/segments"
         element={
-          <ProtectedRoute requiredPermission="accounting.segments.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.segments.view_page}>
             <Segments />
           </ProtectedRoute>
         }
@@ -153,7 +154,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/cities"
         element={
-          <ProtectedRoute requiredPermission="accounting.cities.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.cities.view_page}>
             <Cities />
           </ProtectedRoute>
         }
@@ -162,7 +163,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/users"
         element={
-          <ProtectedRoute requiredPermission="accounting.users.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.users.view_page}>
             <Users />
           </ProtectedRoute>
         }
@@ -171,7 +172,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/calculation-sheets"
         element={
-          <ProtectedRoute requiredPermission="accounting.sheets.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.sheets.view_page}>
             <CalculationSheetsList />
           </ProtectedRoute>
         }
@@ -180,7 +181,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/calculation-sheets/:id"
         element={
-          <ProtectedRoute requiredPermission="accounting.sheets.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.sheets.view_page}>
             <CalculationSheets />
           </ProtectedRoute>
         }
@@ -189,7 +190,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/calculation-sheets/:id/editor"
         element={
-          <ProtectedRoute requiredPermission="accounting.sheets.edit">
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.sheets.edit}>
             <CalculationSheetEditor />
           </ProtectedRoute>
         }
@@ -198,7 +199,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/declarations"
         element={
-          <ProtectedRoute requiredPermission="accounting.declarations.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.declarations.view_page}>
             <DeclarationsManagement />
           </ProtectedRoute>
         }
@@ -207,7 +208,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/declarations/:id"
         element={
-          <ProtectedRoute requiredPermission="accounting.declarations.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.declarations.view_page}>
             <DeclarationViewer />
           </ProtectedRoute>
         }
@@ -217,7 +218,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/formations-management"
         element={
-          <ProtectedRoute requiredPermission="training.formations.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.formations.view_page}>
             <FormationsManagement />
           </ProtectedRoute>
         }
@@ -226,7 +227,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/corps-formation"
         element={
-          <ProtectedRoute requiredPermission="training.corps.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.corps.view_page}>
             <CorpsFormation />
           </ProtectedRoute>
         }
@@ -235,7 +236,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/formations/sessions"
         element={
-          <ProtectedRoute requiredPermission="training.sessions.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.sessions.view_page}>
             <Sessions />
           </ProtectedRoute>
         }
@@ -244,7 +245,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/formations/cours/:id/editor"
         element={
-          <ProtectedRoute requiredPermission="training.formations.edit">
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.formations.edit}>
             <FormationEditor />
           </ProtectedRoute>
         }
@@ -253,7 +254,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/sessions-formation"
         element={
-          <ProtectedRoute requiredPermission="training.sessions.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.sessions.view_page}>
             <SessionsFormation />
           </ProtectedRoute>
         }
@@ -262,7 +263,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/sessions-formation/:id"
         element={
-          <ProtectedRoute requiredPermission="training.sessions.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.sessions.view_page}>
             <SessionDetail />
           </ProtectedRoute>
         }
@@ -271,7 +272,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/analytics"
         element={
-          <ProtectedRoute requiredPermission="training.analytics.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.analytics.view_page}>
             <Analytics />
           </ProtectedRoute>
         }
@@ -280,7 +281,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/student-reports"
         element={
-          <ProtectedRoute requiredPermission="training.student_reports.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.student_reports.view_page}>
             <StudentReports />
           </ProtectedRoute>
         }
@@ -289,7 +290,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/certificates"
         element={
-          <ProtectedRoute requiredPermission="training.certificates.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.certificates.view_page}>
             <CertificatesManagement />
           </ProtectedRoute>
         }
@@ -298,7 +299,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/certificate-templates"
         element={
-          <ProtectedRoute requiredPermission="training.certificate_templates.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.certificate_templates.view_page}>
             <CertificateTemplates />
           </ProtectedRoute>
         }
@@ -307,7 +308,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/certificate-templates/:id/canvas-edit"
         element={
-          <ProtectedRoute requiredPermission="training.certificate_templates.edit">
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.certificate_templates.edit}>
             <CertificateTemplateCanvasEditor />
           </ProtectedRoute>
         }
@@ -316,7 +317,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/forums"
         element={
-          <ProtectedRoute requiredPermission="training.forums.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.forums.view_page}>
             <ForumModeration />
           </ProtectedRoute>
         }
@@ -326,7 +327,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/roles"
         element={
-          <ProtectedRoute requiredPermission="system.roles.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.system.roles.view_page}>
             <RolesManagement />
           </ProtectedRoute>
         }
@@ -336,7 +337,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/hr/employees"
         element={
-          <ProtectedRoute requiredPermission="hr.employees.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.employees.view_page}>
             <HREmployees />
           </ProtectedRoute>
         }
@@ -345,7 +346,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/hr/dashboard"
         element={
-          <ProtectedRoute requiredPermission="hr.dashboard.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.dashboard.view_page}>
             <HRDashboard />
           </ProtectedRoute>
         }
@@ -354,7 +355,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/hr/attendance"
         element={
-          <ProtectedRoute requiredPermission="hr.attendance.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.attendance.view_page}>
             <HRAttendance />
           </ProtectedRoute>
         }
@@ -363,7 +364,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/hr/leaves"
         element={
-          <ProtectedRoute requiredPermission="hr.leaves.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.leaves.view_page}>
             <HRLeaves />
           </ProtectedRoute>
         }
@@ -372,7 +373,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/hr/settings"
         element={
-          <ProtectedRoute requiredPermission="hr.settings.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.settings.view_page}>
             <HRSettings />
           </ProtectedRoute>
         }
@@ -382,7 +383,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/commercialisation/dashboard"
         element={
-          <ProtectedRoute requiredPermission="commercialisation.dashboard.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.dashboard.view_page}>
             <CommercializationDashboard />
           </ProtectedRoute>
         }
@@ -391,7 +392,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/commercialisation/clients"
         element={
-          <ProtectedRoute requiredPermission="commercialisation.clients.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.clients.view_page}>
             <Clients />
           </ProtectedRoute>
         }
@@ -400,7 +401,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/commercialisation/prospects"
         element={
-          <ProtectedRoute requiredPermission="commercialisation.prospects.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.prospects.view_page}>
             <Prospects />
           </ProtectedRoute>
         }
@@ -409,7 +410,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/commercialisation/devis"
         element={
-          <ProtectedRoute requiredPermission="commercialisation.devis.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.devis.view_page}>
             <Devis />
           </ProtectedRoute>
         }
@@ -418,7 +419,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/commercialisation/contrats"
         element={
-          <ProtectedRoute requiredPermission="commercialisation.contrats.view_page">
+          <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.contrats.view_page}>
             <Contrats />
           </ProtectedRoute>
         }
@@ -428,7 +429,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/employee/clocking"
         element={
-          <ProtectedRoute requiredPermission="hr.clocking.self">
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.clocking.self}>
             <Clocking />
           </ProtectedRoute>
         }
