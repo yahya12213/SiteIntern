@@ -16,7 +16,7 @@ router.use(authenticateToken);
  * GET /api/roles
  * Get all roles with their permission counts
  */
-router.get('/', requirePermission('accounting.roles.view_page'), async (req, res) => {
+router.get('/', requirePermission('system.roles.view_page'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -47,7 +47,7 @@ router.get('/', requirePermission('accounting.roles.view_page'), async (req, res
  * GET /api/roles/:id
  * Get a specific role with its permissions
  */
-router.get('/:id', requirePermission('accounting.roles.view_page'), async (req, res) => {
+router.get('/:id', requirePermission('system.roles.view_page'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -93,7 +93,7 @@ router.get('/:id', requirePermission('accounting.roles.view_page'), async (req, 
  * POST /api/roles
  * Create a new role
  */
-router.post('/', requirePermission('accounting.roles.create'), async (req, res) => {
+router.post('/', requirePermission('system.roles.create'), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -159,7 +159,7 @@ router.post('/', requirePermission('accounting.roles.create'), async (req, res) 
  * PUT /api/roles/:id
  * Update a role's details and permissions
  */
-router.put('/:id', requirePermission('accounting.roles.update'), async (req, res) => {
+router.put('/:id', requirePermission('system.roles.update'), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -240,7 +240,7 @@ router.put('/:id', requirePermission('accounting.roles.update'), async (req, res
  * DELETE /api/roles/:id
  * Delete a role (only non-system roles with no users)
  */
-router.delete('/:id', requirePermission('accounting.roles.delete'), async (req, res) => {
+router.delete('/:id', requirePermission('system.roles.delete'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -289,7 +289,7 @@ router.delete('/:id', requirePermission('accounting.roles.delete'), async (req, 
  * GET /api/roles/permissions/all
  * Get all available permissions grouped by module
  */
-router.get('/permissions/all', requirePermission('users.view', 'users.manage_roles'), async (req, res) => {
+router.get('/permissions/all', requirePermission('system.roles.view_page'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT * FROM permissions

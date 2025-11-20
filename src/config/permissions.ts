@@ -29,13 +29,12 @@ export const PERMISSIONS = {
       update: 'accounting.users.update',
       delete: 'accounting.users.delete',
     },
-    sheets: {
-      view_page: 'accounting.sheets.view_page',
-      create: 'accounting.sheets.create',
-      update: 'accounting.sheets.update',
-      edit: 'accounting.sheets.edit',
-      delete: 'accounting.sheets.delete',
-      publish: 'accounting.sheets.publish',
+    calculation_sheets: {
+      view_page: 'accounting.calculation_sheets.view_page',
+      create: 'accounting.calculation_sheets.create',
+      update: 'accounting.calculation_sheets.update',
+      delete: 'accounting.calculation_sheets.delete',
+      publish: 'accounting.calculation_sheets.publish',
     },
     declarations: {
       view_page: 'accounting.declarations.view_page',
@@ -44,6 +43,12 @@ export const PERMISSIONS = {
       update: 'accounting.declarations.update',
       delete: 'accounting.declarations.delete',
       approve: 'accounting.declarations.approve',
+    },
+    professor: {
+      declarations: {
+        view_page: 'accounting.professor.declarations.view_page',
+        fill: 'accounting.professor.declarations.fill',
+      },
     },
   },
 
@@ -106,6 +111,29 @@ export const PERMISSIONS = {
     forums: {
       view_page: 'training.forums.view_page',
       moderate: 'training.forums.moderate',
+    },
+    student: {
+      dashboard: {
+        view_page: 'training.student.dashboard.view_page',
+      },
+      catalog: {
+        view_page: 'training.student.catalog.view_page',
+      },
+      course: {
+        view: 'training.student.course.view',
+        videos: {
+          view: 'training.student.course.videos.view',
+        },
+        tests: {
+          take: 'training.student.course.tests.take',
+        },
+      },
+      certificates: {
+        view: 'training.student.certificates.view',
+      },
+      forums: {
+        participate: 'training.student.forums.participate',
+      },
     },
   },
 

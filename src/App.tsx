@@ -172,7 +172,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/calculation-sheets"
         element={
-          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.sheets.view_page}>
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.calculation_sheets.view_page}>
             <CalculationSheetsList />
           </ProtectedRoute>
         }
@@ -181,7 +181,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/calculation-sheets/:id"
         element={
-          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.sheets.view_page}>
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.calculation_sheets.view_page}>
             <CalculationSheets />
           </ProtectedRoute>
         }
@@ -190,7 +190,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/calculation-sheets/:id/editor"
         element={
-          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.sheets.edit}>
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.calculation_sheets.edit}>
             <CalculationSheetEditor />
           </ProtectedRoute>
         }
@@ -439,7 +439,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/professor/declarations"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.professor.declarations.view_page}>
             <Declarations />
           </ProtectedRoute>
         }
@@ -448,7 +448,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/professor/declarations/:id/fill"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.professor.declarations.fill}>
             <DeclarationForm />
           </ProtectedRoute>
         }
@@ -458,7 +458,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/student/dashboard"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.student.dashboard.view_page}>
             <StudentDashboard />
           </ProtectedRoute>
         }
@@ -467,7 +467,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/student/catalog"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.student.catalog.view_page}>
             <FormationCatalog />
           </ProtectedRoute>
         }
@@ -476,7 +476,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/student/formations/:id"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.student.course.view}>
             <FormationViewer />
           </ProtectedRoute>
         }
@@ -485,7 +485,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/student/formations/:id/videos/:videoId"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.student.course.videos.view}>
             <VideoPlayer />
           </ProtectedRoute>
         }
@@ -494,7 +494,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/student/formations/:id/tests/:testId"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.student.course.tests.take}>
             <TestTaking />
           </ProtectedRoute>
         }
@@ -503,7 +503,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/student/certificates"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.student.certificates.view}>
             <MyCertificates />
           </ProtectedRoute>
         }
@@ -512,7 +512,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/student/forums/:formationId"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.student.forums.participate}>
             <ForumList />
           </ProtectedRoute>
         }
@@ -521,7 +521,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/student/forums/:formationId/new"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.student.forums.participate}>
             <CreateThread />
           </ProtectedRoute>
         }
@@ -530,7 +530,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/student/forums/thread/:threadId"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.student.forums.participate}>
             <ThreadView />
           </ProtectedRoute>
         }
@@ -540,7 +540,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/gerant/declarations"
         element={
-          <ProtectedRoute gerantOnly>
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.declarations.view_all}>
             <GerantDeclarations />
           </ProtectedRoute>
         }
@@ -549,7 +549,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/gerant/create-declaration"
         element={
-          <ProtectedRoute gerantOnly>
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.declarations.create}>
             <CreateDeclaration />
           </ProtectedRoute>
         }

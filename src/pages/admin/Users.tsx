@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, MapPin, Calculator, Shield, User, Users as UsersIco
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   useUsers,
   useCreateUser,
@@ -19,6 +20,7 @@ import {
 import { rolesApi, type Role } from '@/lib/api/roles';
 
 const Users: React.FC = () => {
+  const { user: currentUser, refreshUser } = useAuth();
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -317,6 +319,8 @@ const Users: React.FC = () => {
           }}
           updateUser={updateUser}
           availableRoles={availableRoles}
+          currentUser={currentUser}
+          refreshUser={refreshUser}
         />
       )}
 
@@ -471,7 +475,9 @@ const EditUserModal: React.FC<{
   onClose: () => void;
   updateUser: ReturnType<typeof useUpdateUser>;
   availableRoles: Role[];
-}> = ({ user, onClose, updateUser, availableRoles }) => {
+  currentUser: any;
+  refreshUser: () => Promise<void>;
+}> = ({ user, onClose, updateUser, availableRoles, currentUser, refreshUser }) => {
   const [formData, setFormData] = useState({
     username: user.username,
     password: '',
@@ -496,10 +502,19 @@ const EditUserModal: React.FC<{
       }
 
       await updateUser.mutateAsync(updates);
+
+      // Si l'utilisateur modifié est l'utilisateur actuel, rafraîchir les permissions
+      if (currentUser && user.id === currentUser.id) {
+        await refreshUser();
+        alert('✅ Vos permissions ont été mises à jour avec succès !');
+      } else {
+        alert('✅ Utilisateur mis à jour avec succès !');
+      }
+
       onClose();
     } catch (error) {
       console.error('Error updating user:', error);
-      alert('Erreur lors de la mise à jour');
+      alert('❌ Erreur lors de la mise à jour');
     }
   };
 
