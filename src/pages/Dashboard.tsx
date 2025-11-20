@@ -61,15 +61,7 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  const professorCards = [
-    {
-      title: 'Mes Déclarations',
-      description: 'Créer et gérer mes déclarations de sessions',
-      icon: FileSpreadsheet,
-      link: '/professor/declarations',
-      color: 'bg-blue-500',
-    },
-  ];
+  const professorCards = [];
 
   const gerantCards = [
     {
