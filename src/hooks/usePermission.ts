@@ -229,6 +229,51 @@ export function usePermission() {
     canModerate: can('training.forums.moderate'),
   }), [can]);
 
+  // Commercialisation module specific checks
+  const commercialisation = useMemo(() => ({
+    // Dashboard
+    canViewDashboard: can('commercialisation.dashboard.view_page'),
+    canViewStats: can('commercialisation.dashboard.view_stats'),
+    canExportStats: can('commercialisation.dashboard.export'),
+
+    // Clients
+    canViewClients: can('commercialisation.clients.view_page'),
+    canViewClientDetails: can('commercialisation.clients.view'),
+    canCreateClient: can('commercialisation.clients.create'),
+    canUpdateClient: can('commercialisation.clients.edit'),
+    canDeleteClient: can('commercialisation.clients.delete'),
+    canExportClients: can('commercialisation.clients.export'),
+
+    // Prospects
+    canViewProspects: can('commercialisation.prospects.view_page'),
+    canViewProspectDetails: can('commercialisation.prospects.view'),
+    canCreateProspect: can('commercialisation.prospects.create'),
+    canUpdateProspect: can('commercialisation.prospects.edit'),
+    canDeleteProspect: can('commercialisation.prospects.delete'),
+    canConvertProspect: can('commercialisation.prospects.convert'),
+    canExportProspects: can('commercialisation.prospects.export'),
+
+    // Devis (Quotes)
+    canViewDevis: can('commercialisation.devis.view_page'),
+    canViewDevisDetails: can('commercialisation.devis.view'),
+    canCreateDevis: can('commercialisation.devis.create'),
+    canUpdateDevis: can('commercialisation.devis.edit'),
+    canDeleteDevis: can('commercialisation.devis.delete'),
+    canValidateDevis: can('commercialisation.devis.validate'),
+    canSendDevis: can('commercialisation.devis.send'),
+    canExportDevis: can('commercialisation.devis.export'),
+
+    // Contrats (Contracts)
+    canViewContrats: can('commercialisation.contrats.view_page'),
+    canViewContratDetails: can('commercialisation.contrats.view'),
+    canCreateContrat: can('commercialisation.contrats.create'),
+    canUpdateContrat: can('commercialisation.contrats.edit'),
+    canDeleteContrat: can('commercialisation.contrats.delete'),
+    canSignContrat: can('commercialisation.contrats.sign'),
+    canArchiveContrat: can('commercialisation.contrats.archive'),
+    canExportContrat: can('commercialisation.contrats.export'),
+  }), [can]);
+
   return {
     // Generic permission checks
     can,
@@ -247,6 +292,7 @@ export function usePermission() {
     accounting,
     training,
     hr,
+    commercialisation,
   };
 }
 
