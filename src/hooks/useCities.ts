@@ -2,15 +2,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { citiesApi } from '@/lib/api/cities';
 import type { City, CreateCityInput, UpdateCityInput } from '@/lib/api/cities';
 import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Ré-exporter les types pour compatibilité
 export type { City, CreateCityInput, UpdateCityInput };
 
 // Récupérer toutes les villes avec les informations du segment
 export const useCities = () => {
+  const { hasPermission } = useAuth();
+  const canViewCities = hasPermission('accounting.cities.view_page');
+
   return useQuery<City[]>({
     queryKey: ['cities'],
     queryFn: () => citiesApi.getAll(),
+    enabled: canViewCities,
   });
 };
 

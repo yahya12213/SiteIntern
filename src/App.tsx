@@ -298,7 +298,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/certificate-templates"
         element={
-          <ProtectedRoute requiredPermission="training.templates.view_page">
+          <ProtectedRoute requiredPermission="training.certificate_templates.view_page">
             <CertificateTemplates />
           </ProtectedRoute>
         }
@@ -307,7 +307,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/certificate-templates/:id/canvas-edit"
         element={
-          <ProtectedRoute requiredPermission="training.templates.edit">
+          <ProtectedRoute requiredPermission="training.certificate_templates.edit">
             <CertificateTemplateCanvasEditor />
           </ProtectedRoute>
         }

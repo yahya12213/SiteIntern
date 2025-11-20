@@ -2,15 +2,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { segmentsApi } from '@/lib/api/segments';
 import type { Segment, CreateSegmentInput, UpdateSegmentInput } from '@/lib/api/segments';
 import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Ré-exporter les types pour compatibilité
 export type { Segment, CreateSegmentInput, UpdateSegmentInput };
 
 // Récupérer tous les segments
 export const useSegments = () => {
+  const { hasPermission } = useAuth();
+  const canViewSegments = hasPermission('accounting.segments.view_page');
+
   return useQuery<Segment[]>({
     queryKey: ['segments'],
     queryFn: () => segmentsApi.getAll(),
+    enabled: canViewSegments,
   });
 };
 

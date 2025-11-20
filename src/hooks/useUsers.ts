@@ -3,6 +3,7 @@ import { profilesApi } from '@/lib/api/profiles';
 import { citiesApi } from '@/lib/api/cities';
 import { segmentsApi } from '@/lib/api/segments';
 import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface User {
   id: string;
@@ -156,17 +157,25 @@ export function useAssignCities() {
 
 // Hook pour récupérer tous les segments (pour affectation)
 export function useAllSegments() {
+  const { hasPermission } = useAuth();
+  const canViewSegments = hasPermission('accounting.segments.view_page');
+
   return useQuery({
     queryKey: ['segments'],
     queryFn: () => segmentsApi.getAll(),
+    enabled: canViewSegments,
   });
 }
 
 // Hook pour récupérer toutes les villes (pour affectation)
 export function useAllCities() {
+  const { hasPermission } = useAuth();
+  const canViewCities = hasPermission('accounting.cities.view_page');
+
   return useQuery({
     queryKey: ['cities'],
     queryFn: () => citiesApi.getAll(),
+    enabled: canViewCities,
   });
 }
 
