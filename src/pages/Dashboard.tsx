@@ -61,7 +61,7 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  const professorCards = [];
+  const professorCards: typeof adminCards = [];
 
   const gerantCards = [
     {
