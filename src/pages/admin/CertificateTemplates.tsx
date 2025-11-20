@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { useAuth } from '@/contexts/AuthContext';
+import { PERMISSIONS } from '@/config/permissions';
 import {
   useCertificateTemplates,
   useDeleteTemplate,
@@ -37,6 +39,7 @@ import type { TemplateFolder } from '@/types/certificateTemplate';
 
 export const CertificateTemplates: React.FC = () => {
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
   const { data: templates, isLoading, error } = useCertificateTemplates();
   const { data: folderTree, isLoading: foldersLoading } = useTemplateFolderTree();
   const deleteMutation = useDeleteTemplate();
@@ -333,22 +336,26 @@ export const CertificateTemplates: React.FC = () => {
 
           <div className="flex gap-3">
             {/* Nouveau Dossier Button - Creates subfolder in current location */}
-            <button
-              onClick={handleCreateFolder}
-              className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
-            >
-              <FolderPlus className="h-5 w-5" />
-              Nouveau Dossier
-            </button>
+            {hasPermission(PERMISSIONS.training.certificate_templates.create) && (
+              <button
+                onClick={handleCreateFolder}
+                className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
+              >
+                <FolderPlus className="h-5 w-5" />
+                Nouveau Dossier
+              </button>
+            )}
 
             {/* Ajouter Template Canvas Button - Creates template in current folder */}
-            <button
-              onClick={handleCreateCanvasTemplate}
-              className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
-            >
-              <Palette className="h-5 w-5" />
-              Ajouter Template Canvas
-            </button>
+            {hasPermission(PERMISSIONS.training.certificate_templates.create) && (
+              <button
+                onClick={handleCreateCanvasTemplate}
+                className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
+              >
+                <Palette className="h-5 w-5" />
+                Ajouter Template Canvas
+              </button>
+            )}
           </div>
         </div>
 
@@ -434,30 +441,34 @@ export const CertificateTemplates: React.FC = () => {
 
                           {/* Action Buttons */}
                           <div className="px-5 pb-4 flex gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRenameFolderClick(folder.id, folder.name);
-                              }}
-                              className="flex-1 px-2 py-1.5 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
-                              title="Renommer le dossier"
-                            >
-                              <Edit2 className="h-3 w-3" />
-                              Renommer
-                            </button>
+                            {hasPermission(PERMISSIONS.training.certificate_templates.edit) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRenameFolderClick(folder.id, folder.name);
+                                }}
+                                className="flex-1 px-2 py-1.5 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                                title="Renommer le dossier"
+                              >
+                                <Edit2 className="h-3 w-3" />
+                                Renommer
+                              </button>
+                            )}
 
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteFolderClick(folder.id);
-                              }}
-                              disabled={deleteFolderMutation.isPending && deletingFolderId === folder.id}
-                              className="flex-1 px-2 py-1.5 bg-red-50 text-red-700 rounded border border-red-300 hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
-                              title="Supprimer le dossier"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                              Supprimer
-                            </button>
+                            {hasPermission(PERMISSIONS.training.certificate_templates.delete) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteFolderClick(folder.id);
+                                }}
+                                disabled={deleteFolderMutation.isPending && deletingFolderId === folder.id}
+                                className="flex-1 px-2 py-1.5 bg-red-50 text-red-700 rounded border border-red-300 hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1 disabled:opacity-50"
+                                title="Supprimer le dossier"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                                Supprimer
+                              </button>
+                            )}
                           </div>
 
                           {/* Delete Confirmation Overlay */}
@@ -572,53 +583,63 @@ export const CertificateTemplates: React.FC = () => {
                               {/* Actions */}
                               <td className="px-4 py-3">
                                 <div className="flex items-center justify-end gap-2">
-                                  <button
-                                    onClick={() => navigate(`/admin/certificate-templates/${template.id}/canvas-edit`)}
-                                    className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded border border-purple-300 hover:bg-purple-100 transition-colors text-xs font-medium flex items-center gap-1"
-                                    title="Modifier avec l'éditeur Canvas"
-                                  >
-                                    <Edit3 className="h-3.5 w-3.5" />
-                                    Modifier
-                                  </button>
+                                  {hasPermission(PERMISSIONS.training.certificate_templates.edit) && (
+                                    <button
+                                      onClick={() => navigate(`/admin/certificate-templates/${template.id}/canvas-edit`)}
+                                      className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded border border-purple-300 hover:bg-purple-100 transition-colors text-xs font-medium flex items-center gap-1"
+                                      title="Modifier avec l'éditeur Canvas"
+                                    >
+                                      <Edit3 className="h-3.5 w-3.5" />
+                                      Modifier
+                                    </button>
+                                  )}
 
-                                  <button
-                                    onClick={() => handleRenameClick(template.id, template.name)}
-                                    className="px-3 py-1.5 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-xs font-medium flex items-center gap-1"
-                                    title="Renommer le template"
-                                  >
-                                    <Edit2 className="h-3.5 w-3.5" />
-                                    Renommer
-                                  </button>
+                                  {hasPermission(PERMISSIONS.training.certificate_templates.edit) && (
+                                    <button
+                                      onClick={() => handleRenameClick(template.id, template.name)}
+                                      className="px-3 py-1.5 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-xs font-medium flex items-center gap-1"
+                                      title="Renommer le template"
+                                    >
+                                      <Edit2 className="h-3.5 w-3.5" />
+                                      Renommer
+                                    </button>
+                                  )}
 
-                                  <button
-                                    onClick={() => handleDuplicate(template.id)}
-                                    disabled={duplicateMutation.isPending}
-                                    className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded border border-blue-300 hover:bg-blue-100 transition-colors text-xs font-medium flex items-center gap-1 disabled:opacity-50"
-                                    title="Dupliquer"
-                                  >
-                                    <Copy className="h-3.5 w-3.5" />
-                                    Dupliquer
-                                  </button>
+                                  {hasPermission(PERMISSIONS.training.certificate_templates.create) && (
+                                    <button
+                                      onClick={() => handleDuplicate(template.id)}
+                                      disabled={duplicateMutation.isPending}
+                                      className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded border border-blue-300 hover:bg-blue-100 transition-colors text-xs font-medium flex items-center gap-1 disabled:opacity-50"
+                                      title="Dupliquer"
+                                    >
+                                      <Copy className="h-3.5 w-3.5" />
+                                      Dupliquer
+                                    </button>
+                                  )}
 
-                                  <button
-                                    onClick={() => handleDuplicateToFolderClick(template.id, template.name, template.folder_id)}
-                                    disabled={duplicateToFolderMutation.isPending}
-                                    className="px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded border border-cyan-300 hover:bg-cyan-100 transition-colors text-xs font-medium flex items-center gap-1 disabled:opacity-50"
-                                    title="Dupliquer vers un autre dossier"
-                                  >
-                                    <FolderPlus className="h-3.5 w-3.5" />
-                                    Vers dossier
-                                  </button>
+                                  {hasPermission(PERMISSIONS.training.certificate_templates.create) && (
+                                    <button
+                                      onClick={() => handleDuplicateToFolderClick(template.id, template.name, template.folder_id)}
+                                      disabled={duplicateToFolderMutation.isPending}
+                                      className="px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded border border-cyan-300 hover:bg-cyan-100 transition-colors text-xs font-medium flex items-center gap-1 disabled:opacity-50"
+                                      title="Dupliquer vers un autre dossier"
+                                    >
+                                      <FolderPlus className="h-3.5 w-3.5" />
+                                      Vers dossier
+                                    </button>
+                                  )}
 
-                                  <button
-                                    onClick={() => setShowDeleteConfirm(template.id)}
-                                    disabled={deleteMutation.isPending}
-                                    className="px-3 py-1.5 bg-red-50 text-red-700 rounded border border-red-300 hover:bg-red-100 transition-colors text-xs font-medium flex items-center gap-1 disabled:opacity-50"
-                                    title="Supprimer"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                    Supprimer
-                                  </button>
+                                  {hasPermission(PERMISSIONS.training.certificate_templates.delete) && (
+                                    <button
+                                      onClick={() => setShowDeleteConfirm(template.id)}
+                                      disabled={deleteMutation.isPending}
+                                      className="px-3 py-1.5 bg-red-50 text-red-700 rounded border border-red-300 hover:bg-red-100 transition-colors text-xs font-medium flex items-center gap-1 disabled:opacity-50"
+                                      title="Supprimer"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                      Supprimer
+                                    </button>
+                                  )}
                                 </div>
 
                                 {/* Delete Confirmation */}
