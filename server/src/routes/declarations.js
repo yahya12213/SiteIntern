@@ -1,11 +1,17 @@
 import express from 'express';
 import pool from '../config/database.js';
+import { requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // GET toutes les déclarations (avec infos jointes)
 // Filtre automatiquement par les villes assignées à l'utilisateur connecté
-router.get('/', async (req, res) => {
+// Permissions: view_all (admin), view_page (comptables), professor view (professeurs)
+router.get('/', requirePermission(
+  'accounting.declarations.view_all',
+  'accounting.declarations.view_page',
+  'accounting.professor.declarations.view_page'
+), async (req, res) => {
   try {
     const { professor_id, filter_by_user, view_all } = req.query;
     const userId = req.user?.id;
@@ -95,7 +101,12 @@ router.get('/', async (req, res) => {
 });
 
 // GET une déclaration par ID
-router.get('/:id', async (req, res) => {
+// Permissions: view_page (admin/comptables), professor view (professeurs)
+router.get('/:id', requirePermission(
+  'accounting.declarations.view_page',
+  'accounting.declarations.view_all',
+  'accounting.professor.declarations.view_page'
+), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -126,7 +137,11 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST créer une déclaration
-router.post('/', async (req, res) => {
+// Permissions: create (admin), fill (professeurs)
+router.post('/', requirePermission(
+  'accounting.declarations.create',
+  'accounting.professor.declarations.fill'
+), async (req, res) => {
   try {
     const { id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data, status } = req.body;
 
@@ -165,7 +180,12 @@ router.post('/', async (req, res) => {
 });
 
 // PUT mettre à jour une déclaration
-router.put('/:id', async (req, res) => {
+// Permissions: update (admin), approve (pour validation), fill (professeurs)
+router.put('/:id', requirePermission(
+  'accounting.declarations.update',
+  'accounting.declarations.approve',
+  'accounting.professor.declarations.fill'
+), async (req, res) => {
   try {
     const { id } = req.params;
     const { form_data, status, rejection_reason, segment_id, city_id, start_date, end_date } = req.body;
@@ -238,7 +258,8 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE supprimer une déclaration
-router.delete('/:id', async (req, res) => {
+// Permissions: delete (admin only)
+router.delete('/:id', requirePermission('accounting.declarations.delete'), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query('DELETE FROM professor_declarations WHERE id = $1 RETURNING id', [id]);

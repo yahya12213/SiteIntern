@@ -1,5 +1,6 @@
 import express from 'express';
 import pool from '../config/database.js';
+import { requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -10,8 +11,9 @@ const router = express.Router();
 /**
  * POST /api/progress/videos/:videoId/complete
  * Mark a video as completed for the current user
+ * Permissions: course.videos.view (students)
  */
-router.post('/videos/:videoId/complete', async (req, res) => {
+router.post('/videos/:videoId/complete', requirePermission('training.student.course.videos.view'), async (req, res) => {
   try {
     const { videoId } = req.params;
     const userId = req.user?.id;
@@ -40,8 +42,9 @@ router.post('/videos/:videoId/complete', async (req, res) => {
 /**
  * POST /api/progress/videos/:videoId/watch
  * Record that a user watched a video (without marking complete)
+ * Permissions: course.videos.view (students)
  */
-router.post('/videos/:videoId/watch', async (req, res) => {
+router.post('/videos/:videoId/watch', requirePermission('training.student.course.videos.view'), async (req, res) => {
   try {
     const { videoId } = req.params;
     const userId = req.user?.id;
@@ -70,8 +73,9 @@ router.post('/videos/:videoId/watch', async (req, res) => {
 /**
  * GET /api/progress/formations/:formationId/videos
  * Get video progress for a formation
+ * Permissions: course.videos.view (students)
  */
-router.get('/formations/:formationId/videos', async (req, res) => {
+router.get('/formations/:formationId/videos', requirePermission('training.student.course.videos.view'), async (req, res) => {
   try {
     const { formationId } = req.params;
     const userId = req.user?.id;
@@ -103,8 +107,9 @@ router.get('/formations/:formationId/videos', async (req, res) => {
 /**
  * POST /api/progress/tests/:testId/attempts
  * Submit a test attempt with answers and score
+ * Permissions: course.tests.take (students)
  */
-router.post('/tests/:testId/attempts', async (req, res) => {
+router.post('/tests/:testId/attempts', requirePermission('training.student.course.tests.take'), async (req, res) => {
   try {
     const { testId } = req.params;
     const userId = req.user?.id;
@@ -162,8 +167,9 @@ router.post('/tests/:testId/attempts', async (req, res) => {
 /**
  * GET /api/progress/tests/:testId/attempts
  * Get all attempts for a test by the current user
+ * Permissions: course.tests.take (students)
  */
-router.get('/tests/:testId/attempts', async (req, res) => {
+router.get('/tests/:testId/attempts', requirePermission('training.student.course.tests.take'), async (req, res) => {
   try {
     const { testId } = req.params;
     const userId = req.user?.id;
@@ -191,8 +197,9 @@ router.get('/tests/:testId/attempts', async (req, res) => {
 /**
  * GET /api/progress/formations/:formationId/tests
  * Get test attempts for all tests in a formation
+ * Permissions: course.tests.take (students)
  */
-router.get('/formations/:formationId/tests', async (req, res) => {
+router.get('/formations/:formationId/tests', requirePermission('training.student.course.tests.take'), async (req, res) => {
   try {
     const { formationId } = req.params;
     const userId = req.user?.id;
@@ -225,8 +232,9 @@ router.get('/formations/:formationId/tests', async (req, res) => {
 /**
  * GET /api/progress/formations/:formationId
  * Get complete progress for a formation (videos + tests)
+ * Permissions: course.view (students)
  */
-router.get('/formations/:formationId', async (req, res) => {
+router.get('/formations/:formationId', requirePermission('training.student.course.view'), async (req, res) => {
   try {
     const { formationId } = req.params;
     const userId = req.user?.id;
@@ -309,8 +317,9 @@ router.get('/formations/:formationId', async (req, res) => {
 /**
  * GET /api/progress/student/:studentId/transcript
  * Get complete transcript for a student (admin only)
+ * Permissions: student_reports.view_page (admin)
  */
-router.get('/student/:studentId/transcript', async (req, res) => {
+router.get('/student/:studentId/transcript', requirePermission('training.student_reports.view_page'), async (req, res) => {
   try {
     const { studentId } = req.params;
     const currentUser = req.user;

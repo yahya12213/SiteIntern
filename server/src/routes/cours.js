@@ -1,7 +1,7 @@
 import express from 'express';
 import pool from '../config/database.js';
 import { nanoid } from 'nanoid';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -10,7 +10,11 @@ const router = express.Router();
 // ============================================
 
 // GET /api/cours - Liste formations filtrées par corps_id (query param)
-router.get('/', async (req, res) => {
+// Permissions: view_page (admin), course.view (students)
+router.get('/', requirePermission(
+  'training.formations.view_page',
+  'training.student.course.view'
+), async (req, res) => {
   try {
     const { corps_id } = req.query;
 
@@ -39,7 +43,11 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/cours/formations - Liste toutes les formations
-router.get('/formations', async (req, res) => {
+// Permissions: view_page (admin), course.view (students)
+router.get('/formations', requirePermission(
+  'training.formations.view_page',
+  'training.student.course.view'
+), async (req, res) => {
   try {
     const query = `
       SELECT
@@ -60,7 +68,11 @@ router.get('/formations', async (req, res) => {
 });
 
 // GET /api/cours/formations/:id - Détail d'une formation
-router.get('/formations/:id', async (req, res) => {
+// Permissions: view_page (admin), course.view (students)
+router.get('/formations/:id', requirePermission(
+  'training.formations.view_page',
+  'training.student.course.view'
+), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -125,7 +137,11 @@ router.get('/formations/:id', async (req, res) => {
 });
 
 // GET /api/cours/formations/:id/check-online-access - Vérifier l'accès en ligne pour un étudiant
-router.get('/formations/:id/check-online-access', authenticateToken, async (req, res) => {
+// Permissions: course.view (students) - Already has authenticateToken, students can check their own access
+router.get('/formations/:id/check-online-access', authenticateToken, requirePermission(
+  'training.student.course.view',
+  'training.formations.view_page'
+), async (req, res) => {
   try {
     const { id: formation_id } = req.params;
     const user = req.user;
@@ -193,7 +209,8 @@ router.get('/formations/:id/check-online-access', authenticateToken, async (req,
 });
 
 // POST /api/cours/formations - Créer une formation
-router.post('/formations', async (req, res) => {
+// Permissions: create (admin)
+router.post('/formations', requirePermission('training.formations.create'), async (req, res) => {
   try {
     const {
       title,
@@ -242,7 +259,8 @@ router.post('/formations', async (req, res) => {
 });
 
 // PUT /api/cours/formations/:id - Modifier une formation
-router.put('/formations/:id', async (req, res) => {
+// Permissions: update (admin)
+router.put('/formations/:id', requirePermission('training.formations.update'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -299,7 +317,8 @@ router.put('/formations/:id', async (req, res) => {
 });
 
 // DELETE /api/cours/formations/:id - Supprimer une formation
-router.delete('/formations/:id', async (req, res) => {
+// Permissions: delete (admin)
+router.delete('/formations/:id', requirePermission('training.formations.delete'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -324,7 +343,11 @@ router.delete('/formations/:id', async (req, res) => {
 // ============================================
 
 // GET /api/cours/formations/:formationId/modules - Liste modules d'une formation
-router.get('/formations/:formationId/modules', async (req, res) => {
+// Permissions: view_page (admin), course.view (students)
+router.get('/formations/:formationId/modules', requirePermission(
+  'training.formations.view_page',
+  'training.student.course.view'
+), async (req, res) => {
   try {
     const { formationId } = req.params;
 
@@ -343,7 +366,8 @@ router.get('/formations/:formationId/modules', async (req, res) => {
 });
 
 // POST /api/cours/formations/:formationId/modules - Ajouter un module
-router.post('/formations/:formationId/modules', async (req, res) => {
+// Permissions: edit_content (admin)
+router.post('/formations/:formationId/modules', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { formationId } = req.params;
     const {
@@ -384,7 +408,8 @@ router.post('/formations/:formationId/modules', async (req, res) => {
 });
 
 // PUT /api/cours/modules/:id - Modifier un module
-router.put('/modules/:id', async (req, res) => {
+// Permissions: edit_content (admin)
+router.put('/modules/:id', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -423,7 +448,8 @@ router.put('/modules/:id', async (req, res) => {
 });
 
 // DELETE /api/cours/modules/:id - Supprimer un module
-router.delete('/modules/:id', async (req, res) => {
+// Permissions: edit_content (admin)
+router.delete('/modules/:id', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -444,7 +470,8 @@ router.delete('/modules/:id', async (req, res) => {
 });
 
 // PUT /api/cours/modules/:id/reorder - Réorganiser l'ordre d'un module
-router.put('/modules/:id/reorder', async (req, res) => {
+// Permissions: edit_content (admin)
+router.put('/modules/:id/reorder', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { id } = req.params;
     const { new_order_index } = req.body;
@@ -478,7 +505,8 @@ router.put('/modules/:id/reorder', async (req, res) => {
 // ============================================
 
 // POST /api/cours/modules/:moduleId/videos - Ajouter une vidéo
-router.post('/modules/:moduleId/videos', async (req, res) => {
+// Permissions: edit_content (admin)
+router.post('/modules/:moduleId/videos', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { moduleId } = req.params;
     const {
@@ -519,7 +547,8 @@ router.post('/modules/:moduleId/videos', async (req, res) => {
 });
 
 // PUT /api/cours/videos/:id - Modifier une vidéo
-router.put('/videos/:id', async (req, res) => {
+// Permissions: edit_content (admin)
+router.put('/videos/:id', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -558,7 +587,8 @@ router.put('/videos/:id', async (req, res) => {
 });
 
 // DELETE /api/cours/videos/:id - Supprimer une vidéo
-router.delete('/videos/:id', async (req, res) => {
+// Permissions: edit_content (admin)
+router.delete('/videos/:id', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -583,7 +613,8 @@ router.delete('/videos/:id', async (req, res) => {
 // ============================================
 
 // POST /api/cours/modules/:moduleId/tests - Créer un test
-router.post('/modules/:moduleId/tests', async (req, res) => {
+// Permissions: edit_content (admin)
+router.post('/modules/:moduleId/tests', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { moduleId } = req.params;
     const {
@@ -625,7 +656,12 @@ router.post('/modules/:moduleId/tests', async (req, res) => {
 });
 
 // GET /api/cours/tests/:id - Détail d'un test avec questions
-router.get('/tests/:id', async (req, res) => {
+// Permissions: view_page (admin), course.view + tests.take (students)
+router.get('/tests/:id', requirePermission(
+  'training.formations.view_page',
+  'training.student.course.tests.take',
+  'training.formations.edit_content'
+), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -671,7 +707,8 @@ router.get('/tests/:id', async (req, res) => {
 });
 
 // PUT /api/cours/tests/:id - Modifier un test
-router.put('/tests/:id', async (req, res) => {
+// Permissions: edit_content (admin)
+router.put('/tests/:id', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -715,7 +752,8 @@ router.put('/tests/:id', async (req, res) => {
 });
 
 // DELETE /api/cours/tests/:id - Supprimer un test
-router.delete('/tests/:id', async (req, res) => {
+// Permissions: edit_content (admin)
+router.delete('/tests/:id', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -740,7 +778,8 @@ router.delete('/tests/:id', async (req, res) => {
 // ============================================
 
 // POST /api/cours/tests/:testId/questions - Ajouter une question
-router.post('/tests/:testId/questions', async (req, res) => {
+// Permissions: edit_content (admin)
+router.post('/tests/:testId/questions', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { testId } = req.params;
     const {
@@ -779,7 +818,8 @@ router.post('/tests/:testId/questions', async (req, res) => {
 });
 
 // PUT /api/cours/questions/:id - Modifier une question
-router.put('/questions/:id', async (req, res) => {
+// Permissions: edit_content (admin)
+router.put('/questions/:id', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -816,7 +856,8 @@ router.put('/questions/:id', async (req, res) => {
 });
 
 // DELETE /api/cours/questions/:id - Supprimer une question
-router.delete('/questions/:id', async (req, res) => {
+// Permissions: edit_content (admin)
+router.delete('/questions/:id', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -841,7 +882,8 @@ router.delete('/questions/:id', async (req, res) => {
 // ============================================
 
 // POST /api/cours/questions/:questionId/choices - Ajouter un choix
-router.post('/questions/:questionId/choices', async (req, res) => {
+// Permissions: edit_content (admin)
+router.post('/questions/:questionId/choices', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { questionId } = req.params;
     const {
@@ -877,7 +919,8 @@ router.post('/questions/:questionId/choices', async (req, res) => {
 });
 
 // PUT /api/cours/choices/:id - Modifier un choix
-router.put('/choices/:id', async (req, res) => {
+// Permissions: edit_content (admin)
+router.put('/choices/:id', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -912,7 +955,8 @@ router.put('/choices/:id', async (req, res) => {
 });
 
 // DELETE /api/cours/choices/:id - Supprimer un choix
-router.delete('/choices/:id', async (req, res) => {
+// Permissions: edit_content (admin)
+router.delete('/choices/:id', requirePermission('training.formations.edit_content'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -937,7 +981,8 @@ router.delete('/choices/:id', async (req, res) => {
 // ============================================
 
 // GET /api/cours/stats - Statistiques globales
-router.get('/stats', async (req, res) => {
+// Permissions: view_page (admin)
+router.get('/stats', requirePermission('training.formations.view_page'), async (req, res) => {
   try {
     const stats = {};
 
@@ -987,7 +1032,8 @@ router.get('/stats', async (req, res) => {
 // ============================================
 
 // POST /api/cours/packs - Créer un pack de formations
-router.post('/packs', async (req, res) => {
+// Permissions: create_pack (admin)
+router.post('/packs', requirePermission('training.formations.create_pack'), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -1096,7 +1142,11 @@ router.post('/packs', async (req, res) => {
 });
 
 // GET /api/cours/packs/:id - Détail d'un pack avec ses formations
-router.get('/packs/:id', async (req, res) => {
+// Permissions: view_page (admin), course.view (students)
+router.get('/packs/:id', requirePermission(
+  'training.formations.view_page',
+  'training.student.course.view'
+), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1141,7 +1191,8 @@ router.get('/packs/:id', async (req, res) => {
 });
 
 // PUT /api/cours/packs/:id - Modifier un pack
-router.put('/packs/:id', async (req, res) => {
+// Permissions: create_pack (admin)
+router.put('/packs/:id', requirePermission('training.formations.create_pack'), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -1238,7 +1289,8 @@ router.put('/packs/:id', async (req, res) => {
 });
 
 // DELETE /api/cours/packs/:id - Supprimer un pack
-router.delete('/packs/:id', async (req, res) => {
+// Permissions: delete (admin)
+router.delete('/packs/:id', requirePermission('training.formations.delete'), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -1285,8 +1337,9 @@ router.delete('/packs/:id', async (req, res) => {
 /**
  * POST /api/cours/formations/:id/duplicate
  * Dupliquer une formation (avec option d'inclure les modules)
+ * Permissions: duplicate (admin)
  */
-router.post('/formations/:id/duplicate', async (req, res) => {
+router.post('/formations/:id/duplicate', requirePermission('training.formations.duplicate'), async (req, res) => {
   const client = await pool.connect();
 
   try {

@@ -1,10 +1,12 @@
 import express from 'express';
 import pool from '../config/database.js';
+import { requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // GET diagnostic - Affiche toutes les fiches avec les noms complets des segments et villes
-router.get('/diagnostic', async (req, res) => {
+// Permissions: view_page (admin/comptables)
+router.get('/diagnostic', requirePermission('accounting.calculation_sheets.view_page'), async (req, res) => {
   const client = await pool.connect();
   try {
     const sheetsResult = await client.query('SELECT * FROM calculation_sheets ORDER BY created_at DESC');
@@ -63,7 +65,8 @@ router.get('/diagnostic', async (req, res) => {
 });
 
 // GET toutes les fiches
-router.get('/', async (req, res) => {
+// Permissions: view_page (admin/comptables)
+router.get('/', requirePermission('accounting.calculation_sheets.view_page'), async (req, res) => {
   const client = await pool.connect();
   try {
     const sheetsResult = await client.query('SELECT * FROM calculation_sheets ORDER BY created_at DESC');
@@ -94,7 +97,8 @@ router.get('/', async (req, res) => {
 });
 
 // GET une fiche par ID
-router.get('/:id', async (req, res) => {
+// Permissions: view_page (admin/comptables)
+router.get('/:id', requirePermission('accounting.calculation_sheets.view_page'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -129,7 +133,8 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST créer une fiche
-router.post('/', async (req, res) => {
+// Permissions: create (admin/comptables)
+router.post('/', requirePermission('accounting.calculation_sheets.create'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { id, title, template_data, status, sheet_date, segment_ids, city_ids } = req.body;
@@ -177,7 +182,8 @@ router.post('/', async (req, res) => {
 });
 
 // PUT mettre à jour une fiche
-router.put('/:id', async (req, res) => {
+// Permissions: update (admin/comptables), publish (pour publier)
+router.put('/:id', requirePermission('accounting.calculation_sheets.update', 'accounting.calculation_sheets.publish'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
@@ -233,7 +239,8 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE supprimer une fiche
-router.delete('/:id', async (req, res) => {
+// Permissions: delete (admin/comptables)
+router.delete('/:id', requirePermission('accounting.calculation_sheets.delete'), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query('DELETE FROM calculation_sheets WHERE id = $1 RETURNING id', [id]);
