@@ -283,8 +283,8 @@ router.delete('/:id', async (req, res) => {
       // Vérifier si les formations ont des sessions actives
       const sessionsCheck = await pool.query(`
         SELECT COUNT(*) as count
-        FROM formation_sessions fs
-        INNER JOIN formations f ON fs.formation_id = f.id
+        FROM session_formations sf
+        INNER JOIN formations f ON sf.formation_id = f.id
         WHERE f.corps_formation_id = $1
       `, [id]);
 
