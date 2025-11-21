@@ -1,9 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { CheckCircle, XCircle, AlertCircle, Play, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Play, RefreshCw, X } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 
 interface Migration {
@@ -135,27 +131,50 @@ export function MigrationPanel({ open, onOpenChange }: MigrationPanelProps) {
     return <XCircle className="h-5 w-5 text-red-500" />;
   };
 
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black bg-opacity-50"
+        onClick={() => onOpenChange(false)}
+      />
+
+      {/* Modal Content */}
+      <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
             <RefreshCw className="h-5 w-5" />
             Database Migrations & Diagnostics
-          </DialogTitle>
-        </DialogHeader>
+          </h2>
+          <button
+            onClick={() => onOpenChange(false)}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-        <div className="space-y-4">
+        {/* Body */}
+        <div className="p-6 space-y-4">
           {/* Action Buttons */}
           <div className="flex gap-2">
-            <Button onClick={checkAllStatuses} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
+            <button
+              onClick={checkAllStatuses}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm"
+            >
+              <RefreshCw className="h-4 w-4" />
               Check All Status
-            </Button>
-            <Button onClick={runDebugPermissions} variant="outline" size="sm">
-              <AlertCircle className="h-4 w-4 mr-2" />
+            </button>
+            <button
+              onClick={runDebugPermissions}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm"
+            >
+              <AlertCircle className="h-4 w-4" />
               Debug Permissions
-            </Button>
+            </button>
           </div>
 
           {/* Migrations List */}
@@ -165,13 +184,13 @@ export function MigrationPanel({ open, onOpenChange }: MigrationPanelProps) {
               const isLoading = loading[migration.id];
 
               return (
-                <Card key={migration.id} className="p-4">
+                <div key={migration.id} className="border rounded-lg p-4 bg-white">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3 flex-1">
                       {getStatusIcon(status)}
                       <div className="flex-1">
                         <h3 className="font-semibold">{migration.name}</h3>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-gray-600">
                           {migration.description}
                         </p>
                         {status && (
@@ -185,37 +204,39 @@ export function MigrationPanel({ open, onOpenChange }: MigrationPanelProps) {
                     </div>
 
                     <div className="flex gap-2">
-                      <Button
+                      <button
                         onClick={() => checkMigrationStatus(migration)}
-                        variant="ghost"
-                        size="sm"
                         disabled={isLoading}
+                        className="p-2 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
                       >
                         <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                      </Button>
-                      <Button
+                      </button>
+                      <button
                         onClick={() => runMigration(migration)}
-                        variant={status?.needsRun ? 'default' : 'outline'}
-                        size="sm"
                         disabled={isLoading}
+                        className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm ${
+                          status?.needsRun
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                            : 'border border-gray-300 hover:bg-gray-50'
+                        } disabled:opacity-50`}
                       >
                         {isLoading ? (
                           <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                         ) : (
-                          <Play className="h-4 w-4 mr-2" />
+                          <Play className="h-4 w-4" />
                         )}
                         Run
-                      </Button>
+                      </button>
                     </div>
                   </div>
-                </Card>
+                </div>
               );
             })}
           </div>
 
           {/* Debug Info */}
           {debugInfo && (
-            <Card className="p-4 bg-slate-50">
+            <div className="border rounded-lg p-4 bg-slate-50">
               <h3 className="font-semibold mb-2">Debug Summary</h3>
               <div className="text-sm space-y-1">
                 <p><strong>User:</strong> {debugInfo.user?.username} ({debugInfo.user?.role})</p>
@@ -228,16 +249,16 @@ export function MigrationPanel({ open, onOpenChange }: MigrationPanelProps) {
                   <p className="text-orange-600 mt-2"><strong>Recommendation:</strong> {debugInfo.summary.recommendation}</p>
                 )}
               </div>
-            </Card>
+            </div>
           )}
 
           {/* Logs */}
-          <Card className="p-4">
+          <div className="border rounded-lg p-4">
             <h3 className="font-semibold mb-2">Logs</h3>
-            <ScrollArea className="h-64 w-full rounded border bg-slate-50 p-3">
+            <div className="h-64 w-full rounded border bg-slate-50 p-3 overflow-auto">
               <div className="font-mono text-xs space-y-1">
                 {logs.length === 0 ? (
-                  <p className="text-muted-foreground">No logs yet. Click "Check All Status" to begin.</p>
+                  <p className="text-gray-500">No logs yet. Click "Check All Status" to begin.</p>
                 ) : (
                   logs.map((log, i) => (
                     <div key={i} className="whitespace-pre-wrap break-words">
@@ -246,10 +267,10 @@ export function MigrationPanel({ open, onOpenChange }: MigrationPanelProps) {
                   ))
                 )}
               </div>
-            </ScrollArea>
-          </Card>
+            </div>
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
