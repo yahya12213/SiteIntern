@@ -253,6 +253,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { force } = req.query; // Paramètre pour forcer la suppression
 
     // Vérifier que le corps existe
     const existingCorps = await pool.query(
@@ -275,15 +276,58 @@ router.delete('/:id', async (req, res) => {
 
     const formationsCount = parseInt(formationsCheck.rows[0].count);
 
+    // Si force=true, détacher les formations automatiquement
+    if (force === 'true' && formationsCount > 0) {
+      console.log(`Force delete requested for corps ${id} with ${formationsCount} formations`);
+
+      // Vérifier si les formations ont des sessions actives
+      const sessionsCheck = await pool.query(`
+        SELECT COUNT(*) as count
+        FROM formation_sessions fs
+        INNER JOIN formations f ON fs.formation_id = f.id
+        WHERE f.corps_formation_id = $1
+      `, [id]);
+
+      const hasActiveSessions = parseInt(sessionsCheck.rows[0].count) > 0;
+
+      if (hasActiveSessions) {
+        return res.status(409).json({
+          success: false,
+          error: 'Impossible de supprimer: certaines formations ont des sessions actives',
+          formations_count: formationsCount,
+          has_active_sessions: true
+        });
+      }
+
+      // Détacher les formations (met corps_formation_id à NULL)
+      await pool.query(
+        'UPDATE formations SET corps_formation_id = NULL WHERE corps_formation_id = $1',
+        [id]
+      );
+
+      console.log(`${formationsCount} formation(s) détachée(s) du corps ${id}`);
+
+      // Maintenant on peut supprimer le corps
+      await pool.query('DELETE FROM corps_formation WHERE id = $1', [id]);
+
+      return res.json({
+        success: true,
+        message: `Corps de formation supprimé avec succès (${formationsCount} formation(s) détachée(s))`,
+        formations_detached: formationsCount
+      });
+    }
+
+    // Si pas de force=true et qu'il y a des formations, retourner une erreur
     if (formationsCount > 0) {
       return res.status(409).json({
         success: false,
         error: `Impossible de supprimer ce corps de formation car il contient ${formationsCount} formation(s)`,
-        formations_count: formationsCount
+        formations_count: formationsCount,
+        hint: 'Ajoutez ?force=true pour détacher les formations et supprimer le corps'
       });
     }
 
-    // Suppression
+    // Suppression normale (pas de formations)
     await pool.query('DELETE FROM corps_formation WHERE id = $1', [id]);
 
     res.json({

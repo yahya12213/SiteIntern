@@ -62,6 +62,18 @@ export const corpsFormationApi = {
   },
 
   /**
+   * Supprimer un corps de formation en forçant le détachement des formations
+   */
+  deleteForce: async (id: string): Promise<{ formations_detached: number }> => {
+    const response = await apiClient.delete<{
+      success: boolean;
+      message: string;
+      formations_detached: number;
+    }>(`/corps-formation/${id}?force=true`);
+    return { formations_detached: response.formations_detached };
+  },
+
+  /**
    * Récupérer les formations unitaires d'un corps (pour création de pack)
    */
   getFormationsByCorps: async (corpsId: string): Promise<Formation[]> => {

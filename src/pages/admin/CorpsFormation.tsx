@@ -78,7 +78,36 @@ export default function CorpsFormationPage() {
         await deleteCorps.mutateAsync(id);
       } catch (error: any) {
         console.error('Erreur lors de la suppression:', error);
-        alert(error.message || 'Erreur lors de la suppression. Vérifiez qu\'aucune formation n\'y est liée.');
+
+        // Si erreur 409 (corps contient des formations)
+        if (error.status === 409 && error.message?.includes('formation(s)')) {
+          const formationsCount = error.message.match(/(\d+)\s+formation\(s\)/)?.[1] || 'plusieurs';
+
+          const forceDelete = confirm(
+            `Ce corps contient ${formationsCount} formation(s).\n\n` +
+            `Voulez-vous forcer la suppression en détachant automatiquement les formations?\n\n` +
+            `⚠️ Les formations ne seront PAS supprimées, elles seront simplement détachées du corps.`
+          );
+
+          if (forceDelete) {
+            try {
+              // Importer corpsFormationApi
+              const { corpsFormationApi } = await import('@/lib/api/corps-formation');
+              const result = await corpsFormationApi.deleteForce(id);
+
+              alert(`✓ Corps supprimé avec succès!\n${result.formations_detached} formation(s) ont été détachées.`);
+
+              // Recharger la liste
+              await deleteCorps.reset();
+              window.location.reload();
+            } catch (forceError: any) {
+              console.error('Erreur lors de la suppression forcée:', forceError);
+              alert(forceError.message || 'Erreur lors de la suppression forcée.');
+            }
+          }
+        } else {
+          alert(error.message || 'Erreur lors de la suppression.');
+        }
       }
     }
   };
