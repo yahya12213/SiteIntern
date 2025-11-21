@@ -111,33 +111,33 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Routes
 app.use('/api/auth', authRouter);
-app.use('/api/segments', segmentsRouter);
-app.use('/api/cities', citiesRouter);
-app.use('/api/profiles', profilesRouter);
+app.use('/api/segments', authenticateToken, segmentsRouter);
+app.use('/api/cities', authenticateToken, citiesRouter);
+app.use('/api/profiles', authenticateToken, profilesRouter);
 app.use('/api/calculation-sheets', authenticateToken, calculationSheetsRouter);
 app.use('/api/declarations', authenticateToken, declarationsRouter);
-app.use('/api/admin', adminRouter);
-app.use('/api/formations', formationsRouter);
-app.use('/api/cours', coursRouter);
-app.use('/api/progress', progressRouter);
-app.use('/api/analytics', analyticsRouter);
-app.use('/api/certificates', certificatesRouter);
-app.use('/api/certificate-templates', certificateTemplatesRouter);
-app.use('/api/template-folders', templateFoldersRouter);
-app.use('/api/forums', forumsRouter);
-app.use('/api/corps-formation', corpsFormationRouter);
-app.use('/api/sessions-formation', sessionsFormationRouter);
-app.use('/api/students', studentsRouter);
-app.use('/api/centres', centresRouter);
-app.use('/api/roles', rolesRouter);
-app.use('/api/permissions', permissionsRouter);
-app.use('/api/hr/employees', hrEmployeesRouter);
-app.use('/api/hr/attendance', hrAttendanceRouter);
-app.use('/api/hr/leaves', hrLeavesRouter);
-app.use('/api/hr/dashboard', hrDashboardRouter);
-app.use('/api/hr/settings', hrSettingsRouter);
-app.use('/api/hr/clocking', hrClockingRouter);
-app.use('/api/hr/public-holidays', hrPublicHolidaysRouter);
+app.use('/api/admin', authenticateToken, adminRouter);
+app.use('/api/formations', authenticateToken, formationsRouter);
+app.use('/api/cours', authenticateToken, coursRouter);
+app.use('/api/progress', authenticateToken, progressRouter);
+app.use('/api/analytics', authenticateToken, analyticsRouter);
+app.use('/api/certificates', authenticateToken, certificatesRouter);
+app.use('/api/certificate-templates', authenticateToken, certificateTemplatesRouter);
+app.use('/api/template-folders', authenticateToken, templateFoldersRouter);
+app.use('/api/forums', authenticateToken, forumsRouter);
+app.use('/api/corps-formation', authenticateToken, corpsFormationRouter);
+app.use('/api/sessions-formation', authenticateToken, sessionsFormationRouter);
+app.use('/api/students', authenticateToken, studentsRouter);
+app.use('/api/centres', authenticateToken, centresRouter);
+app.use('/api/roles', authenticateToken, rolesRouter);
+app.use('/api/permissions', authenticateToken, permissionsRouter);
+app.use('/api/hr/employees', authenticateToken, hrEmployeesRouter);
+app.use('/api/hr/attendance', authenticateToken, hrAttendanceRouter);
+app.use('/api/hr/leaves', authenticateToken, hrLeavesRouter);
+app.use('/api/hr/dashboard', authenticateToken, hrDashboardRouter);
+app.use('/api/hr/settings', authenticateToken, hrSettingsRouter);
+app.use('/api/hr/clocking', authenticateToken, hrClockingRouter);
+app.use('/api/hr/public-holidays', authenticateToken, hrPublicHolidaysRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
 app.use('/api/setup-certificates', setupCertificatesRouter); // TEMPORARY - Run once to create certificates table
