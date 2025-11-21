@@ -114,7 +114,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/segments', segmentsRouter);
 app.use('/api/cities', citiesRouter);
 app.use('/api/profiles', profilesRouter);
-app.use('/api/calculation-sheets', calculationSheetsRouter);
+app.use('/api/calculation-sheets', authenticateToken, calculationSheetsRouter);
 app.use('/api/declarations', authenticateToken, declarationsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/formations', formationsRouter);
