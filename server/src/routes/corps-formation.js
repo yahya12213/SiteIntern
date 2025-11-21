@@ -506,7 +506,36 @@ router.post('/:id/duplicate', async (req, res) => {
       });
     }
 
-    const newCorpsName = `${originalCorps.name} (Copie)`;
+    // Générer un nom unique pour la copie
+    // Si "(Copie)" existe déjà, essayer "(Copie 2)", "(Copie 3)", etc.
+    let newCorpsName = `${originalCorps.name} (Copie)`;
+    let nameAttempts = 0;
+    const maxNameAttempts = 10;
+
+    while (nameAttempts < maxNameAttempts) {
+      const nameCheck = await client.query(
+        'SELECT id FROM corps_formation WHERE name = $1',
+        [newCorpsName]
+      );
+
+      if (nameCheck.rows.length === 0) {
+        // Nom unique trouvé
+        break;
+      }
+
+      // Nom existe déjà, essayer avec un numéro
+      nameAttempts++;
+      newCorpsName = `${originalCorps.name} (Copie ${nameAttempts + 1})`;
+      console.log(`Nom en collision détecté, essai avec: ${newCorpsName}`);
+    }
+
+    if (nameAttempts >= maxNameAttempts) {
+      await client.query('ROLLBACK');
+      return res.status(500).json({
+        success: false,
+        error: 'Impossible de générer un nom unique après plusieurs tentatives'
+      });
+    }
 
     const insertCorpsQuery = `
       INSERT INTO corps_formation (
