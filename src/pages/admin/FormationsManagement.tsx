@@ -130,7 +130,36 @@ export default function FormationsManagement() {
       try {
         await deleteCorps.mutateAsync(id);
       } catch (error: any) {
-        alert(error.message || "Erreur lors de la suppression");
+        console.error('Erreur lors de la suppression:', error);
+
+        // Si erreur 409 (corps contient des formations)
+        if (error.status === 409 && error.message?.includes('formation(s)')) {
+          const formationsCount = error.message.match(/(\d+)\s+formation\(s\)/)?.[1] || 'plusieurs';
+
+          const forceDelete = confirm(
+            `Ce corps contient ${formationsCount} formation(s).\n\n` +
+            `Voulez-vous forcer la suppression en détachant automatiquement les formations?\n\n` +
+            `⚠️ Les formations ne seront PAS supprimées, elles seront simplement détachées du corps.`
+          );
+
+          if (forceDelete) {
+            try {
+              // Importer corpsFormationApi
+              const { corpsFormationApi } = await import('@/lib/api/corps-formation');
+              const result = await corpsFormationApi.deleteForce(id);
+
+              alert(`✓ Corps supprimé avec succès!\n${result.formations_detached} formation(s) ont été détachées.`);
+
+              // Recharger la liste
+              window.location.reload();
+            } catch (forceError: any) {
+              console.error('Erreur lors de la suppression forcée:', forceError);
+              alert(forceError.message || 'Erreur lors de la suppression forcée.');
+            }
+          }
+        } else {
+          alert(error.message || 'Erreur lors de la suppression.');
+        }
       }
     }
   };
