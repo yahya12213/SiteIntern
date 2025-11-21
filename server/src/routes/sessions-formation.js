@@ -1,6 +1,8 @@
 import express from 'express';
 import pool from '../config/database.js';
 import { nanoid } from 'nanoid';
+import { requirePermission } from '../middleware/auth.js';
+import { injectUserScope, buildScopeFilter, requireRecordScope } from '../middleware/requireScope.js';
 
 const router = express.Router();
 
@@ -11,124 +13,141 @@ const router = express.Router();
 /**
  * GET /api/sessions-formation
  * Liste toutes les sessions de formation avec leurs statistiques
+ * SCOPE: Filtre automatiquement par segment ET ville assignés à l'utilisateur
  */
-router.get('/', async (req, res) => {
-  try {
-    const { ville_id, segment_id, corps_formation_id, statut, annee } = req.query;
+router.get('/',
+  injectUserScope,
+  async (req, res) => {
+    try {
+      const { ville_id, segment_id, corps_formation_id, statut, annee } = req.query;
 
-    let whereConditions = [];
-    let params = [];
-    let paramIndex = 1;
+      let whereConditions = [];
+      let params = [];
+      let paramIndex = 1;
 
-    if (ville_id) {
-      whereConditions.push(`sf.ville_id = $${paramIndex++}`);
-      params.push(ville_id);
+      // SCOPE FILTERING: Filtre automatique par segment ET ville (sauf admin)
+      const scopeFilter = buildScopeFilter(req, 'sf.segment_id', 'sf.ville_id');
+      if (scopeFilter.hasScope) {
+        whereConditions.push(...scopeFilter.conditions);
+        params.push(...scopeFilter.params);
+        paramIndex = scopeFilter.paramIndex;
+      }
+
+      // Filtres additionnels (optionnels)
+      if (ville_id) {
+        whereConditions.push(`sf.ville_id = $${paramIndex++}`);
+        params.push(ville_id);
+      }
+
+      if (segment_id) {
+        whereConditions.push(`sf.segment_id = $${paramIndex++}`);
+        params.push(segment_id);
+      }
+
+      if (corps_formation_id) {
+        whereConditions.push(`sf.corps_formation_id = $${paramIndex++}`);
+        params.push(corps_formation_id);
+      }
+
+      if (statut) {
+        whereConditions.push(`sf.statut = $${paramIndex++}`);
+        params.push(statut);
+      }
+
+      if (annee) {
+        whereConditions.push(`EXTRACT(YEAR FROM sf.date_debut) = $${paramIndex++}`);
+        params.push(annee);
+      }
+
+      const whereClause = whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(' AND ')}`
+        : '';
+
+      const query = `
+        SELECT
+          sf.*,
+          c.name as ville_name,
+          s.name as segment_name,
+          s.color as segment_color,
+          cf.name as corps_formation_name,
+          cf.description as corps_formation_description,
+          COUNT(DISTINCT se.id) as nombre_etudiants,
+          COUNT(DISTINCT sp.id) as nombre_professeurs,
+          COALESCE(SUM(se.montant_paye), 0) as total_paye,
+          COALESCE(SUM(se.montant_du), 0) as total_du
+        FROM sessions_formation sf
+        LEFT JOIN cities c ON c.id = sf.ville_id
+        LEFT JOIN segments s ON s.id = sf.segment_id
+        LEFT JOIN corps_formation cf ON cf.id = sf.corps_formation_id
+        LEFT JOIN session_etudiants se ON se.session_id = sf.id
+        LEFT JOIN session_professeurs sp ON sp.session_id = sf.id
+        ${whereClause}
+        GROUP BY sf.id, c.name, s.name, s.color, cf.name, cf.description
+        ORDER BY sf.date_debut DESC NULLS LAST, sf.created_at DESC
+      `;
+
+      const result = await pool.query(query, params);
+
+      res.json({
+        success: true,
+        sessions: result.rows
+      });
+
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
     }
-
-    if (segment_id) {
-      whereConditions.push(`sf.segment_id = $${paramIndex++}`);
-      params.push(segment_id);
-    }
-
-    if (corps_formation_id) {
-      whereConditions.push(`sf.corps_formation_id = $${paramIndex++}`);
-      params.push(corps_formation_id);
-    }
-
-    if (statut) {
-      whereConditions.push(`sf.statut = $${paramIndex++}`);
-      params.push(statut);
-    }
-
-    if (annee) {
-      whereConditions.push(`EXTRACT(YEAR FROM sf.date_debut) = $${paramIndex++}`);
-      params.push(annee);
-    }
-
-    const whereClause = whereConditions.length > 0
-      ? `WHERE ${whereConditions.join(' AND ')}`
-      : '';
-
-    const query = `
-      SELECT
-        sf.*,
-        c.name as ville_name,
-        s.name as segment_name,
-        s.color as segment_color,
-        cf.name as corps_formation_name,
-        cf.description as corps_formation_description,
-        COUNT(DISTINCT se.id) as nombre_etudiants,
-        COUNT(DISTINCT sp.id) as nombre_professeurs,
-        COALESCE(SUM(se.montant_paye), 0) as total_paye,
-        COALESCE(SUM(se.montant_du), 0) as total_du
-      FROM sessions_formation sf
-      LEFT JOIN cities c ON c.id = sf.ville_id
-      LEFT JOIN segments s ON s.id = sf.segment_id
-      LEFT JOIN corps_formation cf ON cf.id = sf.corps_formation_id
-      LEFT JOIN session_etudiants se ON se.session_id = sf.id
-      LEFT JOIN session_professeurs sp ON sp.session_id = sf.id
-      ${whereClause}
-      GROUP BY sf.id, c.name, s.name, s.color, cf.name, cf.description
-      ORDER BY sf.date_debut DESC NULLS LAST, sf.created_at DESC
-    `;
-
-    const result = await pool.query(query, params);
-
-    res.json({
-      success: true,
-      sessions: result.rows
-    });
-
-  } catch (error) {
-    console.error('Error fetching sessions:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
   }
-});
+);
 
 /**
  * GET /api/sessions-formation/:id
  * Récupère une session avec tous ses détails
+ * SCOPE: Vérifie que la session est dans le segment/ville de l'utilisateur
  */
-router.get('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
+router.get('/:id',
+  injectUserScope,
+  requireRecordScope('sessions_formation', 'id', 'segment_id', 'ville_id'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
 
-    // Session principale
-    const sessionQuery = `
-      SELECT
-        sf.*,
-        c.name as ville_name,
-        s.name as segment_name,
-        s.color as segment_color,
-        cf.name as corps_formation_name,
-        cf.description as corps_formation_description,
-        COUNT(DISTINCT se.id) as nombre_etudiants,
-        COUNT(DISTINCT sp.id) as nombre_professeurs,
-        COALESCE(SUM(se.montant_paye), 0) as total_paye,
-        COALESCE(SUM(se.montant_du), 0) as total_du
-      FROM sessions_formation sf
-      LEFT JOIN cities c ON c.id = sf.ville_id
-      LEFT JOIN segments s ON s.id = sf.segment_id
-      LEFT JOIN corps_formation cf ON cf.id = sf.corps_formation_id
-      LEFT JOIN session_etudiants se ON se.session_id = sf.id
-      LEFT JOIN session_professeurs sp ON sp.session_id = sf.id
-      WHERE sf.id = $1
-      GROUP BY sf.id, c.name, s.name, s.color, cf.name, cf.description
-    `;
+      // Session principale
+      const sessionQuery = `
+        SELECT
+          sf.*,
+          c.name as ville_name,
+          s.name as segment_name,
+          s.color as segment_color,
+          cf.name as corps_formation_name,
+          cf.description as corps_formation_description,
+          COUNT(DISTINCT se.id) as nombre_etudiants,
+          COUNT(DISTINCT sp.id) as nombre_professeurs,
+          COALESCE(SUM(se.montant_paye), 0) as total_paye,
+          COALESCE(SUM(se.montant_du), 0) as total_du
+        FROM sessions_formation sf
+        LEFT JOIN cities c ON c.id = sf.ville_id
+        LEFT JOIN segments s ON s.id = sf.segment_id
+        LEFT JOIN corps_formation cf ON cf.id = sf.corps_formation_id
+        LEFT JOIN session_etudiants se ON se.session_id = sf.id
+        LEFT JOIN session_professeurs sp ON sp.session_id = sf.id
+        WHERE sf.id = $1
+        GROUP BY sf.id, c.name, s.name, s.color, cf.name, cf.description
+      `;
 
-    const sessionResult = await pool.query(sessionQuery, [id]);
+      const sessionResult = await pool.query(sessionQuery, [id]);
 
-    if (sessionResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Session not found'
-      });
-    }
+      if (sessionResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Session not found'
+        });
+      }
 
-    const session = sessionResult.rows[0];
+      const session = sessionResult.rows[0];
 
     // Étudiants
     const etudiantsQuery = `
@@ -215,175 +234,219 @@ router.get('/:id', async (req, res) => {
 /**
  * POST /api/sessions-formation
  * Créer une nouvelle session
+ * SCOPE: Vérifie que segment_id et ville_id sont dans le scope de l'utilisateur
  */
-router.post('/', async (req, res) => {
-  try {
-    const {
-      titre,
-      description,
-      date_debut,
-      date_fin,
-      ville_id,
-      segment_id,
-      corps_formation_id,
-      statut = 'planifiee',
-      prix_total = 0,
-      nombre_places = 0
-    } = req.body;
+router.post('/',
+  injectUserScope,
+  async (req, res) => {
+    try {
+      const {
+        titre,
+        description,
+        date_debut,
+        date_fin,
+        ville_id,
+        segment_id,
+        corps_formation_id,
+        statut = 'planifiee',
+        prix_total = 0,
+        nombre_places = 0
+      } = req.body;
 
-    // Validation
-    if (!titre || titre.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        error: 'Le titre est obligatoire'
-      });
-    }
+      // Validation
+      if (!titre || titre.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          error: 'Le titre est obligatoire'
+        });
+      }
 
-    const id = nanoid();
-    const now = new Date().toISOString();
+      // SCOPE VALIDATION: Vérifier que le segment et la ville sont dans le scope de l'utilisateur
+      if (!req.userScope.isAdmin) {
+        if (segment_id && !req.userScope.segmentIds.includes(segment_id)) {
+          return res.status(403).json({
+            success: false,
+            error: 'Cannot create session in a segment outside your scope',
+            code: 'OUTSIDE_SCOPE'
+          });
+        }
+        if (ville_id && !req.userScope.cityIds.includes(ville_id)) {
+          return res.status(403).json({
+            success: false,
+            error: 'Cannot create session in a city outside your scope',
+            code: 'OUTSIDE_SCOPE'
+          });
+        }
+      }
 
-    const query = `
-      INSERT INTO sessions_formation (
+      const id = nanoid();
+      const now = new Date().toISOString();
+
+      const query = `
+        INSERT INTO sessions_formation (
+          id, titre, description, date_debut, date_fin,
+          ville_id, segment_id, corps_formation_id, statut,
+          prix_total, nombre_places, created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        RETURNING *
+      `;
+
+      const values = [
         id, titre, description, date_debut, date_fin,
         ville_id, segment_id, corps_formation_id, statut,
-        prix_total, nombre_places, created_at, updated_at
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-      RETURNING *
-    `;
+        prix_total, nombre_places, now, now
+      ];
 
-    const values = [
-      id, titre, description, date_debut, date_fin,
-      ville_id, segment_id, corps_formation_id, statut,
-      prix_total, nombre_places, now, now
-    ];
+      const result = await pool.query(query, values);
 
-    const result = await pool.query(query, values);
+      res.status(201).json({
+        success: true,
+        session: result.rows[0],
+        message: 'Session créée avec succès'
+      });
 
-    res.status(201).json({
-      success: true,
-      session: result.rows[0],
-      message: 'Session créée avec succès'
-    });
-
-  } catch (error) {
-    console.error('Error creating session:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    } catch (error) {
+      console.error('Error creating session:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
   }
-});
+);
 
 /**
  * PUT /api/sessions-formation/:id
  * Modifier une session
+ * SCOPE: Vérifie que la session est dans le scope et que les nouvelles valeurs restent dans le scope
  */
-router.put('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const {
-      titre,
-      description,
-      date_debut,
-      date_fin,
-      ville_id,
-      segment_id,
-      corps_formation_id,
-      statut,
-      prix_total,
-      nombre_places
-    } = req.body;
+router.put('/:id',
+  injectUserScope,
+  requireRecordScope('sessions_formation', 'id', 'segment_id', 'ville_id'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        titre,
+        description,
+        date_debut,
+        date_fin,
+        ville_id,
+        segment_id,
+        corps_formation_id,
+        statut,
+        prix_total,
+        nombre_places
+      } = req.body;
 
-    // Vérifier que la session existe
-    const checkResult = await pool.query(
-      'SELECT id FROM sessions_formation WHERE id = $1',
-      [id]
-    );
+      // SCOPE VALIDATION: Si l'utilisateur modifie segment_id ou ville_id, vérifier qu'ils sont dans son scope
+      if (!req.userScope.isAdmin) {
+        if (segment_id !== undefined && !req.userScope.segmentIds.includes(segment_id)) {
+          return res.status(403).json({
+            success: false,
+            error: 'Cannot move session to a segment outside your scope',
+            code: 'OUTSIDE_SCOPE'
+          });
+        }
+        if (ville_id !== undefined && !req.userScope.cityIds.includes(ville_id)) {
+          return res.status(403).json({
+            success: false,
+            error: 'Cannot move session to a city outside your scope',
+            code: 'OUTSIDE_SCOPE'
+          });
+        }
+      }
 
-    if (checkResult.rows.length === 0) {
-      return res.status(404).json({
+      const now = new Date().toISOString();
+
+      const query = `
+        UPDATE sessions_formation
+        SET
+          titre = COALESCE($1, titre),
+          description = COALESCE($2, description),
+          date_debut = COALESCE($3, date_debut),
+          date_fin = COALESCE($4, date_fin),
+          ville_id = COALESCE($5, ville_id),
+          segment_id = COALESCE($6, segment_id),
+          corps_formation_id = COALESCE($7, corps_formation_id),
+          statut = COALESCE($8, statut),
+          prix_total = COALESCE($9, prix_total),
+          nombre_places = COALESCE($10, nombre_places),
+          updated_at = $11
+        WHERE id = $12
+        RETURNING *
+      `;
+
+      const values = [
+        titre, description, date_debut, date_fin,
+        ville_id, segment_id, corps_formation_id, statut,
+        prix_total, nombre_places, now, id
+      ];
+
+      const result = await pool.query(query, values);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Session not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        session: result.rows[0],
+        message: 'Session modifiée avec succès'
+      });
+
+    } catch (error) {
+      console.error('Error updating session:', error);
+      res.status(500).json({
         success: false,
-        error: 'Session not found'
+        error: error.message
       });
     }
-
-    const now = new Date().toISOString();
-
-    const query = `
-      UPDATE sessions_formation
-      SET
-        titre = COALESCE($1, titre),
-        description = COALESCE($2, description),
-        date_debut = COALESCE($3, date_debut),
-        date_fin = COALESCE($4, date_fin),
-        ville_id = COALESCE($5, ville_id),
-        segment_id = COALESCE($6, segment_id),
-        corps_formation_id = COALESCE($7, corps_formation_id),
-        statut = COALESCE($8, statut),
-        prix_total = COALESCE($9, prix_total),
-        nombre_places = COALESCE($10, nombre_places),
-        updated_at = $11
-      WHERE id = $12
-      RETURNING *
-    `;
-
-    const values = [
-      titre, description, date_debut, date_fin,
-      ville_id, segment_id, corps_formation_id, statut,
-      prix_total, nombre_places, now, id
-    ];
-
-    const result = await pool.query(query, values);
-
-    res.json({
-      success: true,
-      session: result.rows[0],
-      message: 'Session modifiée avec succès'
-    });
-
-  } catch (error) {
-    console.error('Error updating session:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
   }
-});
+);
 
 /**
  * DELETE /api/sessions-formation/:id
  * Supprimer une session
+ * SCOPE: Vérifie que la session est dans le segment/ville de l'utilisateur
  */
-router.delete('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
+router.delete('/:id',
+  injectUserScope,
+  requireRecordScope('sessions_formation', 'id', 'segment_id', 'ville_id'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
 
-    const result = await pool.query(
-      'DELETE FROM sessions_formation WHERE id = $1 RETURNING *',
-      [id]
-    );
+      const result = await pool.query(
+        'DELETE FROM sessions_formation WHERE id = $1 RETURNING *',
+        [id]
+      );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Session not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Session supprimée avec succès'
+      });
+
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      res.status(500).json({
         success: false,
-        error: 'Session not found'
+        error: error.message
       });
     }
-
-    res.json({
-      success: true,
-      message: 'Session supprimée avec succès'
-    });
-
-  } catch (error) {
-    console.error('Error deleting session:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
   }
-});
+);
 
 // ============================================
 // GESTION DES ÉTUDIANTS DANS UNE SESSION

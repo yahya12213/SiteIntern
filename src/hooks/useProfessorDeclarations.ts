@@ -34,36 +34,19 @@ export interface UpdateDeclarationInput {
 }
 
 // Hook pour récupérer les déclarations du professeur connecté
-// Si l'utilisateur a des city_ids (gestionnaire), filtre par villes
-// Si le rôle est "impression", voir toutes les déclarations
-// Sinon, filtre par professor_id (professeur classique)
+// Le backend filtre automatiquement par segment ET ville assignés à l'utilisateur (via middleware injectUserScope)
+// Admins voient tout, les autres voient uniquement leur scope
 export function useProfessorDeclarations() {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
 
   return useQuery({
     queryKey: ['professor-declarations', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
 
-      // Vérifier si l'utilisateur a des villes assignées (gestionnaire)
-      const profile = await profilesApi.getById(user.id);
-      const hasCities = profile?.city_ids && profile.city_ids.length > 0;
-
-      // Rôle "impression" voit toutes les déclarations (lecture seule)
-      if (profile?.role === 'impression') {
-        return declarationsApi.getAll(undefined, false, true); // viewAll = true
-      }
-
-      // Si gestionnaire (avec des villes assignées) mais pas admin ni professeur pur
-      const isManager = hasCities && profile?.role !== 'professor' && !isAdmin;
-
-      if (isManager) {
-        // Récupérer les déclarations des villes assignées
-        return declarationsApi.getAll(undefined, true);
-      } else {
-        // Professeur classique : ses propres déclarations
-        return declarationsApi.getAll(user.id);
-      }
+      // Le backend applique automatiquement le filtrage par scope (segment + ville)
+      // Plus besoin de passer filter_by_user ou viewAll
+      return declarationsApi.getAll();
     },
     enabled: !!user?.id,
   });
