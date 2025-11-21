@@ -244,6 +244,163 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /debug-permissions - Diagnostic endpoint pour déboguer les problèmes de permissions
+router.get('/debug-permissions', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const debug = {
+      timestamp: new Date().toISOString(),
+      user: null,
+      role: null,
+      permissions: [],
+      specificPermission: null,
+      rolePermissions: [],
+      tables: {},
+      errors: []
+    };
+
+    // 1. Get user info from profiles
+    try {
+      const userResult = await pool.query(`
+        SELECT id, username, role, role_id, full_name, created_at
+        FROM profiles
+        WHERE id = $1
+      `, [userId]);
+
+      if (userResult.rows.length > 0) {
+        debug.user = userResult.rows[0];
+      } else {
+        debug.errors.push('User not found in profiles table');
+      }
+    } catch (err) {
+      debug.errors.push(`Error fetching user: ${err.message}`);
+    }
+
+    // 2. Get role info if role_id exists
+    if (debug.user && debug.user.role_id) {
+      try {
+        const roleResult = await pool.query(`
+          SELECT id, name, description, created_at
+          FROM roles
+          WHERE id = $1
+        `, [debug.user.role_id]);
+
+        if (roleResult.rows.length > 0) {
+          debug.role = roleResult.rows[0];
+        } else {
+          debug.errors.push(`Role with id ${debug.user.role_id} not found`);
+        }
+      } catch (err) {
+        debug.errors.push(`Error fetching role: ${err.message}`);
+      }
+    }
+
+    // 3. Get user permissions via getUserPermissions function
+    try {
+      debug.permissions = await getUserPermissions(userId);
+      debug.permissionsCount = debug.permissions.length;
+    } catch (err) {
+      debug.errors.push(`Error getting user permissions: ${err.message}`);
+    }
+
+    // 4. Check specific permission: accounting.calculation_sheets.view_page
+    try {
+      const permResult = await pool.query(`
+        SELECT id, module, menu, action, code, label, sort_order
+        FROM permissions
+        WHERE code = 'accounting.calculation_sheets.view_page'
+      `);
+
+      if (permResult.rows.length > 0) {
+        debug.specificPermission = {
+          exists: true,
+          ...permResult.rows[0],
+          userHasIt: debug.permissions.includes('accounting.calculation_sheets.view_page')
+        };
+      } else {
+        debug.specificPermission = {
+          exists: false,
+          message: 'Permission accounting.calculation_sheets.view_page not found in permissions table'
+        };
+      }
+    } catch (err) {
+      debug.errors.push(`Error checking specific permission: ${err.message}`);
+    }
+
+    // 5. Get all permissions assigned to user's role
+    if (debug.user && debug.user.role_id) {
+      try {
+        const rolePermsResult = await pool.query(`
+          SELECT p.code, p.label, p.module, p.menu, p.action
+          FROM permissions p
+          INNER JOIN role_permissions rp ON p.id = rp.permission_id
+          WHERE rp.role_id = $1
+          ORDER BY p.module, p.menu, p.sort_order
+        `, [debug.user.role_id]);
+
+        debug.rolePermissions = rolePermsResult.rows;
+        debug.rolePermissionsCount = rolePermsResult.rows.length;
+      } catch (err) {
+        debug.errors.push(`Error fetching role permissions: ${err.message}`);
+      }
+    }
+
+    // 6. Check tables exist
+    try {
+      const tablesCheck = await pool.query(`
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name IN ('profiles', 'roles', 'permissions', 'role_permissions', 'user_roles')
+      `);
+
+      debug.tables.existing = tablesCheck.rows.map(r => r.table_name);
+      debug.tables.rbacEnabled = rbacEnabled;
+    } catch (err) {
+      debug.errors.push(`Error checking tables: ${err.message}`);
+    }
+
+    // 7. Summary
+    debug.summary = {
+      userExists: !!debug.user,
+      userRole: debug.user?.role,
+      userRoleId: debug.user?.role_id,
+      roleFound: !!debug.role,
+      permissionsLoaded: debug.permissions.length > 0,
+      hasCalculationSheetsPermission: debug.permissions.includes('accounting.calculation_sheets.view_page'),
+      isAdmin: debug.user?.role === 'admin',
+      shouldBypassPermissionCheck: debug.user?.role === 'admin' || debug.permissions.includes('*'),
+      recommendation: null
+    };
+
+    // 8. Recommendation
+    if (debug.summary.isAdmin && !debug.summary.hasCalculationSheetsPermission) {
+      debug.summary.recommendation = 'Admin users should bypass permission checks. Check middleware requirePermission() logic.';
+    } else if (!debug.summary.hasCalculationSheetsPermission && debug.specificPermission?.exists) {
+      debug.summary.recommendation = 'Permission exists in DB but not assigned to user role. Run migration to assign permissions.';
+    } else if (!debug.specificPermission?.exists) {
+      debug.summary.recommendation = 'Permission does not exist in DB. Run migration 056 to create accounting permissions.';
+    } else if (!debug.user?.role_id) {
+      debug.summary.recommendation = 'User role_id is NULL. Run migration to sync role_id fields.';
+    } else {
+      debug.summary.recommendation = 'All checks passed. Logout and login again to refresh token.';
+    }
+
+    res.json({
+      success: true,
+      debug
+    });
+
+  } catch (error) {
+    console.error('Debug permissions error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // POST refresh token
 router.post('/refresh', authenticateToken, (req, res) => {
   try {
