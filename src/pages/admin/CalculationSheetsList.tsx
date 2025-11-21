@@ -1,14 +1,21 @@
 import { useState } from 'react';
-import { Plus, Calculator, Edit3, Eye, Trash2, FileSpreadsheet, Layers, MapPin, Settings, Upload, XCircle, Copy, Download } from 'lucide-react';
+import { Plus, Calculator, Edit3, Eye, Trash2, FileSpreadsheet, Layers, MapPin, Settings, Upload, XCircle, Copy, Download, Wrench } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useCalculationSheets, useDeleteCalculationSheet, useCreateCalculationSheet, useUpdateCalculationSheet, useTogglePublishCalculationSheet, useDuplicateCalculationSheet, type CalculationSheetData } from '@/hooks/useCalculationSheets';
 import { useSegments, type Segment } from '@/hooks/useSegments';
 import { useCities, type City } from '@/hooks/useCities';
+import { MigrationPanel } from '@/components/admin/MigrationPanel';
+import { tokenManager } from '@/lib/api/client';
 
 export default function CalculationSheetsList() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingSheet, setEditingSheet] = useState<any>(null);
+  const [isMigrationPanelOpen, setIsMigrationPanelOpen] = useState(false);
+
+  // Check if current user is admin
+  const currentUser = tokenManager.getUser();
+  const isAdmin = currentUser?.role === 'admin';
 
   const { data: sheets = [], isLoading } = useCalculationSheets();
   const { data: segments = [] } = useSegments();
@@ -100,7 +107,17 @@ export default function CalculationSheetsList() {
     >
       <div className="space-y-6">
         {/* Header Actions */}
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-3">
+          {isAdmin && (
+            <button
+              onClick={() => setIsMigrationPanelOpen(true)}
+              className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors flex items-center gap-2 text-sm"
+              title="Migrations & Diagnostics"
+            >
+              <Wrench className="w-4 h-4" />
+              Migrations
+            </button>
+          )}
           <button
             onClick={() => setIsCreateModalOpen(true)}
             className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
@@ -109,6 +126,12 @@ export default function CalculationSheetsList() {
             Nouvelle Fiche
           </button>
         </div>
+
+        {/* Migration Panel */}
+        <MigrationPanel
+          open={isMigrationPanelOpen}
+          onOpenChange={setIsMigrationPanelOpen}
+        />
 
         {/* Liste des fiches */}
       {isLoading ? (
