@@ -310,6 +310,76 @@ router.delete('/:id', async (req, res) => {
 });
 
 /**
+ * GET /api/corps-formation/:id/debug
+ * Endpoint de diagnostic pour identifier les problèmes de données
+ * TEMPORAIRE - Pour déboguer les formations orphelines
+ */
+router.get('/:id/debug', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Récupérer le corps
+    const corpsResult = await pool.query(
+      'SELECT * FROM corps_formation WHERE id = $1',
+      [id]
+    );
+
+    // Compter les formations
+    const countResult = await pool.query(
+      'SELECT COUNT(*) as count FROM formations WHERE corps_formation_id = $1',
+      [id]
+    );
+
+    // Récupérer les formations réelles
+    const formationsResult = await pool.query(
+      `SELECT id, title, corps_formation_id, is_pack, status, created_at
+       FROM formations
+       WHERE corps_formation_id = $1
+       ORDER BY created_at DESC`,
+      [id]
+    );
+
+    // Vérifier les collisions d'ID de corps
+    const duplicateIdsResult = await pool.query(
+      'SELECT id, COUNT(*) as count FROM corps_formation GROUP BY id HAVING COUNT(*) > 1'
+    );
+
+    // Vérifier si des formations référencent un corps inexistant
+    const orphanedFormationsResult = await pool.query(
+      `SELECT f.id, f.title, f.corps_formation_id
+       FROM formations f
+       LEFT JOIN corps_formation cf ON f.corps_formation_id = cf.id
+       WHERE f.corps_formation_id IS NOT NULL
+       AND cf.id IS NULL`
+    );
+
+    res.json({
+      success: true,
+      debug: {
+        corps_exists: corpsResult.rows.length > 0,
+        corps: corpsResult.rows[0] || null,
+        formations_count: parseInt(countResult.rows[0].count),
+        formations: formationsResult.rows,
+        duplicate_corps_ids: duplicateIdsResult.rows,
+        orphaned_formations: orphanedFormationsResult.rows,
+        diagnosis: {
+          has_data_inconsistency: corpsResult.rows.length === 0 && parseInt(countResult.rows[0].count) > 0,
+          has_id_collision: duplicateIdsResult.rows.length > 0,
+          has_orphaned_formations: orphanedFormationsResult.rows.length > 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Erreur endpoint debug:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur serveur',
+      details: error.message
+    });
+  }
+});
+
+/**
  * GET /api/corps-formation/:id/formations
  * Récupère toutes les formations unitaires (non-packs) d'un corps
  * Utilisé pour la création de packs
@@ -406,7 +476,36 @@ router.post('/:id/duplicate', async (req, res) => {
     const originalCorps = corpsResult.rows[0];
 
     // Créer le nouveau corps avec (Copie)
-    const newCorpsId = nanoid();
+    // Vérifier la collision d'ID et régénérer si nécessaire
+    let newCorpsId = nanoid();
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    while (attempts < maxAttempts) {
+      const existingIdCheck = await client.query(
+        'SELECT id FROM corps_formation WHERE id = $1',
+        [newCorpsId]
+      );
+
+      if (existingIdCheck.rows.length === 0) {
+        // ID unique trouvé
+        break;
+      }
+
+      // Collision détectée, régénérer
+      console.warn(`Collision d'ID détectée: ${newCorpsId}, régénération...`);
+      newCorpsId = nanoid();
+      attempts++;
+    }
+
+    if (attempts >= maxAttempts) {
+      await client.query('ROLLBACK');
+      return res.status(500).json({
+        success: false,
+        error: 'Impossible de générer un ID unique après plusieurs tentatives'
+      });
+    }
+
     const newCorpsName = `${originalCorps.name} (Copie)`;
 
     const insertCorpsQuery = `
@@ -480,6 +579,129 @@ router.post('/:id/duplicate', async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erreur duplication corps:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur serveur',
+      details: error.message
+    });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * POST /api/corps-formation/:id/fix-orphaned-formations
+ * Nettoyer les formations orphelines qui référencent ce corps
+ * Options:
+ * - set_to_null: Met corps_formation_id à NULL
+ * - move_to_default: Déplace vers un corps par défaut (si fourni)
+ * - delete: Supprime les formations orphelines
+ */
+router.post('/:id/fix-orphaned-formations', async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params;
+    const { action = 'set_to_null', default_corps_id = null } = req.body;
+
+    await client.query('BEGIN');
+
+    // Vérifier que le corps existe (ou pas, c'est justement le problème)
+    const corpsResult = await client.query(
+      'SELECT * FROM corps_formation WHERE id = $1',
+      [id]
+    );
+
+    // Récupérer les formations qui référencent ce corps
+    const formationsResult = await client.query(
+      'SELECT id, title, corps_formation_id FROM formations WHERE corps_formation_id = $1',
+      [id]
+    );
+
+    const formationsCount = formationsResult.rows.length;
+
+    if (formationsCount === 0) {
+      await client.query('COMMIT');
+      return res.json({
+        success: true,
+        message: 'Aucune formation à corriger',
+        fixed_count: 0
+      });
+    }
+
+    let result;
+    let message;
+
+    switch (action) {
+      case 'set_to_null':
+        // Mettre corps_formation_id à NULL
+        result = await client.query(
+          'UPDATE formations SET corps_formation_id = NULL WHERE corps_formation_id = $1',
+          [id]
+        );
+        message = `${formationsCount} formation(s) détachée(s) du corps (corps_formation_id = NULL)`;
+        break;
+
+      case 'move_to_default':
+        if (!default_corps_id) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            success: false,
+            error: 'default_corps_id requis pour action move_to_default'
+          });
+        }
+
+        // Vérifier que le corps de destination existe
+        const targetCorpsResult = await client.query(
+          'SELECT id FROM corps_formation WHERE id = $1',
+          [default_corps_id]
+        );
+
+        if (targetCorpsResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({
+            success: false,
+            error: 'Corps de formation de destination non trouvé'
+          });
+        }
+
+        // Déplacer les formations vers le nouveau corps
+        result = await client.query(
+          'UPDATE formations SET corps_formation_id = $1 WHERE corps_formation_id = $2',
+          [default_corps_id, id]
+        );
+        message = `${formationsCount} formation(s) déplacée(s) vers le corps ${default_corps_id}`;
+        break;
+
+      case 'delete':
+        // Supprimer les formations orphelines
+        result = await client.query(
+          'DELETE FROM formations WHERE corps_formation_id = $1',
+          [id]
+        );
+        message = `${formationsCount} formation(s) supprimée(s)`;
+        break;
+
+      default:
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          success: false,
+          error: 'Action invalide. Actions valides: set_to_null, move_to_default, delete'
+        });
+    }
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message,
+      fixed_count: formationsCount,
+      formations_affected: formationsResult.rows.map(f => ({ id: f.id, title: f.title }))
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erreur nettoyage formations orphelines:', error);
     res.status(500).json({
       success: false,
       error: 'Erreur serveur',
