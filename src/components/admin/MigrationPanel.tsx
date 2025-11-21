@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle, XCircle, AlertCircle, Play, RefreshCw, X } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Play, RefreshCw, X, Trash2 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 
 interface Migration {
@@ -125,6 +125,47 @@ export function MigrationPanel({ open, onOpenChange }: MigrationPanelProps) {
     }
   };
 
+  const runCleanupOrphans = async () => {
+    setLoading(prev => ({ ...prev, 'cleanup-orphans': true }));
+
+    try {
+      addLog('🧹 Starting automatic cleanup of duplicate corps...');
+      const response = await apiClient.post<any>('/corps-formation/cleanup-all-orphans');
+
+      if (response.success) {
+        addLog('✓ Cleanup completed successfully!');
+        addLog(`📊 Summary:`);
+        addLog(`  - Duplicates found: ${response.report.total_duplicates_found}`);
+        addLog(`  - Corps cleaned: ${response.report.corps_cleaned.length}`);
+        addLog(`  - Corps deleted: ${response.report.corps_deleted.length}`);
+        addLog(`  - Errors: ${response.report.errors.length}`);
+
+        if (response.report.corps_deleted.length > 0) {
+          addLog(`\n🗑️ Deleted corps:`);
+          response.report.corps_deleted.forEach((corps: any) => {
+            addLog(`  - ${corps.corps_name} (${corps.formations_detached} formations detached)`);
+          });
+        }
+
+        if (response.report.errors.length > 0) {
+          addLog(`\n⚠️ Errors:`);
+          response.report.errors.forEach((error: any) => {
+            addLog(`  - ${error.corps_name}: ${error.error}`);
+          });
+        }
+      } else {
+        addLog(`✗ Cleanup failed: ${response.error || 'Unknown error'}`);
+      }
+    } catch (error: any) {
+      addLog(`✗ Cleanup failed: ${error.message}`);
+      if (error.stack) {
+        addLog(`Stack: ${error.stack}`);
+      }
+    } finally {
+      setLoading(prev => ({ ...prev, 'cleanup-orphans': false }));
+    }
+  };
+
   const getStatusIcon = (status: MigrationStatus | undefined) => {
     if (!status) return <AlertCircle className="h-5 w-5 text-gray-400" />;
     if (status.applied) return <CheckCircle className="h-5 w-5 text-green-500" />;
@@ -160,7 +201,7 @@ export function MigrationPanel({ open, onOpenChange }: MigrationPanelProps) {
         {/* Body */}
         <div className="p-6 space-y-4">
           {/* Action Buttons */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               onClick={checkAllStatuses}
               className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm"
@@ -174,6 +215,18 @@ export function MigrationPanel({ open, onOpenChange }: MigrationPanelProps) {
             >
               <AlertCircle className="h-4 w-4" />
               Debug Permissions
+            </button>
+            <button
+              onClick={runCleanupOrphans}
+              disabled={loading['cleanup-orphans']}
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading['cleanup-orphans'] ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Cleanup Duplicate Corps
             </button>
           </div>
 
