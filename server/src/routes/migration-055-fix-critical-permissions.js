@@ -81,8 +81,8 @@ router.post('/run', async (req, res) => {
     console.log('Step 3: Adding professor permissions...');
 
     const professorPermissions = [
-      { module: 'accounting', menu: 'professor', action: 'declarations', subaction: 'view_page', code: 'accounting.professor.declarations.view_page', label: 'Voir mes déclarations', description: 'Accéder à la page des déclarations professeur', sort_order: 4100 },
-      { module: 'accounting', menu: 'professor', action: 'declarations', subaction: 'fill', code: 'accounting.professor.declarations.fill', label: 'Remplir une déclaration', description: 'Remplir et soumettre une déclaration', sort_order: 4101 },
+      { module: 'accounting', menu: 'professor', action: 'declarations_view_page', code: 'accounting.professor.declarations.view_page', label: 'Voir mes déclarations', description: 'Accéder à la page des déclarations professeur', sort_order: 4100 },
+      { module: 'accounting', menu: 'professor', action: 'declarations_fill', code: 'accounting.professor.declarations.fill', label: 'Remplir une déclaration', description: 'Remplir et soumettre une déclaration', sort_order: 4101 },
     ];
 
     let professorPermissionsAdded = 0;
@@ -106,13 +106,13 @@ router.post('/run', async (req, res) => {
     console.log('Step 4: Adding student permissions...');
 
     const studentPermissions = [
-      { module: 'training', menu: 'student', action: 'dashboard', subaction: 'view_page', code: 'training.student.dashboard.view_page', label: 'Voir dashboard étudiant', description: 'Accéder au tableau de bord étudiant', sort_order: 2100 },
-      { module: 'training', menu: 'student', action: 'catalog', subaction: 'view_page', code: 'training.student.catalog.view_page', label: 'Voir catalogue formations', description: 'Consulter le catalogue des formations disponibles', sort_order: 2101 },
-      { module: 'training', menu: 'student', action: 'course', subaction: 'view', code: 'training.student.course.view', label: 'Voir une formation', description: 'Accéder au contenu d\'une formation', sort_order: 2102 },
-      { module: 'training', menu: 'student', action: 'course', subaction: 'videos', code: 'training.student.course.videos.view', label: 'Voir vidéos cours', description: 'Visionner les vidéos d\'une formation', sort_order: 2103 },
-      { module: 'training', menu: 'student', action: 'course', subaction: 'tests', code: 'training.student.course.tests.take', label: 'Passer les tests', description: 'Passer les tests d\'évaluation', sort_order: 2104 },
-      { module: 'training', menu: 'student', action: 'certificates', subaction: 'view', code: 'training.student.certificates.view', label: 'Voir mes certificats', description: 'Consulter mes certificats obtenus', sort_order: 2105 },
-      { module: 'training', menu: 'student', action: 'forums', subaction: 'participate', code: 'training.student.forums.participate', label: 'Participer aux forums', description: 'Participer aux discussions des forums', sort_order: 2106 },
+      { module: 'training', menu: 'student', action: 'dashboard_view_page', code: 'training.student.dashboard.view_page', label: 'Voir dashboard étudiant', description: 'Accéder au tableau de bord étudiant', sort_order: 2100 },
+      { module: 'training', menu: 'student', action: 'catalog_view_page', code: 'training.student.catalog.view_page', label: 'Voir catalogue formations', description: 'Consulter le catalogue des formations disponibles', sort_order: 2101 },
+      { module: 'training', menu: 'student', action: 'course_view', code: 'training.student.course.view', label: 'Voir une formation', description: 'Accéder au contenu d\'une formation', sort_order: 2102 },
+      { module: 'training', menu: 'student', action: 'course_videos_view', code: 'training.student.course.videos.view', label: 'Voir vidéos cours', description: 'Visionner les vidéos d\'une formation', sort_order: 2103 },
+      { module: 'training', menu: 'student', action: 'course_tests_take', code: 'training.student.course.tests.take', label: 'Passer les tests', description: 'Passer les tests d\'évaluation', sort_order: 2104 },
+      { module: 'training', menu: 'student', action: 'certificates_view', code: 'training.student.certificates.view', label: 'Voir mes certificats', description: 'Consulter mes certificats obtenus', sort_order: 2105 },
+      { module: 'training', menu: 'student', action: 'forums_participate', code: 'training.student.forums.participate', label: 'Participer aux forums', description: 'Participer aux discussions des forums', sort_order: 2106 },
     ];
 
     let studentPermissionsAdded = 0;
