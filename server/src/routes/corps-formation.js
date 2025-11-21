@@ -741,4 +741,153 @@ router.post('/:id/fix-orphaned-formations', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/corps-formation/cleanup-all-orphans
+ * Nettoie automatiquement TOUS les corps dupliqués problématiques
+ *
+ * Processus:
+ * 1. Trouve tous les corps avec "(Copie)" dans le nom
+ * 2. Pour chaque corps, vérifie s'il a des formations
+ * 3. Si oui, détache les formations (set corps_formation_id à NULL)
+ * 4. Tente de supprimer le corps vidé
+ * 5. Retourne un rapport détaillé de toutes les actions
+ */
+router.post('/cleanup-all-orphans', async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    console.log('=== Début du nettoyage automatique des corps dupliqués ===');
+
+    // 1. Trouver tous les corps avec "(Copie)" dans le nom
+    const duplicateCorpsResult = await client.query(`
+      SELECT id, name, created_at
+      FROM corps_formation
+      WHERE name LIKE '%(Copie%'
+      ORDER BY created_at DESC
+    `);
+
+    const duplicateCorps = duplicateCorpsResult.rows;
+    console.log(`Trouvé ${duplicateCorps.length} corps avec "(Copie)" dans le nom`);
+
+    if (duplicateCorps.length === 0) {
+      await client.query('COMMIT');
+      return res.json({
+        success: true,
+        message: 'Aucun corps dupliqué à nettoyer',
+        report: {
+          total_duplicates_found: 0,
+          corps_cleaned: [],
+          corps_deleted: [],
+          errors: []
+        }
+      });
+    }
+
+    const report = {
+      total_duplicates_found: duplicateCorps.length,
+      corps_cleaned: [],
+      corps_deleted: [],
+      errors: []
+    };
+
+    // 2. Pour chaque corps dupliqué
+    for (const corps of duplicateCorps) {
+      try {
+        console.log(`\nTraitement du corps: ${corps.name} (ID: ${corps.id})`);
+
+        // Compter les formations liées
+        const formationsCountResult = await client.query(
+          'SELECT COUNT(*) as count FROM formations WHERE corps_formation_id = $1',
+          [corps.id]
+        );
+
+        const formationsCount = parseInt(formationsCountResult.rows[0].count);
+        console.log(`  → ${formationsCount} formation(s) trouvée(s)`);
+
+        if (formationsCount > 0) {
+          // Récupérer les détails des formations pour le rapport
+          const formationsResult = await client.query(
+            'SELECT id, title FROM formations WHERE corps_formation_id = $1',
+            [corps.id]
+          );
+
+          // Détacher les formations (set corps_formation_id à NULL)
+          await client.query(
+            'UPDATE formations SET corps_formation_id = NULL WHERE corps_formation_id = $1',
+            [corps.id]
+          );
+
+          console.log(`  ✓ ${formationsCount} formation(s) détachée(s)`);
+
+          report.corps_cleaned.push({
+            corps_id: corps.id,
+            corps_name: corps.name,
+            formations_detached: formationsCount,
+            formations: formationsResult.rows.map(f => ({
+              id: f.id,
+              title: f.title
+            }))
+          });
+        }
+
+        // 3. Tenter de supprimer le corps (maintenant vide)
+        const deleteResult = await client.query(
+          'DELETE FROM corps_formation WHERE id = $1',
+          [corps.id]
+        );
+
+        if (deleteResult.rowCount > 0) {
+          console.log(`  ✓ Corps supprimé: ${corps.name}`);
+          report.corps_deleted.push({
+            corps_id: corps.id,
+            corps_name: corps.name,
+            formations_detached: formationsCount
+          });
+        } else {
+          console.log(`  ⚠ Impossible de supprimer le corps: ${corps.name}`);
+          report.errors.push({
+            corps_id: corps.id,
+            corps_name: corps.name,
+            error: 'Suppression impossible (corps introuvable ou contrainte)'
+          });
+        }
+
+      } catch (error) {
+        console.error(`  ✗ Erreur lors du traitement de ${corps.name}:`, error.message);
+        report.errors.push({
+          corps_id: corps.id,
+          corps_name: corps.name,
+          error: error.message
+        });
+      }
+    }
+
+    await client.query('COMMIT');
+
+    console.log('\n=== Nettoyage terminé ===');
+    console.log(`Corps nettoyés: ${report.corps_cleaned.length}`);
+    console.log(`Corps supprimés: ${report.corps_deleted.length}`);
+    console.log(`Erreurs: ${report.errors.length}`);
+
+    res.json({
+      success: true,
+      message: `Nettoyage terminé: ${report.corps_deleted.length} corps supprimés, ${report.corps_cleaned.length} nettoyés`,
+      report
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erreur lors du nettoyage automatique:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors du nettoyage',
+      details: error.message
+    });
+  } finally {
+    client.release();
+  }
+});
+
 export default router;
