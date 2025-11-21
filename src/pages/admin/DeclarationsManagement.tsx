@@ -14,9 +14,12 @@ import {
 } from '@/hooks/useAdminDeclarations';
 import EditDeclarationModal from '@/components/admin/EditDeclarationModal';
 import NewDeclarationModal from '@/components/professor/NewDeclarationModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { PERMISSIONS } from '@/config/permissions';
 
 const DeclarationsManagement: React.FC = () => {
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedProfessor, setSelectedProfessor] = useState<string>('all');
   const [selectedCity, setSelectedCity] = useState<string>('all');
@@ -425,18 +428,20 @@ const DeclarationsManagement: React.FC = () => {
                           )}
                         </div>
                         <div className="flex gap-2 ml-4 flex-shrink-0">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setDeclarationToEdit(declaration);
-                              setShowEditModal(true);
-                            }}
-                            className="bg-white hover:bg-purple-50 border-purple-300"
-                            title="Modifier les métadonnées"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </Button>
+                          {hasPermission(PERMISSIONS.accounting.declarations.update) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setDeclarationToEdit(declaration);
+                                setShowEditModal(true);
+                              }}
+                              className="bg-white hover:bg-purple-50 border-purple-300"
+                              title="Modifier les métadonnées"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"
@@ -446,14 +451,16 @@ const DeclarationsManagement: React.FC = () => {
                             <ExternalLink className="w-4 h-4 mr-1" />
                             Ouvrir
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="bg-white text-red-600 hover:bg-red-50 border-red-300"
-                            onClick={() => handleDelete(declaration)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {hasPermission(PERMISSIONS.accounting.declarations.delete) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="bg-white text-red-600 hover:bg-red-50 border-red-300"
+                              onClick={() => handleDelete(declaration)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
