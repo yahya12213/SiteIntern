@@ -61,18 +61,17 @@ router.post('/run', async (req, res) => {
     // STEP 2: Add missing training.corps.view_page
     console.log('Step 2: Adding missing training.corps.view_page...');
 
-    const corpsViewCheck = await client.query(`
-      SELECT id FROM permissions WHERE code = 'training.corps.view_page'
+    const corpsResult = await client.query(`
+      INSERT INTO permissions (module, menu, action, code, label, description, sort_order, created_at)
+      VALUES ('training', 'corps', 'view_page', 'training.corps.view_page',
+              'Voir la page Corps de Formation',
+              'Accéder à la page de gestion des corps de formation',
+              1006, NOW())
+      ON CONFLICT (code) DO NOTHING
+      RETURNING id
     `);
 
-    if (corpsViewCheck.rows.length === 0) {
-      await client.query(`
-        INSERT INTO permissions (module, menu, action, code, label, description, sort_order, created_at)
-        VALUES ('training', 'corps', 'view_page', 'training.corps.view_page',
-                'Voir la page Corps de Formation',
-                'Accéder à la page de gestion des corps de formation',
-                1006, NOW())
-      `);
+    if (corpsResult.rowCount > 0) {
       console.log('  Added: training.corps.view_page');
     } else {
       console.log('  Already exists: training.corps.view_page');
@@ -88,15 +87,14 @@ router.post('/run', async (req, res) => {
 
     let professorPermissionsAdded = 0;
     for (const perm of professorPermissions) {
-      const checkExisting = await client.query(`
-        SELECT id FROM permissions WHERE code = $1
-      `, [perm.code]);
+      const result = await client.query(`
+        INSERT INTO permissions (module, menu, action, code, label, description, sort_order, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        ON CONFLICT (code) DO NOTHING
+        RETURNING id
+      `, [perm.module, perm.menu, perm.action, perm.code, perm.label, perm.description, perm.sort_order]);
 
-      if (checkExisting.rows.length === 0) {
-        await client.query(`
-          INSERT INTO permissions (module, menu, action, code, label, description, sort_order, created_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-        `, [perm.module, perm.menu, perm.action, perm.code, perm.label, perm.description, perm.sort_order]);
+      if (result.rowCount > 0) {
         console.log(`  Added: ${perm.code}`);
         professorPermissionsAdded++;
       } else {
@@ -119,15 +117,14 @@ router.post('/run', async (req, res) => {
 
     let studentPermissionsAdded = 0;
     for (const perm of studentPermissions) {
-      const checkExisting = await client.query(`
-        SELECT id FROM permissions WHERE code = $1
-      `, [perm.code]);
+      const result = await client.query(`
+        INSERT INTO permissions (module, menu, action, code, label, description, sort_order, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        ON CONFLICT (code) DO NOTHING
+        RETURNING id
+      `, [perm.module, perm.menu, perm.action, perm.code, perm.label, perm.description, perm.sort_order]);
 
-      if (checkExisting.rows.length === 0) {
-        await client.query(`
-          INSERT INTO permissions (module, menu, action, code, label, description, sort_order, created_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-        `, [perm.module, perm.menu, perm.action, perm.code, perm.label, perm.description, perm.sort_order]);
+      if (result.rowCount > 0) {
         console.log(`  Added: ${perm.code}`);
         studentPermissionsAdded++;
       } else {
