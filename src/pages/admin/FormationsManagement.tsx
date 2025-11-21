@@ -135,7 +135,7 @@ export default function FormationsManagement() {
     }
   };
 
-  const handleDuplicateCorps = async (id: string, name: string) => {
+  const handleDuplicateCorps = async (id: string) => {
     try {
       await duplicateCorps.mutateAsync({
         id,
@@ -478,7 +478,7 @@ export default function FormationsManagement() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDuplicateCorps(corps.id, corps.name)}
+                          onClick={() => handleDuplicateCorps(corps.id)}
                           disabled={duplicateCorps.isPending}
                           title="Dupliquer ce corps"
                         >
