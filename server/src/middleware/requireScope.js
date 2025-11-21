@@ -105,9 +105,9 @@ export const buildScopeFilter = (req, segmentColumn = 'segment_id', cityColumn =
 
   // Filter by segments if user has assigned segments
   if (scope.segmentIds && scope.segmentIds.length > 0) {
-    conditions.push(`${segmentColumn} = ANY($${paramIndex}::text[])`);
-    params.push(scope.segmentIds);
-    paramIndex++;
+    const placeholders = scope.segmentIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+    conditions.push(`${segmentColumn} IN (${placeholders})`);
+    params.push(...scope.segmentIds);
   } else {
     // If user has no segments assigned, they can't see any data
     // Use impossible condition to return empty result
@@ -116,9 +116,9 @@ export const buildScopeFilter = (req, segmentColumn = 'segment_id', cityColumn =
 
   // Filter by cities if user has assigned cities
   if (scope.cityIds && scope.cityIds.length > 0) {
-    conditions.push(`${cityColumn} = ANY($${paramIndex}::uuid[])`);
-    params.push(scope.cityIds);
-    paramIndex++;
+    const placeholders = scope.cityIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+    conditions.push(`${cityColumn} IN (${placeholders})`);
+    params.push(...scope.cityIds);
   } else {
     // If user has no cities assigned, they can't see any data
     conditions.push('1 = 0');
@@ -156,18 +156,27 @@ export const verifyRecordInScope = async (table, recordId, segmentColumn, cityCo
   }
 
   try {
+    // Build IN placeholders for segments
+    const segmentPlaceholders = userScope.segmentIds.map((_, idx) => `$${idx + 2}`).join(', ');
+    const segmentInClause = `${segmentColumn} IN (${segmentPlaceholders})`;
+
+    // Build IN placeholders for cities
+    const cityStartIdx = 2 + userScope.segmentIds.length;
+    const cityPlaceholders = userScope.cityIds.map((_, idx) => `$${cityStartIdx + idx}`).join(', ');
+    const cityInClause = `${cityColumn} IN (${cityPlaceholders})`;
+
     const query = `
       SELECT id
       FROM ${table}
       WHERE id = $1
-        AND ${segmentColumn} = ANY($2::text[])
-        AND ${cityColumn} = ANY($3::uuid[])
+        AND ${segmentInClause}
+        AND ${cityInClause}
     `;
 
     const result = await pool.query(query, [
       recordId,
-      userScope.segmentIds,
-      userScope.cityIds
+      ...userScope.segmentIds,
+      ...userScope.cityIds
     ]);
 
     return result.rows.length > 0;
