@@ -14,10 +14,12 @@ import { calculateAllValues } from '@/lib/formula/dependency';
 import type { FieldDefinition, FormulaContext } from '@/lib/formula/types';
 import FilePreviewModal from '@/components/admin/FilePreviewModal';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { useAuth } from '@/contexts/AuthContext';
 
 const DeclarationViewer: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const { data: declaration, isLoading } = useAdminDeclaration(id!);
   const approveDeclaration = useApproveDeclaration();
   const rejectDeclaration = useRejectDeclaration();
@@ -163,6 +165,11 @@ const DeclarationViewer: React.FC = () => {
   const renderField = (field: FieldDefinition) => {
     const layout = field.layout || { x: 0, y: 0, w: 200, h: 40 };
     const isAdminOnly = field.visibility?.hidden === true;
+
+    // Masquer les champs admin-only pour les non-admins
+    if (isAdminOnly && !isAdmin) {
+      return null;
+    }
 
     // Helper pour les classes des champs admin uniquement
     const getAdminOnlyClasses = (baseClasses: string) => {
