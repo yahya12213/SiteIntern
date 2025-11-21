@@ -34,12 +34,25 @@ router.post('/run', async (req, res) => {
     if (rolesPermissions.rows.length > 0) {
       for (const perm of rolesPermissions.rows) {
         const newCode = perm.code.replace('accounting.roles', 'system.roles');
-        await client.query(`
-          UPDATE permissions
-          SET module = 'system', code = $1
-          WHERE id = $2
-        `, [newCode, perm.id]);
-        console.log(`  Updated: ${perm.code} → ${newCode}`);
+
+        // Check if the new code already exists
+        const existingCheck = await client.query(`
+          SELECT id FROM permissions WHERE code = $1
+        `, [newCode]);
+
+        if (existingCheck.rows.length > 0) {
+          // New code already exists, delete the old one to avoid duplicates
+          await client.query(`DELETE FROM permissions WHERE id = $1`, [perm.id]);
+          console.log(`  Deleted duplicate: ${perm.code} (${newCode} already exists)`);
+        } else {
+          // Safe to update
+          await client.query(`
+            UPDATE permissions
+            SET module = 'system', code = $1
+            WHERE id = $2
+          `, [newCode, perm.id]);
+          console.log(`  Updated: ${perm.code} → ${newCode}`);
+        }
       }
     } else {
       console.log('  No permissions to move (already migrated)');
