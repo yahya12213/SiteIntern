@@ -31,14 +31,18 @@ router.post('/run', async (req, res) => {
       SELECT id, code FROM permissions WHERE module = 'accounting' AND menu = 'roles'
     `);
 
-    for (const perm of rolesPermissions.rows) {
-      const newCode = perm.code.replace('accounting.roles', 'system.roles');
-      await client.query(`
-        UPDATE permissions
-        SET module = 'system', code = $1
-        WHERE id = $2
-      `, [newCode, perm.id]);
-      console.log(`  Updated: ${perm.code} → ${newCode}`);
+    if (rolesPermissions.rows.length > 0) {
+      for (const perm of rolesPermissions.rows) {
+        const newCode = perm.code.replace('accounting.roles', 'system.roles');
+        await client.query(`
+          UPDATE permissions
+          SET module = 'system', code = $1
+          WHERE id = $2
+        `, [newCode, perm.id]);
+        console.log(`  Updated: ${perm.code} → ${newCode}`);
+      }
+    } else {
+      console.log('  No permissions to move (already migrated)');
     }
 
     // STEP 2: Add missing training.corps.view_page
@@ -69,6 +73,7 @@ router.post('/run', async (req, res) => {
       { module: 'accounting', menu: 'professor', action: 'declarations', subaction: 'fill', code: 'accounting.professor.declarations.fill', label: 'Remplir une déclaration', description: 'Remplir et soumettre une déclaration', sort_order: 4101 },
     ];
 
+    let professorPermissionsAdded = 0;
     for (const perm of professorPermissions) {
       const checkExisting = await client.query(`
         SELECT id FROM permissions WHERE code = $1
@@ -80,6 +85,9 @@ router.post('/run', async (req, res) => {
           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
         `, [perm.module, perm.menu, perm.action, perm.code, perm.label, perm.description, perm.sort_order]);
         console.log(`  Added: ${perm.code}`);
+        professorPermissionsAdded++;
+      } else {
+        console.log(`  Already exists: ${perm.code}`);
       }
     }
 
@@ -96,6 +104,7 @@ router.post('/run', async (req, res) => {
       { module: 'training', menu: 'student', action: 'forums', subaction: 'participate', code: 'training.student.forums.participate', label: 'Participer aux forums', description: 'Participer aux discussions des forums', sort_order: 2106 },
     ];
 
+    let studentPermissionsAdded = 0;
     for (const perm of studentPermissions) {
       const checkExisting = await client.query(`
         SELECT id FROM permissions WHERE code = $1
@@ -107,6 +116,9 @@ router.post('/run', async (req, res) => {
           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
         `, [perm.module, perm.menu, perm.action, perm.code, perm.label, perm.description, perm.sort_order]);
         console.log(`  Added: ${perm.code}`);
+        studentPermissionsAdded++;
+      } else {
+        console.log(`  Already exists: ${perm.code}`);
       }
     }
 
@@ -169,10 +181,10 @@ router.post('/run', async (req, res) => {
 
     console.log('=== Migration 055 completed successfully! ===');
     console.log(`Summary:`);
-    console.log(`  - Moved roles permissions to system module`);
-    console.log(`  - Added training.corps.view_page`);
-    console.log(`  - Added ${professorPermissions.length} professor permissions`);
-    console.log(`  - Added ${studentPermissions.length} student permissions`);
+    console.log(`  - Moved ${rolesPermissions.rows.length} roles permissions to system module`);
+    console.log(`  - Added training.corps.view_page (if new)`);
+    console.log(`  - Added ${professorPermissionsAdded} professor permissions`);
+    console.log(`  - Added ${studentPermissionsAdded} student permissions`);
     console.log(`  - Synced ${syncResult.rowCount} role_id fields`);
 
     res.json({
@@ -180,8 +192,8 @@ router.post('/run', async (req, res) => {
       message: 'Migration 055 executed successfully',
       details: {
         rolesPermissionsMoved: rolesPermissions.rows.length,
-        professorPermissionsAdded: professorPermissions.length,
-        studentPermissionsAdded: studentPermissions.length,
+        professorPermissionsAdded,
+        studentPermissionsAdded,
         roleIdsSynced: syncResult.rowCount
       }
     });

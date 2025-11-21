@@ -7,7 +7,8 @@
 // Détection automatique de l'URL API:
 // - Production (build): URL relative /api (même domaine que le frontend)
 // - Dev (vite dev): URL relative /api (proxy Vite vers localhost:3001)
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+// IMPORTANT: En production, TOUJOURS utiliser /api (URL relative) pour éviter les problèmes CORS
+const API_URL = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_URL || '/api');
 
 // Token storage keys
 const TOKEN_KEY = 'auth_token';
