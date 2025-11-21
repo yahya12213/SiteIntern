@@ -136,14 +136,10 @@ export default function FormationsManagement() {
   };
 
   const handleDuplicateCorps = async (id: string, name: string) => {
-    const includeFormations = confirm(
-      `Voulez-vous dupliquer le corps "${name}" avec toutes ses formations ?\n\nOUI = Avec formations\nNON = Sans formations`
-    );
-
     try {
       await duplicateCorps.mutateAsync({
         id,
-        options: { include_formations: includeFormations }
+        options: { include_formations: true }
       });
     } catch (error: any) {
       alert(error.message || 'Erreur lors de la duplication');
