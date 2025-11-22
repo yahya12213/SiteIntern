@@ -4,10 +4,16 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import pool from './config/database.js';
+
+// CRITICAL: Load environment variables BEFORE any custom imports
+// Some modules (like auth.js) validate env vars at load time
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Import database connection after dotenv
+import pool from './config/database.js';
 
 // Import routes
 import segmentsRouter from './routes/segments.js';
@@ -87,6 +93,7 @@ import migration053Router from './routes/migration-053-commercialisation-permiss
 import migration054Router from './routes/migration-054-assign-all-permissions-to-gerant.js';
 import migration055Router from './routes/migration-055-fix-critical-permissions.js';
 import migration056Router from './routes/migration-056-accounting-permissions.js';
+import migration057Router from './routes/migration-057-declaration-attachments.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -98,8 +105,6 @@ import hrDashboardRouter from './routes/hr-dashboard.js';
 import hrSettingsRouter from './routes/hr-settings.js';
 import hrClockingRouter from './routes/hr-clocking.js';
 import hrPublicHolidaysRouter from './routes/hr-public-holidays.js';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
