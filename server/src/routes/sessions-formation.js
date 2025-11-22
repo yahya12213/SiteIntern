@@ -1,7 +1,7 @@
 import express from 'express';
 import pool from '../config/database.js';
 import { nanoid } from 'nanoid';
-import { requirePermission } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import { injectUserScope, buildScopeFilter, requireRecordScope } from '../middleware/requireScope.js';
 
 const router = express.Router();
@@ -456,7 +456,15 @@ router.delete('/:id',
  * POST /api/sessions-formation/:id/etudiants
  * Ajouter un étudiant à une session
  */
-router.post('/:id/etudiants', async (req, res) => {
+/**
+ * POST /:id/etudiants
+ * Inscrire un étudiant à une session
+ * Protected: Requires training.sessions.update permission
+ */
+router.post('/:id/etudiants',
+  authenticateToken,
+  requirePermission('training.sessions.update'),
+  async (req, res) => {
   try {
     const { id: session_id } = req.params;
     const {
@@ -880,8 +888,12 @@ router.delete('/:sessionId/etudiants/:etudiantId', async (req, res) => {
 /**
  * POST /api/sessions-formation/:id/professeurs
  * Affecter un professeur à une session
+ * Protected: Requires training.sessions.update permission
  */
-router.post('/:id/professeurs', async (req, res) => {
+router.post('/:id/professeurs',
+  authenticateToken,
+  requirePermission('training.sessions.update'),
+  async (req, res) => {
   try {
     const { id: session_id } = req.params;
     const { professeur_id } = req.body;
@@ -939,8 +951,12 @@ router.post('/:id/professeurs', async (req, res) => {
 /**
  * DELETE /api/sessions-formation/:sessionId/professeurs/:professeurId
  * Retirer un professeur d'une session
+ * Protected: Requires training.sessions.update permission
  */
-router.delete('/:sessionId/professeurs/:professeurId', async (req, res) => {
+router.delete('/:sessionId/professeurs/:professeurId',
+  authenticateToken,
+  requirePermission('training.sessions.update'),
+  async (req, res) => {
   try {
     const { sessionId, professeurId } = req.params;
 
@@ -977,8 +993,12 @@ router.delete('/:sessionId/professeurs/:professeurId', async (req, res) => {
 /**
  * POST /api/sessions-formation/:id/fichiers
  * Ajouter un fichier (test ou présence)
+ * Protected: Requires training.sessions.update permission
  */
-router.post('/:id/fichiers', async (req, res) => {
+router.post('/:id/fichiers',
+  authenticateToken,
+  requirePermission('training.sessions.update'),
+  async (req, res) => {
   try {
     const { id: session_id } = req.params;
     const { type, titre, file_url, file_name, file_size } = req.body;
@@ -1034,8 +1054,12 @@ router.post('/:id/fichiers', async (req, res) => {
 /**
  * DELETE /api/sessions-formation/fichiers/:fichierId
  * Supprimer un fichier
+ * Protected: Requires training.sessions.delete permission
  */
-router.delete('/fichiers/:fichierId', async (req, res) => {
+router.delete('/fichiers/:fichierId',
+  authenticateToken,
+  requirePermission('training.sessions.delete'),
+  async (req, res) => {
   try {
     const { fichierId } = req.params;
 

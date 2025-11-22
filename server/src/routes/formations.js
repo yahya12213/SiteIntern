@@ -1,11 +1,22 @@
 import express from 'express';
 import pool from '../config/database.js';
 import { nanoid } from 'nanoid';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { injectUserScope, buildScopeFilter } from '../middleware/requireScope.js';
 
 const router = express.Router();
 
-// GET /api/formations/sessions - Liste toutes les sessions (avec filtrage optionnel)
-router.get('/sessions', async (req, res) => {
+/**
+ * GET /api/formations/sessions
+ * Liste toutes les sessions avec filtrage optionnel
+ * Protected: Requires training.sessions.view_page permission
+ * SBAC: Filtre par segment_id et city_id de l'utilisateur
+ */
+router.get('/sessions',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
+  injectUserScope,
+  async (req, res) => {
   try {
     const { city_id, segment_id } = req.query;
 
@@ -26,6 +37,14 @@ router.get('/sessions', async (req, res) => {
     const conditions = [];
     const params = [];
     let paramIndex = 1;
+
+    // SBAC: Filtre automatique par segment ET ville (sauf admin)
+    const scopeFilter = buildScopeFilter(req, 'fs.segment_id', 'fs.city_id');
+    if (scopeFilter.hasScope) {
+      conditions.push(...scopeFilter.conditions);
+      params.push(...scopeFilter.params);
+      paramIndex = scopeFilter.paramIndex;
+    }
 
     // Filtrage par city_id
     if (city_id) {
@@ -59,12 +78,22 @@ router.get('/sessions', async (req, res) => {
 });
 
 // GET /api/formations/sessions/:id - Détail d'une session
-router.get('/sessions/:id', async (req, res) => {
+/**
+ * GET /api/formations/sessions/:id
+ * Récupère les détails d'une session
+ * Protected: Requires training.sessions.view_page permission
+ * SBAC: Vérifie que la session est dans le scope de l'utilisateur
+ */
+router.get('/sessions/:id',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
+  injectUserScope,
+  async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Récupérer les informations de base de la session
-    const sessionQuery = `
+    // Récupérer les informations de base de la session avec SBAC filtering
+    let sessionQuery = `
       SELECT
         fs.*,
         p.full_name as instructor_name,
@@ -78,7 +107,18 @@ router.get('/sessions/:id', async (req, res) => {
       WHERE fs.id = $1
     `;
 
-    const sessionResult = await pool.query(sessionQuery, [id]);
+    const params = [id];
+
+    // SBAC: Vérifier que la session est dans le scope de l'utilisateur
+    const scopeFilter = buildScopeFilter(req, 'fs.segment_id', 'fs.city_id');
+    if (scopeFilter.hasScope) {
+      sessionQuery += ' AND (' + scopeFilter.conditions.map((condition, index) => {
+        return condition.replace(/\$(\d+)/g, (match, num) => `$${params.length + parseInt(num)}`);
+      }).join(' AND ') + ')';
+      params.push(...scopeFilter.params);
+    }
+
+    const sessionResult = await pool.query(sessionQuery, params);
 
     if (sessionResult.rows.length === 0) {
       return res.status(404).json({ error: 'Session non trouvée' });
@@ -131,14 +171,33 @@ router.get('/sessions/:id', async (req, res) => {
   }
 });
 
-// POST /api/formations/sessions - Créer une session
-router.post('/sessions', async (req, res) => {
+/**
+ * POST /api/formations/sessions
+ * Créer une session
+ * Protected: Requires training.sessions.create permission
+ * SBAC: Vérifie que segment_id et city_id sont dans le scope de l'utilisateur
+ */
+router.post('/sessions',
+  authenticateToken,
+  requirePermission('training.sessions.create'),
+  injectUserScope,
+  async (req, res) => {
   try {
     const { name, description, formation_ids, start_date, end_date, segment_id, city_id, instructor_id, max_capacity, status } = req.body;
 
     // Validation
     if (!name || !start_date || !end_date) {
       return res.status(400).json({ error: 'Les champs nom, date de début et date de fin sont obligatoires' });
+    }
+
+    // SBAC: Vérifier que segment_id et city_id sont dans le scope de l'utilisateur
+    if (!req.userScope.isAdmin) {
+      if (segment_id && !req.userScope.segmentIds.includes(segment_id)) {
+        return res.status(403).json({ error: 'Vous ne pouvez créer une session que dans vos segments assignés' });
+      }
+      if (city_id && !req.userScope.cityIds.includes(city_id)) {
+        return res.status(403).json({ error: 'Vous ne pouvez créer une session que dans vos villes assignées' });
+      }
     }
 
     const id = nanoid();
@@ -188,15 +247,51 @@ router.post('/sessions', async (req, res) => {
   }
 });
 
-// PUT /api/formations/sessions/:id - Modifier une session
-router.put('/sessions/:id', async (req, res) => {
+/**
+ * PUT /api/formations/sessions/:id
+ * Modifier une session
+ * Protected: Requires training.sessions.update permission
+ * SBAC: Vérifie que la session est dans le scope de l'utilisateur
+ */
+router.put('/sessions/:id',
+  authenticateToken,
+  requirePermission('training.sessions.update'),
+  injectUserScope,
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, formation_ids, start_date, end_date, segment_id, city_id, instructor_id, max_capacity, status } = req.body;
 
+    // SBAC: Validation que segment_id et city_id modifiés sont dans le scope
+    if (!req.userScope.isAdmin) {
+      if (segment_id && !req.userScope.segmentIds.includes(segment_id)) {
+        return res.status(403).json({ error: 'Vous ne pouvez modifier une session que dans vos segments assignés' });
+      }
+      if (city_id && !req.userScope.cityIds.includes(city_id)) {
+        return res.status(403).json({ error: 'Vous ne pouvez modifier une session que dans vos villes assignées' });
+      }
+    }
+
+    // SBAC: Vérifier d'abord que la session existe et est dans le scope
+    let checkQuery = 'SELECT id FROM formation_sessions WHERE id = $1';
+    const checkParams = [id];
+
+    const scopeFilter = buildScopeFilter(req, 'segment_id', 'city_id');
+    if (scopeFilter.hasScope) {
+      checkQuery += ' AND (' + scopeFilter.conditions.map((condition, index) => {
+        return condition.replace(/\$(\d+)/g, (match, num) => `$${checkParams.length + parseInt(num)}`);
+      }).join(' AND ') + ')';
+      checkParams.push(...scopeFilter.params);
+    }
+
+    const checkResult = await pool.query(checkQuery, checkParams);
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Session non trouvée ou accès refusé' });
+    }
+
     const now = new Date().toISOString();
 
-    // Mettre à jour la session (sans formation_id direct)
+    // Mettre à jour la session
     const query = `
       UPDATE formation_sessions
       SET
@@ -258,19 +353,42 @@ router.put('/sessions/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/formations/sessions/:id - Supprimer une session
-router.delete('/sessions/:id', async (req, res) => {
+/**
+ * DELETE /api/formations/sessions/:id
+ * Supprimer une session de formation
+ * Protected: Requires training.sessions.delete permission
+ * SBAC: Vérifie que la session est dans le scope de l'utilisateur avant suppression
+ */
+router.delete('/sessions/:id',
+  authenticateToken,
+  requirePermission('training.sessions.delete'),
+  injectUserScope,
+  async (req, res) => {
   try {
     const { id } = req.params;
 
+    // SBAC: Vérifier d'abord que la session existe et est dans le scope
+    let checkQuery = 'SELECT id FROM formation_sessions WHERE id = $1';
+    const checkParams = [id];
+
+    const scopeFilter = buildScopeFilter(req, 'segment_id', 'city_id');
+    if (scopeFilter.hasScope) {
+      checkQuery += ' AND (' + scopeFilter.conditions.map((condition, index) => {
+        return condition.replace(/\$(\d+)/g, (match, num) => `$${checkParams.length + parseInt(num)}`);
+      }).join(' AND ') + ')';
+      checkParams.push(...scopeFilter.params);
+    }
+
+    const checkResult = await pool.query(checkQuery, checkParams);
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Session non trouvée ou accès refusé' });
+    }
+
+    // Proceed with deletion
     const result = await pool.query(
       'DELETE FROM formation_sessions WHERE id = $1 RETURNING *',
       [id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Session non trouvée' });
-    }
 
     res.json({ message: 'Session supprimée avec succès', session: result.rows[0] });
   } catch (error) {
@@ -279,10 +397,36 @@ router.delete('/sessions/:id', async (req, res) => {
   }
 });
 
-// GET /api/formations/sessions/:id/students - Liste des étudiants d'une session avec calculs de paiement
-router.get('/sessions/:id/students', async (req, res) => {
+/**
+ * GET /api/formations/sessions/:id/students
+ * Liste des étudiants d'une session avec calculs de paiement
+ * Protected: Requires training.sessions.view_page permission
+ * SBAC: Vérifie que la session est dans le scope de l'utilisateur
+ */
+router.get('/sessions/:id/students',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
+  injectUserScope,
+  async (req, res) => {
   try {
     const { id } = req.params;
+
+    // SBAC: Vérifier que la session existe et est dans le scope de l'utilisateur
+    let sessionCheckQuery = `SELECT id, segment_id, city_id FROM formation_sessions WHERE id = $1`;
+    const sessionParams = [id];
+
+    const scopeFilter = buildScopeFilter(req, 'segment_id', 'city_id');
+    if (scopeFilter.hasScope) {
+      sessionCheckQuery += ' AND (' + scopeFilter.conditions.map((condition, index) => {
+        return condition.replace(/\$(\d+)/g, (match, num) => `$${sessionParams.length + parseInt(num)}`);
+      }).join(' AND ') + ')';
+      sessionParams.push(...scopeFilter.params);
+    }
+
+    const sessionCheck = await pool.query(sessionCheckQuery, sessionParams);
+    if (sessionCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Session non trouvée ou accès refusé' });
+    }
 
     const query = `
       SELECT
@@ -355,8 +499,17 @@ router.get('/sessions/:id/students', async (req, res) => {
   }
 });
 
-// POST /api/formations/sessions/:id/enroll - Inscrire des étudiants
-router.post('/sessions/:id/enroll', async (req, res) => {
+/**
+ * POST /api/formations/sessions/:id/enroll
+ * Inscrire des étudiants
+ * Protected: Requires training.sessions.update permission
+ * SBAC: Vérifie que la session est dans le scope de l'utilisateur
+ */
+router.post('/sessions/:id/enroll',
+  authenticateToken,
+  requirePermission('training.sessions.update'),
+  injectUserScope,
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { student_ids } = req.body;
@@ -365,11 +518,19 @@ router.post('/sessions/:id/enroll', async (req, res) => {
       return res.status(400).json({ error: 'La liste des étudiants est requise' });
     }
 
-    // Vérifier que la session existe
-    const sessionCheck = await pool.query(
-      'SELECT id, max_capacity FROM formation_sessions WHERE id = $1',
-      [id]
-    );
+    // SBAC: Vérifier que la session existe et est dans le scope de l'utilisateur
+    let sessionCheckQuery = 'SELECT id, max_capacity, segment_id, city_id FROM formation_sessions WHERE id = $1';
+    const sessionParams = [id];
+
+    const scopeFilter = buildScopeFilter(req, 'segment_id', 'city_id');
+    if (scopeFilter.hasScope) {
+      sessionCheckQuery += ' AND (' + scopeFilter.conditions.map((condition, index) => {
+        return condition.replace(/\$(\d+)/g, (match, num) => `$${sessionParams.length + parseInt(num)}`);
+      }).join(' AND ') + ')';
+      sessionParams.push(...scopeFilter.params);
+    }
+
+    const sessionCheck = await pool.query(sessionCheckQuery, sessionParams);
 
     if (sessionCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Session non trouvée' });
@@ -427,11 +588,38 @@ router.post('/sessions/:id/enroll', async (req, res) => {
   }
 });
 
-// DELETE /api/formations/sessions/:id/enroll/:studentId - Désinscrire un étudiant
-router.delete('/sessions/:id/enroll/:studentId', async (req, res) => {
+/**
+ * DELETE /api/formations/sessions/:id/enroll/:studentId
+ * Désinscrire un étudiant d'une session de formation
+ * Protected: Requires training.sessions.update permission
+ * SBAC: Vérifie que la session est dans le scope de l'utilisateur avant désinscription
+ */
+router.delete('/sessions/:id/enroll/:studentId',
+  authenticateToken,
+  requirePermission('training.sessions.update'),
+  injectUserScope,
+  async (req, res) => {
   try {
     const { id, studentId } = req.params;
 
+    // SBAC: Vérifier que la session existe et est dans le scope de l'utilisateur
+    let sessionCheckQuery = `SELECT id FROM formation_sessions WHERE id = $1`;
+    const sessionParams = [id];
+
+    const scopeFilter = buildScopeFilter(req, 'segment_id', 'city_id');
+    if (scopeFilter.hasScope) {
+      sessionCheckQuery += ' AND (' + scopeFilter.conditions.map((condition, index) => {
+        return condition.replace(/\$(\d+)/g, (match, num) => `$${sessionParams.length + parseInt(num)}`);
+      }).join(' AND ') + ')';
+      sessionParams.push(...scopeFilter.params);
+    }
+
+    const sessionCheck = await pool.query(sessionCheckQuery, sessionParams);
+    if (sessionCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Session non trouvée ou accès refusé' });
+    }
+
+    // Proceed with unenrollment
     const result = await pool.query(
       'DELETE FROM formation_enrollments WHERE session_id = $1 AND student_id = $2 RETURNING *',
       [id, studentId]
@@ -448,8 +636,15 @@ router.delete('/sessions/:id/enroll/:studentId', async (req, res) => {
   }
 });
 
-// GET /api/formations/available-students - Liste des étudiants disponibles (professors non inscrits à une session)
-router.get('/available-students', async (req, res) => {
+/**
+ * GET /api/formations/available-students
+ * Liste des étudiants disponibles (professors non inscrits à une session)
+ * Protected: Requires training.sessions.view_page permission
+ */
+router.get('/available-students',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
+  async (req, res) => {
   try {
     const { session_id } = req.query;
 
@@ -488,18 +683,38 @@ router.get('/available-students', async (req, res) => {
   }
 });
 
-// GET /api/formations/stats - Statistiques globales des formations
-router.get('/stats', async (req, res) => {
+/**
+ * GET /api/formations/stats
+ * Statistiques globales des formations
+ * Protected: Requires training.sessions.view_page permission
+ * SBAC: Filtre les statistiques par segment/ville de l'utilisateur
+ */
+router.get('/stats',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
+  injectUserScope,
+  async (req, res) => {
   try {
     const stats = {};
+
+    // Build WHERE clause for SBAC filtering
+    let whereConditions = [];
+    let params = [];
+    const scopeFilter = buildScopeFilter(req, 'segment_id', 'city_id');
+    if (scopeFilter.hasScope) {
+      whereConditions.push(...scopeFilter.conditions);
+      params.push(...scopeFilter.params);
+    }
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
     // Nombre total de sessions par statut
     const sessionsQuery = `
       SELECT status, COUNT(*) as count
       FROM formation_sessions
+      ${whereClause}
       GROUP BY status
     `;
-    const sessionsResult = await pool.query(sessionsQuery);
+    const sessionsResult = await pool.query(sessionsQuery, params);
 
     stats.sessions = {
       total: 0,
@@ -514,16 +729,17 @@ router.get('/stats', async (req, res) => {
       stats.sessions.total += parseInt(row.count);
     });
 
-    // Nombre total d'étudiants inscrits
+    // Nombre total d'étudiants inscrits (avec SBAC filtering)
     const enrollmentsQuery = `
-      SELECT COUNT(DISTINCT student_id) as total_students
-      FROM formation_enrollments
-      WHERE status = 'enrolled'
+      SELECT COUNT(DISTINCT fe.student_id) as total_students
+      FROM formation_enrollments fe
+      JOIN formation_sessions fs ON fe.session_id = fs.id
+      ${whereClause ? whereClause.replace('WHERE', 'WHERE fe.status = \'enrolled\' AND') : 'WHERE fe.status = \'enrolled\''}
     `;
-    const enrollmentsResult = await pool.query(enrollmentsQuery);
+    const enrollmentsResult = await pool.query(enrollmentsQuery, params);
     stats.total_students_enrolled = parseInt(enrollmentsResult.rows[0].total_students || 0);
 
-    // Sessions avec le plus d'inscriptions
+    // Sessions avec le plus d'inscriptions (avec SBAC filtering)
     const topSessionsQuery = `
       SELECT
         fs.id,
@@ -531,11 +747,12 @@ router.get('/stats', async (req, res) => {
         COUNT(fe.id) as enrollment_count
       FROM formation_sessions fs
       LEFT JOIN formation_enrollments fe ON fs.id = fe.session_id AND fe.status = 'enrolled'
+      ${whereClause}
       GROUP BY fs.id, fs.name
       ORDER BY enrollment_count DESC
       LIMIT 5
     `;
-    const topSessionsResult = await pool.query(topSessionsQuery);
+    const topSessionsResult = await pool.query(topSessionsQuery, params);
     stats.top_sessions = topSessionsResult.rows;
 
     res.json(stats);
@@ -545,8 +762,15 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// GET /api/formations/all - Liste toutes les formations disponibles (pour multi-select)
-router.get('/all', async (req, res) => {
+/**
+ * GET /api/formations/all
+ * Liste toutes les formations disponibles (pour multi-select)
+ * Protected: Requires training.formations.view_page permission
+ */
+router.get('/all',
+  authenticateToken,
+  requirePermission('training.formations.view_page'),
+  async (req, res) => {
   try {
     const { corps_id } = req.query;
 
@@ -592,8 +816,15 @@ router.get('/all', async (req, res) => {
 
 // ========== PAYMENT ENDPOINTS ==========
 
-// POST /api/formations/enrollments/:id/payments - Ajouter un paiement
-router.post('/enrollments/:id/payments', async (req, res) => {
+/**
+ * POST /api/formations/enrollments/:id/payments
+ * Ajouter un paiement
+ * Protected: Requires training.sessions.update permission
+ */
+router.post('/enrollments/:id/payments',
+  authenticateToken,
+  requirePermission('training.sessions.update'),
+  async (req, res) => {
   try {
     const { id: enrollment_id } = req.params;
     const { amount, payment_date, payment_method, note, created_by } = req.body;
@@ -642,8 +873,15 @@ router.post('/enrollments/:id/payments', async (req, res) => {
   }
 });
 
-// GET /api/formations/enrollments/:id/payments - Liste tous les paiements d'une inscription
-router.get('/enrollments/:id/payments', async (req, res) => {
+/**
+ * GET /api/formations/enrollments/:id/payments
+ * Liste tous les paiements d'une inscription
+ * Protected: Requires training.sessions.view_page permission
+ */
+router.get('/enrollments/:id/payments',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
+  async (req, res) => {
   try {
     const { id: enrollment_id } = req.params;
 
@@ -665,8 +903,15 @@ router.get('/enrollments/:id/payments', async (req, res) => {
   }
 });
 
-// DELETE /api/formations/enrollments/:id/payments/:paymentId - Supprimer un paiement
-router.delete('/enrollments/:id/payments/:paymentId', async (req, res) => {
+/**
+ * DELETE /api/formations/enrollments/:id/payments/:paymentId
+ * Supprimer un paiement d'une inscription
+ * Protected: Requires training.sessions.update permission
+ */
+router.delete('/enrollments/:id/payments/:paymentId',
+  authenticateToken,
+  requirePermission('training.sessions.update'),
+  async (req, res) => {
   try {
     const { id: enrollment_id, paymentId } = req.params;
 
@@ -694,8 +939,15 @@ router.delete('/enrollments/:id/payments/:paymentId', async (req, res) => {
 
 // ========== VALIDATION ENDPOINTS ==========
 
-// PATCH /api/formations/enrollments/:id/validation - Toggle validation status
-router.patch('/enrollments/:id/validation', async (req, res) => {
+/**
+ * PATCH /api/formations/enrollments/:id/validation
+ * Toggle validation status
+ * Protected: Requires training.sessions.update permission
+ */
+router.patch('/enrollments/:id/validation',
+  authenticateToken,
+  requirePermission('training.sessions.update'),
+  async (req, res) => {
   try {
     const { id: enrollment_id } = req.params;
     const { validation_status, validated_by } = req.body;
@@ -748,8 +1000,15 @@ router.patch('/enrollments/:id/validation', async (req, res) => {
 // FORMATION TEMPLATES MANAGEMENT
 // ============================================================================
 
-// GET /api/formations/:id/templates - Récupère tous les templates d'une formation
-router.get('/:id/templates', async (req, res) => {
+/**
+ * GET /api/formations/:id/templates
+ * Récupère tous les templates d'une formation
+ * Protected: Requires training.formations.view_page permission
+ */
+router.get('/:id/templates',
+  authenticateToken,
+  requirePermission('training.formations.view_page'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -780,8 +1039,15 @@ router.get('/:id/templates', async (req, res) => {
   }
 });
 
-// POST /api/formations/:id/templates - Ajoute des templates à une formation
-router.post('/:id/templates', async (req, res) => {
+/**
+ * POST /api/formations/:id/templates
+ * Ajoute des templates à une formation
+ * Protected: Requires training.formations.update permission
+ */
+router.post('/:id/templates',
+  authenticateToken,
+  requirePermission('training.formations.update'),
+  async (req, res) => {
   try {
     const { id: formation_id } = req.params;
     const { template_ids, document_type = 'certificat' } = req.body;
@@ -858,8 +1124,15 @@ router.post('/:id/templates', async (req, res) => {
   }
 });
 
-// DELETE /api/formations/:id/templates/:templateId - Supprime un template d'une formation
-router.delete('/:id/templates/:templateId', async (req, res) => {
+/**
+ * DELETE /api/formations/:id/templates/:templateId
+ * Supprime un template d'une formation
+ * Protected: Requires training.formations.update permission
+ */
+router.delete('/:id/templates/:templateId',
+  authenticateToken,
+  requirePermission('training.formations.update'),
+  async (req, res) => {
   try {
     const { id: formation_id, templateId: template_id } = req.params;
 
@@ -918,8 +1191,15 @@ router.delete('/:id/templates/:templateId', async (req, res) => {
   }
 });
 
-// PUT /api/formations/:id/templates/:templateId/default - Définit un template comme default
-router.put('/:id/templates/:templateId/default', async (req, res) => {
+/**
+ * PUT /api/formations/:id/templates/:templateId/default
+ * Définit un template comme default pour une formation
+ * Protected: Requires training.formations.update permission
+ */
+router.put('/:id/templates/:templateId/default',
+  authenticateToken,
+  requirePermission('training.formations.update'),
+  async (req, res) => {
   try {
     const { id: formation_id, templateId: template_id } = req.params;
 
