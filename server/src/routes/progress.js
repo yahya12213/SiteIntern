@@ -1,6 +1,6 @@
 import express from 'express';
 import pool from '../config/database.js';
-import { requirePermission } from '../middleware/auth.js';
+import { authenticateToken, requirePermission, getUserPermissions } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -319,9 +319,9 @@ router.get('/formations/:formationId', requirePermission('training.student.cours
  * Get complete transcript for a student
  * Protected: Users with training.student_reports.view_page permission can view any student
  *            Students can view their own transcript
- * Permissions: training.student_reports.view_page (admin/staff)
+ * Permissions: training.student_reports.view_page (admin/staff) OR own transcript
  */
-router.get('/student/:studentId/transcript', requirePermission('training.student_reports.view_page'), async (req, res) => {
+router.get('/student/:studentId/transcript', authenticateToken, async (req, res) => {
   try {
     const { studentId } = req.params;
     const currentUser = req.user;
@@ -331,18 +331,21 @@ router.get('/student/:studentId/transcript', requirePermission('training.student
       return res.status(401).json({ error: 'Non authentifié' });
     }
 
-    // Security check: Users with permission can view any student
-    // Students can only view their own transcript
-    // If user passed requirePermission, they either have the permission OR it's their own data
-    // The middleware already checked permissions, but we need to verify identity for students
-    const hasFullAccess = currentUser.role === 'admin' || currentUser.hasPermission;
+    // Security check: Users can view their own transcript OR have the appropriate permission
+    const isOwnTranscript = currentUser.id === studentId;
 
-    if (!hasFullAccess && currentUser.id !== studentId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied. You can only view your own transcript.',
-        code: 'ACCESS_DENIED'
-      });
+    if (!isOwnTranscript) {
+      // Check if user has permission to view other students' transcripts
+      const userPermissions = await getUserPermissions(currentUser.id);
+      const hasPermission = userPermissions.includes('training.student_reports.view_page') || userPermissions.includes('*');
+
+      if (!hasPermission) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You can only view your own transcript or you need training.student_reports.view_page permission.',
+          code: 'ACCESS_DENIED'
+        });
+      }
     }
 
     // Get all enrollments with formation info

@@ -1,20 +1,19 @@
 import express from 'express';
-import pkg from 'pg';
+import pool from '../config/database.js';
 import { nanoid } from 'nanoid';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
-const { Pool } = pkg;
 const router = express.Router();
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-});
 
 /**
  * GET /api/corps-formation
  * Liste tous les corps de formation triés par order_index
+ * Protected: Requires training.corps.view_page permission
  */
-router.get('/', async (req, res) => {
+router.get('/',
+  authenticateToken,
+  requirePermission('training.corps.view_page'),
+  async (req, res) => {
   try {
     const query = `
       SELECT
@@ -48,8 +47,12 @@ router.get('/', async (req, res) => {
 /**
  * GET /api/corps-formation/:id
  * Récupère un corps de formation par ID avec ses formations
+ * Protected: Requires training.corps.view_page permission
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id',
+  authenticateToken,
+  requirePermission('training.corps.view_page'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -102,8 +105,12 @@ router.get('/:id', async (req, res) => {
 /**
  * POST /api/corps-formation
  * Créer un nouveau corps de formation
+ * Protected: Requires training.corps.create permission
  */
-router.post('/', async (req, res) => {
+router.post('/',
+  authenticateToken,
+  requirePermission('training.corps.create'),
+  async (req, res) => {
   try {
     const { name, description, color, icon, order_index, segment_id } = req.body;
 
@@ -165,8 +172,12 @@ router.post('/', async (req, res) => {
 /**
  * PUT /api/corps-formation/:id
  * Modifier un corps de formation
+ * Protected: Requires training.corps.update permission
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id',
+  authenticateToken,
+  requirePermission('training.corps.update'),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, color, icon, order_index, segment_id } = req.body;
@@ -249,8 +260,12 @@ router.put('/:id', async (req, res) => {
  * DELETE /api/corps-formation/:id
  * Supprimer un corps de formation
  * Empêche la suppression si des formations sont liées
+ * Protected: Requires training.corps.delete permission
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id',
+  authenticateToken,
+  requirePermission('training.corps.delete'),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { force } = req.query; // Paramètre pour forcer la suppression
@@ -427,8 +442,12 @@ router.get('/:id/debug', async (req, res) => {
  * GET /api/corps-formation/:id/formations
  * Récupère toutes les formations unitaires (non-packs) d'un corps
  * Utilisé pour la création de packs
+ * Protected: Requires training.corps.view_page permission
  */
-router.get('/:id/formations', async (req, res) => {
+router.get('/:id/formations',
+  authenticateToken,
+  requirePermission('training.corps.view_page'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -459,10 +478,14 @@ router.get('/:id/formations', async (req, res) => {
 });
 
 /**
- * GET /api/corps-formation/stats
+ * GET /api/corps-formation/stats/global
  * Statistiques globales des corps de formation
+ * Protected: Requires training.corps.view_page permission
  */
-router.get('/stats/global', async (req, res) => {
+router.get('/stats/global',
+  authenticateToken,
+  requirePermission('training.corps.view_page'),
+  async (req, res) => {
   try {
     const statsQuery = `
       SELECT
@@ -493,8 +516,12 @@ router.get('/stats/global', async (req, res) => {
 /**
  * POST /api/corps-formation/:id/duplicate
  * Dupliquer un corps de formation (avec option d'inclure les formations)
+ * Protected: Requires training.corps.create permission
  */
-router.post('/:id/duplicate', async (req, res) => {
+router.post('/:id/duplicate',
+  authenticateToken,
+  requirePermission('training.corps.create'),
+  async (req, res) => {
   const client = await pool.connect();
 
   try {

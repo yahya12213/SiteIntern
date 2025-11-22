@@ -80,6 +80,12 @@ export const PERMISSIONS = {
       update: 'training.corps.update',
       delete: 'training.corps.delete',
     },
+    centres: {
+      view_page: 'training.centres.view_page',
+      create: 'training.centres.create',
+      update: 'training.centres.update',
+      delete: 'training.centres.delete',
+    },
     sessions: {
       view_page: 'training.sessions.view_page',
       create: 'training.sessions.create',

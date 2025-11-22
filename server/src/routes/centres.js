@@ -1,19 +1,18 @@
 import express from 'express';
-import pkg from 'pg';
+import pool from '../config/database.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
-const { Pool } = pkg;
 const router = express.Router();
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-});
 
 /**
  * Get all centres
  * GET /api/centres
+ * Protected: Requires training.centres.view_page permission
  */
-router.get('/', async (req, res) => {
+router.get('/',
+  authenticateToken,
+  requirePermission('training.centres.view_page'),
+  async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, name, adresse, ville, description, created_at, updated_at
@@ -31,8 +30,12 @@ router.get('/', async (req, res) => {
 /**
  * Get classes by centre ID
  * GET /api/centres/:id/classes
+ * Protected: Requires training.centres.view_page permission
  */
-router.get('/:id/classes', async (req, res) => {
+router.get('/:id/classes',
+  authenticateToken,
+  requirePermission('training.centres.view_page'),
+  async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -54,8 +57,12 @@ router.get('/:id/classes', async (req, res) => {
 /**
  * Create a new centre
  * POST /api/centres
+ * Protected: Requires training.centres.create permission
  */
-router.post('/', async (req, res) => {
+router.post('/',
+  authenticateToken,
+  requirePermission('training.centres.create'),
+  async (req, res) => {
   const { name, adresse, ville, description } = req.body;
 
   try {
@@ -80,8 +87,12 @@ router.post('/', async (req, res) => {
 /**
  * Create a new class
  * POST /api/centres/:id/classes
+ * Protected: Requires training.centres.create permission
  */
-router.post('/:id/classes', async (req, res) => {
+router.post('/:id/classes',
+  authenticateToken,
+  requirePermission('training.centres.create'),
+  async (req, res) => {
   const { id } = req.params;
   const { name, niveau, description } = req.body;
 

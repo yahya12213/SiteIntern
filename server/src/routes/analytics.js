@@ -1,6 +1,6 @@
 import express from 'express';
 import pool from '../config/database.js';
-import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { authenticateToken, requirePermission, getUserPermissions } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -327,7 +327,7 @@ router.get('/active-students',
 /**
  * Progression détaillée d'un étudiant spécifique
  * GET /api/analytics/student-progress/:studentId
- * Protected: Students can view their own progress, Admin/Staff can view any student
+ * Protected: Students can view their own progress, users with training.analytics.view_page can view any student
  */
 router.get('/student-progress/:studentId',
   authenticateToken,
@@ -335,14 +335,21 @@ router.get('/student-progress/:studentId',
   try {
     const { studentId } = req.params;
 
-    // Security check: Students can only view their own progress
-    // Admins can view any student's progress
-    if (req.user.role !== 'admin' && req.user.id !== studentId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied. You can only view your own progress.',
-        code: 'ACCESS_DENIED',
-      });
+    // Security check: Users can view their own progress OR have the appropriate permission
+    const isOwnProgress = req.user.id === studentId;
+
+    if (!isOwnProgress) {
+      // Check if user has permission to view other students' progress
+      const userPermissions = await getUserPermissions(req.user.id);
+      const hasPermission = userPermissions.includes('training.analytics.view_page') || userPermissions.includes('*');
+
+      if (!hasPermission) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You can only view your own progress or you need training.analytics.view_page permission.',
+          code: 'ACCESS_DENIED',
+        });
+      }
     }
 
     // Informations de l'étudiant
