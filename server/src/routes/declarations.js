@@ -2,6 +2,12 @@ import express from 'express';
 import pool from '../config/database.js';
 import { requirePermission } from '../middleware/auth.js';
 import { injectUserScope, buildScopeFilter, requireRecordScope } from '../middleware/requireScope.js';
+import { uploadDeclarationAttachment, deleteFile } from '../middleware/upload.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
@@ -297,6 +303,170 @@ router.delete('/:id',
       res.json({ message: 'Declaration deleted successfully' });
     } catch (error) {
       console.error('Error deleting declaration:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// ==========================================
+// ROUTES PIÈCES JOINTES (ATTACHMENTS)
+// ==========================================
+
+// POST - Upload une pièce jointe pour une déclaration
+// Permission: update (pour ajouter des pièces jointes)
+// SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur
+router.post('/:id/attachments',
+  requirePermission(
+    'accounting.declarations.update',
+    'accounting.professor.declarations.fill'
+  ),
+  injectUserScope,
+  requireRecordScope('professor_declarations', 'id', 'segment_id', 'city_id'),
+  (req, res, next) => {
+    uploadDeclarationAttachment(req, res, (err) => {
+      if (err) {
+        console.error('Upload error:', err);
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Vérifier que la déclaration existe
+      const declarationCheck = await pool.query(
+        'SELECT id FROM professor_declarations WHERE id = $1',
+        [id]
+      );
+
+      if (declarationCheck.rows.length === 0) {
+        // Supprimer le fichier uploadé si la déclaration n'existe pas
+        const uploadsDir = process.env.UPLOADS_PATH || path.join(__dirname, '../../uploads');
+        const filePath = path.join(uploadsDir, 'declarations', file.filename);
+        deleteFile(filePath);
+        return res.status(404).json({ error: 'Declaration not found' });
+      }
+
+      // Enregistrer l'attachment dans la base de données
+      const fileUrl = `/uploads/declarations/${file.filename}`;
+      const result = await pool.query(`
+        INSERT INTO declaration_attachments (
+          declaration_id,
+          filename,
+          original_filename,
+          file_url,
+          file_size,
+          mime_type,
+          uploaded_by
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+      `, [
+        id,
+        file.filename,
+        file.originalname,
+        fileUrl,
+        file.size,
+        file.mimetype,
+        req.user.userId
+      ]);
+
+      res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error('Error saving attachment:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// GET - Récupérer toutes les pièces jointes d'une déclaration
+// Permission: view_page (pour voir les pièces jointes)
+// SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur
+router.get('/:id/attachments',
+  requirePermission(
+    'accounting.declarations.view_page',
+    'accounting.declarations.view_all',
+    'accounting.professor.declarations.view_page'
+  ),
+  injectUserScope,
+  requireRecordScope('professor_declarations', 'id', 'segment_id', 'city_id'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const result = await pool.query(`
+        SELECT
+          da.*,
+          p.full_name as uploaded_by_name
+        FROM declaration_attachments da
+        LEFT JOIN profiles p ON da.uploaded_by = p.id
+        WHERE da.declaration_id = $1
+        ORDER BY da.uploaded_at DESC
+      `, [id]);
+
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching attachments:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// DELETE - Supprimer une pièce jointe
+// Permission: update ou delete (pour supprimer des pièces jointes)
+// SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur
+router.delete('/:id/attachments/:attachmentId',
+  requirePermission(
+    'accounting.declarations.update',
+    'accounting.declarations.delete',
+    'accounting.professor.declarations.fill'
+  ),
+  injectUserScope,
+  requireRecordScope('professor_declarations', 'id', 'segment_id', 'city_id'),
+  async (req, res) => {
+    try {
+      const { id, attachmentId } = req.params;
+
+      // Récupérer les informations du fichier avant suppression
+      const attachmentResult = await pool.query(
+        'SELECT * FROM declaration_attachments WHERE id = $1 AND declaration_id = $2',
+        [attachmentId, id]
+      );
+
+      if (attachmentResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+
+      const attachment = attachmentResult.rows[0];
+
+      // Supprimer le fichier du disque
+      const uploadsDir = process.env.UPLOADS_PATH || path.join(__dirname, '../../uploads');
+      const filePath = path.join(uploadsDir, 'declarations', attachment.filename);
+      const fileDeleted = deleteFile(filePath);
+
+      if (!fileDeleted) {
+        console.warn(`Warning: File not found or couldn't be deleted: ${filePath}`);
+      }
+
+      // Supprimer l'enregistrement de la base de données
+      await pool.query(
+        'DELETE FROM declaration_attachments WHERE id = $1',
+        [attachmentId]
+      );
+
+      res.json({
+        message: 'Attachment deleted successfully',
+        fileDeleted: fileDeleted
+      });
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
       res.status(500).json({ error: error.message });
     }
   }
