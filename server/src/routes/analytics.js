@@ -1,13 +1,18 @@
 import express from 'express';
 import pool from '../config/database.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
 /**
  * Statistiques générales du système
  * GET /api/analytics/overview
+ * Protected: Admin/Staff only
  */
-router.get('/overview', async (req, res) => {
+router.get('/overview',
+  authenticateToken,
+  requirePermission('training.analytics.view_page'),
+  async (req, res) => {
   try {
     // Récupérer toutes les statistiques en parallèle
     const [
@@ -151,8 +156,12 @@ router.get('/overview', async (req, res) => {
 /**
  * Formations les plus populaires (par nombre d'inscriptions)
  * GET /api/analytics/popular-formations
+ * Protected: Admin/Staff only
  */
-router.get('/popular-formations', async (req, res) => {
+router.get('/popular-formations',
+  authenticateToken,
+  requirePermission('training.analytics.view_page'),
+  async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
 
@@ -192,8 +201,12 @@ router.get('/popular-formations', async (req, res) => {
 /**
  * Tendances d'inscriptions par mois (6 derniers mois)
  * GET /api/analytics/enrollment-trends
+ * Protected: Admin/Staff only
  */
-router.get('/enrollment-trends', async (req, res) => {
+router.get('/enrollment-trends',
+  authenticateToken,
+  requirePermission('training.analytics.view_page'),
+  async (req, res) => {
   try {
     const months = parseInt(req.query.months) || 6;
 
@@ -224,8 +237,12 @@ router.get('/enrollment-trends', async (req, res) => {
 /**
  * Performance des tests par formation
  * GET /api/analytics/test-performance
+ * Protected: Admin/Staff only
  */
-router.get('/test-performance', async (req, res) => {
+router.get('/test-performance',
+  authenticateToken,
+  requirePermission('training.analytics.view_page'),
+  async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -265,8 +282,12 @@ router.get('/test-performance', async (req, res) => {
 /**
  * Étudiants les plus actifs
  * GET /api/analytics/active-students
+ * Protected: Admin/Staff only
  */
-router.get('/active-students', async (req, res) => {
+router.get('/active-students',
+  authenticateToken,
+  requirePermission('training.analytics.view_page'),
+  async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
 
@@ -306,10 +327,23 @@ router.get('/active-students', async (req, res) => {
 /**
  * Progression détaillée d'un étudiant spécifique
  * GET /api/analytics/student-progress/:studentId
+ * Protected: Students can view their own progress, Admin/Staff can view any student
  */
-router.get('/student-progress/:studentId', async (req, res) => {
+router.get('/student-progress/:studentId',
+  authenticateToken,
+  async (req, res) => {
   try {
     const { studentId } = req.params;
+
+    // Security check: Students can only view their own progress
+    // Admins can view any student's progress
+    if (req.user.role !== 'admin' && req.user.id !== studentId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. You can only view your own progress.',
+        code: 'ACCESS_DENIED',
+      });
+    }
 
     // Informations de l'étudiant
     const studentInfo = await pool.query(`
@@ -400,8 +434,12 @@ router.get('/student-progress/:studentId', async (req, res) => {
 /**
  * Taux de complétion par formation (pour graphiques)
  * GET /api/analytics/formation-completion-rates
+ * Protected: Admin/Staff only
  */
-router.get('/formation-completion-rates', async (req, res) => {
+router.get('/formation-completion-rates',
+  authenticateToken,
+  requirePermission('training.analytics.view_page'),
+  async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -437,8 +475,12 @@ router.get('/formation-completion-rates', async (req, res) => {
 /**
  * Statistiques par période (dashboard principal)
  * GET /api/analytics/period-stats
+ * Protected: Admin/Staff only
  */
-router.get('/period-stats', async (req, res) => {
+router.get('/period-stats',
+  authenticateToken,
+  requirePermission('training.analytics.view_page'),
+  async (req, res) => {
   try {
     const period = req.query.period || '30'; // 7, 30, 90 jours
     const days = parseInt(period);

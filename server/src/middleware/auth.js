@@ -6,9 +6,26 @@
 import jwt from 'jsonwebtoken';
 import pool from '../config/database.js';
 
-// JWT Secret - MUST be set in production .env
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production-IMMEDIATELY';
+// JWT Secret - MUST be set in .env - Fail-fast if missing
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+
+// Security validation at module load
+if (!JWT_SECRET) {
+  console.error('❌ CRITICAL SECURITY ERROR: JWT_SECRET environment variable is not set!');
+  console.error('   Set JWT_SECRET in your .env file or Railway environment variables');
+  console.error('   Generate a secure secret with: openssl rand -base64 64');
+  process.exit(1); // Fail-fast - refuse to start without secret
+}
+
+if (JWT_SECRET.length < 32) {
+  console.error(`❌ CRITICAL SECURITY ERROR: JWT_SECRET is too short (${JWT_SECRET.length} chars, minimum 32)`);
+  console.error('   Generate a secure secret with: openssl rand -base64 64');
+  process.exit(1);
+}
+
+console.log('✓ JWT_SECRET validated successfully');
+
 
 // Token generation
 export const generateToken = (user) => {

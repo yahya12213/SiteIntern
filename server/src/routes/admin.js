@@ -1,10 +1,15 @@
 import express from 'express';
 import pool from '../config/database.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // GET statistiques complètes du dashboard
-router.get('/dashboard-stats', async (req, res) => {
+// Protected: Requires authentication and dashboard view permission
+router.get('/dashboard-stats',
+  authenticateToken,
+  requirePermission('accounting.dashboard.view_page'),
+  async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
 
