@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CheckCircle, XCircle, AlertCircle, Download, FileText, Eye, Save, Link, ExternalLink, Trash2, Image as ImageIcon } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Download, FileText, Eye, Save, Link, ExternalLink, Trash2, Image as ImageIcon, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   useAdminDeclaration,
@@ -9,7 +9,7 @@ import {
   useRequestModification,
   useDeleteAdminDeclaration,
 } from '@/hooks/useAdminDeclarations';
-import { useUpdateDeclaration } from '@/hooks/useProfessorDeclarations';
+import { useUpdateDeclaration, useSubmitDeclaration } from '@/hooks/useProfessorDeclarations';
 import { calculateAllValues } from '@/lib/formula/dependency';
 import type { FieldDefinition, FormulaContext } from '@/lib/formula/types';
 import FilePreviewModal from '@/components/admin/FilePreviewModal';
@@ -25,6 +25,7 @@ const DeclarationViewer: React.FC = () => {
   const rejectDeclaration = useRejectDeclaration();
   const requestModification = useRequestModification();
   const updateDeclaration = useUpdateDeclaration();
+  const submitDeclaration = useSubmitDeclaration();
   const deleteDeclaration = useDeleteAdminDeclaration();
 
   const [fields, setFields] = useState<FieldDefinition[]>([]);
@@ -158,6 +159,24 @@ const DeclarationViewer: React.FC = () => {
       } catch (error) {
         console.error('Error deleting declaration:', error);
         alert('Erreur lors de la suppression de la déclaration');
+      }
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!id) return;
+
+    if (window.confirm('Voulez-vous soumettre cette déclaration pour validation ?')) {
+      try {
+        // D'abord sauvegarder les modifications en cours
+        await updateDeclaration.mutateAsync({ id, form_data: values });
+        // Puis soumettre la déclaration
+        await submitDeclaration.mutateAsync(id);
+        alert('Déclaration soumise avec succès !');
+        navigate('/admin/declarations');
+      } catch (error) {
+        console.error('Error submitting declaration:', error);
+        alert('Erreur lors de la soumission de la déclaration');
       }
     }
   };
@@ -597,6 +616,21 @@ const DeclarationViewer: React.FC = () => {
               <Save className="w-4 h-4 mr-2" />
               Sauvegarder
             </Button>
+
+            {/* Bouton Soumettre - uniquement pour les statuts modifiables */}
+            {(declaration.status === 'brouillon' ||
+              declaration.status === 'a_declarer' ||
+              declaration.status === 'en_cours' ||
+              declaration.status === 'refusee') && (
+              <Button
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={handleSubmit}
+                disabled={submitDeclaration.isPending}
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {submitDeclaration.isPending ? 'Soumission...' : 'Soumettre'}
+              </Button>
+            )}
 
             {declaration.status === 'soumise' && (
               <>
