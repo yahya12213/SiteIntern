@@ -20,6 +20,9 @@ server/dist
 .env.*.local
 server/.env
 
+# Uploaded files (stored in Railway persistent volumes)
+server/uploads/
+
 # Supabase local
 .supabase/
 
