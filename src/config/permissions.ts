@@ -86,6 +86,12 @@ export const PERMISSIONS = {
       update: 'training.sessions.update',
       delete: 'training.sessions.delete',
     },
+    students: {
+      view_page: 'training.students.view_page',
+      create: 'training.students.create',
+      update: 'training.students.update',
+      delete: 'training.students.delete',
+    },
     analytics: {
       view_page: 'training.analytics.view_page',
       export: 'training.analytics.export',

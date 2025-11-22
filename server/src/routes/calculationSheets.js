@@ -1,15 +1,63 @@
 import express from 'express';
 import pool from '../config/database.js';
-import { requirePermission } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { injectUserScope } from '../middleware/requireScope.js';
 
 const router = express.Router();
 
 // GET diagnostic - Affiche toutes les fiches avec les noms complets des segments et villes
 // Permissions: view_page (admin/comptables)
-router.get('/diagnostic', requirePermission('accounting.calculation_sheets.view_page'), async (req, res) => {
+// SBAC: Non-admin users only see sheets within their assigned segments/cities
+router.get('/diagnostic',
+  authenticateToken,
+  requirePermission('accounting.calculation_sheets.view_page'),
+  injectUserScope,
+  async (req, res) => {
   const client = await pool.connect();
   try {
-    const sheetsResult = await client.query('SELECT * FROM calculation_sheets ORDER BY created_at DESC');
+    // Build query with SBAC filtering
+    let query = 'SELECT * FROM calculation_sheets';
+    const params = [];
+
+    // SBAC: Apply scope filtering for non-admin users
+    if (req.userScope && !req.userScope.isAdmin) {
+      const { segmentIds, cityIds } = req.userScope;
+
+      if (segmentIds.length === 0 && cityIds.length === 0) {
+        // User has no scope assigned - return empty result
+        return res.json({ total_sheets: 0, sheets: [] });
+      }
+
+      // Filter: sheet must have at least one segment OR one city in user's scope
+      query += ' WHERE (';
+      const conditions = [];
+
+      if (segmentIds.length > 0) {
+        const segmentPlaceholders = segmentIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+        conditions.push(`EXISTS (
+          SELECT 1 FROM calculation_sheet_segments css
+          WHERE css.sheet_id = calculation_sheets.id
+          AND css.segment_id IN (${segmentPlaceholders})
+        )`);
+        params.push(...segmentIds);
+      }
+
+      if (cityIds.length > 0) {
+        const cityPlaceholders = cityIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+        conditions.push(`EXISTS (
+          SELECT 1 FROM calculation_sheet_cities csc
+          WHERE csc.sheet_id = calculation_sheets.id
+          AND csc.city_id IN (${cityPlaceholders})
+        )`);
+        params.push(...cityIds);
+      }
+
+      query += conditions.join(' OR ') + ')';
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const sheetsResult = await client.query(query, params);
     const sheets = sheetsResult.rows;
 
     const diagnosticData = [];
@@ -66,10 +114,57 @@ router.get('/diagnostic', requirePermission('accounting.calculation_sheets.view_
 
 // GET toutes les fiches
 // Permissions: view_page (admin/comptables)
-router.get('/', requirePermission('accounting.calculation_sheets.view_page'), async (req, res) => {
+// SBAC: Non-admin users only see sheets within their assigned segments/cities
+router.get('/',
+  authenticateToken,
+  requirePermission('accounting.calculation_sheets.view_page'),
+  injectUserScope,
+  async (req, res) => {
   const client = await pool.connect();
   try {
-    const sheetsResult = await client.query('SELECT * FROM calculation_sheets ORDER BY created_at DESC');
+    // Build query with SBAC filtering
+    let query = 'SELECT * FROM calculation_sheets';
+    const params = [];
+
+    // SBAC: Apply scope filtering for non-admin users
+    if (req.userScope && !req.userScope.isAdmin) {
+      const { segmentIds, cityIds } = req.userScope;
+
+      if (segmentIds.length === 0 && cityIds.length === 0) {
+        // User has no scope assigned - return empty result
+        return res.json([]);
+      }
+
+      // Filter: sheet must have at least one segment OR one city in user's scope
+      query += ' WHERE (';
+      const conditions = [];
+
+      if (segmentIds.length > 0) {
+        const segmentPlaceholders = segmentIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+        conditions.push(`EXISTS (
+          SELECT 1 FROM calculation_sheet_segments css
+          WHERE css.sheet_id = calculation_sheets.id
+          AND css.segment_id IN (${segmentPlaceholders})
+        )`);
+        params.push(...segmentIds);
+      }
+
+      if (cityIds.length > 0) {
+        const cityPlaceholders = cityIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+        conditions.push(`EXISTS (
+          SELECT 1 FROM calculation_sheet_cities csc
+          WHERE csc.sheet_id = calculation_sheets.id
+          AND csc.city_id IN (${cityPlaceholders})
+        )`);
+        params.push(...cityIds);
+      }
+
+      query += conditions.join(' OR ') + ')';
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const sheetsResult = await client.query(query, params);
     const sheets = sheetsResult.rows;
 
     // Enrichir avec segments et villes
@@ -98,11 +193,61 @@ router.get('/', requirePermission('accounting.calculation_sheets.view_page'), as
 
 // GET une fiche par ID
 // Permissions: view_page (admin/comptables)
-router.get('/:id', requirePermission('accounting.calculation_sheets.view_page'), async (req, res) => {
+// SBAC: Non-admin users can only access sheets within their assigned segments/cities
+router.get('/:id',
+  authenticateToken,
+  requirePermission('accounting.calculation_sheets.view_page'),
+  injectUserScope,
+  async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const sheetResult = await client.query('SELECT * FROM calculation_sheets WHERE id = $1', [id]);
+
+    // Build query with SBAC filtering
+    let query = 'SELECT * FROM calculation_sheets WHERE id = $1';
+    const params = [id];
+
+    // SBAC: Apply scope filtering for non-admin users
+    if (req.userScope && !req.userScope.isAdmin) {
+      const { segmentIds, cityIds } = req.userScope;
+
+      if (segmentIds.length === 0 && cityIds.length === 0) {
+        // User has no scope assigned - return 403
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. No scope assigned.',
+          code: 'NO_SCOPE'
+        });
+      }
+
+      // Verify sheet is within user's scope
+      query += ' AND (';
+      const conditions = [];
+
+      if (segmentIds.length > 0) {
+        const segmentPlaceholders = segmentIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+        conditions.push(`EXISTS (
+          SELECT 1 FROM calculation_sheet_segments css
+          WHERE css.sheet_id = calculation_sheets.id
+          AND css.segment_id IN (${segmentPlaceholders})
+        )`);
+        params.push(...segmentIds);
+      }
+
+      if (cityIds.length > 0) {
+        const cityPlaceholders = cityIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+        conditions.push(`EXISTS (
+          SELECT 1 FROM calculation_sheet_cities csc
+          WHERE csc.sheet_id = calculation_sheets.id
+          AND csc.city_id IN (${cityPlaceholders})
+        )`);
+        params.push(...cityIds);
+      }
+
+      query += conditions.join(' OR ') + ')';
+    }
+
+    const sheetResult = await client.query(query, params);
 
     if (sheetResult.rows.length === 0) {
       return res.status(404).json({ error: 'Sheet not found' });

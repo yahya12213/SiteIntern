@@ -2,14 +2,19 @@ import express from 'express';
 import pool from '../config/database.js';
 import { nanoid } from 'nanoid';
 import { uploadProfileImage } from '../middleware/upload.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
 /**
  * Check if student with CIN already exists
  * GET /api/students/check-cin/:cin
+ * Protected: Requires authentication and students view permission
  */
-router.get('/check-cin/:cin', async (req, res) => {
+router.get('/check-cin/:cin',
+  authenticateToken,
+  requirePermission('training.students.view_page'),
+  async (req, res) => {
   const { cin } = req.params;
 
   try {
@@ -41,8 +46,13 @@ router.get('/check-cin/:cin', async (req, res) => {
  * Create a new student
  * POST /api/students
  * Accepts multipart/form-data with optional profile_image file
+ * Protected: Requires authentication and students create permission
  */
-router.post('/', uploadProfileImage, async (req, res) => {
+router.post('/',
+  authenticateToken,
+  requirePermission('training.students.create'),
+  uploadProfileImage,
+  async (req, res) => {
   const {
     nom,
     prenom,
@@ -106,8 +116,12 @@ router.post('/', uploadProfileImage, async (req, res) => {
 /**
  * Get all students
  * GET /api/students
+ * Protected: Requires authentication and students view permission
  */
-router.get('/', async (req, res) => {
+router.get('/',
+  authenticateToken,
+  requirePermission('training.students.view_page'),
+  async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, nom, prenom, cin, email, phone, whatsapp,
@@ -127,8 +141,12 @@ router.get('/', async (req, res) => {
 /**
  * Get student by ID
  * GET /api/students/:id
+ * Protected: Requires authentication and students view permission
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id',
+  authenticateToken,
+  requirePermission('training.students.view_page'),
+  async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -156,8 +174,13 @@ router.get('/:id', async (req, res) => {
  * Update student by ID
  * PUT /api/students/:id
  * Accepts multipart/form-data with optional profile_image file
+ * Protected: Requires authentication and students update permission
  */
-router.put('/:id', uploadProfileImage, async (req, res) => {
+router.put('/:id',
+  authenticateToken,
+  requirePermission('training.students.update'),
+  uploadProfileImage,
+  async (req, res) => {
   const { id } = req.params;
   const {
     nom,

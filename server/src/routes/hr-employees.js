@@ -1,11 +1,17 @@
 import express from 'express';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 
 const router = express.Router();
 
-// Get all employees with filters
-router.get('/', authenticateToken, async (req, res) => {
+/**
+ * Get all employees with filters
+ * Protected: Requires hr.employees.view_page permission
+ */
+router.get('/',
+  authenticateToken,
+  requirePermission('hr.employees.view_page'),
+  async (req, res) => {
   const { search, status, department, segment_id } = req.query;
 
   try {
@@ -64,8 +70,14 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Get single employee with all details
-router.get('/:id', authenticateToken, async (req, res) => {
+/**
+ * Get single employee with all details
+ * Protected: Requires hr.employees.view_page permission
+ */
+router.get('/:id',
+  authenticateToken,
+  requirePermission('hr.employees.view_page'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -123,8 +135,14 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Create new employee
-router.post('/', authenticateToken, async (req, res) => {
+/**
+ * Create new employee
+ * Protected: Requires hr.employees.create permission
+ */
+router.post('/',
+  authenticateToken,
+  requirePermission('hr.employees.create'),
+  async (req, res) => {
   try {
     const {
       profile_id,
@@ -177,8 +195,14 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Update employee
-router.put('/:id', authenticateToken, async (req, res) => {
+/**
+ * Update employee
+ * Protected: Requires hr.employees.update permission
+ */
+router.put('/:id',
+  authenticateToken,
+  requirePermission('hr.employees.update'),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -208,8 +232,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Delete employee
-router.delete('/:id', authenticateToken, async (req, res) => {
+/**
+ * Delete employee
+ * Protected: Requires hr.employees.delete permission
+ */
+router.delete('/:id',
+  authenticateToken,
+  requirePermission('hr.employees.delete'),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query('DELETE FROM hr_employees WHERE id = $1 RETURNING id', [id]);
@@ -227,8 +257,14 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
 // === CONTRACTS ===
 
-// Add contract
-router.post('/:id/contracts', authenticateToken, async (req, res) => {
+/**
+ * Add contract
+ * Protected: Requires hr.contracts.manage permission
+ */
+router.post('/:id/contracts',
+  authenticateToken,
+  requirePermission('hr.contracts.manage'),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -270,8 +306,14 @@ router.post('/:id/contracts', authenticateToken, async (req, res) => {
 
 // === DOCUMENTS ===
 
-// Add document
-router.post('/:id/documents', authenticateToken, async (req, res) => {
+/**
+ * Add document
+ * Protected: Requires hr.documents.manage permission
+ */
+router.post('/:id/documents',
+  authenticateToken,
+  requirePermission('hr.documents.manage'),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -306,7 +348,14 @@ router.post('/:id/documents', authenticateToken, async (req, res) => {
 });
 
 // Verify document
-router.put('/documents/:docId/verify', authenticateToken, async (req, res) => {
+/**
+ * Verify document
+ * Protected: Requires hr.documents.verify permission
+ */
+router.put('/documents/:docId/verify',
+  authenticateToken,
+  requirePermission('hr.documents.verify'),
+  async (req, res) => {
   try {
     const { docId } = req.params;
     const result = await pool.query(`
@@ -330,7 +379,14 @@ router.put('/documents/:docId/verify', authenticateToken, async (req, res) => {
 // === DISCIPLINARY ===
 
 // Add disciplinary action
-router.post('/:id/disciplinary', authenticateToken, async (req, res) => {
+/**
+ * Add disciplinary action
+ * Protected: Requires hr.discipline.manage permission
+ */
+router.post('/:id/disciplinary',
+  authenticateToken,
+  requirePermission('hr.discipline.manage'),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -365,8 +421,14 @@ router.post('/:id/disciplinary', authenticateToken, async (req, res) => {
   }
 });
 
-// Get departments list
-router.get('/meta/departments', authenticateToken, async (req, res) => {
+/**
+ * Get departments list
+ * Protected: Requires hr.employees.view_page permission
+ */
+router.get('/meta/departments',
+  authenticateToken,
+  requirePermission('hr.employees.view_page'),
+  async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT DISTINCT department
