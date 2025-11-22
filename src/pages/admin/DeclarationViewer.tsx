@@ -599,14 +599,17 @@ const DeclarationViewer: React.FC = () => {
               </div>
             )}
 
-            <Button
-              variant="outline"
-              className="text-red-600 hover:bg-red-50"
-              onClick={handleDelete}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Supprimer
-            </Button>
+            {/* Bouton Supprimer - Admin uniquement */}
+            {isAdmin && (
+              <Button
+                variant="outline"
+                className="text-red-600 hover:bg-red-50"
+                onClick={handleDelete}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Supprimer
+              </Button>
+            )}
 
             <Button
               variant="outline"
