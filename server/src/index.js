@@ -199,6 +199,7 @@ app.use('/api/migration-053', migration053Router); // Migration 053 - Add commer
 app.use('/api/migration-054', migration054Router); // Migration 054 - Assign all permissions to gérant role (full manager access)
 app.use('/api/migration-055', migration055Router); // Migration 055 - Fix critical permissions (system.roles, corps.view_page, professor/student permissions, role_id sync)
 app.use('/api/migration-056', migration056Router); // Migration 056 - Repeupler toutes les permissions accounting (calculation_sheets, declarations, segments, cities, users)
+app.use('/api/migration-057', migration057Router); // Migration 057 - Créer table declaration_attachments (pièces jointes déclarations - 10 MB max)
 app.use('/api/migration-fix-segments-and-sheets', migrationFixRouter); // Migration Fix - Fix segments colors and sheet city associations
 app.use('/api/migration-fix-impression-permissions', migrationFixImpressionRouter); // Migration Fix - Add missing permissions for impression role
 app.use('/api/migration-fix-role-sync', migrationFixRoleSyncRouter); // Migration Fix - Synchronize role_id with role text for all users
