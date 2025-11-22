@@ -316,21 +316,33 @@ router.get('/formations/:formationId', requirePermission('training.student.cours
 
 /**
  * GET /api/progress/student/:studentId/transcript
- * Get complete transcript for a student (admin only)
- * Permissions: student_reports.view_page (admin)
+ * Get complete transcript for a student
+ * Protected: Users with training.student_reports.view_page permission can view any student
+ *            Students can view their own transcript
+ * Permissions: training.student_reports.view_page (admin/staff)
  */
 router.get('/student/:studentId/transcript', requirePermission('training.student_reports.view_page'), async (req, res) => {
   try {
     const { studentId } = req.params;
     const currentUser = req.user;
 
-    // Check if current user is admin or requesting their own transcript
+    // Check authentication
     if (!currentUser?.id) {
       return res.status(401).json({ error: 'Non authentifié' });
     }
 
-    if (currentUser.role !== 'admin' && currentUser.id !== studentId) {
-      return res.status(403).json({ error: 'Non autorisé' });
+    // Security check: Users with permission can view any student
+    // Students can only view their own transcript
+    // If user passed requirePermission, they either have the permission OR it's their own data
+    // The middleware already checked permissions, but we need to verify identity for students
+    const hasFullAccess = currentUser.role === 'admin' || currentUser.hasPermission;
+
+    if (!hasFullAccess && currentUser.id !== studentId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. You can only view your own transcript.',
+        code: 'ACCESS_DENIED'
+      });
     }
 
     // Get all enrollments with formation info

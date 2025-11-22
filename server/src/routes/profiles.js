@@ -1,11 +1,18 @@
 import express from 'express';
 import pool from '../config/database.js';
 import bcrypt from 'bcryptjs';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// GET tous les profils (sans mots de passe)
-router.get('/', async (req, res) => {
+/**
+ * GET tous les profils (sans mots de passe)
+ * Protected: Requires authentication and users view permission
+ */
+router.get('/',
+  authenticateToken,
+  requirePermission('accounting.users.view_page'),
+  async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT id, username, full_name, role, created_at
@@ -41,8 +48,14 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET un profil avec ses segments et villes
-router.get('/:id', async (req, res) => {
+/**
+ * GET un profil avec ses segments et villes
+ * Protected: Requires authentication and users view permission
+ */
+router.get('/:id',
+  authenticateToken,
+  requirePermission('accounting.users.view_page'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -79,8 +92,15 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST créer un profil
-router.post('/', async (req, res) => {
+/**
+ * POST créer un profil
+ * Protected: Requires authentication and users create permission
+ * Security: Only admins can create admin accounts
+ */
+router.post('/',
+  authenticateToken,
+  requirePermission('accounting.users.create'),
+  async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -88,6 +108,15 @@ router.post('/', async (req, res) => {
 
     if (!id || !username || !password || !full_name || !role) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Security check: Only admins can create admin accounts
+    if (role === 'admin' && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Only administrators can create admin accounts',
+        code: 'FORBIDDEN_ADMIN_CREATION'
+      });
     }
 
     await client.query('BEGIN');
@@ -136,13 +165,39 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT mettre à jour un profil (support des mises à jour partielles)
-router.put('/:id', async (req, res) => {
+/**
+ * PUT mettre à jour un profil (support des mises à jour partielles)
+ * Protected: Requires authentication and users update permission
+ * Security: Users cannot change their own role; Only admins can assign admin role
+ */
+router.put('/:id',
+  authenticateToken,
+  requirePermission('accounting.users.update'),
+  async (req, res) => {
   const client = await pool.connect();
 
   try {
     const { id } = req.params;
     const { username, full_name, role, segment_ids, city_ids, password } = req.body;
+
+    // Security check 1: Prevent self-role elevation
+    // Users cannot change their own role unless they are admin
+    if (role !== undefined && id === req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'You cannot change your own role',
+        code: 'FORBIDDEN_SELF_ROLE_CHANGE'
+      });
+    }
+
+    // Security check 2: Only admins can assign admin role
+    if (role === 'admin' && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Only administrators can assign admin role',
+        code: 'FORBIDDEN_ADMIN_ASSIGNMENT'
+      });
+    }
 
     await client.query('BEGIN');
 
@@ -253,8 +308,14 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE supprimer un profil
-router.delete('/:id', async (req, res) => {
+/**
+ * DELETE supprimer un profil
+ * Protected: Requires authentication and users delete permission
+ */
+router.delete('/:id',
+  authenticateToken,
+  requirePermission('accounting.users.delete'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 

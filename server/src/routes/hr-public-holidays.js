@@ -1,6 +1,6 @@
 import express from 'express';
 import pg from 'pg';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
 const { Pool } = pg;
 const router = express.Router();
@@ -59,19 +59,17 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/hr/public-holidays - Create a public holiday
-router.post('/', authenticateToken, async (req, res) => {
+/**
+ * POST /api/hr/public-holidays - Create a public holiday
+ * Protected: Requires hr.holidays.manage permission
+ */
+router.post('/',
+  authenticateToken,
+  requirePermission('hr.holidays.manage'),
+  async (req, res) => {
   const pool = getPool();
 
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Seuls les administrateurs peuvent ajouter des jours fériés'
-      });
-    }
-
     const { holiday_date, name, description, is_recurring } = req.body;
 
     // Validation
@@ -126,19 +124,17 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// PUT /api/hr/public-holidays/:id - Update a public holiday
-router.put('/:id', authenticateToken, async (req, res) => {
+/**
+ * PUT /api/hr/public-holidays/:id - Update a public holiday
+ * Protected: Requires hr.holidays.manage permission
+ */
+router.put('/:id',
+  authenticateToken,
+  requirePermission('hr.holidays.manage'),
+  async (req, res) => {
   const pool = getPool();
 
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Seuls les administrateurs peuvent modifier des jours fériés'
-      });
-    }
-
     const { id } = req.params;
     const { holiday_date, name, description, is_recurring } = req.body;
 
@@ -185,19 +181,17 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// DELETE /api/hr/public-holidays/:id - Delete a public holiday
-router.delete('/:id', authenticateToken, async (req, res) => {
+/**
+ * DELETE /api/hr/public-holidays/:id - Delete a public holiday
+ * Protected: Requires hr.holidays.manage permission
+ */
+router.delete('/:id',
+  authenticateToken,
+  requirePermission('hr.holidays.manage'),
+  async (req, res) => {
   const pool = getPool();
 
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Seuls les administrateurs peuvent supprimer des jours fériés'
-      });
-    }
-
     const { id } = req.params;
 
     // Check if holiday exists
@@ -234,20 +228,18 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/hr/public-holidays/bulk - Bulk create holidays
-router.post('/bulk', authenticateToken, async (req, res) => {
+/**
+ * POST /api/hr/public-holidays/bulk - Bulk create holidays
+ * Protected: Requires hr.holidays.manage permission
+ */
+router.post('/bulk',
+  authenticateToken,
+  requirePermission('hr.holidays.manage'),
+  async (req, res) => {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Seuls les administrateurs peuvent ajouter des jours fériés'
-      });
-    }
-
     const { holidays } = req.body;
 
     if (!Array.isArray(holidays) || holidays.length === 0) {
