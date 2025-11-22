@@ -1,14 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Download, Trash2, FileText, AlertCircle, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import type { DeclarationAttachment } from '@/types/declarations';
 import {
   uploadDeclarationAttachment,
   getDeclarationAttachments,
   deleteDeclarationAttachment,
-  downloadAttachment,
-  getAttachmentUrl
+  downloadAttachment
 } from '@/lib/api/declarations-attachments';
 import {
   formatFileSize,

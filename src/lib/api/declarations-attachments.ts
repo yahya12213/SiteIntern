@@ -2,13 +2,8 @@
  * API Client for Declaration Attachments
  */
 
-import apiClient from './client';
-import type {
-  DeclarationAttachment,
-  AttachmentUploadResponse,
-  AttachmentListResponse,
-  AttachmentDeleteResponse
-} from '../../types/declarations';
+import { apiClient } from './client';
+import type { DeclarationAttachment } from '../../types/declarations';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
