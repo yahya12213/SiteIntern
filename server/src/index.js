@@ -259,6 +259,14 @@ subdirs.forEach(subdir => {
   }
 });
 
+// Add explicit CORS headers for uploaded files (prevent cross-origin issues)
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+});
+
 app.use('/uploads', express.static(uploadsPath));
 
 app.use(express.static(distPath));
