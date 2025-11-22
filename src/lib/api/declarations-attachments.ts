@@ -20,17 +20,10 @@ export async function uploadDeclarationAttachment(
   const formData = new FormData();
   formData.append('attachment', file);
 
-  const response = await apiClient.post<DeclarationAttachment>(
-    `${API_URL}/declarations/${declarationId}/attachments`,
-    formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }
+  return apiClient.post<DeclarationAttachment>(
+    `/declarations/${declarationId}/attachments`,
+    formData
   );
-
-  return response.data;
 }
 
 /**
@@ -41,11 +34,9 @@ export async function uploadDeclarationAttachment(
 export async function getDeclarationAttachments(
   declarationId: string
 ): Promise<DeclarationAttachment[]> {
-  const response = await apiClient.get<DeclarationAttachment[]>(
-    `${API_URL}/declarations/${declarationId}/attachments`
+  return apiClient.get<DeclarationAttachment[]>(
+    `/declarations/${declarationId}/attachments`
   );
-
-  return response.data;
 }
 
 /**
@@ -58,11 +49,9 @@ export async function deleteDeclarationAttachment(
   declarationId: string,
   attachmentId: string
 ): Promise<{ message: string; fileDeleted: boolean }> {
-  const response = await apiClient.delete<{ message: string; fileDeleted: boolean }>(
-    `${API_URL}/declarations/${declarationId}/attachments/${attachmentId}`
+  return apiClient.delete<{ message: string; fileDeleted: boolean }>(
+    `/declarations/${declarationId}/attachments/${attachmentId}`
   );
-
-  return response.data;
 }
 
 /**
