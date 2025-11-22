@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, CheckCircle, XCircle, Clock, AlertCircle, ExternalLink, Trash2, Edit3, Plus } from 'lucide-react';
+import { FileText, CheckCircle, XCircle, Clock, AlertCircle, ExternalLink, Trash2, Edit3, Plus, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -12,6 +12,7 @@ import {
   useDeleteAdminDeclaration,
   type AdminDeclaration,
 } from '@/hooks/useAdminDeclarations';
+import { useSubmitDeclaration } from '@/hooks/useProfessorDeclarations';
 import EditDeclarationModal from '@/components/admin/EditDeclarationModal';
 import NewDeclarationModal from '@/components/professor/NewDeclarationModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,6 +38,7 @@ const DeclarationsManagement: React.FC = () => {
   const rejectDeclaration = useRejectDeclaration();
   const requestModification = useRequestModification();
   const deleteDeclaration = useDeleteAdminDeclaration();
+  const submitDeclaration = useSubmitDeclaration();
 
   // Extraire les listes uniques pour les filtres
   const professors = React.useMemo(() => {
@@ -165,6 +167,17 @@ const DeclarationsManagement: React.FC = () => {
       } catch (error) {
         console.error('Error deleting declaration:', error);
         alert('Erreur lors de la suppression de la déclaration');
+      }
+    }
+  };
+
+  const handleSubmit = async (id: string) => {
+    if (window.confirm('Voulez-vous soumettre cette déclaration pour validation ?')) {
+      try {
+        await submitDeclaration.mutateAsync(id);
+      } catch (error) {
+        console.error('Error submitting declaration:', error);
+        alert('Erreur lors de la soumission de la déclaration');
       }
     }
   };
@@ -428,6 +441,53 @@ const DeclarationsManagement: React.FC = () => {
                           )}
                         </div>
                         <div className="flex gap-2 ml-4 flex-shrink-0">
+                          {/* Pour statuts modifiables: a_declarer, en_cours, brouillon, refusee */}
+                          {(declaration.status === 'a_declarer' ||
+                            declaration.status === 'en_cours' ||
+                            declaration.status === 'brouillon' ||
+                            declaration.status === 'refusee') && (
+                            <>
+                              {/* Bouton Remplir */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate(`/admin/declarations/${declaration.id}`)}
+                                className="bg-white hover:bg-blue-50 border-blue-300"
+                                title="Remplir la déclaration"
+                              >
+                                <Edit3 className="w-4 h-4 mr-1" />
+                                Remplir
+                              </Button>
+
+                              {/* Bouton Soumettre */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSubmit(declaration.id)}
+                                className="bg-white hover:bg-green-50 border-green-300 text-green-700"
+                                title="Soumettre pour validation"
+                              >
+                                <Send className="w-4 h-4 mr-1" />
+                                Soumettre
+                              </Button>
+                            </>
+                          )}
+
+                          {/* Pour statuts en lecture seule: soumise, approuvee */}
+                          {(declaration.status === 'soumise' || declaration.status === 'approuvee') && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/admin/declarations/${declaration.id}`)}
+                              className="bg-white hover:bg-blue-50 border-blue-300"
+                              title="Voir la déclaration"
+                            >
+                              <ExternalLink className="w-4 h-4 mr-1" />
+                              Ouvrir
+                            </Button>
+                          )}
+
+                          {/* Bouton Éditer Métadonnées - Admin uniquement */}
                           {hasPermission(PERMISSIONS.accounting.declarations.update) && (
                             <Button
                               variant="outline"
@@ -442,21 +502,15 @@ const DeclarationsManagement: React.FC = () => {
                               <Edit3 className="w-4 h-4" />
                             </Button>
                           )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/admin/declarations/${declaration.id}`)}
-                            className="bg-white hover:bg-blue-50 border-blue-300"
-                          >
-                            <ExternalLink className="w-4 h-4 mr-1" />
-                            Ouvrir
-                          </Button>
+
+                          {/* Bouton Supprimer - Admin uniquement */}
                           {hasPermission(PERMISSIONS.accounting.declarations.delete) && (
                             <Button
                               variant="outline"
                               size="sm"
                               className="bg-white text-red-600 hover:bg-red-50 border-red-300"
                               onClick={() => handleDelete(declaration)}
+                              title="Supprimer la déclaration"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
