@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, tokenManager } from './client';
 import type {
   CertificateTemplate,
   CreateTemplateInput,
@@ -78,11 +78,18 @@ export const certificateTemplatesApi = {
    * Générer un aperçu PDF (retourne un Blob)
    */
   generatePreview: async (id: string, certificateData: any): Promise<Blob> => {
+    const token = tokenManager.getToken();
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`/api/certificate-templates/${id}/preview`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(certificateData),
     });
 
@@ -100,16 +107,7 @@ export const certificateTemplatesApi = {
     const formData = new FormData();
     formData.append('logo', file);
 
-    const response = await fetch(`/api/certificate-templates/${id}/upload-logo`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to upload logo');
-    }
-
-    return response.json();
+    return await apiClient.post(`/certificate-templates/${id}/upload-logo`, formData);
   },
 
   /**
@@ -119,16 +117,7 @@ export const certificateTemplatesApi = {
     const formData = new FormData();
     formData.append('signature', file);
 
-    const response = await fetch(`/api/certificate-templates/${id}/upload-signature`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to upload signature');
-    }
-
-    return response.json();
+    return await apiClient.post(`/certificate-templates/${id}/upload-signature`, formData);
   },
 
   /**
@@ -139,17 +128,7 @@ export const certificateTemplatesApi = {
     const formData = new FormData();
     formData.append('background', file);
 
-    const response = await fetch(`/api/certificate-templates/${id}/upload-background`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to upload background image');
-    }
-
-    return response.json();
+    return await apiClient.post(`/certificate-templates/${id}/upload-background`, formData);
   },
 
   /**
@@ -176,17 +155,7 @@ export const certificateTemplatesApi = {
     formData.append('font', file);
     formData.append('fontName', fontName);
 
-    const response = await fetch(`/api/certificate-templates/custom-fonts/upload`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to upload font');
-    }
-
-    return response.json();
+    return await apiClient.post(`/certificate-templates/custom-fonts/upload`, formData);
   },
 
   /**
