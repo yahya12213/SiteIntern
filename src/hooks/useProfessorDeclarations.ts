@@ -4,7 +4,6 @@ import type { Declaration, DeclarationStatus } from '@/lib/api/declarations';
 import { calculationSheetsApi } from '@/lib/api/calculationSheets';
 import { citiesApi } from '@/lib/api/cities';
 import { segmentsApi } from '@/lib/api/segments';
-import { profilesApi } from '@/lib/api/profiles';
 import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 
