@@ -338,42 +338,274 @@ export function isValidPermission(code: string): boolean {
 
 // Helper to get permission label (for UI display)
 export function getPermissionLabel(code: string): string {
-  // Map permission codes to French labels
+  // Map permission codes to French labels (matching button names)
   const labels: Record<string, string> = {
-    // Accounting
+    // ==================== ACCOUNTING MODULE ====================
+    // Dashboard
     'accounting.dashboard.view_page': 'Voir le tableau de bord',
+
+    // Segments
     'accounting.segments.view_page': 'Voir les segments',
+    'accounting.segments.create': 'Créer',
+    'accounting.segments.update': 'Modifier',
+    'accounting.segments.delete': 'Supprimer',
+    'accounting.segments.import_cities': 'Importer villes',
+
+    // Cities
     'accounting.cities.view_page': 'Voir les villes',
+    'accounting.cities.create': 'Créer',
+    'accounting.cities.update': 'Modifier',
+    'accounting.cities.delete': 'Supprimer',
+    'accounting.cities.bulk_delete': 'Supprimer en masse',
+
+    // Users
     'accounting.users.view_page': 'Voir les utilisateurs',
-    'accounting.sheets.view_page': 'Voir les fiches de calcul',
+    'accounting.users.create': 'Créer',
+    'accounting.users.update': 'Modifier',
+    'accounting.users.delete': 'Supprimer',
+    'accounting.users.assign_segments': 'Assigner segments',
+    'accounting.users.assign_cities': 'Assigner villes',
+
+    // Calculation Sheets
+    'accounting.calculation_sheets.view_page': 'Voir les fiches de calcul',
+    'accounting.calculation_sheets.view': 'Voir',
+    'accounting.calculation_sheets.create': 'Créer',
+    'accounting.calculation_sheets.update': 'Modifier',
+    'accounting.calculation_sheets.edit': 'Modifier (éditeur)',
+    'accounting.calculation_sheets.delete': 'Supprimer',
+    'accounting.calculation_sheets.publish': 'Publier',
+    'accounting.calculation_sheets.duplicate': 'Dupliquer',
+    'accounting.calculation_sheets.export': 'Exporter',
+    'accounting.calculation_sheets.settings': 'Paramètres',
+
+    // Declarations (IMPORTANT: noms des boutons)
     'accounting.declarations.view_page': 'Voir les déclarations',
+    'accounting.declarations.view_all': 'Voir toutes',
+    'accounting.declarations.create': 'Créer',
+    'accounting.declarations.fill_data': 'Remplir',
+    'accounting.declarations.edit_metadata': 'Modifier métadonnées',
+    'accounting.declarations.delete': 'Supprimer',
+    'accounting.declarations.approve': 'Approuver',
+    'accounting.declarations.submit': 'Soumettre',
 
-    // System
-    'system.roles.view_page': 'Voir les rôles et permissions',
+    // Professor Declarations
+    'accounting.professor.declarations.view_page': 'Voir mes déclarations',
+    'accounting.professor.declarations.fill': 'Remplir',
 
-    // Training
+    // ==================== SYSTEM MODULE ====================
+    'system.roles.view_page': 'Voir les rôles',
+    'system.roles.create': 'Créer',
+    'system.roles.update': 'Modifier',
+    'system.roles.delete': 'Supprimer',
+
+    // ==================== TRAINING MODULE ====================
+    // Formations
     'training.formations.view_page': 'Voir les formations',
+    'training.formations.create': 'Créer',
+    'training.formations.update': 'Modifier',
+    'training.formations.delete': 'Supprimer',
+    'training.formations.duplicate': 'Dupliquer',
+    'training.formations.create_pack': 'Créer pack',
+    'training.formations.edit_content': 'Éditer contenu',
+
+    // Corps de Formation
+    'training.corps.view_page': 'Voir les corps',
+    'training.corps.create': 'Créer',
+    'training.corps.update': 'Modifier',
+    'training.corps.delete': 'Supprimer',
+    'training.corps.duplicate': 'Dupliquer',
+
+    // Centres
+    'training.centres.view_page': 'Voir les centres',
+    'training.centres.create': 'Créer',
+    'training.centres.update': 'Modifier',
+    'training.centres.delete': 'Supprimer',
+
+    // Sessions
     'training.sessions.view_page': 'Voir les sessions',
+    'training.sessions.create': 'Créer',
+    'training.sessions.update': 'Modifier',
+    'training.sessions.delete': 'Supprimer',
+
+    // Students
+    'training.students.view_page': 'Voir les étudiants',
+    'training.students.create': 'Créer',
+    'training.students.update': 'Modifier',
+    'training.students.delete': 'Supprimer',
+
+    // Analytics
     'training.analytics.view_page': 'Voir les analytics',
-    'training.student_reports.view_page': 'Voir les rapports étudiants',
+    'training.analytics.export': 'Exporter',
+
+    // Student Reports
+    'training.student_reports.view_page': 'Voir les rapports',
+    'training.student_reports.export': 'Exporter',
+
+    // Certificates
     'training.certificates.view_page': 'Voir les certificats',
-    'training.certificate_templates.view_page': 'Voir les templates de certificats',
+    'training.certificates.view': 'Voir',
+    'training.certificates.generate': 'Générer',
+    'training.certificates.update': 'Modifier',
+    'training.certificates.download': 'Télécharger',
+    'training.certificates.delete': 'Supprimer',
+
+    // Certificate Templates (IMPORTANT: noms des boutons)
+    'training.certificate_templates.view_page': 'Voir les templates',
+    'training.certificate_templates.view': 'Voir',
+    'training.certificate_templates.create': 'Créer',
+    'training.certificate_templates.create_folder': 'Nouveau dossier',
+    'training.certificate_templates.create_template': 'Nouveau template',
+    'training.certificate_templates.update': 'Modifier',
+    'training.certificate_templates.rename_folder': 'Renommer dossier',
+    'training.certificate_templates.rename_template': 'Renommer template',
+    'training.certificate_templates.delete_folder': 'Supprimer dossier',
+    'training.certificate_templates.delete_template': 'Supprimer template',
+    'training.certificate_templates.duplicate': 'Dupliquer',
+    'training.certificate_templates.edit_canvas': 'Modifier Canvas',
+    'training.certificate_templates.organize': 'Organiser',
+
+    // Template Folders
+    'training.template_folders.view_page': 'Voir les dossiers',
+    'training.template_folders.view': 'Voir',
+    'training.template_folders.create': 'Créer',
+    'training.template_folders.update': 'Modifier',
+    'training.template_folders.delete': 'Supprimer',
+
+    // Forums
     'training.forums.view_page': 'Voir les forums',
+    'training.forums.view': 'Voir',
+    'training.forums.create_thread': 'Créer discussion',
+    'training.forums.update_thread': 'Modifier discussion',
+    'training.forums.reply': 'Répondre',
+    'training.forums.react': 'Réagir',
+    'training.forums.delete': 'Supprimer',
+    'training.forums.manage': 'Gérer',
+    'training.forums.moderate': 'Modérer',
 
-    // HR
+    // Student Portal
+    'training.student.dashboard.view_page': 'Voir tableau de bord',
+    'training.student.catalog.view_page': 'Voir catalogue',
+    'training.student.course.view': 'Voir cours',
+    'training.student.course.videos.view': 'Voir vidéos',
+    'training.student.course.tests.take': 'Passer tests',
+    'training.student.certificates.view': 'Voir certificats',
+    'training.student.forums.participate': 'Participer',
+
+    // ==================== HR MODULE ====================
     'hr.clocking.self': 'Pointage personnel',
-    'hr.employees.view_page': 'Voir les dossiers du personnel',
-    'hr.attendance.view_page': 'Voir temps et présence',
-    'hr.leaves.view_page': 'Voir congés et planning',
-    'hr.dashboard.view_page': 'Voir tableau de bord RH',
-    'hr.settings.view_page': 'Voir paramètres RH',
 
-    // Commercialisation
-    'commercialisation.dashboard.view_page': 'Voir tableau de bord commercial',
+    // Employees
+    'hr.employees.view_page': 'Voir le personnel',
+    'hr.employees.create': 'Créer',
+    'hr.employees.update': 'Modifier',
+    'hr.employees.delete': 'Supprimer',
+    'hr.employees.view_salary': 'Voir salaire',
+
+    // Contracts
+    'hr.contracts.manage': 'Gérer contrats',
+
+    // Documents
+    'hr.documents.manage': 'Gérer documents',
+
+    // Discipline
+    'hr.discipline.manage': 'Gérer discipline',
+
+    // Attendance
+    'hr.attendance.view_page': 'Voir présence',
+    'hr.attendance.view_all': 'Voir toutes',
+    'hr.attendance.edit': 'Modifier',
+    'hr.attendance.edit_anomalies': 'Modifier anomalies',
+    'hr.attendance.correct_records': 'Corriger enregistrements',
+    'hr.attendance.import_records': 'Importer enregistrements',
+    'hr.attendance.record': 'Enregistrer',
+    'hr.attendance.validate': 'Valider',
+    'hr.attendance.export': 'Exporter',
+
+    // Overtime
+    'hr.overtime.view_page': 'Voir heures sup',
+    'hr.overtime.request': 'Demander',
+    'hr.overtime.approve': 'Approuver',
+    'hr.overtime.validate_payroll': 'Valider paie',
+    'hr.overtime.view_reports': 'Voir rapports',
+
+    // Leaves
+    'hr.leaves.view_page': 'Voir congés',
+    'hr.leaves.request': 'Demander',
+    'hr.leaves.approve': 'Approuver',
+    'hr.leaves.approve_n1': 'Approuver N+1',
+    'hr.leaves.approve_n2': 'Approuver N+2',
+    'hr.leaves.approve_hr': 'Approuver RH',
+    'hr.leaves.manage_balances': 'Gérer soldes',
+    'hr.leaves.view_calendar': 'Voir calendrier',
+    'hr.leaves.export': 'Exporter',
+
+    // Holidays
+    'hr.holidays.manage': 'Gérer jours fériés',
+
+    // Dashboard
+    'hr.dashboard.view_page': 'Voir tableau de bord',
+    'hr.dashboard.export': 'Exporter',
+    'hr.dashboard.export_reports': 'Exporter rapports',
+    'hr.dashboard.view_monthly_reports': 'Voir rapports mensuels',
+    'hr.dashboard.generate_payroll_summary': 'Générer résumé paie',
+    'hr.dashboard.export_payroll': 'Exporter paie',
+    'hr.dashboard.view_alerts': 'Voir alertes',
+
+    // Monthly Summary
+    'hr.monthly_summary.view': 'Voir',
+    'hr.monthly_summary.validate': 'Valider',
+    'hr.monthly_summary.export': 'Exporter',
+
+    // Settings
+    'hr.settings.view_page': 'Voir paramètres',
+    'hr.settings.manage': 'Gérer',
+    'hr.settings.manage_schedules': 'Gérer horaires',
+    'hr.settings.manage_leave_rules': 'Gérer règles congés',
+    'hr.settings.manage_workflows': 'Gérer workflows',
+    'hr.settings.update': 'Modifier',
+
+    // ==================== COMMERCIALISATION MODULE ====================
+    // Dashboard
+    'commercialisation.dashboard.view_page': 'Voir tableau de bord',
+    'commercialisation.dashboard.view_stats': 'Voir statistiques',
+    'commercialisation.dashboard.export': 'Exporter',
+
+    // Clients
     'commercialisation.clients.view_page': 'Voir les clients',
+    'commercialisation.clients.view': 'Voir',
+    'commercialisation.clients.create': 'Créer',
+    'commercialisation.clients.edit': 'Modifier',
+    'commercialisation.clients.delete': 'Supprimer',
+    'commercialisation.clients.export': 'Exporter',
+
+    // Prospects
     'commercialisation.prospects.view_page': 'Voir les prospects',
+    'commercialisation.prospects.view': 'Voir',
+    'commercialisation.prospects.create': 'Créer',
+    'commercialisation.prospects.edit': 'Modifier',
+    'commercialisation.prospects.delete': 'Supprimer',
+    'commercialisation.prospects.convert': 'Convertir',
+    'commercialisation.prospects.export': 'Exporter',
+
+    // Devis
     'commercialisation.devis.view_page': 'Voir les devis',
+    'commercialisation.devis.view': 'Voir',
+    'commercialisation.devis.create': 'Créer',
+    'commercialisation.devis.edit': 'Modifier',
+    'commercialisation.devis.delete': 'Supprimer',
+    'commercialisation.devis.validate': 'Valider',
+    'commercialisation.devis.send': 'Envoyer',
+    'commercialisation.devis.export': 'Exporter',
+
+    // Contrats
     'commercialisation.contrats.view_page': 'Voir les contrats',
+    'commercialisation.contrats.view': 'Voir',
+    'commercialisation.contrats.create': 'Créer',
+    'commercialisation.contrats.edit': 'Modifier',
+    'commercialisation.contrats.delete': 'Supprimer',
+    'commercialisation.contrats.sign': 'Signer',
+    'commercialisation.contrats.archive': 'Archiver',
+    'commercialisation.contrats.export': 'Exporter',
   };
 
   return labels[code] || code;

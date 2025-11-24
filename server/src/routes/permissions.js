@@ -125,7 +125,7 @@ router.get('/tree', authenticateToken, async (req, res) => {
       tree[perm.module].menus[perm.menu].actions.push({
         id: perm.id,
         action: perm.action,
-        code: perm.code,
+        code: `${perm.module}.${perm.menu}.${perm.action}`,
         label: perm.label,
         actionLabel: ACTION_LABELS[perm.action] || perm.action
       });

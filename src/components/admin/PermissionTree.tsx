@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { permissionsApi, type PermissionModule, type PermissionMenu } from '@/lib/api/permissions';
+import { getPermissionLabel } from '@/config/permissions';
 import { ChevronDown, ChevronRight, Check, Minus, Folder, FileText } from 'lucide-react';
 
 interface PermissionTreeProps {
@@ -253,7 +254,7 @@ export function PermissionTree({
                                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                               />
                               <span className="ml-2 text-sm text-gray-700">
-                                {action.actionLabel}
+                                {getPermissionLabel(action.code)}
                               </span>
                             </label>
                           ))}
