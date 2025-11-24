@@ -6,11 +6,11 @@ import { injectUserScope } from '../middleware/requireScope.js';
 const router = express.Router();
 
 // GET diagnostic - Affiche toutes les fiches avec les noms complets des segments et villes
-// Permissions: view_page (admin/comptables)
-// SBAC: Non-admin users only see sheets within their assigned segments/cities
+// Protected: SBAC filtering only (no permission check)
+// Non-admin users only see sheets within their assigned segments/cities
+// Permission check removed to allow dropdown usage without view_page permission
 router.get('/diagnostic',
   authenticateToken,
-  requirePermission('accounting.calculation_sheets.view_page'),
   injectUserScope,
   async (req, res) => {
   const client = await pool.connect();
@@ -113,11 +113,11 @@ router.get('/diagnostic',
 });
 
 // GET toutes les fiches
-// Permissions: view_page (admin/comptables)
-// SBAC: Non-admin users only see sheets within their assigned segments/cities
+// Protected: SBAC filtering only (no permission check)
+// Non-admin users only see sheets within their assigned segments/cities
+// Permission check removed to allow dropdown usage without view_page permission
 router.get('/',
   authenticateToken,
-  requirePermission('accounting.calculation_sheets.view_page'),
   injectUserScope,
   async (req, res) => {
   const client = await pool.connect();
@@ -192,11 +192,10 @@ router.get('/',
 });
 
 // GET une fiche par ID
-// Permissions: view_page (admin/comptables)
-// SBAC: Non-admin users can only access sheets within their assigned segments/cities
+// Protected: SBAC only - non-admins can only access sheets within their assigned segments/cities
+// Permission check removed to allow dropdown usage without view_page permission
 router.get('/:id',
   authenticateToken,
-  requirePermission('accounting.calculation_sheets.view_page'),
   injectUserScope,
   async (req, res) => {
   const client = await pool.connect();

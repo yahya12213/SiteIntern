@@ -2,23 +2,74 @@ import express from 'express';
 import pool from '../config/database.js';
 import bcrypt from 'bcryptjs';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { injectUserScope } from '../middleware/requireScope.js';
 
 const router = express.Router();
 
 /**
  * GET tous les profils (sans mots de passe)
- * Protected: Requires authentication and users view permission
+ * Protected: SBAC filtering only (no permission check)
+ * Non-admin users only see users from their assigned segments/cities
+ * Permission check removed to allow dropdown usage without view_page permission
  */
 router.get('/',
   authenticateToken,
-  requirePermission('accounting.users.view_page'),
+  injectUserScope,
   async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT id, username, full_name, role, created_at
-      FROM profiles
-      ORDER BY full_name
-    `);
+    const scope = req.userScope;
+    let query;
+    let params = [];
+
+    // Admin voit tous les utilisateurs
+    if (!scope || scope.isAdmin) {
+      query = `
+        SELECT id, username, full_name, role, created_at
+        FROM profiles
+        ORDER BY full_name
+      `;
+    } else {
+      // Non-admin: voit seulement les utilisateurs des mêmes segments/villes (SBAC)
+      const { segmentIds, cityIds } = scope;
+
+      if (segmentIds.length === 0 && cityIds.length === 0) {
+        // User has no scope assigned - return only self
+        query = `
+          SELECT id, username, full_name, role, created_at
+          FROM profiles
+          WHERE id = $1
+          ORDER BY full_name
+        `;
+        params = [req.user.id];
+      } else {
+        // Filter by shared segments/cities
+        query = `
+          SELECT DISTINCT p.id, p.username, p.full_name, p.role, p.created_at
+          FROM profiles p
+          LEFT JOIN professor_segments ps ON p.id = ps.professor_id
+          LEFT JOIN professor_cities pc ON p.id = pc.professor_id
+          WHERE
+            p.id = $1  -- Always include self
+        `;
+        params = [req.user.id];
+
+        if (segmentIds.length > 0) {
+          const segmentPlaceholders = segmentIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+          query += ` OR ps.segment_id IN (${segmentPlaceholders})`;
+          params.push(...segmentIds);
+        }
+
+        if (cityIds.length > 0) {
+          const cityPlaceholders = cityIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+          query += ` OR pc.city_id IN (${cityPlaceholders})`;
+          params.push(...cityIds);
+        }
+
+        query += ' ORDER BY p.full_name';
+      }
+    }
+
+    const result = await pool.query(query, params);
 
     // Pour chaque profil, récupérer ses segments et villes
     const profiles = await Promise.all(
@@ -50,23 +101,67 @@ router.get('/',
 
 /**
  * GET un profil avec ses segments et villes
- * Protected: Requires authentication and users view permission
+ * Protected: SBAC only - non-admins can only access users from their assigned segments/cities
+ * Permission check removed to allow dropdown usage without view_page permission
  */
 router.get('/:id',
   authenticateToken,
-  requirePermission('accounting.users.view_page'),
+  injectUserScope,
   async (req, res) => {
   try {
     const { id } = req.params;
+    const scope = req.userScope;
 
-    // Profil
-    const profileResult = await pool.query(
-      'SELECT id, username, full_name, role, created_at FROM profiles WHERE id = $1',
-      [id]
-    );
+    let query;
+    let params;
+
+    // Admin peut voir n'importe quel profil
+    if (!scope || scope.isAdmin) {
+      query = 'SELECT id, username, full_name, role, created_at FROM profiles WHERE id = $1';
+      params = [id];
+    } else {
+      // Non-admin: vérifier que l'utilisateur demandé partage au moins un segment/ville (SBAC)
+      const { segmentIds, cityIds } = scope;
+
+      if (segmentIds.length === 0 && cityIds.length === 0) {
+        // User has no scope - can only access self
+        if (id !== req.user.id) {
+          return res.status(404).json({ error: 'Profile not found or access denied' });
+        }
+        query = 'SELECT id, username, full_name, role, created_at FROM profiles WHERE id = $1';
+        params = [id];
+      } else {
+        // Vérifier que le profil demandé partage au moins un segment/ville
+        query = `
+          SELECT DISTINCT p.id, p.username, p.full_name, p.role, p.created_at
+          FROM profiles p
+          LEFT JOIN professor_segments ps ON p.id = ps.professor_id
+          LEFT JOIN professor_cities pc ON p.id = pc.professor_id
+          WHERE p.id = $1 AND (
+            p.id = $2  -- Always allow self
+        `;
+        params = [id, req.user.id];
+
+        if (segmentIds.length > 0) {
+          const segmentPlaceholders = segmentIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+          query += ` OR ps.segment_id IN (${segmentPlaceholders})`;
+          params.push(...segmentIds);
+        }
+
+        if (cityIds.length > 0) {
+          const cityPlaceholders = cityIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+          query += ` OR pc.city_id IN (${cityPlaceholders})`;
+          params.push(...cityIds);
+        }
+
+        query += ')';
+      }
+    }
+
+    const profileResult = await pool.query(query, params);
 
     if (profileResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Profile not found' });
+      return res.status(404).json({ error: 'Profile not found or access denied' });
     }
 
     const profile = profileResult.rows[0];

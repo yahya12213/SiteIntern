@@ -7,12 +7,12 @@ const router = express.Router();
 
 /**
  * GET tous les segments
- * Protected: RBAC + SBAC filtering
+ * Protected: SBAC filtering only (no permission check)
  * Non-admin users only see segments they are assigned to
+ * Permission check removed to allow dropdown usage without view_page permission
  */
 router.get('/',
   authenticateToken,
-  requirePermission('accounting.segments.view_page'),
   injectUserScope,
   async (req, res) => {
   try {
@@ -40,11 +40,11 @@ router.get('/',
 
 /**
  * GET un segment par ID
- * Protected: RBAC + SBAC - non-admins can only access segments in their scope
+ * Protected: SBAC only - non-admins can only access segments in their scope
+ * Permission check removed to allow dropdown usage without view_page permission
  */
 router.get('/:id',
   authenticateToken,
-  requirePermission('accounting.segments.view_page'),
   injectUserScope,
   async (req, res) => {
   try {

@@ -7,11 +7,12 @@ const router = express.Router();
 
 /**
  * GET toutes les villes
- * Protected: RBAC + SBAC filtering by segment and city
+ * Protected: SBAC filtering only (no permission check)
+ * Non-admin users only see cities they are assigned to
+ * Permission check removed to allow dropdown usage without view_page permission
  */
 router.get('/',
   authenticateToken,
-  requirePermission('accounting.cities.view_page'),
   injectUserScope,
   async (req, res) => {
   try {
@@ -44,11 +45,11 @@ router.get('/',
 
 /**
  * GET villes par segment
- * Protected: RBAC + SBAC - filters by user's assigned cities within segment
+ * Protected: SBAC only - filters by user's assigned cities within segment
+ * Permission check removed to allow dropdown usage without view_page permission
  */
 router.get('/by-segment/:segmentId',
   authenticateToken,
-  requirePermission('accounting.cities.view_page'),
   injectUserScope,
   async (req, res) => {
   try {
