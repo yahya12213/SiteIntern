@@ -105,6 +105,7 @@ export function usePermission() {
     canViewSheets: can('accounting.calculation_sheets.view_page'),
     canCreateSheet: can('accounting.calculation_sheets.create'),
     canUpdateSheet: can('accounting.calculation_sheets.update'),
+    canEditCalculationSheet: can('accounting.calculation_sheets.edit'),
     canDeleteSheet: can('accounting.calculation_sheets.delete'),
     canPublishSheet: can('accounting.calculation_sheets.publish'),
     canDuplicateSheet: can('accounting.calculation_sheets.duplicate'),
@@ -277,6 +278,15 @@ export function usePermission() {
     canExportContrat: can('commercialisation.contrats.export'),
   }), [can]);
 
+  // System module specific checks
+  const system = useMemo(() => ({
+    // Roles & Permissions
+    canViewRoles: can('system.roles.view_page'),
+    canCreateRole: can('system.roles.create'),
+    canUpdateRole: can('system.roles.update'),
+    canDeleteRole: can('system.roles.delete'),
+  }), [can]);
+
   return {
     // Generic permission checks
     can,
@@ -296,6 +306,7 @@ export function usePermission() {
     training,
     hr,
     commercialisation,
+    system,
   };
 }
 
