@@ -28,6 +28,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 056',
     description: 'Repopulate all accounting permissions (calculation_sheets, declarations, etc.)',
     endpoint: '/migration-056'
+  },
+  {
+    id: 'migration-058',
+    name: 'Migration 058',
+    description: 'Synchroniser permissions manquantes (declarations.submit, cities.bulk_delete, corps.duplicate)',
+    endpoint: '/migration-058'
   }
 ];
 
