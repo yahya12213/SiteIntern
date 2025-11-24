@@ -156,66 +156,43 @@ export function useAvailableCalculationSheets() {
 }
 
 // Hook pour récupérer les segments du professeur connecté
-// Si admin: retourne TOUS les segments
-// Si professeur: retourne uniquement ses segments assignés
+// Backend SBAC filtre automatiquement selon les affectations - pas besoin de filtrer localement
 export function useProfessorSegments() {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
 
   return useQuery({
-    queryKey: ['professor-segments', user?.id, isAdmin],
+    queryKey: ['professor-segments', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
 
-      const allSegments = await segmentsApi.getAll();
-
-      // Si admin, retourner tous les segments
-      if (isAdmin) {
-        return allSegments;
-      }
-
-      // Utiliser les segment_ids depuis le JWT token (chargés lors du login)
-      const segmentIds = (user as any).segment_ids || [];
-
-      return allSegments.filter(segment => segmentIds.includes(segment.id));
+      // Backend SBAC (injectUserScope) filtre déjà selon les affectations
+      // Pas besoin de refiltrer avec JWT - fait confiance au backend
+      return await segmentsApi.getAll();
     },
     enabled: !!user?.id,
   });
 }
 
 // Hook pour récupérer les villes du professeur connecté
-// Si admin: retourne TOUTES les villes
-// Si professeur: retourne uniquement ses villes assignées
+// Backend SBAC filtre automatiquement selon les affectations - pas besoin de filtrer localement
 export function useProfessorCities(): { data: ProfessorCity[] | undefined; isLoading: boolean } {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
 
   const query = useQuery({
-    queryKey: ['professor-cities', user?.id, isAdmin],
+    queryKey: ['professor-cities', user?.id],
     queryFn: async (): Promise<ProfessorCity[]> => {
       if (!user?.id) return [];
 
+      // Backend SBAC (injectUserScope) filtre déjà selon les affectations
+      // Pas besoin de refiltrer avec JWT - fait confiance au backend
       const allCities = await citiesApi.getAll();
 
-      // Si admin, retourner toutes les villes
-      if (isAdmin) {
-        return allCities.map(city => ({
-          id: city.id,
-          name: city.name,
-          segment_id: city.segment_id,
-          segment_name: city.segment_name,
-        }));
-      }
-
-      // Utiliser les city_ids depuis le JWT token (chargés lors du login)
-      const cityIds = (user as any).city_ids || [];
-
-      return allCities
-        .filter(city => cityIds.includes(city.id))
-        .map(city => ({
-          id: city.id,
-          name: city.name,
-          segment_id: city.segment_id,
-          segment_name: city.segment_name,
-        }));
+      return allCities.map(city => ({
+        id: city.id,
+        name: city.name,
+        segment_id: city.segment_id,
+        segment_name: city.segment_name,
+      }));
     },
     enabled: !!user?.id,
   });
