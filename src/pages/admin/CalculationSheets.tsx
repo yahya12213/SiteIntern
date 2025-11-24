@@ -5,6 +5,7 @@ import { calculateAllValues } from '@/lib/formula/dependency';
 import type { FormulaContext, FieldDefinition } from '@/lib/formula/types';
 import { useCalculationSheet } from '@/hooks/useCalculationSheets';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { usePermission } from '@/hooks/usePermission';
 
 // Mode test - Affichage de la fiche sans padding pour alignement parfait
 
@@ -12,6 +13,7 @@ export default function CalculationSheets() {
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const viewMode = searchParams.get('mode') || 'user'; // 'admin' ou 'user'
+  const { accounting } = usePermission();
   const { data: sheetData, isLoading } = useCalculationSheet(id || '');
 
   const [fields, setFields] = useState<FieldDefinition[]>([]);
@@ -494,13 +496,15 @@ export default function CalculationSheets() {
               <span>Sauvegarder Test</span>
             </button>
 
-            <Link
-              to={`/admin/calculation-sheets/${id}/editor`}
-              className="px-3 sm:px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
-            >
-              <Edit3 className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>Modifier</span>
-            </Link>
+            {accounting.canEditCalculationSheet && (
+              <Link
+                to={`/admin/calculation-sheets/${id}/editor`}
+                className="px-3 sm:px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+              >
+                <Edit3 className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Modifier</span>
+              </Link>
+            )}
           </div>
         </div>
 

@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { rolesApi, type Role, type GroupedPermissions } from '@/lib/api/roles';
 import { permissionsApi } from '@/lib/api/permissions';
 import { PermissionTree } from '@/components/admin/PermissionTree';
+import { usePermission } from '@/hooks/usePermission';
 import {
   Shield,
   Plus,
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 
 export const RolesManagement: React.FC = () => {
+  const { system } = usePermission();
   const [roles, setRoles] = useState<Role[]>([]);
   const [groupedPermissions, setGroupedPermissions] = useState<GroupedPermissions>({});
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
@@ -418,16 +420,18 @@ export const RolesManagement: React.FC = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => {
-              resetForm();
-              setShowCreateModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            Nouveau Rôle
-          </button>
+          {system.canCreateRole && (
+            <button
+              onClick={() => {
+                resetForm();
+                setShowCreateModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Nouveau Rôle
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -455,7 +459,7 @@ export const RolesManagement: React.FC = () => {
                         )}
                         <span className="font-medium text-gray-900">{role.name}</span>
                       </div>
-                      {!role.is_system_role && (
+                      {system.canDeleteRole && !role.is_system_role && (
                         <button
                           onClick={e => {
                             e.stopPropagation();
@@ -500,13 +504,15 @@ export const RolesManagement: React.FC = () => {
                     </h2>
                     <p className="text-sm text-gray-600">{selectedRole.description}</p>
                   </div>
-                  <button
-                    onClick={() => openEditModal(selectedRole)}
-                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Modifier
-                  </button>
+                  {system.canUpdateRole && (
+                    <button
+                      onClick={() => openEditModal(selectedRole)}
+                      className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      <Edit className="h-4 w-4" />
+                      Modifier
+                    </button>
+                  )}
                 </div>
 
                 <div className="p-4">

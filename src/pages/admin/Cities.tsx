@@ -4,6 +4,7 @@ import { useCities, useDeleteCity, type City } from '@/hooks/useCities';
 import { useSegments, type Segment } from '@/hooks/useSegments';
 import { AppLayout } from '@/components/layout/AppLayout';
 import CityFormModal from '@/components/admin/CityFormModal';
+import { usePermission } from '@/hooks/usePermission';
 
 export default function Cities() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,6 +13,7 @@ export default function Cities() {
   const [filterSegment, setFilterSegment] = useState<string>('all');
   const [selectedCityIds, setSelectedCityIds] = useState<string[]>([]);
 
+  const { accounting } = usePermission();
   const { data: cities = [], isLoading } = useCities();
   const { data: segments = [] } = useSegments();
   const deleteCity = useDeleteCity();
@@ -115,7 +117,7 @@ export default function Cities() {
 
           <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
             {/* Bouton Supprimer en masse */}
-            {selectedCityIds.length > 0 && (
+            {accounting.canBulkDeleteCity && selectedCityIds.length > 0 && (
               <button
                 onClick={handleBulkDelete}
                 className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
@@ -126,13 +128,15 @@ export default function Cities() {
             )}
 
             {/* Bouton Ajouter */}
-            <button
-              onClick={() => setIsFormOpen(true)}
-              className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
-            >
-              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="text-sm sm:text-base">Nouvelle Ville</span>
-            </button>
+            {accounting.canCreateCity && (
+              <button
+                onClick={() => setIsFormOpen(true)}
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+              >
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm sm:text-base">Nouvelle Ville</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -218,20 +222,24 @@ export default function Cities() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(city.id)}
-                          className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Modifier"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(city.id, city.name)}
-                          className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {accounting.canUpdateCity && (
+                          <button
+                            onClick={() => handleEdit(city.id)}
+                            className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Modifier"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {accounting.canDeleteCity && (
+                          <button
+                            onClick={() => handleDelete(city.id, city.name)}
+                            className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

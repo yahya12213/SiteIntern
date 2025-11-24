@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermission } from '@/hooks/usePermission';
 import {
   useUsers,
   useCreateUser,
@@ -21,6 +22,7 @@ import { rolesApi, type Role } from '@/lib/api/roles';
 
 const Users: React.FC = () => {
   const { user: currentUser, refreshUser } = useAuth();
+  const { accounting } = usePermission();
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -105,12 +107,14 @@ const Users: React.FC = () => {
     >
       <div className="space-y-6">
         {/* Header Actions */}
-        <div className="flex justify-end">
-          <Button onClick={() => setIsCreateModalOpen(true)} className="w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" />
-            Nouvel utilisateur
-          </Button>
-        </div>
+        {accounting.canCreateUser && (
+          <div className="flex justify-end">
+            <Button onClick={() => setIsCreateModalOpen(true)} className="w-full sm:w-auto">
+              <Plus className="w-4 h-4 mr-2" />
+              Nouvel utilisateur
+            </Button>
+          </div>
+        )}
 
         {/* Statistiques */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -240,7 +244,7 @@ const Users: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <div className="flex items-center justify-end gap-2">
                             {/* Assigner segments (pour tous les rôles sauf admin) */}
-                            {user.role !== 'admin' && (
+                            {accounting.canAssignSegments && user.role !== 'admin' && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -255,7 +259,7 @@ const Users: React.FC = () => {
                             )}
 
                             {/* Assigner villes (pour tous les rôles sauf admin) */}
-                            {user.role !== 'admin' && (
+                            {accounting.canAssignCities && user.role !== 'admin' && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -270,26 +274,30 @@ const Users: React.FC = () => {
                             )}
 
                             {/* Modifier */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedUser(user);
-                                setIsEditModalOpen(true);
-                              }}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
+                            {accounting.canUpdateUser && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedUser(user);
+                                  setIsEditModalOpen(true);
+                                }}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            )}
 
                             {/* Supprimer */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(user.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            {accounting.canDeleteUser && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDelete(user.id)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>

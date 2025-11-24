@@ -34,9 +34,11 @@ import PackFormModal from '@/components/admin/formations/PackFormModal';
 import { packsApi } from '@/lib/api/packs';
 import type { CorpsFormation } from '@/types/corps-formation';
 import type { Formation } from '@/types/cours';
+import { usePermission } from '@/hooks/usePermission';
 
 export default function FormationsManagement() {
   const navigate = useNavigate();
+  const { training } = usePermission();
   const { data: corpsList = [], isLoading: loadingCorps } = useCorpsFormation();
   const { data: allFormations = [], isLoading: loadingFormations } = useFormations();
   const { data: stats } = useCoursStats();
@@ -243,12 +245,14 @@ export default function FormationsManagement() {
     >
       <div className="space-y-6">
         {/* Header Actions */}
-        <div className="flex justify-end">
-          <Button onClick={() => setShowCorpsForm(true)} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau Corps
-          </Button>
-        </div>
+        {training.canCreateCorps && (
+          <div className="flex justify-end">
+            <Button onClick={() => setShowCorpsForm(true)} className="w-full sm:w-auto">
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau Corps
+            </Button>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -496,39 +500,47 @@ export default function FormationsManagement() {
 
                       {/* Actions Corps */}
                       <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleCreateFormation(corps.id)}
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Formation
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDuplicateCorps(corps.id)}
-                          disabled={duplicateCorps.isPending}
-                          title="Dupliquer ce corps"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditCorps(corps)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteCorps(corps.id, corps.name)}
-                          disabled={deleteCorps.isPending}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {training.canCreateFormation && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCreateFormation(corps.id)}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Formation
+                          </Button>
+                        )}
+                        {training.canDuplicateCorps && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDuplicateCorps(corps.id)}
+                            disabled={duplicateCorps.isPending}
+                            title="Dupliquer ce corps"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {training.canUpdateCorps && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditCorps(corps)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {training.canDeleteCorps && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteCorps(corps.id, corps.name)}
+                            disabled={deleteCorps.isPending}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -547,38 +559,44 @@ export default function FormationsManagement() {
                             Aucune formation dans ce corps
                           </p>
                           <div className="flex gap-2 justify-center">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCreateFormation(corps.id)}
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Créer une formation
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCreatePack(corps.id, corps.name)}
-                            >
-                              <Package className="h-4 w-4 mr-2" />
-                              Créer un pack
-                            </Button>
+                            {training.canCreateFormation && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCreateFormation(corps.id)}
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Créer une formation
+                              </Button>
+                            )}
+                            {training.canCreatePack && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCreatePack(corps.id, corps.name)}
+                              >
+                                <Package className="h-4 w-4 mr-2" />
+                                Créer un pack
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ) : (
                         <div>
                           {/* Bouton Créer Pack */}
-                          <div className="px-4 py-3 bg-amber-50 border-b border-amber-100">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCreatePack(corps.id, corps.name)}
-                              className="bg-white"
-                            >
-                              <Package className="h-4 w-4 mr-2 text-amber-600" />
-                              Créer un pack pour ce corps
-                            </Button>
-                          </div>
+                          {training.canCreatePack && (
+                            <div className="px-4 py-3 bg-amber-50 border-b border-amber-100">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCreatePack(corps.id, corps.name)}
+                                className="bg-white"
+                              >
+                                <Package className="h-4 w-4 mr-2 text-amber-600" />
+                                Créer un pack pour ce corps
+                              </Button>
+                            </div>
+                          )}
 
                           {/* Tableau des formations */}
                           <div className="overflow-x-auto">
@@ -673,7 +691,7 @@ export default function FormationsManagement() {
                                     </td>
                                     <td className="px-4 py-3">
                                       <div className="flex items-center justify-end gap-2">
-                                        {!formation.is_pack && (
+                                        {training.canEditContent && !formation.is_pack && (
                                           <Button
                                             variant="outline"
                                             size="sm"
@@ -685,7 +703,7 @@ export default function FormationsManagement() {
                                             <Settings className="h-4 w-4" />
                                           </Button>
                                         )}
-                                        {!formation.is_pack && (
+                                        {training.canDuplicateFormation && !formation.is_pack && (
                                           <Button
                                             variant="outline"
                                             size="sm"
@@ -698,26 +716,30 @@ export default function FormationsManagement() {
                                             <Copy className="h-4 w-4" />
                                           </Button>
                                         )}
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => handleEditFormation(formation)}
-                                          title="Modifier"
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() =>
-                                            handleDeleteFormation(formation.id, formation.title)
-                                          }
-                                          disabled={deleteFormation.isPending}
-                                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                          title="Supprimer"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        {training.canUpdateFormation && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleEditFormation(formation)}
+                                            title="Modifier"
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </Button>
+                                        )}
+                                        {training.canDeleteFormation && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                              handleDeleteFormation(formation.id, formation.title)
+                                            }
+                                            disabled={deleteFormation.isPending}
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                            title="Supprimer"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        )}
                                       </div>
                                     </td>
                                   </tr>

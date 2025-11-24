@@ -17,10 +17,12 @@ import EditDeclarationModal from '@/components/admin/EditDeclarationModal';
 import NewDeclarationModal from '@/components/professor/NewDeclarationModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { PERMISSIONS } from '@/config/permissions';
+import { usePermission } from '@/hooks/usePermission';
 
 const DeclarationsManagement: React.FC = () => {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
+  const { accounting } = usePermission();
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedProfessor, setSelectedProfessor] = useState<string>('all');
   const [selectedCity, setSelectedCity] = useState<string>('all');
@@ -197,15 +199,17 @@ const DeclarationsManagement: React.FC = () => {
     >
       <div className="space-y-6">
         {/* Header with New Declaration Button */}
-        <div className="flex justify-end">
-          <button
-            onClick={() => setIsNewModalOpen(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Nouvelle Déclaration
-          </button>
-        </div>
+        {accounting.canCreateDeclaration && (
+          <div className="flex justify-end">
+            <button
+              onClick={() => setIsNewModalOpen(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Nouvelle Déclaration
+            </button>
+          </div>
+        )}
 
         {/* Statistiques */}
         {stats && (
@@ -448,28 +452,32 @@ const DeclarationsManagement: React.FC = () => {
                             declaration.status === 'refusee') && (
                             <>
                               {/* Bouton Remplir */}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => navigate(`/admin/declarations/${declaration.id}`)}
-                                className="bg-white hover:bg-blue-50 border-blue-300"
-                                title="Remplir la déclaration"
-                              >
-                                <Edit3 className="w-4 h-4 mr-1" />
-                                Remplir
-                              </Button>
+                              {accounting.canUpdateDeclaration && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => navigate(`/admin/declarations/${declaration.id}`)}
+                                  className="bg-white hover:bg-blue-50 border-blue-300"
+                                  title="Remplir la déclaration"
+                                >
+                                  <Edit3 className="w-4 h-4 mr-1" />
+                                  Remplir
+                                </Button>
+                              )}
 
                               {/* Bouton Soumettre */}
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleSubmit(declaration.id)}
-                                className="bg-white hover:bg-green-50 border-green-300 text-green-700"
-                                title="Soumettre pour validation"
-                              >
-                                <Send className="w-4 h-4 mr-1" />
-                                Soumettre
-                              </Button>
+                              {accounting.canSubmitDeclaration && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleSubmit(declaration.id)}
+                                  className="bg-white hover:bg-green-50 border-green-300 text-green-700"
+                                  title="Soumettre pour validation"
+                                >
+                                  <Send className="w-4 h-4 mr-1" />
+                                  Soumettre
+                                </Button>
+                              )}
                             </>
                           )}
 

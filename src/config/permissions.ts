@@ -22,12 +22,15 @@ export const PERMISSIONS = {
       create: 'accounting.cities.create',
       update: 'accounting.cities.update',
       delete: 'accounting.cities.delete',
+      bulk_delete: 'accounting.cities.bulk_delete',
     },
     users: {
       view_page: 'accounting.users.view_page',
       create: 'accounting.users.create',
       update: 'accounting.users.update',
       delete: 'accounting.users.delete',
+      assign_segments: 'accounting.users.assign_segments',
+      assign_cities: 'accounting.users.assign_cities',
     },
     calculation_sheets: {
       view_page: 'accounting.calculation_sheets.view_page',
@@ -44,6 +47,7 @@ export const PERMISSIONS = {
       update: 'accounting.declarations.update',
       delete: 'accounting.declarations.delete',
       approve: 'accounting.declarations.approve',
+      submit: 'accounting.declarations.submit',
     },
     professor: {
       declarations: {
@@ -79,6 +83,7 @@ export const PERMISSIONS = {
       create: 'training.corps.create',
       update: 'training.corps.update',
       delete: 'training.corps.delete',
+      duplicate: 'training.corps.duplicate',
     },
     centres: {
       view_page: 'training.centres.view_page',
