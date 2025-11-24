@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermission } from '@/hooks/usePermission';
 import { PERMISSIONS } from '@/config/permissions';
 import {
   useCertificateTemplates,
@@ -40,6 +41,7 @@ import type { TemplateFolder } from '@/types/certificateTemplate';
 export const CertificateTemplates: React.FC = () => {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
+  const { training } = usePermission();
   const { data: templates, isLoading, error } = useCertificateTemplates();
   const { data: folderTree, isLoading: foldersLoading } = useTemplateFolderTree();
   const deleteMutation = useDeleteTemplate();
@@ -441,7 +443,7 @@ export const CertificateTemplates: React.FC = () => {
 
                           {/* Action Buttons */}
                           <div className="px-5 pb-4 flex gap-2">
-                            {hasPermission(PERMISSIONS.training.certificate_templates.rename) && (
+                            {training.canRenameFolder && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -455,7 +457,7 @@ export const CertificateTemplates: React.FC = () => {
                               </button>
                             )}
 
-                            {hasPermission(PERMISSIONS.training.certificate_templates.delete) && (
+                            {training.canDeleteFolder && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -594,7 +596,7 @@ export const CertificateTemplates: React.FC = () => {
                                     </button>
                                   )}
 
-                                  {hasPermission(PERMISSIONS.training.certificate_templates.rename) && (
+                                  {training.canRenameTemplate && (
                                     <button
                                       onClick={() => handleRenameClick(template.id, template.name)}
                                       className="px-3 py-1.5 bg-green-50 text-green-700 rounded border border-green-300 hover:bg-green-100 transition-colors text-xs font-medium flex items-center gap-1"
@@ -629,7 +631,7 @@ export const CertificateTemplates: React.FC = () => {
                                     </button>
                                   )}
 
-                                  {hasPermission(PERMISSIONS.training.certificate_templates.delete) && (
+                                  {training.canDeleteTemplate && (
                                     <button
                                       onClick={() => setShowDeleteConfirm(template.id)}
                                       disabled={deleteMutation.isPending}

@@ -95,6 +95,7 @@ import migration055Router from './routes/migration-055-fix-critical-permissions.
 import migration056Router from './routes/migration-056-accounting-permissions.js';
 import migration057Router from './routes/migration-057-declaration-attachments.js';
 import migration058Router from './routes/migration-058-sync-missing-permissions.js';
+import migration059Router from './routes/migration-059-fix-permission-overlaps.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -202,6 +203,7 @@ app.use('/api/migration-055', migration055Router); // Migration 055 - Fix critic
 app.use('/api/migration-056', migration056Router); // Migration 056 - Repeupler toutes les permissions accounting (calculation_sheets, declarations, segments, cities, users)
 app.use('/api/migration-057', migration057Router); // Migration 057 - Créer table declaration_attachments (pièces jointes déclarations - 10 MB max)
 app.use('/api/migration-058', migration058Router); // Migration 058 - Synchroniser permissions manquantes (declarations.submit, cities.bulk_delete, corps.duplicate)
+app.use('/api/migration-059', migration059Router); // Migration 059 - Corriger chevauchements permissions (20 nouvelles permissions: fill_data vs edit_metadata, folder vs template)
 app.use('/api/migration-fix-segments-and-sheets', migrationFixRouter); // Migration Fix - Fix segments colors and sheet city associations
 app.use('/api/migration-fix-impression-permissions', migrationFixImpressionRouter); // Migration Fix - Add missing permissions for impression role
 app.use('/api/migration-fix-role-sync', migrationFixRoleSyncRouter); // Migration Fix - Synchronize role_id with role text for all users

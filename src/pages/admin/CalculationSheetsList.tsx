@@ -7,11 +7,15 @@ import { useSegments, type Segment } from '@/hooks/useSegments';
 import { useCities, type City } from '@/hooks/useCities';
 import { MigrationPanel } from '@/components/admin/MigrationPanel';
 import { tokenManager } from '@/lib/api/client';
+import { usePermission } from '@/hooks/usePermission';
 
 export default function CalculationSheetsList() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingSheet, setEditingSheet] = useState<any>(null);
   const [isMigrationPanelOpen, setIsMigrationPanelOpen] = useState(false);
+
+  // Permissions
+  const { accounting } = usePermission();
 
   // Check if current user is admin
   const currentUser = tokenManager.getUser();
@@ -118,13 +122,15 @@ export default function CalculationSheetsList() {
               Migrations
             </button>
           )}
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Nouvelle Fiche
-          </button>
+          {accounting.canCreateSheet && (
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Nouvelle Fiche
+            </button>
+          )}
         </div>
 
         {/* Migration Panel */}
@@ -234,77 +240,91 @@ export default function CalculationSheetsList() {
                 {/* Actions */}
                 <div className="space-y-2 pt-4 border-t border-gray-200">
                   {/* Bouton Publier/Dépublier en pleine largeur */}
-                  <button
-                    onClick={() => handleTogglePublish(sheet.id, sheet.status, sheet.title)}
-                    disabled={togglePublish.isPending}
-                    className={`w-full px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-                      sheet.status === 'published'
-                        ? 'bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200'
-                        : 'bg-green-50 hover:bg-green-100 text-green-700 border border-green-200'
-                    }`}
-                  >
-                    {sheet.status === 'published' ? (
-                      <>
-                        <XCircle className="w-4 h-4" />
-                        Dépublier
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4" />
-                        Publier
-                      </>
-                    )}
-                  </button>
+                  {accounting.canPublishSheet && (
+                    <button
+                      onClick={() => handleTogglePublish(sheet.id, sheet.status, sheet.title)}
+                      disabled={togglePublish.isPending}
+                      className={`w-full px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                        sheet.status === 'published'
+                          ? 'bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200'
+                          : 'bg-green-50 hover:bg-green-100 text-green-700 border border-green-200'
+                      }`}
+                    >
+                      {sheet.status === 'published' ? (
+                        <>
+                          <XCircle className="w-4 h-4" />
+                          Dépublier
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          Publier
+                        </>
+                      )}
+                    </button>
+                  )}
 
                   {/* Autres actions */}
                   <div className="flex gap-2">
-                    <Link
-                      to={`/admin/calculation-sheets/${sheet.id}`}
-                      className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Voir
-                    </Link>
-                    <button
-                      onClick={() => setEditingSheet(sheet)}
-                      className="px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-lg text-sm transition-colors"
-                      title="Modifier les informations"
-                    >
-                      <Settings className="w-4 h-4" />
-                    </button>
-                    <Link
-                      to={`/admin/calculation-sheets/${sheet.id}/editor`}
-                      className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      Modifier
-                    </Link>
+                    {accounting.canViewSheet && (
+                      <Link
+                        to={`/admin/calculation-sheets/${sheet.id}`}
+                        className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Voir
+                      </Link>
+                    )}
+                    {accounting.canManageSheetSettings && (
+                      <button
+                        onClick={() => setEditingSheet(sheet)}
+                        className="px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-lg text-sm transition-colors"
+                        title="Modifier les informations"
+                      >
+                        <Settings className="w-4 h-4" />
+                      </button>
+                    )}
+                    {accounting.canEditCalculationSheet && (
+                      <Link
+                        to={`/admin/calculation-sheets/${sheet.id}/editor`}
+                        className="flex-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                        Modifier
+                      </Link>
+                    )}
                   </div>
 
                   {/* Actions secondaires */}
                   <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => handleExport(sheet)}
-                      className="flex-1 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors"
-                      title="Exporter en JSON"
-                    >
-                      <Download className="w-4 h-4" />
-                      Exporter
-                    </button>
-                    <button
-                      onClick={() => handleDuplicate(sheet.id, sheet.title)}
-                      className="px-3 py-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg text-sm transition-colors"
-                      title="Dupliquer"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(sheet.id, sheet.title)}
-                      className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm transition-colors"
-                      title="Supprimer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {accounting.canExportSheet && (
+                      <button
+                        onClick={() => handleExport(sheet)}
+                        className="flex-1 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors"
+                        title="Exporter en JSON"
+                      >
+                        <Download className="w-4 h-4" />
+                        Exporter
+                      </button>
+                    )}
+                    {accounting.canDuplicateSheet && (
+                      <button
+                        onClick={() => handleDuplicate(sheet.id, sheet.title)}
+                        className="px-3 py-2 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg text-sm transition-colors"
+                        title="Dupliquer"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    )}
+                    {accounting.canDeleteSheet && (
+                      <button
+                        onClick={() => handleDelete(sheet.id, sheet.title)}
+                        className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-sm transition-colors"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

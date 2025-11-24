@@ -5,8 +5,10 @@ import { Calendar, Plus, Edit2, Trash2, Users, AlertCircle } from 'lucide-react'
 import { useSessionsFormation, useDeleteSession } from '@/hooks/useSessionsFormation';
 import { SessionFormModal } from '@/components/admin/formations/SessionFormModal';
 import type { SessionFormation } from '@/types/sessions';
+import { usePermission } from '@/hooks/usePermission';
 
 const Sessions: React.FC = () => {
+  const { training } = usePermission();
   const { data: sessions, isLoading, error } = useSessionsFormation();
   const deleteSession = useDeleteSession();
 
@@ -129,13 +131,15 @@ const Sessions: React.FC = () => {
             <h2 className="text-xl font-semibold text-gray-900">Liste des sessions</h2>
             <p className="text-sm text-gray-600 mt-1">Gérez les sessions de formation et les inscriptions</p>
           </div>
-          <Button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Nouvelle session
-          </Button>
+          {training.canCreateSession && (
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Nouvelle session
+            </Button>
+          )}
         </div>
 
         {/* Loading state */}
@@ -243,22 +247,26 @@ const Sessions: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSessionToEdit(session)}
-                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(session)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {training.canUpdateSession && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSessionToEdit(session)}
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {training.canDeleteSession && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(session)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

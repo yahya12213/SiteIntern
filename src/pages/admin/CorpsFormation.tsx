@@ -11,8 +11,10 @@ import {
   useDeleteCorpsFormation,
 } from '@/hooks/useCorpsFormation';
 import type { CorpsFormation } from '@/types/corps-formation';
+import { usePermission } from '@/hooks/usePermission';
 
 export default function CorpsFormationPage() {
+  const { training } = usePermission();
   const { data: corpsList = [], isLoading, error } = useCorpsFormation();
   const createCorps = useCreateCorpsFormation();
   const updateCorps = useUpdateCorpsFormation();
@@ -134,12 +136,14 @@ export default function CorpsFormationPage() {
     <AppLayout title="Corps de Formation" subtitle="Gérez les catégories de formations">
       <div className="space-y-6">
         {/* Header Actions */}
-        <div className="flex justify-end">
-          <Button onClick={() => setShowForm(!showForm)} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau corps
-          </Button>
-        </div>
+        {training.canCreateCorps && (
+          <div className="flex justify-end">
+            <Button onClick={() => setShowForm(!showForm)} className="w-full sm:w-auto">
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau corps
+            </Button>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -347,22 +351,26 @@ export default function CorpsFormationPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEdit(corps)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDelete(corps.id, corps.name)}
-                              disabled={deleteCorps.isPending}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {training.canUpdateCorps && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEdit(corps)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {training.canDeleteCorps && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDelete(corps.id, corps.name)}
+                                disabled={deleteCorps.isPending}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>

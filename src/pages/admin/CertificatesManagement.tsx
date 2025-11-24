@@ -18,8 +18,10 @@ import {
   CheckCircle,
   AlertCircle,
 } from 'lucide-react';
+import { usePermission } from '@/hooks/usePermission';
 
 export const CertificatesManagement: React.FC = () => {
+  const { training } = usePermission();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFormation, setSelectedFormation] = useState<string>('');
 
@@ -257,21 +259,25 @@ export const CertificatesManagement: React.FC = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleDownload(certificate)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Télécharger"
-                          >
-                            <Download className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(certificate.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Supprimer"
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {training.canDownloadCertificate && (
+                            <button
+                              onClick={() => handleDownload(certificate)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Télécharger"
+                            >
+                              <Download className="h-4 w-4" />
+                            </button>
+                          )}
+                          {training.canDeleteCertificate && (
+                            <button
+                              onClick={() => handleDelete(certificate.id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Supprimer"
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

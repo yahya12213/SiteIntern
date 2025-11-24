@@ -452,7 +452,7 @@ const DeclarationsManagement: React.FC = () => {
                             declaration.status === 'refusee') && (
                             <>
                               {/* Bouton Remplir */}
-                              {accounting.canUpdateDeclaration && (
+                              {accounting.canFillData && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -496,7 +496,7 @@ const DeclarationsManagement: React.FC = () => {
                           )}
 
                           {/* Bouton Éditer Métadonnées - Admin uniquement */}
-                          {hasPermission(PERMISSIONS.accounting.declarations.update) && (
+                          {accounting.canEditMetadata && (
                             <Button
                               variant="outline"
                               size="sm"

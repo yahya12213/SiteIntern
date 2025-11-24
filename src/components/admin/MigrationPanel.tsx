@@ -34,6 +34,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 058',
     description: 'Synchroniser permissions manquantes (declarations.submit, cities.bulk_delete, corps.duplicate)',
     endpoint: '/migration-058'
+  },
+  {
+    id: 'migration-059',
+    name: 'Migration 059',
+    description: 'Corriger chevauchements permissions - 20 permissions (fill_data vs edit_metadata, folder vs template, protéger 16 boutons)',
+    endpoint: '/migration-059'
   }
 ];
 
