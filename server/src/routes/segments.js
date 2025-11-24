@@ -24,7 +24,7 @@ router.get('/',
     const scopeFilter = buildScopeFilter(req, 'id', null);  // Filter by segment id
 
     if (scopeFilter.hasScope) {
-      query += ' WHERE ' + scopeFilter.conditions.join(' AND ');
+      query += ' WHERE (' + scopeFilter.conditions.join(' OR ') + ')';
       params.push(...scopeFilter.params);
     }
 

@@ -101,17 +101,12 @@ export const buildScopeFilter = (req, segmentColumn = 'segment_id', cityColumn =
 
   const conditions = [];
   const params = [];
-  let paramIndex = 1;
 
   // Filter by segments if user has assigned segments
   if (scope.segmentIds && scope.segmentIds.length > 0) {
     const placeholders = scope.segmentIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
     conditions.push(`${segmentColumn} IN (${placeholders})`);
     params.push(...scope.segmentIds);
-  } else {
-    // If user has no segments assigned, they can't see any data
-    // Use impossible condition to return empty result
-    conditions.push('1 = 0');
   }
 
   // Filter by cities if user has assigned cities
@@ -119,8 +114,10 @@ export const buildScopeFilter = (req, segmentColumn = 'segment_id', cityColumn =
     const placeholders = scope.cityIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
     conditions.push(`${cityColumn} IN (${placeholders})`);
     params.push(...scope.cityIds);
-  } else {
-    // If user has no cities assigned, they can't see any data
+  }
+
+  // If user has neither segments nor cities assigned, return impossible condition
+  if (conditions.length === 0) {
     conditions.push('1 = 0');
   }
 
@@ -128,7 +125,7 @@ export const buildScopeFilter = (req, segmentColumn = 'segment_id', cityColumn =
     conditions,
     params,
     hasScope: true,
-    paramIndex // Next available parameter index for additional query params
+    paramIndex: params.length + 1 // Next available parameter index for additional query params
   };
 };
 
