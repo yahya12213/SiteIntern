@@ -12,6 +12,69 @@ const router = express.Router();
  * - accounting.cities.bulk_delete (Suppression en masse de villes)
  * - training.corps.duplicate (Dupliquer un corps de formation)
  */
+
+/**
+ * GET /api/migration-058/status
+ * Vérifier si la migration 058 est nécessaire
+ */
+router.get('/status', async (req, res) => {
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  });
+
+  const client = await pool.connect();
+
+  try {
+    // Liste des permissions de cette migration
+    const permissionCodes = [
+      'accounting.declarations.submit',
+      'accounting.cities.bulk_delete',
+      'training.corps.duplicate'
+    ];
+
+    // Vérifier chaque permission
+    const permissionsStatus = {};
+    let missingCount = 0;
+
+    for (const code of permissionCodes) {
+      const result = await client.query(
+        'SELECT id FROM permissions WHERE code = $1',
+        [code]
+      );
+      const exists = result.rows.length > 0;
+      permissionsStatus[code] = { exists };
+      if (!exists) missingCount++;
+    }
+
+    const migrationNeeded = missingCount > 0;
+
+    res.json({
+      success: true,
+      status: {
+        migrationNeeded,
+        permissionsStatus,
+        missingCount,
+        totalChecked: permissionCodes.length
+      },
+      message: migrationNeeded
+        ? `Migration needed: ${missingCount} permission(s) missing`
+        : 'Migration 058 already applied'
+    });
+
+  } catch (error) {
+    console.error('Error checking migration 058 status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check migration status',
+      details: error.message
+    });
+  } finally {
+    client.release();
+    await pool.end();
+  }
+});
+
 router.post('/run', async (req, res) => {
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
