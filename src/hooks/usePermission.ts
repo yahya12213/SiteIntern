@@ -84,7 +84,7 @@ export function usePermission() {
     canCreateCity: can('accounting.cities.create'),
     canUpdateCity: can('accounting.cities.update'),
     canDeleteCity: can('accounting.cities.delete'),
-    canBulkDeleteCities: can('accounting.cities.bulk_delete'),
+    canBulkDeleteCity: can('accounting.cities.bulk_delete'),
 
     // Users
     canViewUsers: can('accounting.users.view_page'),
@@ -117,10 +117,12 @@ export function usePermission() {
     // Manage Declarations
     canViewDeclarations: can('accounting.declarations.view_page'),
     canViewAllDeclarations: can('accounting.declarations.view_all'),
+    canCreateDeclaration: can('accounting.declarations.create'),
     canCreateDeclarationForOther: can('accounting.declarations.create'),
     canUpdateDeclaration: can('accounting.declarations.update'),
     canDeleteDeclaration: can('accounting.declarations.delete'),
     canApproveDeclaration: can('accounting.declarations.approve'),
+    canSubmitDeclaration: can('accounting.declarations.submit'),
     canRejectDeclaration: can('accounting.declarations.reject'),
     canRequestModification: can('accounting.declarations.request_modification'),
   }), [can]);
@@ -186,6 +188,7 @@ export function usePermission() {
     canCreateCorps: can('training.corps.create'),
     canUpdateCorps: can('training.corps.update'),
     canDeleteCorps: can('training.corps.delete'),
+    canDuplicateCorps: can('training.corps.duplicate'),
 
     // Sessions
     canViewSessions: can('training.sessions.view_page'),
