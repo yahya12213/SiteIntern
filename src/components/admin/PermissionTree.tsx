@@ -238,7 +238,7 @@ export function PermissionTree({
                     {/* Menu Content (Actions) */}
                     {expanded[`${module.id}.${menu.id}`] && (
                       <div className="pl-8 py-2 bg-gray-50">
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {menu.actions.map((action) => (
                             <label
                               key={action.id}
@@ -253,7 +253,7 @@ export function PermissionTree({
                                 disabled={readOnly}
                                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                               />
-                              <span className="ml-2 text-sm text-gray-700">
+                              <span className="ml-3 text-base text-gray-700">
                                 {getPermissionLabel(action.code)}
                               </span>
                             </label>

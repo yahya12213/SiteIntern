@@ -583,7 +583,7 @@ export const RolesManagement: React.FC = () => {
       {/* Create Role Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl mx-4 max-h-[90vh] overflow-hidden">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Créer un nouveau rôle</h3>
               <button onClick={() => setShowCreateModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -703,7 +703,7 @@ export const RolesManagement: React.FC = () => {
       {/* Edit Role Modal */}
       {showEditModal && selectedRole && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl mx-4 max-h-[90vh] overflow-hidden">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-semibold">Modifier le rôle: {selectedRole.name}</h3>
               <button onClick={() => setShowEditModal(false)} className="text-gray-500 hover:text-gray-700">
