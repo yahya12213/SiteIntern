@@ -25,8 +25,8 @@ router.get('/',
     `;
     const params = [];
 
-    // SBAC: Apply scope filtering
-    const scopeFilter = buildScopeFilter(req, 'c.segment_id', 'c.id');
+    // SBAC: Apply scope filtering - cities filtered by city_id ONLY (not by segment)
+    const scopeFilter = buildScopeFilter(req, null, 'c.id');
 
     if (scopeFilter.hasScope) {
       query += ' WHERE (' + scopeFilter.conditions.join(' OR ') + ')';
@@ -58,8 +58,8 @@ router.get('/by-segment/:segmentId',
     let query = 'SELECT * FROM cities WHERE segment_id = $1';
     const params = [segmentId];
 
-    // SBAC: Apply scope filtering
-    const scopeFilter = buildScopeFilter(req, 'segment_id', 'id');
+    // SBAC: Apply scope filtering - filter by assigned city_id only
+    const scopeFilter = buildScopeFilter(req, null, 'id');
 
     if (scopeFilter.hasScope) {
       query += ' AND (' + scopeFilter.conditions.map((condition, index) => {

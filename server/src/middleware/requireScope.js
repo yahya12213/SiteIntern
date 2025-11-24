@@ -102,15 +102,15 @@ export const buildScopeFilter = (req, segmentColumn = 'segment_id', cityColumn =
   const conditions = [];
   const params = [];
 
-  // Filter by segments if user has assigned segments
-  if (scope.segmentIds && scope.segmentIds.length > 0) {
+  // Filter by segments if user has assigned segments AND segmentColumn is specified
+  if (segmentColumn !== null && scope.segmentIds && scope.segmentIds.length > 0) {
     const placeholders = scope.segmentIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
     conditions.push(`${segmentColumn} IN (${placeholders})`);
     params.push(...scope.segmentIds);
   }
 
-  // Filter by cities if user has assigned cities
-  if (scope.cityIds && scope.cityIds.length > 0) {
+  // Filter by cities if user has assigned cities AND cityColumn is specified
+  if (cityColumn !== null && scope.cityIds && scope.cityIds.length > 0) {
     const placeholders = scope.cityIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
     conditions.push(`${cityColumn} IN (${placeholders})`);
     params.push(...scope.cityIds);
