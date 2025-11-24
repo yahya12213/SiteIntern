@@ -1,5 +1,6 @@
 import express from 'express';
 import pool from '../config/database.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -8,8 +9,12 @@ const router = express.Router();
 /**
  * GET /api/forums/:formationId/threads
  * Get all threads for a formation with author info and stats
+ * Protected: Requires training.forums.view permission
  */
-router.get('/:formationId/threads', async (req, res) => {
+router.get('/:formationId/threads',
+  authenticateToken,
+  requirePermission('training.forums.view'),
+  async (req, res) => {
   try {
     const { formationId } = req.params;
     const { sort = 'recent', pinned = 'true' } = req.query;
@@ -55,8 +60,12 @@ router.get('/:formationId/threads', async (req, res) => {
 /**
  * POST /api/forums/:formationId/threads
  * Create a new thread in a formation
+ * Protected: Requires training.forums.create_thread permission
  */
-router.post('/:formationId/threads', async (req, res) => {
+router.post('/:formationId/threads',
+  authenticateToken,
+  requirePermission('training.forums.create_thread'),
+  async (req, res) => {
   try {
     const { formationId } = req.params;
     const { author_id, title, content } = req.body;
@@ -116,8 +125,12 @@ router.post('/:formationId/threads', async (req, res) => {
 /**
  * GET /api/forums/threads/:threadId
  * Get thread details with author info
+ * Protected: Requires training.forums.view permission
  */
-router.get('/threads/:threadId', async (req, res) => {
+router.get('/threads/:threadId',
+  authenticateToken,
+  requirePermission('training.forums.view'),
+  async (req, res) => {
   try {
     const { threadId } = req.params;
 
@@ -158,8 +171,12 @@ router.get('/threads/:threadId', async (req, res) => {
 /**
  * PUT /api/forums/threads/:threadId
  * Update thread (title, content)
+ * Protected: Requires training.forums.update_thread permission
  */
-router.put('/threads/:threadId', async (req, res) => {
+router.put('/threads/:threadId',
+  authenticateToken,
+  requirePermission('training.forums.update_thread'),
+  async (req, res) => {
   try {
     const { threadId } = req.params;
     const { title, content, author_id } = req.body;
@@ -209,8 +226,12 @@ router.put('/threads/:threadId', async (req, res) => {
 /**
  * DELETE /api/forums/threads/:threadId
  * Delete thread (cascade deletes posts and reactions)
+ * Protected: Requires training.forums.delete permission
  */
-router.delete('/threads/:threadId', async (req, res) => {
+router.delete('/threads/:threadId',
+  authenticateToken,
+  requirePermission('training.forums.delete'),
+  async (req, res) => {
   try {
     const { threadId } = req.params;
     const { user_id, is_admin } = req.query;
@@ -253,8 +274,12 @@ router.delete('/threads/:threadId', async (req, res) => {
 /**
  * PATCH /api/forums/threads/:threadId/pin
  * Pin or unpin a thread (admin only)
+ * Protected: Requires training.forums.manage permission
  */
-router.patch('/threads/:threadId/pin', async (req, res) => {
+router.patch('/threads/:threadId/pin',
+  authenticateToken,
+  requirePermission('training.forums.manage'),
+  async (req, res) => {
   try {
     const { threadId } = req.params;
     const { is_pinned } = req.body;
@@ -287,8 +312,12 @@ router.patch('/threads/:threadId/pin', async (req, res) => {
 /**
  * PATCH /api/forums/threads/:threadId/lock
  * Lock or unlock a thread (admin only)
+ * Protected: Requires training.forums.manage permission
  */
-router.patch('/threads/:threadId/lock', async (req, res) => {
+router.patch('/threads/:threadId/lock',
+  authenticateToken,
+  requirePermission('training.forums.manage'),
+  async (req, res) => {
   try {
     const { threadId } = req.params;
     const { is_locked } = req.body;
@@ -321,8 +350,12 @@ router.patch('/threads/:threadId/lock', async (req, res) => {
 /**
  * PATCH /api/forums/threads/:threadId/view
  * Increment view count for a thread
+ * Protected: Requires training.forums.view permission
  */
-router.patch('/threads/:threadId/view', async (req, res) => {
+router.patch('/threads/:threadId/view',
+  authenticateToken,
+  requirePermission('training.forums.view'),
+  async (req, res) => {
   try {
     const { threadId } = req.params;
 
@@ -348,8 +381,12 @@ router.patch('/threads/:threadId/view', async (req, res) => {
 /**
  * GET /api/forums/threads/:threadId/posts
  * Get all posts in a thread with author info and reactions
+ * Protected: Requires training.forums.view permission
  */
-router.get('/threads/:threadId/posts', async (req, res) => {
+router.get('/threads/:threadId/posts',
+  authenticateToken,
+  requirePermission('training.forums.view'),
+  async (req, res) => {
   try {
     const { threadId } = req.params;
 
@@ -395,8 +432,12 @@ router.get('/threads/:threadId/posts', async (req, res) => {
 /**
  * POST /api/forums/threads/:threadId/posts
  * Create a new post (reply) in a thread
+ * Protected: Requires training.forums.reply permission
  */
-router.post('/threads/:threadId/posts', async (req, res) => {
+router.post('/threads/:threadId/posts',
+  authenticateToken,
+  requirePermission('training.forums.reply'),
+  async (req, res) => {
   try {
     const { threadId } = req.params;
     const { author_id, content, parent_post_id } = req.body;
@@ -470,8 +511,12 @@ router.post('/threads/:threadId/posts', async (req, res) => {
 /**
  * PUT /api/forums/posts/:postId
  * Update a post
+ * Protected: Requires training.forums.reply permission
  */
-router.put('/posts/:postId', async (req, res) => {
+router.put('/posts/:postId',
+  authenticateToken,
+  requirePermission('training.forums.reply'),
+  async (req, res) => {
   try {
     const { postId } = req.params;
     const { content, author_id } = req.body;
@@ -520,8 +565,12 @@ router.put('/posts/:postId', async (req, res) => {
 /**
  * DELETE /api/forums/posts/:postId
  * Delete a post
+ * Protected: Requires training.forums.delete permission
  */
-router.delete('/posts/:postId', async (req, res) => {
+router.delete('/posts/:postId',
+  authenticateToken,
+  requirePermission('training.forums.delete'),
+  async (req, res) => {
   try {
     const { postId } = req.params;
     const { user_id, is_admin } = req.query;
@@ -566,8 +615,12 @@ router.delete('/posts/:postId', async (req, res) => {
 /**
  * POST /api/forums/posts/:postId/reactions
  * Add a reaction to a post
+ * Protected: Requires training.forums.react permission
  */
-router.post('/posts/:postId/reactions', async (req, res) => {
+router.post('/posts/:postId/reactions',
+  authenticateToken,
+  requirePermission('training.forums.react'),
+  async (req, res) => {
   try {
     const { postId } = req.params;
     const { user_id, reaction_type } = req.body;
@@ -617,8 +670,12 @@ router.post('/posts/:postId/reactions', async (req, res) => {
 /**
  * DELETE /api/forums/posts/:postId/reactions/:reactionType
  * Remove a reaction from a post
+ * Protected: Requires training.forums.react permission
  */
-router.delete('/posts/:postId/reactions/:reactionType', async (req, res) => {
+router.delete('/posts/:postId/reactions/:reactionType',
+  authenticateToken,
+  requirePermission('training.forums.react'),
+  async (req, res) => {
   try {
     const { postId, reactionType } = req.params;
     const { user_id } = req.query;
@@ -644,8 +701,12 @@ router.delete('/posts/:postId/reactions/:reactionType', async (req, res) => {
 /**
  * GET /api/forums/posts/:postId/reactions
  * Get all reactions for a post with user details
+ * Protected: Requires training.forums.view permission
  */
-router.get('/posts/:postId/reactions', async (req, res) => {
+router.get('/posts/:postId/reactions',
+  authenticateToken,
+  requirePermission('training.forums.view'),
+  async (req, res) => {
   try {
     const { postId } = req.params;
 
@@ -678,8 +739,12 @@ router.get('/posts/:postId/reactions', async (req, res) => {
 /**
  * GET /api/forums/stats
  * Get forum statistics across all formations
+ * Protected: Requires training.forums.view_page permission
  */
-router.get('/stats', async (req, res) => {
+router.get('/stats',
+  authenticateToken,
+  requirePermission('training.forums.view_page'),
+  async (req, res) => {
   try {
     const stats = await pool.query(`
       SELECT

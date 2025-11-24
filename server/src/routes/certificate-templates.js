@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { uploadBackground, uploadFont, deleteFile } from '../middleware/upload.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,8 +14,12 @@ const router = express.Router();
 /**
  * GET /api/certificate-templates/debug/storage
  * Diagnostic endpoint to check file storage status
+ * Protected: Requires training.certificate_templates.view_page permission
  */
-router.get('/debug/storage', async (req, res) => {
+router.get('/debug/storage',
+  authenticateToken,
+  requirePermission('training.certificate_templates.view_page'),
+  async (req, res) => {
   try {
     const uploadsDir = path.join(__dirname, '../../uploads');
     const backgroundsDir = path.join(uploadsDir, 'backgrounds');
@@ -109,8 +114,12 @@ router.get('/debug/storage', async (req, res) => {
 /**
  * GET /api/certificate-templates
  * Liste tous les templates de certificats
+ * Protected: Requires training.certificate_templates.view_page permission
  */
-router.get('/', async (req, res) => {
+router.get('/',
+  authenticateToken,
+  requirePermission('training.certificate_templates.view_page'),
+  async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -138,8 +147,13 @@ router.get('/', async (req, res) => {
 /**
  * POST /api/certificate-templates/custom-fonts/upload
  * Upload une police personnalisée
+ * Protected: Requires training.certificate_templates.update permission
  */
-router.post('/custom-fonts/upload', uploadFont, async (req, res) => {
+router.post('/custom-fonts/upload',
+  authenticateToken,
+  requirePermission('training.certificate_templates.update'),
+  uploadFont,
+  async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -202,8 +216,12 @@ router.post('/custom-fonts/upload', uploadFont, async (req, res) => {
 /**
  * GET /api/certificate-templates/custom-fonts
  * Liste toutes les polices personnalisées
+ * Protected: Requires training.certificate_templates.view permission
  */
-router.get('/custom-fonts', async (req, res) => {
+router.get('/custom-fonts',
+  authenticateToken,
+  requirePermission('training.certificate_templates.view'),
+  async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT * FROM custom_fonts ORDER BY name ASC'
@@ -225,8 +243,12 @@ router.get('/custom-fonts', async (req, res) => {
 /**
  * DELETE /api/certificate-templates/custom-fonts/:id
  * Supprimer une police personnalisée
+ * Protected: Requires training.certificate_templates.delete permission
  */
-router.delete('/custom-fonts/:id', async (req, res) => {
+router.delete('/custom-fonts/:id',
+  authenticateToken,
+  requirePermission('training.certificate_templates.delete'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -270,8 +292,12 @@ router.delete('/custom-fonts/:id', async (req, res) => {
 /**
  * GET /api/certificate-templates/:id
  * Récupérer un template spécifique par ID
+ * Protected: Requires training.certificate_templates.view permission
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id',
+  authenticateToken,
+  requirePermission('training.certificate_templates.view'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -314,8 +340,12 @@ router.get('/:id', async (req, res) => {
 /**
  * POST /api/certificate-templates
  * Créer un nouveau template
+ * Protected: Requires training.certificate_templates.create permission
  */
-router.post('/', async (req, res) => {
+router.post('/',
+  authenticateToken,
+  requirePermission('training.certificate_templates.create'),
+  async (req, res) => {
   try {
     const { name, description, template_config, folder_id, background_image_url, background_image_type } = req.body;
 
@@ -371,8 +401,12 @@ router.post('/', async (req, res) => {
 /**
  * PUT /api/certificate-templates/:id
  * Modifier un template existant
+ * Protected: Requires training.certificate_templates.update permission
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id',
+  authenticateToken,
+  requirePermission('training.certificate_templates.update'),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, template_config, folder_id, background_image_url, background_image_type } = req.body;
@@ -467,8 +501,12 @@ router.put('/:id', async (req, res) => {
 /**
  * DELETE /api/certificate-templates/:id
  * Supprimer un template
+ * Protected: Requires training.certificate_templates.delete permission
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id',
+  authenticateToken,
+  requirePermission('training.certificate_templates.delete'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -520,8 +558,12 @@ router.delete('/:id', async (req, res) => {
 /**
  * POST /api/certificate-templates/:id/duplicate
  * Dupliquer un template existant
+ * Protected: Requires training.certificate_templates.create permission
  */
-router.post('/:id/duplicate', async (req, res) => {
+router.post('/:id/duplicate',
+  authenticateToken,
+  requirePermission('training.certificate_templates.create'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -575,8 +617,12 @@ router.post('/:id/duplicate', async (req, res) => {
 /**
  * POST /api/certificate-templates/:id/duplicate-to-folder
  * Dupliquer un template vers un autre dossier
+ * Protected: Requires training.certificate_templates.create permission
  */
-router.post('/:id/duplicate-to-folder', async (req, res) => {
+router.post('/:id/duplicate-to-folder',
+  authenticateToken,
+  requirePermission('training.certificate_templates.create'),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { targetFolderId } = req.body;
@@ -637,8 +683,12 @@ router.post('/:id/duplicate-to-folder', async (req, res) => {
 /**
  * POST /api/certificate-templates/seed-defaults
  * Créer les 3 templates par défaut (Moderne, Classique, Élégant)
+ * Protected: Requires training.certificate_templates.create permission
  */
-router.post('/seed-defaults', async (req, res) => {
+router.post('/seed-defaults',
+  authenticateToken,
+  requirePermission('training.certificate_templates.create'),
+  async (req, res) => {
   try {
     console.log('🌱 Seeding default certificate templates...');
 
@@ -835,8 +885,12 @@ router.post('/seed-defaults', async (req, res) => {
 /**
  * POST /api/certificate-templates/:id/upload-background
  * Upload une image d'arrière-plan pour un template
+ * Protected: Requires training.certificate_templates.update permission
  */
-router.post('/:id/upload-background', (req, res, next) => {
+router.post('/:id/upload-background',
+  authenticateToken,
+  requirePermission('training.certificate_templates.update'),
+  (req, res, next) => {
   console.log('📥 Upload background request received');
   console.log('  - Template ID:', req.params.id);
   console.log('  - Content-Type:', req.headers['content-type']);
@@ -1006,8 +1060,12 @@ router.post('/:id/upload-background', (req, res, next) => {
 /**
  * POST /api/certificate-templates/:id/background-url
  * Définir une URL d'arrière-plan pour un template
+ * Protected: Requires training.certificate_templates.update permission
  */
-router.post('/:id/background-url', async (req, res) => {
+router.post('/:id/background-url',
+  authenticateToken,
+  requirePermission('training.certificate_templates.update'),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { url } = req.body;
@@ -1067,8 +1125,12 @@ router.post('/:id/background-url', async (req, res) => {
 /**
  * DELETE /api/certificate-templates/:id/background
  * Supprimer l'arrière-plan d'un template
+ * Protected: Requires training.certificate_templates.delete permission
  */
-router.delete('/:id/background', async (req, res) => {
+router.delete('/:id/background',
+  authenticateToken,
+  requirePermission('training.certificate_templates.delete'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 

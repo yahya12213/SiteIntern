@@ -1,5 +1,6 @@
 import express from 'express';
 import pool from '../config/database.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -46,8 +47,12 @@ async function hasCircularReference(folderId, newParentId) {
 /**
  * GET /api/template-folders
  * Get all folders as flat list
+ * Protected: Requires training.template_folders.view_page permission
  */
-router.get('/', async (req, res) => {
+router.get('/',
+  authenticateToken,
+  requirePermission('training.template_folders.view_page'),
+  async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -77,8 +82,12 @@ router.get('/', async (req, res) => {
 /**
  * GET /api/template-folders/tree
  * Get folder hierarchy as tree structure
+ * Protected: Requires training.template_folders.view_page permission
  */
-router.get('/tree', async (req, res) => {
+router.get('/tree',
+  authenticateToken,
+  requirePermission('training.template_folders.view_page'),
+  async (req, res) => {
   try {
     const foldersResult = await pool.query(`
       SELECT
@@ -108,8 +117,12 @@ router.get('/tree', async (req, res) => {
 /**
  * GET /api/template-folders/:id
  * Get single folder with details
+ * Protected: Requires training.template_folders.view permission
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id',
+  authenticateToken,
+  requirePermission('training.template_folders.view'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -164,8 +177,12 @@ router.get('/:id', async (req, res) => {
 /**
  * POST /api/template-folders
  * Create new folder
+ * Protected: Requires training.template_folders.create permission
  */
-router.post('/', async (req, res) => {
+router.post('/',
+  authenticateToken,
+  requirePermission('training.template_folders.create'),
+  async (req, res) => {
   try {
     const { name, parent_id } = req.body;
 
@@ -197,7 +214,7 @@ router.post('/', async (req, res) => {
       `INSERT INTO template_folders (name, parent_id, created_by)
        VALUES ($1, $2, $3)
        RETURNING *`,
-      [name.trim(), parent_id || null, req.user?.id || null] // TODO: Add auth middleware for created_by
+      [name.trim(), parent_id || null, req.user?.id || null]
     );
 
     res.status(201).json({
@@ -217,8 +234,12 @@ router.post('/', async (req, res) => {
 /**
  * PUT /api/template-folders/:id
  * Update folder (rename)
+ * Protected: Requires training.template_folders.update permission
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id',
+  authenticateToken,
+  requirePermission('training.template_folders.update'),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { name } = req.body;
@@ -270,8 +291,12 @@ router.put('/:id', async (req, res) => {
 /**
  * DELETE /api/template-folders/:id
  * Delete folder (only if empty - no templates and no subfolders)
+ * Protected: Requires training.template_folders.delete permission
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id',
+  authenticateToken,
+  requirePermission('training.template_folders.delete'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -339,8 +364,12 @@ router.delete('/:id', async (req, res) => {
 /**
  * POST /api/template-folders/:id/move
  * Move folder to new parent (change hierarchy)
+ * Protected: Requires training.template_folders.update permission
  */
-router.post('/:id/move', async (req, res) => {
+router.post('/:id/move',
+  authenticateToken,
+  requirePermission('training.template_folders.update'),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { new_parent_id } = req.body;

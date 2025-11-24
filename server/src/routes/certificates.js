@@ -1,5 +1,6 @@
 import express from 'express';
 import pool from '../config/database.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -18,8 +19,12 @@ function generateCertificateNumber() {
  * Générer un certificat pour un étudiant
  * POST /api/certificates/generate
  * Body: { student_id, formation_id, completion_date, grade? }
+ * Protected: Requires training.certificates.generate permission
  */
-router.post('/generate', async (req, res) => {
+router.post('/generate',
+  authenticateToken,
+  requirePermission('training.certificates.generate'),
+  async (req, res) => {
   try {
     const { student_id, formation_id, completion_date, grade, metadata, template_id } = req.body;
 
@@ -122,8 +127,12 @@ router.post('/generate', async (req, res) => {
 /**
  * Récupérer tous les certificats d'un étudiant
  * GET /api/certificates/student/:studentId
+ * Protected: Requires training.certificates.view permission
  */
-router.get('/student/:studentId', async (req, res) => {
+router.get('/student/:studentId',
+  authenticateToken,
+  requirePermission('training.certificates.view'),
+  async (req, res) => {
   try {
     const { studentId } = req.params;
 
@@ -157,8 +166,12 @@ router.get('/student/:studentId', async (req, res) => {
 /**
  * Récupérer un certificat par son ID
  * GET /api/certificates/:id
+ * Protected: Requires training.certificates.view permission
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id',
+  authenticateToken,
+  requirePermission('training.certificates.view'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -199,8 +212,12 @@ router.get('/:id', async (req, res) => {
 /**
  * Vérifier un certificat par son numéro
  * GET /api/certificates/verify/:certificateNumber
+ * Protected: Requires training.certificates.view permission
  */
-router.get('/verify/:certificateNumber', async (req, res) => {
+router.get('/verify/:certificateNumber',
+  authenticateToken,
+  requirePermission('training.certificates.view'),
+  async (req, res) => {
   try {
     const { certificateNumber } = req.params;
 
@@ -241,8 +258,12 @@ router.get('/verify/:certificateNumber', async (req, res) => {
 /**
  * Récupérer tous les certificats (admin)
  * GET /api/certificates
+ * Protected: Requires training.certificates.view_page permission
  */
-router.get('/', async (req, res) => {
+router.get('/',
+  authenticateToken,
+  requirePermission('training.certificates.view_page'),
+  async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
@@ -302,8 +323,12 @@ router.get('/', async (req, res) => {
 /**
  * Supprimer un certificat (admin seulement)
  * DELETE /api/certificates/:id
+ * Protected: Requires training.certificates.delete permission
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id',
+  authenticateToken,
+  requirePermission('training.certificates.delete'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -336,8 +361,12 @@ router.delete('/:id', async (req, res) => {
 /**
  * Mettre à jour le metadata d'un certificat
  * PATCH /api/certificates/:id/metadata
+ * Protected: Requires training.certificates.update permission
  */
-router.patch('/:id/metadata', async (req, res) => {
+router.patch('/:id/metadata',
+  authenticateToken,
+  requirePermission('training.certificates.update'),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { metadata } = req.body;
