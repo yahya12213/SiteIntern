@@ -35,6 +35,8 @@ export const generateToken = (user) => {
     role: user.role,
     role_id: user.role_id,
     full_name: user.full_name,
+    segment_ids: user.segment_ids || [],
+    city_ids: user.city_ids || [],
   };
 
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });

@@ -174,11 +174,10 @@ export function useProfessorSegments() {
         return allSegments;
       }
 
-      // Si professeur, filtrer par segments assignés
-      const professor = await profilesApi.getById(user.id);
-      if (!professor || !professor.segment_ids) return [];
+      // Utiliser les segment_ids depuis le JWT token (chargés lors du login)
+      const segmentIds = (user as any).segment_ids || [];
 
-      return allSegments.filter(segment => professor.segment_ids?.includes(segment.id));
+      return allSegments.filter(segment => segmentIds.includes(segment.id));
     },
     enabled: !!user?.id,
   });
@@ -207,12 +206,11 @@ export function useProfessorCities(): { data: ProfessorCity[] | undefined; isLoa
         }));
       }
 
-      // Si professeur, filtrer par villes assignées
-      const professor = await profilesApi.getById(user.id);
-      if (!professor || !professor.city_ids) return [];
+      // Utiliser les city_ids depuis le JWT token (chargés lors du login)
+      const cityIds = (user as any).city_ids || [];
 
       return allCities
-        .filter(city => professor.city_ids?.includes(city.id))
+        .filter(city => cityIds.includes(city.id))
         .map(city => ({
           id: city.id,
           name: city.name,

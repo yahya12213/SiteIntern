@@ -164,6 +164,33 @@ router.post('/login', loginRateLimiter, async (req, res) => {
       }
     }
 
+    // Load user's assigned segments and cities for SBAC
+    let segment_ids = [];
+    let city_ids = [];
+    try {
+      // Query professor_segments table
+      const segmentsResult = await pool.query(
+        'SELECT segment_id FROM professor_segments WHERE professor_id = $1',
+        [user.id]
+      );
+      segment_ids = segmentsResult.rows.map(row => row.segment_id);
+
+      // Query professor_cities table
+      const citiesResult = await pool.query(
+        'SELECT city_id FROM professor_cities WHERE professor_id = $1',
+        [user.id]
+      );
+      city_ids = citiesResult.rows.map(row => row.city_id);
+
+      console.log(`📊 Loaded scopes for user ${user.username}: ${segment_ids.length} segments, ${city_ids.length} cities`);
+    } catch (err) {
+      console.warn('Could not load user scopes (tables may not exist yet):', err.message);
+    }
+
+    // Add scopes to user object
+    user.segment_ids = segment_ids;
+    user.city_ids = city_ids;
+
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
 

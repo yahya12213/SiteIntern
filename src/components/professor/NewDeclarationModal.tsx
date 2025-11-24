@@ -20,10 +20,14 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
   const navigate = useNavigate();
   const createDeclaration = useCreateDeclaration();
   const { data: availableSheets } = useAvailableCalculationSheets();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
 
   // Le rôle "impression" peut créer des déclarations pour d'autres professeurs
   const isImpressionRole = user?.role === 'impression';
+
+  // Vérifier si l'utilisateur peut remplir/modifier les déclarations
+  const canFillDeclaration = hasPermission('accounting.professor.declarations.fill')
+                           || hasPermission('accounting.declarations.update');
 
   // Charger tous les professeurs si c'est le rôle "impression"
   const { data: allProfiles = [] } = useQuery({
@@ -185,8 +189,9 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
         status: isImpressionRole ? 'a_declarer' : undefined, // Statut "à déclarer" pour rôle impression
       });
 
-      // Pour le rôle impression, ne pas rediriger vers le formulaire (lecture seule)
-      if (isImpressionRole) {
+      // Vérifier la permission: seuls les utilisateurs avec la permission "fill" ou "update" peuvent remplir
+      // Le rôle impression peut créer mais pas remplir (sauf si permission explicitement accordée)
+      if (!canFillDeclaration || isImpressionRole) {
         onClose();
       } else {
         // Rediriger vers le formulaire de remplissage avec l'ID extrait
