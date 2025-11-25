@@ -256,10 +256,15 @@ export function usePermission() {
     canViewProspects: can('commercialisation.prospects.view_page'),
     canViewProspectDetails: can('commercialisation.prospects.view'),
     canCreateProspect: can('commercialisation.prospects.create'),
-    canUpdateProspect: can('commercialisation.prospects.edit'),
+    canCallProspect: can('commercialisation.prospects.call'),
+    canUpdateProspect: can('commercialisation.prospects.update'),
     canDeleteProspect: can('commercialisation.prospects.delete'),
-    canConvertProspect: can('commercialisation.prospects.convert'),
+    canImportProspects: can('commercialisation.prospects.import'),
     canExportProspects: can('commercialisation.prospects.export'),
+    canAssignProspect: can('commercialisation.prospects.assign'),
+    canReinjectProspect: can('commercialisation.prospects.reinject'),
+    canCleanProspects: can('commercialisation.prospects.clean'),
+    canViewAllProspects: can('commercialisation.prospects.view_all'),
 
     // Devis (Quotes)
     canViewDevis: can('commercialisation.devis.view_page'),
@@ -340,4 +345,10 @@ export type PermissionCode =
   | 'hr.overtime.request' | 'hr.overtime.approve' | 'hr.overtime.validate_payroll' | 'hr.overtime.view_reports'
   | 'hr.leaves.view_page' | 'hr.leaves.request' | 'hr.leaves.approve' | 'hr.leaves.manage_balances' | 'hr.leaves.view_calendar' | 'hr.leaves.manage_holidays' | 'hr.leaves.export'
   | 'hr.dashboard.view_page' | 'hr.dashboard.view_monthly_reports' | 'hr.dashboard.generate_payroll_summary' | 'hr.dashboard.export_payroll' | 'hr.dashboard.view_alerts'
-  | 'hr.settings.view_page' | 'hr.settings.update' | 'hr.settings.manage_leave_types' | 'hr.settings.manage_schedules';
+  | 'hr.settings.view_page' | 'hr.settings.update' | 'hr.settings.manage_leave_types' | 'hr.settings.manage_schedules'
+  // Commercialisation module
+  | 'commercialisation.dashboard.view_page'
+  | 'commercialisation.clients.view_page' | 'commercialisation.clients.view' | 'commercialisation.clients.create' | 'commercialisation.clients.edit' | 'commercialisation.clients.delete' | 'commercialisation.clients.export'
+  | 'commercialisation.prospects.view_page' | 'commercialisation.prospects.view' | 'commercialisation.prospects.create' | 'commercialisation.prospects.call' | 'commercialisation.prospects.update' | 'commercialisation.prospects.delete' | 'commercialisation.prospects.import' | 'commercialisation.prospects.export' | 'commercialisation.prospects.assign' | 'commercialisation.prospects.reinject' | 'commercialisation.prospects.clean' | 'commercialisation.prospects.view_all'
+  | 'commercialisation.devis.view_page' | 'commercialisation.devis.view' | 'commercialisation.devis.create' | 'commercialisation.devis.edit' | 'commercialisation.devis.delete' | 'commercialisation.devis.validate'
+  | 'commercialisation.contrats.view_page' | 'commercialisation.contrats.view' | 'commercialisation.contrats.create' | 'commercialisation.contrats.edit' | 'commercialisation.contrats.delete' | 'commercialisation.contrats.sign';

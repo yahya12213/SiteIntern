@@ -37,6 +37,7 @@ import HRSettings from './pages/admin/hr/HRSettings';
 import CommercializationDashboard from './pages/admin/commercialisation/CommercializationDashboard';
 import Clients from './pages/admin/commercialisation/Clients';
 import Prospects from './pages/admin/commercialisation/Prospects';
+import ProspectsCleaningDashboard from './pages/admin/ProspectsCleaningDashboard';
 import Devis from './pages/admin/commercialisation/Devis';
 import Contrats from './pages/admin/commercialisation/Contrats';
 import Clocking from './pages/employee/Clocking';
@@ -403,6 +404,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.prospects.view_page}>
             <Prospects />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/commercialisation/prospects-cleaning"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.prospects.clean}>
+            <ProspectsCleaningDashboard />
           </ProtectedRoute>
         }
       />

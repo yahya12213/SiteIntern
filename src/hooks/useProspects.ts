@@ -1,0 +1,179 @@
+/**
+ * Hooks React Query - Gestion des prospects
+ */
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { prospectsApi, type ProspectFilters, type CreateProspectInput, type UpdateProspectInput, type ImportLine, type EndCallData } from '../lib/api/prospects';
+
+// ============================================================
+// QUERY HOOKS
+// ============================================================
+
+/**
+ * Hook pour récupérer la liste des prospects
+ */
+export const useProspects = (filters?: ProspectFilters) => {
+  return useQuery({
+    queryKey: ['prospects', filters],
+    queryFn: () => prospectsApi.getAll(filters),
+  });
+};
+
+/**
+ * Hook pour récupérer un prospect par ID
+ */
+export const useProspect = (id: string) => {
+  return useQuery({
+    queryKey: ['prospects', id],
+    queryFn: () => prospectsApi.getById(id),
+    enabled: !!id,
+  });
+};
+
+/**
+ * Hook pour récupérer les pays supportés
+ */
+export const useCountryCodes = () => {
+  return useQuery({
+    queryKey: ['country-codes'],
+    queryFn: () => prospectsApi.getCountryCodes(),
+  });
+};
+
+/**
+ * Hook pour récupérer les stats de nettoyage
+ */
+export const useCleaningStats = () => {
+  return useQuery({
+    queryKey: ['prospects', 'cleaning-stats'],
+    queryFn: () => prospectsApi.getCleaningStats(),
+  });
+};
+
+/**
+ * Hook pour récupérer les prospects à supprimer
+ */
+export const useProspectsToDelete = (limit = 100, offset = 0) => {
+  return useQuery({
+    queryKey: ['prospects', 'to-delete', limit, offset],
+    queryFn: () => prospectsApi.getProspectsToDelete(limit, offset),
+  });
+};
+
+// ============================================================
+// MUTATION HOOKS
+// ============================================================
+
+/**
+ * Hook pour créer un nouveau prospect
+ */
+export const useCreateProspect = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateProspectInput) => prospectsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prospects'] });
+    },
+  });
+};
+
+/**
+ * Hook pour mettre à jour un prospect
+ */
+export const useUpdateProspect = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: UpdateProspectInput) => prospectsApi.update(data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['prospects'] });
+      queryClient.invalidateQueries({ queryKey: ['prospects', variables.id] });
+    },
+  });
+};
+
+/**
+ * Hook pour supprimer un prospect
+ */
+export const useDeleteProspect = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => prospectsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prospects'] });
+    },
+  });
+};
+
+/**
+ * Hook pour importer des prospects en masse
+ */
+export const useImportProspects = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ segment_id, lines }: { segment_id: string; lines: ImportLine[] }) =>
+      prospectsApi.importBatch(segment_id, lines),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prospects'] });
+    },
+  });
+};
+
+/**
+ * Hook pour démarrer un appel
+ */
+export const useStartCall = () => {
+  return useMutation({
+    mutationFn: (id: string) => prospectsApi.startCall(id),
+  });
+};
+
+/**
+ * Hook pour terminer un appel
+ */
+export const useEndCall = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: EndCallData }) =>
+      prospectsApi.endCall(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['prospects'] });
+      queryClient.invalidateQueries({ queryKey: ['prospects', variables.id] });
+    },
+  });
+};
+
+/**
+ * Hook pour réinjecter un prospect
+ */
+export const useReinjectProspect = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => prospectsApi.reinject(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['prospects'] });
+      queryClient.invalidateQueries({ queryKey: ['prospects', id] });
+    },
+  });
+};
+
+/**
+ * Hook pour lancer le nettoyage batch
+ */
+export const useBatchClean = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (executeDeletion: boolean) => prospectsApi.batchClean(executeDeletion),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prospects'] });
+      queryClient.invalidateQueries({ queryKey: ['prospects', 'cleaning-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['prospects', 'to-delete'] });
+    },
+  });
+};
