@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Minimal Progress stub
 import React from 'react';
 

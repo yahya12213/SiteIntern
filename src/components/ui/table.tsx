@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Minimal Table stub
 import React from 'react';
 

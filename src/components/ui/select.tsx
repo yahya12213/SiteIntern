@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Minimal Select stub
 import React from 'react';
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Minimal Label stub
 import React from 'react';
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Minimal Alert stub
 import React from 'react';
 

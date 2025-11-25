@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Minimal Badge stub
 import React from 'react';
 

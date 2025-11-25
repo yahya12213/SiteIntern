@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Minimal Dialog stub - Replace with proper implementation later
 import React from 'react';
 

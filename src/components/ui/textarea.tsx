@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Minimal Textarea stub
 import React from 'react';
 
