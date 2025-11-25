@@ -110,18 +110,44 @@ router.get('/professors',
   injectUserScope,
   async (req, res) => {
   try {
+    const { segment_id, city_id } = req.query;
     const scope = req.userScope;
+
+    console.log('======================================');
+    console.log('🔍 GET /profiles/professors - STARTING');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Query params:', req.query);
+    console.log('Segment ID filter:', segment_id || 'none');
+    console.log('City ID filter:', city_id || 'none');
+    console.log('User ID:', req.user?.id);
+    console.log('User role:', req.user?.role);
+    console.log('======================================');
+
     let query;
     let params = [];
 
-    // Admin voit tous les professeurs
+    // Admin voit tous les professeurs avec filtres optionnels
     if (!scope || scope.isAdmin) {
       query = `
         SELECT id, username, full_name, role, created_at
         FROM profiles
         WHERE role = 'professor'
-        ORDER BY full_name
       `;
+
+      // Add segment filter if provided
+      if (segment_id) {
+        query += ' AND EXISTS (SELECT 1 FROM professor_segments WHERE professor_id = profiles.id AND segment_id = $1)';
+        params.push(segment_id);
+      }
+
+      // Add city filter if provided
+      if (city_id) {
+        const paramNum = params.length + 1;
+        query += ` AND EXISTS (SELECT 1 FROM professor_cities WHERE professor_id = profiles.id AND city_id = $${paramNum})`;
+        params.push(city_id);
+      }
+
+      query += ' ORDER BY full_name';
     } else {
       // Non-admin: voit seulement les professeurs des mêmes segments/villes (SBAC)
       const { segmentIds, cityIds } = scope;
@@ -132,9 +158,20 @@ router.get('/professors',
           SELECT id, username, full_name, role, created_at
           FROM profiles
           WHERE id = $1 AND role = 'professor'
-          ORDER BY full_name
         `;
         params = [req.user.id];
+
+        // Add filters even for self
+        if (segment_id) {
+          params.push(segment_id);
+          query += ` AND EXISTS (SELECT 1 FROM professor_segments WHERE professor_id = profiles.id AND segment_id = $2)`;
+        }
+        if (city_id) {
+          params.push(city_id);
+          query += ` AND EXISTS (SELECT 1 FROM professor_cities WHERE professor_id = profiles.id AND city_id = $${params.length})`;
+        }
+
+        query += ' ORDER BY full_name';
       } else {
         // Filter by shared segments/cities AND role='professor'
         query = `
@@ -159,9 +196,25 @@ router.get('/professors',
           params.push(...cityIds);
         }
 
-        query += ') ORDER BY p.full_name';
+        query += ')';
+
+        // Apply additional segment/city filters if provided
+        if (segment_id) {
+          params.push(segment_id);
+          query += ` AND EXISTS (SELECT 1 FROM professor_segments WHERE professor_id = p.id AND segment_id = $${params.length})`;
+        }
+        if (city_id) {
+          params.push(city_id);
+          query += ` AND EXISTS (SELECT 1 FROM professor_cities WHERE professor_id = p.id AND city_id = $${params.length})`;
+        }
+
+        query += ' ORDER BY p.full_name';
       }
     }
+
+    console.log('🔄 Executing SQL query...');
+    console.log('SQL:', query.trim());
+    console.log('Parameters:', params);
 
     const result = await pool.query(query, params);
 
@@ -170,20 +223,35 @@ router.get('/professors',
     console.log('🔍 GET /profiles/professors - SQL RESULTS');
     console.log('======================================');
     console.log(`Found ${result.rows.length} users with role='professor'`);
-    console.log('List:');
-    result.rows.forEach((row, index) => {
-      console.log(`  ${index + 1}. ${row.full_name} (role: "${row.role}", id: ${row.id.substring(0, 8)}...)`);
-    });
+    if (segment_id) console.log(`  - Filtered by segment: ${segment_id}`);
+    if (city_id) console.log(`  - Filtered by city: ${city_id}`);
 
-    // Vérifier si khalid fathi est dans les résultats
-    const hasKhalid = result.rows.some(row =>
-      row.full_name.toLowerCase().includes('khalid') ||
-      row.username.toLowerCase().includes('khalid')
+    // Check if "khalid" is in the results
+    const khalidEntries = result.rows.filter(row =>
+      row.full_name?.toLowerCase().includes('khalid') ||
+      row.username?.toLowerCase().includes('khalid')
     );
-    if (hasKhalid) {
-      console.log('⚠️  WARNING: "khalid" found in results - this should NOT happen if role is not "professor"!');
+
+    if (khalidEntries.length > 0) {
+      console.log('⚠️ WARNING: "khalid" found in results');
+      console.log('Khalid entries:');
+      khalidEntries.forEach(row => {
+        console.log(`  - ${row.full_name} (${row.username}) - Role: "${row.role}"`);
+        console.log(`    ID: ${row.id}`);
+      });
+      console.log('⚠️ CRITICAL: If khalid has role != "professor", this is a BUG!');
     } else {
-      console.log('✅ No "khalid" in results (correct)');
+      console.log('✅ No "khalid" in results (correct - khalid is not a professor)');
+    }
+
+    // Log first 3 entries for debugging
+    if (result.rows.length > 0) {
+      console.log('\nFirst 3 professors returned:');
+      result.rows.slice(0, 3).forEach((row, index) => {
+        console.log(`  ${index + 1}. ${row.full_name} (role: "${row.role}")`);
+      });
+    } else {
+      console.log('\n⚠️ NO PROFESSORS FOUND with current filters');
     }
     console.log('======================================\n');
 
@@ -210,7 +278,17 @@ router.get('/professors',
 
     // 🔍 DEBUG: Log la réponse finale avant de l'envoyer
     console.log('🔍 GET /profiles/professors - FINAL RESPONSE');
-    console.log(`Returning ${professors.length} professors to client`);
+    console.log(`📤 Returning ${professors.length} professors to client`);
+    console.log('Professors list:', professors.map(p => p.full_name).join(', ') || '(empty)');
+
+    // Final check for khalid
+    const khalidInFinal = professors.some(p =>
+      p.full_name?.toLowerCase().includes('khalid') ||
+      p.username?.toLowerCase().includes('khalid')
+    );
+    if (khalidInFinal) {
+      console.log('⚠️ CRITICAL BUG: "khalid" is in final response being sent to client!');
+    }
     console.log('======================================\n');
 
     res.json(professors);

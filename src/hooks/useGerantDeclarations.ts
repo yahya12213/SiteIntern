@@ -169,24 +169,23 @@ export function useProfessorsBySegmentCity(segmentId?: string, cityId?: string) 
     queryKey: ['professors-by-segment-city', segmentId, cityId],
     queryFn: async () => {
       console.log('🔍 FETCHING PROFESSORS FROM: /profiles/professors?v=20251125');
-      // Use dedicated professors endpoint with server-side role filtering
-      const professors = await profilesApi.getAllProfessors();
-      console.log(`✅ Got ${professors.length} professors:`, professors);
+      console.log('   Segment ID:', segmentId || 'none');
+      console.log('   City ID:', cityId || 'none');
 
-      // Client-side filtering by segment/city (SBAC already applied server-side for non-admins)
-      return professors
-        .filter(prof => {
-          if (segmentId && !prof.segment_ids?.includes(segmentId)) return false;
-          if (cityId && !prof.city_ids?.includes(cityId)) return false;
-          return true;
-        })
-        .map(p => ({
-          id: p.id,
-          full_name: p.full_name,
-          username: p.username,
-        }));
+      // Use dedicated professors endpoint with server-side role AND segment/city filtering
+      const professors = await profilesApi.getProfessorsBySegmentCity(segmentId, cityId);
+      console.log(`✅ Got ${professors.length} professors from backend (already filtered)`);
+      console.log('   Professors:', professors.map(p => p.full_name).join(', '));
+
+      return professors.map(p => ({
+        id: p.id,
+        full_name: p.full_name,
+        username: p.username,
+      }));
     },
-    enabled: !!segmentId || !!cityId,
+    // CRITICAL FIX: Always enable to ensure proper filtering
+    // Backend will handle empty segment/city parameters
+    enabled: true,
   });
 }
 

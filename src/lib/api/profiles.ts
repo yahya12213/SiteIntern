@@ -49,6 +49,18 @@ export const profilesApi = {
   },
 
   /**
+   * Récupérer les professeurs filtrés par segment et ville (server-side filtering)
+   */
+  async getProfessorsBySegmentCity(segmentId?: string, cityId?: string): Promise<Profile[]> {
+    const params = new URLSearchParams();
+    params.append('v', '20251125'); // cache buster
+    if (segmentId) params.append('segment_id', segmentId);
+    if (cityId) params.append('city_id', cityId);
+
+    return apiClient.get<Profile[]>(`/profiles/professors?${params.toString()}`);
+  },
+
+  /**
    * Récupérer un profil par ID (avec segments et villes)
    */
   async getById(id: string): Promise<Profile | null> {
