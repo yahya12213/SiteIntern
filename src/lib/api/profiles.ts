@@ -42,6 +42,13 @@ export const profilesApi = {
   },
 
   /**
+   * Récupérer tous les professeurs seulement (server-side filtering by role='professor')
+   */
+  async getAllProfessors(): Promise<Profile[]> {
+    return apiClient.get<Profile[]>('/profiles/professors');
+  },
+
+  /**
    * Récupérer un profil par ID (avec segments et villes)
    */
   async getById(id: string): Promise<Profile | null> {

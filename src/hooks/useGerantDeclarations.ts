@@ -93,18 +93,18 @@ export function useGerantCities() {
 }
 
 // Hook pour récupérer les professeurs
+// Server-side filtering by role='professor' ensures only professors are returned
 export function useAvailableProfessors() {
   return useQuery<ProfessorForDeclaration[]>({
     queryKey: ['available-professors'],
     queryFn: async () => {
-      const profiles = await profilesApi.getAll();
-      return profiles
-        .filter(p => p.role === 'professor')
-        .map(p => ({
-          id: p.id,
-          full_name: p.full_name,
-          username: p.username,
-        }));
+      // Use dedicated professors endpoint with server-side role filtering
+      const professors = await profilesApi.getAllProfessors();
+      return professors.map(p => ({
+        id: p.id,
+        full_name: p.full_name,
+        username: p.username,
+      }));
     },
   });
 }
@@ -163,13 +163,15 @@ export function useGerantDeclarations() {
 }
 
 // Hook pour récupérer les professeurs par segment et ville
+// Server-side filtering by role='professor' ensures only professors are returned
 export function useProfessorsBySegmentCity(segmentId?: string, cityId?: string) {
   return useQuery<ProfessorForDeclaration[]>({
     queryKey: ['professors-by-segment-city', segmentId, cityId],
     queryFn: async () => {
-      const profiles = await profilesApi.getAll();
-      const professors = profiles.filter(p => p.role === 'professor');
+      // Use dedicated professors endpoint with server-side role filtering
+      const professors = await profilesApi.getAllProfessors();
 
+      // Client-side filtering by segment/city (SBAC already applied server-side for non-admins)
       return professors
         .filter(prof => {
           if (segmentId && !prof.segment_ids?.includes(segmentId)) return false;

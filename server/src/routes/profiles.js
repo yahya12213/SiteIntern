@@ -100,6 +100,100 @@ router.get('/',
 });
 
 /**
+ * GET tous les professeurs seulement (role='professor')
+ * Protected: SBAC filtering only (no permission check)
+ * Server-side filtering by role to ensure only professors are returned
+ * Non-admin users only see professors from their assigned segments/cities
+ */
+router.get('/professors',
+  authenticateToken,
+  injectUserScope,
+  async (req, res) => {
+  try {
+    const scope = req.userScope;
+    let query;
+    let params = [];
+
+    // Admin voit tous les professeurs
+    if (!scope || scope.isAdmin) {
+      query = `
+        SELECT id, username, full_name, role, created_at
+        FROM profiles
+        WHERE role = 'professor'
+        ORDER BY full_name
+      `;
+    } else {
+      // Non-admin: voit seulement les professeurs des mêmes segments/villes (SBAC)
+      const { segmentIds, cityIds } = scope;
+
+      if (segmentIds.length === 0 && cityIds.length === 0) {
+        // User has no scope assigned - return only self if professor
+        query = `
+          SELECT id, username, full_name, role, created_at
+          FROM profiles
+          WHERE id = $1 AND role = 'professor'
+          ORDER BY full_name
+        `;
+        params = [req.user.id];
+      } else {
+        // Filter by shared segments/cities AND role='professor'
+        query = `
+          SELECT DISTINCT p.id, p.username, p.full_name, p.role, p.created_at
+          FROM profiles p
+          LEFT JOIN professor_segments ps ON p.id = ps.professor_id
+          LEFT JOIN professor_cities pc ON p.id = pc.professor_id
+          WHERE p.role = 'professor' AND (
+            p.id = $1  -- Always include self if professor
+        `;
+        params = [req.user.id];
+
+        if (segmentIds.length > 0) {
+          const segmentPlaceholders = segmentIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+          query += ` OR ps.segment_id IN (${segmentPlaceholders})`;
+          params.push(...segmentIds);
+        }
+
+        if (cityIds.length > 0) {
+          const cityPlaceholders = cityIds.map((_, idx) => `$${params.length + idx + 1}`).join(', ');
+          query += ` OR pc.city_id IN (${cityPlaceholders})`;
+          params.push(...cityIds);
+        }
+
+        query += ') ORDER BY p.full_name';
+      }
+    }
+
+    const result = await pool.query(query, params);
+
+    // Pour chaque professeur, récupérer ses segments et villes
+    const professors = await Promise.all(
+      result.rows.map(async (professor) => {
+        // Récupérer les segments
+        const segmentsResult = await pool.query(
+          'SELECT segment_id FROM professor_segments WHERE professor_id = $1',
+          [professor.id]
+        );
+        professor.segment_ids = segmentsResult.rows.map(row => row.segment_id);
+
+        // Récupérer les villes
+        const citiesResult = await pool.query(
+          'SELECT city_id FROM professor_cities WHERE professor_id = $1',
+          [professor.id]
+        );
+        professor.city_ids = citiesResult.rows.map(row => row.city_id);
+
+        return professor;
+      })
+    );
+
+    res.json(professors);
+  } catch (error) {
+    console.error('Error fetching professors:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET un profil avec ses segments et villes
  * Protected: SBAC only - non-admins can only access users from their assigned segments/cities
  * Permission check removed to allow dropdown usage without view_page permission
