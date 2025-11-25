@@ -165,6 +165,28 @@ router.get('/professors',
 
     const result = await pool.query(query, params);
 
+    // 🔍 DEBUG: Log ce que la requête SQL a retourné
+    console.log('======================================');
+    console.log('🔍 GET /profiles/professors - SQL RESULTS');
+    console.log('======================================');
+    console.log(`Found ${result.rows.length} users with role='professor'`);
+    console.log('List:');
+    result.rows.forEach((row, index) => {
+      console.log(`  ${index + 1}. ${row.full_name} (role: "${row.role}", id: ${row.id.substring(0, 8)}...)`);
+    });
+
+    // Vérifier si khalid fathi est dans les résultats
+    const hasKhalid = result.rows.some(row =>
+      row.full_name.toLowerCase().includes('khalid') ||
+      row.username.toLowerCase().includes('khalid')
+    );
+    if (hasKhalid) {
+      console.log('⚠️  WARNING: "khalid" found in results - this should NOT happen if role is not "professor"!');
+    } else {
+      console.log('✅ No "khalid" in results (correct)');
+    }
+    console.log('======================================\n');
+
     // Pour chaque professeur, récupérer ses segments et villes
     const professors = await Promise.all(
       result.rows.map(async (professor) => {
@@ -185,6 +207,11 @@ router.get('/professors',
         return professor;
       })
     );
+
+    // 🔍 DEBUG: Log la réponse finale avant de l'envoyer
+    console.log('🔍 GET /profiles/professors - FINAL RESPONSE');
+    console.log(`Returning ${professors.length} professors to client`);
+    console.log('======================================\n');
 
     res.json(professors);
   } catch (error) {
