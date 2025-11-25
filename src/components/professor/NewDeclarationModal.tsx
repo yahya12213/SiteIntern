@@ -29,17 +29,23 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
   const canFillDeclaration = hasPermission('accounting.professor.declarations.fill')
                            || hasPermission('accounting.declarations.update');
 
-  // Charger tous les professeurs si c'est le rôle "impression"
-  const { data: allProfiles = [] } = useQuery({
-    queryKey: ['all-profiles'],
-    queryFn: () => profilesApi.getAll(),
+  // Charger uniquement les professeurs (role='professor') si c'est le rôle "impression"
+  const { data: allProfessors = [] } = useQuery({
+    queryKey: ['professors-for-impression', 'v20251125'], // Cache buster
+    queryFn: async () => {
+      console.log('🔍 [NewDeclarationModal] Fetching professors for impression role');
+      const profs = await profilesApi.getAllProfessors();
+      console.log(`✅ [NewDeclarationModal] Got ${profs.length} professors from backend`);
+      console.log('   Professors:', profs.map(p => `${p.full_name || p.username} (${p.role})`).join(', '));
+      return profs;
+    },
     enabled: isImpressionRole,
   });
 
-  // Filtrer pour ne garder que les professeurs (exclure l'utilisateur actuel)
-  const professors = allProfiles.filter(p =>
+  // CRITICAL: Only keep users with role='professor' (double check after API call)
+  const professors = allProfessors.filter(p =>
     p.id !== user?.id && // Exclure l'utilisateur connecté (rôle impression)
-    (p.role === 'professor' || (p.segment_ids && p.segment_ids.length > 0))
+    p.role === 'professor' // ONLY professors, no other roles!
   );
 
   // Utiliser les hooks Supabase pour récupérer segments et villes
@@ -76,11 +82,29 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
   // Filtrer les professeurs en fonction du segment et de la ville sélectionnés
   useEffect(() => {
     if (isImpressionRole && selectedSegment && selectedCity) {
+      console.log('=== DEBUG FILTRAGE PROFESSEURS ===');
+      console.log('Segment sélectionné:', selectedSegment);
+      console.log('Ville sélectionnée:', selectedCity);
+      console.log('Professeurs disponibles avant filtrage:', professors.length);
+      console.log('Professeurs:', professors.map(p => ({
+        name: p.full_name || p.username,
+        role: p.role,
+        segments: p.segment_ids,
+        cities: p.city_ids
+      })));
+
       // Trouver les professeurs qui ont ce segment ET cette ville assignés
-      const filtered = professors.filter(p =>
-        p.segment_ids?.includes(selectedSegment) &&
-        p.city_ids?.includes(selectedCity)
-      );
+      const filtered = professors.filter(p => {
+        const hasSegment = p.segment_ids?.includes(selectedSegment);
+        const hasCity = p.city_ids?.includes(selectedCity);
+        console.log(`  Prof "${p.full_name || p.username}": segment=${hasSegment}, city=${hasCity}`);
+        return hasSegment && hasCity;
+      });
+
+      console.log(`Professeurs filtrés: ${filtered.length}`);
+      console.log('Liste filtrée:', filtered.map(p => p.full_name || p.username).join(', '));
+      console.log('=== FIN DEBUG PROFESSEURS ===');
+
       setFilteredProfessors(filtered);
 
       // Sélection automatique si un seul professeur correspond
@@ -299,7 +323,7 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
                     Professeur sélectionné automatiquement :
                   </p>
                   <p className="text-sm text-green-700 mt-1">
-                    {filteredProfessors[0].full_name}
+                    {filteredProfessors[0].full_name || filteredProfessors[0].username || `Professeur ${filteredProfessors[0].id.substring(0, 8)}`}
                   </p>
                 </div>
               ) : (
@@ -312,7 +336,7 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
                   <option value="">Sélectionner un professeur ({filteredProfessors.length} disponibles)</option>
                   {filteredProfessors.map((prof) => (
                     <option key={prof.id} value={prof.id}>
-                      {prof.full_name}
+                      {prof.full_name || prof.username || `Professeur ${prof.id.substring(0, 8)}`}
                     </option>
                   ))}
                 </select>
