@@ -350,11 +350,17 @@ router.post('/run', async (req, res) => {
     // STEP 6: Ville spéciale "Sans Ville"
     // ============================================================
     console.log('  📦 Creating "Sans Ville" special city...');
-    await client.query(`
-      INSERT INTO cities (id, name, code, segment_id)
-      VALUES ('city-sans-ville', 'Sans Ville', 'SV', NULL)
-      ON CONFLICT (id) DO NOTHING
-    `);
+    // Récupérer le premier segment_id pour éviter contrainte NOT NULL
+    const firstSegment = await client.query(`SELECT id FROM segments LIMIT 1`);
+    if (firstSegment.rows.length > 0) {
+      await client.query(`
+        INSERT INTO cities (id, name, code, segment_id)
+        VALUES ('city-sans-ville', 'Sans Ville', 'SV', $1)
+        ON CONFLICT (id) DO NOTHING
+      `, [firstSegment.rows[0].id]);
+    } else {
+      console.log('  ⚠️ No segment found, skipping "Sans Ville" creation');
+    }
 
     // ============================================================
     // STEP 7: Fonction normalize_phone_international
