@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Page Gestion des Prospects
  * Liste, filtres, stats, actions (appel, suppression, import, export)

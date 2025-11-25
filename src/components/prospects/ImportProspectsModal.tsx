@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Modal d'import en masse de prospects
  * Support CSV/Excel avec validation

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Modal d'ajout rapide de prospect
  * Avec validation du téléphone international

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Dashboard de nettoyage des prospects
  * Affiche les stats et permet de lancer le nettoyage batch

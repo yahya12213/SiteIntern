@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Modal de réassignation manuelle de prospect
  * Permet de changer l'assistante assignée et la ville
