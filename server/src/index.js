@@ -96,6 +96,7 @@ import migration056Router from './routes/migration-056-accounting-permissions.js
 import migration057Router from './routes/migration-057-declaration-attachments.js';
 import migration058Router from './routes/migration-058-sync-missing-permissions.js';
 import migration059Router from './routes/migration-059-fix-permission-overlaps.js';
+import migration060Router from './routes/migration-060-prospects-system.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -107,9 +108,13 @@ import hrDashboardRouter from './routes/hr-dashboard.js';
 import hrSettingsRouter from './routes/hr-settings.js';
 import hrClockingRouter from './routes/hr-clocking.js';
 import hrPublicHolidaysRouter from './routes/hr-public-holidays.js';
+import prospectsRouter from './routes/prospects.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Trust proxy for Railway deployment
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors());
@@ -145,6 +150,7 @@ app.use('/api/hr/dashboard', authenticateToken, hrDashboardRouter);
 app.use('/api/hr/settings', authenticateToken, hrSettingsRouter);
 app.use('/api/hr/clocking', authenticateToken, hrClockingRouter);
 app.use('/api/hr/public-holidays', authenticateToken, hrPublicHolidaysRouter);
+app.use('/api/prospects', authenticateToken, prospectsRouter);
 app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
 app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
 app.use('/api/setup-certificates', setupCertificatesRouter); // TEMPORARY - Run once to create certificates table
@@ -204,6 +210,7 @@ app.use('/api/migration-056', migration056Router); // Migration 056 - Repeupler 
 app.use('/api/migration-057', migration057Router); // Migration 057 - Créer table declaration_attachments (pièces jointes déclarations - 10 MB max)
 app.use('/api/migration-058', migration058Router); // Migration 058 - Synchroniser permissions manquantes (declarations.submit, cities.bulk_delete, corps.duplicate)
 app.use('/api/migration-059', migration059Router); // Migration 059 - Corriger chevauchements permissions (20 nouvelles permissions: fill_data vs edit_metadata, folder vs template)
+app.use('/api/migration-060', migration060Router); // Migration 060 - Système de gestion des prospects (normalisation internationale, affectation automatique, RBAC)
 app.use('/api/migration-fix-segments-and-sheets', migrationFixRouter); // Migration Fix - Fix segments colors and sheet city associations
 app.use('/api/migration-fix-impression-permissions', migrationFixImpressionRouter); // Migration Fix - Add missing permissions for impression role
 app.use('/api/migration-fix-role-sync', migrationFixRoleSyncRouter); // Migration Fix - Synchronize role_id with role text for all users
