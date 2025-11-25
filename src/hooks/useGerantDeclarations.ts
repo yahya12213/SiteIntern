@@ -168,8 +168,10 @@ export function useProfessorsBySegmentCity(segmentId?: string, cityId?: string) 
   return useQuery<ProfessorForDeclaration[]>({
     queryKey: ['professors-by-segment-city', segmentId, cityId],
     queryFn: async () => {
+      console.log('🔍 FETCHING PROFESSORS FROM: /profiles/professors?v=20251125');
       // Use dedicated professors endpoint with server-side role filtering
       const professors = await profilesApi.getAllProfessors();
+      console.log(`✅ Got ${professors.length} professors:`, professors);
 
       // Client-side filtering by segment/city (SBAC already applied server-side for non-admins)
       return professors

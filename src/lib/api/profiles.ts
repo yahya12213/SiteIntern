@@ -45,7 +45,7 @@ export const profilesApi = {
    * Récupérer tous les professeurs seulement (server-side filtering by role='professor')
    */
   async getAllProfessors(): Promise<Profile[]> {
-    return apiClient.get<Profile[]>('/profiles/professors');
+    return apiClient.get<Profile[]>('/profiles/professors?v=20251125');
   },
 
   /**
