@@ -590,69 +590,91 @@ router.post('/run', async (req, res) => {
 
     const permissions = [
       {
-        code: 'commercialisation.prospects.view_page',
-        name: 'Voir la page prospects',
         module: 'commercialisation',
+        menu: 'prospects',
+        action: 'view_page',
+        code: 'commercialisation.prospects.view_page',
+        label: 'Voir la page prospects',
         description: 'Accès à la page de gestion des prospects'
       },
       {
-        code: 'commercialisation.prospects.create',
-        name: 'Créer un prospect',
         module: 'commercialisation',
+        menu: 'prospects',
+        action: 'create',
+        code: 'commercialisation.prospects.create',
+        label: 'Créer un prospect',
         description: 'Ajouter un nouveau prospect'
       },
       {
-        code: 'commercialisation.prospects.call',
-        name: 'Appeler un prospect',
         module: 'commercialisation',
+        menu: 'prospects',
+        action: 'call',
+        code: 'commercialisation.prospects.call',
+        label: 'Appeler un prospect',
         description: 'Appeler et qualifier un prospect'
       },
       {
-        code: 'commercialisation.prospects.update',
-        name: 'Mettre à jour un prospect',
         module: 'commercialisation',
+        menu: 'prospects',
+        action: 'update',
+        code: 'commercialisation.prospects.update',
+        label: 'Mettre à jour un prospect',
         description: 'Modifier les informations d\'un prospect'
       },
       {
-        code: 'commercialisation.prospects.delete',
-        name: 'Supprimer un prospect',
         module: 'commercialisation',
+        menu: 'prospects',
+        action: 'delete',
+        code: 'commercialisation.prospects.delete',
+        label: 'Supprimer un prospect',
         description: 'Supprimer un prospect définitivement'
       },
       {
-        code: 'commercialisation.prospects.export',
-        name: 'Exporter les prospects',
         module: 'commercialisation',
+        menu: 'prospects',
+        action: 'export',
+        code: 'commercialisation.prospects.export',
+        label: 'Exporter les prospects',
         description: 'Exporter la liste des prospects en CSV'
       },
       {
-        code: 'commercialisation.prospects.import',
-        name: 'Importer des prospects',
         module: 'commercialisation',
+        menu: 'prospects',
+        action: 'import',
+        code: 'commercialisation.prospects.import',
+        label: 'Importer des prospects',
         description: 'Importer des prospects en masse'
       },
       {
-        code: 'commercialisation.prospects.assign',
-        name: 'Affecter manuellement un prospect',
         module: 'commercialisation',
+        menu: 'prospects',
+        action: 'assign',
+        code: 'commercialisation.prospects.assign',
+        label: 'Affecter manuellement un prospect',
         description: 'Réaffecter un prospect à une autre assistante'
       },
       {
-        code: 'commercialisation.prospects.reinject',
-        name: 'Réinjecter un prospect',
         module: 'commercialisation',
+        menu: 'prospects',
+        action: 'reinject',
+        code: 'commercialisation.prospects.reinject',
+        label: 'Réinjecter un prospect',
         description: 'Réinjecter un prospect ancien pour le retravailler'
       },
       {
-        code: 'commercialisation.prospects.clean',
-        name: 'Nettoyer les prospects (batch)',
         module: 'commercialisation',
+        menu: 'prospects',
+        action: 'clean',
+        code: 'commercialisation.prospects.clean',
+        label: 'Nettoyer les prospects (batch)',
         description: 'Lancer le nettoyage batch des prospects obsolètes'
       },
       {
-        code: 'commercialisation.prospects.view_all',
-        name: 'Voir tous les prospects (tous segments/villes)',
         module: 'commercialisation',
+        menu: 'prospects',
+        action: 'view_all',
+        code: 'commercialisation.prospects.view_all',
+        label: 'Voir tous les prospects (tous segments/villes)',
         description: 'Voir tous les prospects sans restriction SBAC'
       }
     ];
@@ -665,9 +687,9 @@ router.post('/run', async (req, res) => {
 
       if (existing.rows.length === 0) {
         await client.query(
-          `INSERT INTO permissions (code, name, module, description)
-           VALUES ($1, $2, $3, $4)`,
-          [perm.code, perm.name, perm.module, perm.description]
+          `INSERT INTO permissions (module, menu, action, code, label, description, sort_order, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, 0, NOW())`,
+          [perm.module, perm.menu, perm.action, perm.code, perm.label, perm.description]
         );
       }
     }
