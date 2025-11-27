@@ -315,7 +315,7 @@ export const Analytics: React.FC = () => {
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
-                  label={({ name, value }: { name: string; value: number }) => `${name}: ${value}%`}
+                  label={(props: any) => `${props.name}: ${props.value}%`}
                 >
                   {completionRatesData.data.slice(0, 6).map((_entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
