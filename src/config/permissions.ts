@@ -257,6 +257,45 @@ export const PERMISSIONS = {
       manage_workflows: 'hr.settings.manage_workflows',
       update: 'hr.settings.update',
     },
+    // Boucles de validation
+    validation_workflows: {
+      view_page: 'hr.validation_workflows.view_page',
+      create: 'hr.validation_workflows.create',
+      update: 'hr.validation_workflows.update',
+      delete: 'hr.validation_workflows.delete',
+    },
+    // Gestion des horaires
+    schedules: {
+      view_page: 'hr.schedules.view_page',
+      manage_models: 'hr.schedules.manage_models',
+      manage_holidays: 'hr.schedules.manage_holidays',
+      view_validated_leaves: 'hr.schedules.view_validated_leaves',
+      manage_overtime: 'hr.schedules.manage_overtime',
+    },
+    // Gestion de paie
+    payroll: {
+      view_page: 'hr.payroll.view_page',
+      manage_periods: 'hr.payroll.manage_periods',
+      calculate: 'hr.payroll.calculate',
+      view_payslips: 'hr.payroll.view_payslips',
+      generate_payslips: 'hr.payroll.generate_payslips',
+      view_tests: 'hr.payroll.view_tests',
+      manage_automation: 'hr.payroll.manage_automation',
+      manage_config: 'hr.payroll.manage_config',
+    },
+    // Portail employé
+    employee_portal: {
+      view_page: 'hr.employee_portal.view_page',
+      clock_in_out: 'hr.employee_portal.clock_in_out',
+      submit_requests: 'hr.employee_portal.submit_requests',
+      view_history: 'hr.employee_portal.view_history',
+    },
+    // Validation des demandes
+    requests_validation: {
+      view_page: 'hr.requests_validation.view_page',
+      approve: 'hr.requests_validation.approve',
+      reject: 'hr.requests_validation.reject',
+    },
   },
 
   // ==================== COMMERCIALISATION MODULE ====================

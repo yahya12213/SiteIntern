@@ -20,14 +20,16 @@ import {
   Palette,
   Shield,
   Briefcase,
-  UserCheck,
   Clock,
-  CalendarDays,
-  Settings,
   TrendingUp,
   Target,
   FileCheck,
   Trash2,
+  GitBranch,
+  Calendar,
+  Wallet,
+  User,
+  CheckSquare,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -92,12 +94,12 @@ export const Sidebar: React.FC = () => {
       title: 'Ressources Humaines',
       icon: Briefcase,
       items: [
-        { to: '/employee/clocking', icon: Clock, label: 'Mon Pointage', permission: PERMISSIONS.hr.clocking.self },
-        { to: '/admin/hr/employees', icon: UserCheck, label: 'Dossiers du Personnel', permission: PERMISSIONS.hr.employees.view_page },
-        { to: '/admin/hr/attendance', icon: Clock, label: 'Temps & Présence', permission: PERMISSIONS.hr.attendance.view_page },
-        { to: '/admin/hr/leaves', icon: CalendarDays, label: 'Congés & Planning', permission: PERMISSIONS.hr.leaves.view_page },
-        { to: '/admin/hr/dashboard', icon: BarChart3, label: 'Tableau de bord RH', permission: PERMISSIONS.hr.dashboard.view_page },
-        { to: '/admin/hr/settings', icon: Settings, label: 'Paramètres RH', permission: PERMISSIONS.hr.settings.view_page },
+        { to: '/admin/hr/validation-workflows', icon: GitBranch, label: 'Boucles de Validation', permission: PERMISSIONS.hr.validation_workflows.view_page },
+        { to: '/admin/hr/schedules', icon: Calendar, label: 'Gestion des Horaires', permission: PERMISSIONS.hr.schedules.view_page },
+        { to: '/admin/hr/payroll', icon: Wallet, label: 'Gestion de Paie', permission: PERMISSIONS.hr.payroll.view_page },
+        { to: '/admin/hr/employee-portal', icon: Clock, label: 'Portail Employé RH', permission: PERMISSIONS.hr.employee_portal.view_page },
+        { to: '/admin/hr/employees', icon: User, label: 'Dossier Employé', permission: PERMISSIONS.hr.employees.view_page },
+        { to: '/admin/hr/requests-validation', icon: CheckSquare, label: 'Validation des Demandes', permission: PERMISSIONS.hr.requests_validation.view_page },
       ],
     },
     {

@@ -32,10 +32,11 @@ import { SessionDetail } from './pages/admin/SessionDetail';
 import CorpsFormation from './pages/admin/CorpsFormation';
 import { RolesManagement } from './pages/admin/RolesManagement';
 import HREmployees from './pages/admin/hr/HREmployees';
-import HRDashboard from './pages/admin/hr/HRDashboard';
-import HRAttendance from './pages/admin/hr/HRAttendance';
-import HRLeaves from './pages/admin/hr/HRLeaves';
-import HRSettings from './pages/admin/hr/HRSettings';
+import ValidationWorkflows from './pages/admin/hr/ValidationWorkflows';
+import ScheduleManagement from './pages/admin/hr/ScheduleManagement';
+import PayrollManagement from './pages/admin/hr/PayrollManagement';
+import EmployeePortal from './pages/admin/hr/EmployeePortal';
+import RequestsValidation from './pages/admin/hr/RequestsValidation';
 import CommercializationDashboard from './pages/admin/commercialisation/CommercializationDashboard';
 import Clients from './pages/admin/commercialisation/Clients';
 import Prospects from './pages/admin/commercialisation/Prospects';
@@ -370,6 +371,42 @@ const AppRoutes: React.FC = () => {
 
       {/* Admin Routes - Ressources Humaines */}
       <Route
+        path="/admin/hr/validation-workflows"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.validation_workflows.view_page}>
+            <ValidationWorkflows />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/hr/schedules"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.schedules.view_page}>
+            <ScheduleManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/hr/payroll"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.payroll.view_page}>
+            <PayrollManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/hr/employee-portal"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.employee_portal.view_page}>
+            <EmployeePortal />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/admin/hr/employees"
         element={
           <ProtectedRoute requiredPermission={PERMISSIONS.hr.employees.view_page}>
@@ -379,37 +416,10 @@ const AppRoutes: React.FC = () => {
       />
 
       <Route
-        path="/admin/hr/dashboard"
+        path="/admin/hr/requests-validation"
         element={
-          <ProtectedRoute requiredPermission={PERMISSIONS.hr.dashboard.view_page}>
-            <HRDashboard />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/hr/attendance"
-        element={
-          <ProtectedRoute requiredPermission={PERMISSIONS.hr.attendance.view_page}>
-            <HRAttendance />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/hr/leaves"
-        element={
-          <ProtectedRoute requiredPermission={PERMISSIONS.hr.leaves.view_page}>
-            <HRLeaves />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/hr/settings"
-        element={
-          <ProtectedRoute requiredPermission={PERMISSIONS.hr.settings.view_page}>
-            <HRSettings />
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.requests_validation.view_page}>
+            <RequestsValidation />
           </ProtectedRoute>
         }
       />
