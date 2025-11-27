@@ -38,6 +38,7 @@ const STATUTS_CONTACT = [
 const STATUTS_AVEC_RDV = ['contacté avec rdv', 'rdv planifié'];
 
 export function CallProspectModal({ open, onClose, prospectId }: CallProspectModalProps) {
+  const [callId, setCallId] = useState<string | null>(null);
   const [callStartTime, setCallStartTime] = useState<Date | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [statutContact, setStatutContact] = useState<string>('');
@@ -53,6 +54,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
   useEffect(() => {
     if (!open || !prospectId) {
       // Reset quand le modal se ferme
+      setCallId(null);
       setCallStartTime(null);
       setElapsedSeconds(0);
       setStatutContact('');
@@ -65,9 +67,10 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
     // Démarrer l'appel automatiquement
     if (!callStartTime) {
       startCallMutation.mutate(prospectId, {
-        onSuccess: () => {
+        onSuccess: (data) => {
+          setCallId(data.call_id);
           setCallStartTime(new Date());
-          console.log('⏱️ Appel démarré:', new Date().toISOString());
+          console.log('⏱️ Appel démarré:', data.call_id, new Date().toISOString());
         },
         onError: (error: any) => {
           toast({
@@ -110,6 +113,15 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
       return;
     }
 
+    if (!callId) {
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: "L'appel n'a pas été correctement démarré",
+      });
+      return;
+    }
+
     // Vérifier que les champs RDV sont remplis si nécessaire
     if (STATUTS_AVEC_RDV.includes(statutContact)) {
       if (!dateRdv || !heureRdv) {
@@ -122,8 +134,9 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
       }
     }
 
-    // Préparer les données
+    // Préparer les données avec call_id obligatoire
     const endCallData = {
+      call_id: callId,
       statut_contact: statutContact,
       date_rdv: STATUTS_AVEC_RDV.includes(statutContact)
         ? `${dateRdv} ${heureRdv}:00`
@@ -262,7 +275,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
           </Button>
           <Button
             onClick={handleSave}
-            disabled={endCallMutation.isPending || !statutContact}
+            disabled={endCallMutation.isPending || !statutContact || !callId}
           >
             {endCallMutation.isPending ? 'Enregistrement...' : 'Terminer l\'appel'}
           </Button>
