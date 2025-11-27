@@ -15,6 +15,63 @@ import { runCleaningBatch, deleteMarkedProspects, getProspectsToDelete, getClean
 const router = express.Router();
 
 // ============================================================
+// GET /api/prospects/country-codes - Liste des pays supportés
+// IMPORTANT: Doit être AVANT les routes /:id pour éviter conflits
+// ============================================================
+router.get('/country-codes',
+  async (req, res) => {
+    try {
+      const query = `
+        SELECT country_code, country, expected_national_length, region
+        FROM country_phone_config
+        ORDER BY region, country
+      `;
+
+      const { rows } = await pool.query(query);
+      res.json(rows);
+    } catch (error) {
+      console.error('Error fetching country codes:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// ============================================================
+// GET /api/prospects/cleaning/stats - Stats de nettoyage
+// IMPORTANT: Doit être AVANT les routes /:id pour éviter conflits
+// ============================================================
+router.get('/cleaning/stats',
+  requirePermission('commercialisation.prospects.clean'),
+  async (req, res) => {
+    try {
+      const stats = await getCleaningStats();
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching cleaning stats:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// ============================================================
+// GET /api/prospects/cleaning/to-delete - Prospects à supprimer
+// IMPORTANT: Doit être AVANT les routes /:id pour éviter conflits
+// ============================================================
+router.get('/cleaning/to-delete',
+  requirePermission('commercialisation.prospects.clean'),
+  async (req, res) => {
+    try {
+      const { limit = 100, offset = 0 } = req.query;
+      const prospects = await getProspectsToDelete(parseInt(limit, 10), parseInt(offset, 10));
+      res.json(prospects);
+    } catch (error) {
+      console.error('Error fetching prospects to delete:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// ============================================================
 // GET /api/prospects - Liste des prospects avec filtres
 // ============================================================
 router.get('/',
@@ -642,60 +699,6 @@ router.post('/batch-clean',
       });
     } catch (error) {
       console.error('Error batch cleaning:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-);
-
-// ============================================================
-// GET /api/prospects/cleaning/stats - Stats de nettoyage
-// ============================================================
-router.get('/cleaning/stats',
-  requirePermission('commercialisation.prospects.clean'),
-  async (req, res) => {
-    try {
-      const stats = await getCleaningStats();
-      res.json(stats);
-    } catch (error) {
-      console.error('Error fetching cleaning stats:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-);
-
-// ============================================================
-// GET /api/prospects/cleaning/to-delete - Prospects à supprimer
-// ============================================================
-router.get('/cleaning/to-delete',
-  requirePermission('commercialisation.prospects.clean'),
-  async (req, res) => {
-    try {
-      const { limit = 100, offset = 0 } = req.query;
-      const prospects = await getProspectsToDelete(parseInt(limit, 10), parseInt(offset, 10));
-      res.json(prospects);
-    } catch (error) {
-      console.error('Error fetching prospects to delete:', error);
-      res.status(500).json({ error: error.message });
-    }
-  }
-);
-
-// ============================================================
-// GET /api/country-codes - Liste des pays supportés
-// ============================================================
-router.get('/country-codes',
-  async (req, res) => {
-    try {
-      const query = `
-        SELECT country_code, country, expected_national_length, region
-        FROM country_phone_config
-        ORDER BY region, country
-      `;
-
-      const { rows } = await pool.query(query);
-      res.json(rows);
-    } catch (error) {
-      console.error('Error fetching country codes:', error);
       res.status(500).json({ error: error.message });
     }
   }
