@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calculator, Edit3, Save, CheckCircle2, Upload, X, FileText, Download, Eye, EyeOff, User, Shield } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { calculateAllValues } from '@/lib/formula/dependency';
 import type { FormulaContext, FieldDefinition } from '@/lib/formula/types';
 import { useCalculationSheet } from '@/hooks/useCalculationSheets';
@@ -15,6 +16,7 @@ export default function CalculationSheets() {
   const viewMode = searchParams.get('mode') || 'user'; // 'admin' ou 'user'
   const { accounting } = usePermission();
   const { data: sheetData, isLoading } = useCalculationSheet(id || '');
+  const queryClient = useQueryClient();
 
   const [fields, setFields] = useState<FieldDefinition[]>([]);
   const [sheetTitle, setSheetTitle] = useState('Fiche de Calcul');
@@ -72,14 +74,17 @@ export default function CalculationSheets() {
   };
 
   const handleSave = () => {
-    // Sauvegarder les données dans localStorage
+    // Sauvegarder les données dans localStorage avec clé unique par fiche
     const dataToSave = {
       values,
       calculatedValues,
       timestamp: new Date().toISOString(),
+      sheetId: id,
     };
 
-    localStorage.setItem('calculation_sheet_data', JSON.stringify(dataToSave));
+    // Use unique storage key based on sheet ID
+    const storageKey = id ? `calculation_sheet_data_${id}` : 'calculation_sheet_data';
+    localStorage.setItem(storageKey, JSON.stringify(dataToSave));
     setSaveMessage('Données sauvegardées avec succès!');
 
     // Effacer le message après 3 secondes
@@ -87,9 +92,20 @@ export default function CalculationSheets() {
   };
 
 
+  // Invalidate queries when id changes (handles browser back button)
+  useEffect(() => {
+    if (id) {
+      // Force refresh the calculation sheet data when navigating
+      queryClient.invalidateQueries(['calculation-sheets', id]);
+    }
+  }, [id, queryClient]);
+
   // Charger les données sauvegardées au montage du composant
   useEffect(() => {
-    const saved = localStorage.getItem('calculation_sheet_data');
+    // Create unique localStorage key based on sheet ID
+    const storageKey = id ? `calculation_sheet_data_${id}` : 'calculation_sheet_data';
+    const saved = localStorage.getItem(storageKey);
+
     if (saved) {
       try {
         const data = JSON.parse(saved);
@@ -98,7 +114,18 @@ export default function CalculationSheets() {
         console.error('Erreur lors du chargement des données:', error);
       }
     }
-  }, []);
+
+    // Cleanup function to clear localStorage when leaving the component
+    return () => {
+      if (viewMode === 'user') {
+        // Only clear localStorage when navigating away, not on every render
+        const isNavigatingAway = !window.location.pathname.includes(`/calculation-sheets/${id}`);
+        if (isNavigatingAway) {
+          localStorage.removeItem(storageKey);
+        }
+      }
+    };
+  }, [id, viewMode]);
 
   const renderField = (field: FieldDefinition) => {
     const layout = field.layout || { x: 0, y: 0, w: 200, h: 40 };

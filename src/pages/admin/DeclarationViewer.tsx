@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, XCircle, AlertCircle, Download, FileText, Eye, Save, Link, ExternalLink, Trash2, Image as ImageIcon, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,6 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const DeclarationViewer: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAdmin } = useAuth();
   const { data: declaration, isLoading } = useAdminDeclaration(id!);
   const approveDeclaration = useApproveDeclaration();
@@ -41,6 +43,14 @@ const DeclarationViewer: React.FC = () => {
   const [showFilePreview, setShowFilePreview] = useState(false);
   const [previewFiles, setPreviewFiles] = useState<any[]>([]);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
+
+  // Invalidate queries when id changes (handles browser back button)
+  useEffect(() => {
+    if (id) {
+      // Force refresh the declaration data when navigating to a different declaration
+      queryClient.invalidateQueries(['admin-declaration', id]);
+    }
+  }, [id, queryClient]);
 
   // Charger les données de la déclaration
   useEffect(() => {
@@ -66,7 +76,7 @@ const DeclarationViewer: React.FC = () => {
         console.error('Error parsing form data:', error);
       }
     }
-  }, [declaration]);
+  }, [declaration, id]); // Added id to dependencies
 
   // Recalculer les valeurs à chaque changement
   useEffect(() => {

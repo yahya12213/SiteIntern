@@ -1,5 +1,6 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PERMISSIONS } from './config/permissions';
 import Login from './pages/Login';
@@ -105,6 +106,38 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+// Navigation Handler Component - detects browser navigation and refreshes data
+const NavigationHandler: React.FC = () => {
+  const location = useLocation();
+  const queryClient = useQueryClient();
+
+  // Detect route changes via location.key
+  useEffect(() => {
+    // Invalidate all queries when location changes (including back/forward navigation)
+    queryClient.invalidateQueries();
+  }, [location.key, queryClient]);
+
+  // Detect browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      // Force refresh all queries on browser navigation
+      queryClient.invalidateQueries();
+      // Also reset any error boundaries
+      queryClient.resetQueries();
+    };
+
+    // Listen for browser navigation events
+    window.addEventListener('popstate', handlePopState);
+
+    // Cleanup listener on unmount
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [queryClient]);
+
+  return null;
+};
+
 const AppRoutes: React.FC = () => {
   const { isLoading } = useAuth();
 
@@ -121,7 +154,9 @@ const AppRoutes: React.FC = () => {
   }
 
   return (
-    <Routes>
+    <>
+      <NavigationHandler />
+      <Routes>
       {/* Public Routes */}
       <Route
         path="/login"
@@ -569,6 +604,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+    </>
   );
 };
 
