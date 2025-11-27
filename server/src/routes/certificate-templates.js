@@ -114,11 +114,11 @@ router.get('/debug/storage',
 /**
  * GET /api/certificate-templates
  * Liste tous les templates de certificats
- * Protected: Requires training.certificate_templates.view_page permission
+ * Protected: Authentication only (no permission check)
+ * Users need to read templates when creating/editing formations
  */
 router.get('/',
   authenticateToken,
-  requirePermission('training.certificate_templates.view_page'),
   async (req, res) => {
   try {
     const result = await pool.query(`
@@ -216,11 +216,11 @@ router.post('/custom-fonts/upload',
 /**
  * GET /api/certificate-templates/custom-fonts
  * Liste toutes les polices personnalisées
- * Protected: Requires training.certificate_templates.view permission
+ * Protected: Authentication only (no permission check)
+ * Users need to read available fonts when viewing templates
  */
 router.get('/custom-fonts',
   authenticateToken,
-  requirePermission('training.certificate_templates.view'),
   async (req, res) => {
   try {
     const result = await pool.query(
@@ -292,11 +292,11 @@ router.delete('/custom-fonts/:id',
 /**
  * GET /api/certificate-templates/:id
  * Récupérer un template spécifique par ID
- * Protected: Requires training.certificate_templates.view permission
+ * Protected: Authentication only (no permission check)
+ * Users need to read template details when creating/editing formations
  */
 router.get('/:id',
   authenticateToken,
-  requirePermission('training.certificate_templates.view'),
   async (req, res) => {
   try {
     const { id } = req.params;
