@@ -95,7 +95,7 @@ router.get('/',
     res.json(profiles);
   } catch (error) {
     console.error('Error fetching profiles:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Failed to fetch profiles' });
   }
 });
 
@@ -112,16 +112,6 @@ router.get('/professors',
   try {
     const { segment_id, city_id } = req.query;
     const scope = req.userScope;
-
-    console.log('======================================');
-    console.log('🔍 GET /profiles/professors - STARTING');
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('Query params:', req.query);
-    console.log('Segment ID filter:', segment_id || 'none');
-    console.log('City ID filter:', city_id || 'none');
-    console.log('User ID:', req.user?.id);
-    console.log('User role:', req.user?.role);
-    console.log('======================================');
 
     let query;
     let params = [];
@@ -164,7 +154,7 @@ router.get('/professors',
         // Add filters even for self
         if (segment_id) {
           params.push(segment_id);
-          query += ` AND EXISTS (SELECT 1 FROM professor_segments WHERE professor_id = profiles.id AND segment_id = $2)`;
+          query += ` AND EXISTS (SELECT 1 FROM professor_segments WHERE professor_id = profiles.id AND segment_id = $${params.length})`;
         }
         if (city_id) {
           params.push(city_id);
@@ -212,48 +202,7 @@ router.get('/professors',
       }
     }
 
-    console.log('🔄 Executing SQL query...');
-    console.log('SQL:', query.trim());
-    console.log('Parameters:', params);
-
     const result = await pool.query(query, params);
-
-    // 🔍 DEBUG: Log ce que la requête SQL a retourné
-    console.log('======================================');
-    console.log('🔍 GET /profiles/professors - SQL RESULTS');
-    console.log('======================================');
-    console.log(`Found ${result.rows.length} users with role='professor'`);
-    if (segment_id) console.log(`  - Filtered by segment: ${segment_id}`);
-    if (city_id) console.log(`  - Filtered by city: ${city_id}`);
-
-    // Check if "khalid" is in the results
-    const khalidEntries = result.rows.filter(row =>
-      row.full_name?.toLowerCase().includes('khalid') ||
-      row.username?.toLowerCase().includes('khalid')
-    );
-
-    if (khalidEntries.length > 0) {
-      console.log('⚠️ WARNING: "khalid" found in results');
-      console.log('Khalid entries:');
-      khalidEntries.forEach(row => {
-        console.log(`  - ${row.full_name} (${row.username}) - Role: "${row.role}"`);
-        console.log(`    ID: ${row.id}`);
-      });
-      console.log('⚠️ CRITICAL: If khalid has role != "professor", this is a BUG!');
-    } else {
-      console.log('✅ No "khalid" in results (correct - khalid is not a professor)');
-    }
-
-    // Log first 3 entries for debugging
-    if (result.rows.length > 0) {
-      console.log('\nFirst 3 professors returned:');
-      result.rows.slice(0, 3).forEach((row, index) => {
-        console.log(`  ${index + 1}. ${row.full_name} (role: "${row.role}")`);
-      });
-    } else {
-      console.log('\n⚠️ NO PROFESSORS FOUND with current filters');
-    }
-    console.log('======================================\n');
 
     // Pour chaque professeur, récupérer ses segments et villes
     const professors = await Promise.all(
@@ -276,25 +225,10 @@ router.get('/professors',
       })
     );
 
-    // 🔍 DEBUG: Log la réponse finale avant de l'envoyer
-    console.log('🔍 GET /profiles/professors - FINAL RESPONSE');
-    console.log(`📤 Returning ${professors.length} professors to client`);
-    console.log('Professors list:', professors.map(p => p.full_name).join(', ') || '(empty)');
-
-    // Final check for khalid
-    const khalidInFinal = professors.some(p =>
-      p.full_name?.toLowerCase().includes('khalid') ||
-      p.username?.toLowerCase().includes('khalid')
-    );
-    if (khalidInFinal) {
-      console.log('⚠️ CRITICAL BUG: "khalid" is in final response being sent to client!');
-    }
-    console.log('======================================\n');
-
     res.json(professors);
   } catch (error) {
     console.error('Error fetching professors:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Failed to fetch professors' });
   }
 });
 
@@ -382,7 +316,7 @@ router.get('/:id',
     res.json(profile);
   } catch (error) {
     console.error('Error fetching profile:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -453,7 +387,7 @@ router.post('/',
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error creating profile:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -596,7 +530,7 @@ router.put('/:id',
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error updating profile:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -625,7 +559,7 @@ router.delete('/:id',
     res.json({ message: 'Profile deleted successfully' });
   } catch (error) {
     console.error('Error deleting profile:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

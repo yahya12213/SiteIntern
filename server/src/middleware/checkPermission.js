@@ -1,5 +1,4 @@
-import pg from 'pg';
-const { Pool } = pg;
+import pool from '../config/database.js';
 
 /**
  * Middleware to check if user has a specific permission
@@ -22,12 +21,7 @@ export const checkPermission = (permissionCode) => {
         });
       }
 
-      const pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-      });
-
-      // Check if user has the permission through their role or direct assignment
+      // Use singleton pool from config (no pool leak)
       const result = await pool.query(`
         SELECT DISTINCT p.code
         FROM profiles pr
@@ -37,8 +31,6 @@ export const checkPermission = (permissionCode) => {
         WHERE pr.id = $1
           AND (p.code = $2 OR p.code = '*')
       `, [req.user.id, permissionCode]);
-
-      await pool.end();
 
       if (result.rows.length === 0) {
         return res.status(403).json({
@@ -57,7 +49,7 @@ export const checkPermission = (permissionCode) => {
       return res.status(500).json({
         success: false,
         error: 'Permission validation failed',
-        details: error.message
+        code: 'PERMISSION_CHECK_ERROR'
       });
     }
   };
@@ -82,12 +74,7 @@ export const checkAnyPermission = (...permissionCodes) => {
         });
       }
 
-      const pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-      });
-
-      // Check if user has any of the permissions
+      // Use singleton pool from config (no pool leak)
       const placeholders = permissionCodes.map((_, i) => `$${i + 2}`).join(', ');
       const result = await pool.query(`
         SELECT DISTINCT p.code
@@ -99,8 +86,6 @@ export const checkAnyPermission = (...permissionCodes) => {
           AND (p.code IN (${placeholders}) OR p.code = '*')
         LIMIT 1
       `, [req.user.id, ...permissionCodes]);
-
-      await pool.end();
 
       if (result.rows.length === 0) {
         return res.status(403).json({
@@ -119,7 +104,7 @@ export const checkAnyPermission = (...permissionCodes) => {
       return res.status(500).json({
         success: false,
         error: 'Permission validation failed',
-        details: error.message
+        code: 'PERMISSION_CHECK_ERROR'
       });
     }
   };

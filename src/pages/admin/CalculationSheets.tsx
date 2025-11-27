@@ -96,7 +96,7 @@ export default function CalculationSheets() {
   useEffect(() => {
     if (id) {
       // Force refresh the calculation sheet data when navigating
-      queryClient.invalidateQueries(['calculation-sheets', id]);
+      queryClient.invalidateQueries({ queryKey: ['calculation-sheets', id] });
     }
   }, [id, queryClient]);
 

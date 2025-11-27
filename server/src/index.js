@@ -22,7 +22,7 @@ import profilesRouter from './routes/profiles.js';
 import calculationSheetsRouter from './routes/calculationSheets.js';
 import declarationsRouter from './routes/declarations.js';
 import authRouter from './routes/auth.js';
-import { authenticateToken } from './middleware/auth.js';
+import { authenticateToken, requireRole } from './middleware/auth.js';
 import setupTempRouter from './routes/setup-temp.js';
 import adminRouter from './routes/admin.js';
 import formationsRouter from './routes/formations.js';
@@ -116,8 +116,29 @@ const PORT = process.env.PORT || 3001;
 // Trust proxy for Railway deployment
 app.set('trust proxy', 1);
 
+// CORS Configuration - Restrict to allowed origins
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:5173', 'http://localhost:3001'];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -151,69 +172,76 @@ app.use('/api/hr/settings', authenticateToken, hrSettingsRouter);
 app.use('/api/hr/clocking', authenticateToken, hrClockingRouter);
 app.use('/api/hr/public-holidays', authenticateToken, hrPublicHolidaysRouter);
 app.use('/api/prospects', authenticateToken, prospectsRouter);
-app.use('/api/setup-temp', setupTempRouter); // TEMPORARY - Remove after database setup!
-app.use('/api/setup-progress', setupProgressRouter); // TEMPORARY - Run once to create progress tables
-app.use('/api/setup-certificates', setupCertificatesRouter); // TEMPORARY - Run once to create certificates table
-app.use('/api/setup-certificate-templates', setupCertificateTemplatesRouter); // TEMPORARY - Run once to create certificate templates table
-app.use('/api/setup-template-folders', setupTemplateFoldersRouter); // TEMPORARY - Run once to create template folders table
-app.use('/api/setup-forums', setupForumsRouter); // TEMPORARY - Run once to create forum tables
-app.use('/api/migration-sessions', migrationSessionsRouter); // TEMPORARY - Migration pour ajouter formation_id
-app.use('/api/migration-sessions-complete', migrationSessionsCompleteRouter); // TEMPORARY - Migration complète sessions
-app.use('/api/migration-010', migration010Router); // Migration 010 - session_formations junction table
-app.use('/api/migration-011', migration011Router); // Migration 011 - student_payments table
-app.use('/api/migration-012', migration012Router); // Migration 012 - formation_templates table
-app.use('/api/migration-013', migration013Router); // Migration 013 - extend formation_enrollments
-app.use('/api/migration-014', migration014Router); // Migration 014 - migrate existing data
-app.use('/api/migration-015', migration015Router); // Migration 015 - add segment_id to corps_formation
-app.use('/api/migration-corps-formation', migrationCorpsFormationRouter); // Migration - Corps de formation & Packs
-app.use('/api/migration-016', migration016Router); // Migration 016 - Sessions de formation (Classes)
-app.use('/api/migration-017', migration017Router); // Migration 017 - Sessions avec Corps de Formation
-app.use('/api/migration-018', migration018Router); // Migration 018 - Students table
-app.use('/api/migration-019', migration019Router); // Migration 019 - Centres & Classes tables
-app.use('/api/migration-020', migration020Router); // Migration 020 - Session_etudiants columns
-app.use('/api/migration-021', migration021Router); // Migration 021 - Rename formation_id to corps_formation_id
-app.use('/api/migration-022', migration022Router); // Migration 022 - Add discount columns to session_etudiants
-app.use('/api/migration-023', migration023Router); // Migration 023 - Fix certificates foreign key
-app.use('/api/migration-024', migration024Router); // Migration 024 - Seed default certificate templates
-app.use('/api/migration-025', migration025Router); // Migration 025 - Add discount percentage system
-app.use('/api/migration-026', migration026Router); // Migration 026 - Create student_payments table
-app.use('/api/migration-027', migration027Router); // Migration 027 - Fix student_payments table structure
-app.use('/api/migration-028', migration028Router); // Migration 028 - Add student status (valide/abandonne)
-app.use('/api/migration-029', migration029Router); // Migration 029 - RBAC system (roles and permissions)
-app.use('/api/migration-030', migration030Router); // Migration 030 - Add Gestion Comptable permissions
-app.use('/api/migration-031', migration031Router); // Migration 031 - Simplified permission system
-app.use('/api/migration-032', migration032Router); // Migration 032 - Remove role CHECK constraint
-app.use('/api/migration-033', migration033Router); // Migration 033 - Menu-based permissions
-app.use('/api/migration-034', migration034Router); // Migration 034 - Hierarchical permissions (page + actions)
-app.use('/api/migration-035', migration035Router); // Migration 035 - Copy gerant permissions to custom roles
-app.use('/api/migration-036', migration036Router); // Migration 036 - Debug permissions assignment
-app.use('/api/migration-037', migration037Router); // Migration 037 - Fix role_id assignment
-app.use('/api/migration-038', migration038Router); // Migration 038 - Debug role_id
-app.use('/api/migration-039', migration039Router); // Migration 039 - Sync role_id with role text
-app.use('/api/migration-040', migration040Router); // Migration 040 - Hierarchical RBAC (module.menu.action)
-app.use('/api/migration-041', migration041Router); // Migration 041 - HR Employees Core Tables
-app.use('/api/migration-042', migration042Router); // Migration 042 - HR Attendance & Time Tracking
-app.use('/api/migration-043', migration043Router); // Migration 043 - HR Leaves Management
-app.use('/api/migration-044', migration044Router); // Migration 044 - HR Settings & Monthly Summaries
-app.use('/api/migration-045', migration045Router); // Migration 045 - HR Permissions (33 permissions)
-app.use('/api/migration-046', migration046Router); // Migration 046 - Fix worked_minutes column name
-app.use('/api/migration-047', migration047Router); // Migration 047 - Fix schema mismatches (contracts, disciplinary, schedules)
-app.use('/api/migration-048', migration048Router); // Migration 048 - Add missing HR permissions (11 permissions)
-app.use('/api/migration-049', migration049Router); // Migration 049 - Add requires_clocking to hr_employees
-app.use('/api/migration-050', migration050Router); // Migration 050 - Create hr_public_holidays table
-app.use('/api/migration-051', migration051Router); // Migration 051 - Add break_rules to hr_settings
-app.use('/api/migration-052', migration052Router); // Migration 052 - Add session_type to sessions_formation
-app.use('/api/migration-053', migration053Router); // Migration 053 - Add commercialisation module permissions (33 permissions)
-app.use('/api/migration-054', migration054Router); // Migration 054 - Assign all permissions to gérant role (full manager access)
-app.use('/api/migration-055', migration055Router); // Migration 055 - Fix critical permissions (system.roles, corps.view_page, professor/student permissions, role_id sync)
-app.use('/api/migration-056', migration056Router); // Migration 056 - Repeupler toutes les permissions accounting (calculation_sheets, declarations, segments, cities, users)
-app.use('/api/migration-057', migration057Router); // Migration 057 - Créer table declaration_attachments (pièces jointes déclarations - 10 MB max)
-app.use('/api/migration-058', migration058Router); // Migration 058 - Synchroniser permissions manquantes (declarations.submit, cities.bulk_delete, corps.duplicate)
-app.use('/api/migration-059', migration059Router); // Migration 059 - Corriger chevauchements permissions (20 nouvelles permissions: fill_data vs edit_metadata, folder vs template)
-app.use('/api/migration-060', migration060Router); // Migration 060 - Système de gestion des prospects (normalisation internationale, affectation automatique, RBAC)
-app.use('/api/migration-fix-segments-and-sheets', migrationFixRouter); // Migration Fix - Fix segments colors and sheet city associations
-app.use('/api/migration-fix-impression-permissions', migrationFixImpressionRouter); // Migration Fix - Add missing permissions for impression role
-app.use('/api/migration-fix-role-sync', migrationFixRoleSyncRouter); // Migration Fix - Synchronize role_id with role text for all users
+
+// ============================================================
+// ADMIN-ONLY: Setup and Migration Routes (Protected)
+// These routes require admin authentication for security
+// ============================================================
+const adminOnly = [authenticateToken, requireRole('admin')];
+
+app.use('/api/setup-temp', ...adminOnly, setupTempRouter);
+app.use('/api/setup-progress', ...adminOnly, setupProgressRouter);
+app.use('/api/setup-certificates', ...adminOnly, setupCertificatesRouter);
+app.use('/api/setup-certificate-templates', ...adminOnly, setupCertificateTemplatesRouter);
+app.use('/api/setup-template-folders', ...adminOnly, setupTemplateFoldersRouter);
+app.use('/api/setup-forums', ...adminOnly, setupForumsRouter);
+app.use('/api/migration-sessions', ...adminOnly, migrationSessionsRouter);
+app.use('/api/migration-sessions-complete', ...adminOnly, migrationSessionsCompleteRouter);
+app.use('/api/migration-010', ...adminOnly, migration010Router);
+app.use('/api/migration-011', ...adminOnly, migration011Router);
+app.use('/api/migration-012', ...adminOnly, migration012Router);
+app.use('/api/migration-013', ...adminOnly, migration013Router);
+app.use('/api/migration-014', ...adminOnly, migration014Router);
+app.use('/api/migration-015', ...adminOnly, migration015Router);
+app.use('/api/migration-corps-formation', ...adminOnly, migrationCorpsFormationRouter);
+app.use('/api/migration-016', ...adminOnly, migration016Router);
+app.use('/api/migration-017', ...adminOnly, migration017Router);
+app.use('/api/migration-018', ...adminOnly, migration018Router);
+app.use('/api/migration-019', ...adminOnly, migration019Router);
+app.use('/api/migration-020', ...adminOnly, migration020Router);
+app.use('/api/migration-021', ...adminOnly, migration021Router);
+app.use('/api/migration-022', ...adminOnly, migration022Router);
+app.use('/api/migration-023', ...adminOnly, migration023Router);
+app.use('/api/migration-024', ...adminOnly, migration024Router);
+app.use('/api/migration-025', ...adminOnly, migration025Router);
+app.use('/api/migration-026', ...adminOnly, migration026Router);
+app.use('/api/migration-027', ...adminOnly, migration027Router);
+app.use('/api/migration-028', ...adminOnly, migration028Router);
+app.use('/api/migration-029', ...adminOnly, migration029Router);
+app.use('/api/migration-030', ...adminOnly, migration030Router);
+app.use('/api/migration-031', ...adminOnly, migration031Router);
+app.use('/api/migration-032', ...adminOnly, migration032Router);
+app.use('/api/migration-033', ...adminOnly, migration033Router);
+app.use('/api/migration-034', ...adminOnly, migration034Router);
+app.use('/api/migration-035', ...adminOnly, migration035Router);
+app.use('/api/migration-036', ...adminOnly, migration036Router);
+app.use('/api/migration-037', ...adminOnly, migration037Router);
+app.use('/api/migration-038', ...adminOnly, migration038Router);
+app.use('/api/migration-039', ...adminOnly, migration039Router);
+app.use('/api/migration-040', ...adminOnly, migration040Router);
+app.use('/api/migration-041', ...adminOnly, migration041Router);
+app.use('/api/migration-042', ...adminOnly, migration042Router);
+app.use('/api/migration-043', ...adminOnly, migration043Router);
+app.use('/api/migration-044', ...adminOnly, migration044Router);
+app.use('/api/migration-045', ...adminOnly, migration045Router);
+app.use('/api/migration-046', ...adminOnly, migration046Router);
+app.use('/api/migration-047', ...adminOnly, migration047Router);
+app.use('/api/migration-048', ...adminOnly, migration048Router);
+app.use('/api/migration-049', ...adminOnly, migration049Router);
+app.use('/api/migration-050', ...adminOnly, migration050Router);
+app.use('/api/migration-051', ...adminOnly, migration051Router);
+app.use('/api/migration-052', ...adminOnly, migration052Router);
+app.use('/api/migration-053', ...adminOnly, migration053Router);
+app.use('/api/migration-054', ...adminOnly, migration054Router);
+app.use('/api/migration-055', ...adminOnly, migration055Router);
+app.use('/api/migration-056', ...adminOnly, migration056Router);
+app.use('/api/migration-057', ...adminOnly, migration057Router);
+app.use('/api/migration-058', ...adminOnly, migration058Router);
+app.use('/api/migration-059', ...adminOnly, migration059Router);
+app.use('/api/migration-060', ...adminOnly, migration060Router);
+app.use('/api/migration-fix-segments-and-sheets', ...adminOnly, migrationFixRouter);
+app.use('/api/migration-fix-impression-permissions', ...adminOnly, migrationFixImpressionRouter);
+app.use('/api/migration-fix-role-sync', ...adminOnly, migrationFixRoleSyncRouter);
 
 // Health check
 app.get('/api/health', async (req, res) => {

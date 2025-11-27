@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PERMISSIONS } from './config/permissions';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Segments from './pages/admin/Segments';
@@ -106,34 +107,32 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-// Navigation Handler Component - detects browser navigation and refreshes data
+// Navigation Handler Component - detects browser back/forward navigation only
 const NavigationHandler: React.FC = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
+  const prevPathRef = useRef(location.pathname);
+  const isPopStateRef = useRef(false);
 
-  // Detect route changes via location.key
-  useEffect(() => {
-    // Invalidate all queries when location changes (including back/forward navigation)
-    queryClient.invalidateQueries();
-  }, [location.key, queryClient]);
-
-  // Detect browser back/forward buttons
+  // Only invalidate on browser back/forward (popstate), not on regular navigation
   useEffect(() => {
     const handlePopState = () => {
-      // Force refresh all queries on browser navigation
-      queryClient.invalidateQueries();
-      // Also reset any error boundaries
-      queryClient.resetQueries();
+      isPopStateRef.current = true;
     };
 
-    // Listen for browser navigation events
     window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
-    // Cleanup listener on unmount
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [queryClient]);
+  // Handle actual route changes - only invalidate on back/forward navigation
+  useEffect(() => {
+    if (isPopStateRef.current && prevPathRef.current !== location.pathname) {
+      // Only invalidate stale queries on browser back/forward navigation
+      queryClient.invalidateQueries({ stale: true });
+      isPopStateRef.current = false;
+    }
+    prevPathRef.current = location.pathname;
+  }, [location.pathname, queryClient]);
 
   return null;
 };
@@ -610,11 +609,13 @@ const AppRoutes: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 };
 

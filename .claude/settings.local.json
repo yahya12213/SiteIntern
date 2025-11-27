@@ -88,7 +88,10 @@
       "Bash(else echo \"Fichier .env introuvable\")",
       "Bash(node check-khalid-simple.js:*)",
       "Bash(move check-khalid-simple.js check-khalid-simple.cjs)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(cd:*)",
+      "Bash(npm outdated:*)",
+      "Bash(npm update:*)"
     ],
     "deny": [],
     "ask": []

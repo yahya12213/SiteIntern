@@ -48,7 +48,7 @@ const DeclarationViewer: React.FC = () => {
   useEffect(() => {
     if (id) {
       // Force refresh the declaration data when navigating to a different declaration
-      queryClient.invalidateQueries(['admin-declaration', id]);
+      queryClient.invalidateQueries({ queryKey: ['admin-declaration', id] });
     }
   }, [id, queryClient]);
 
