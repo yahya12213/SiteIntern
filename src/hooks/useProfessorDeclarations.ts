@@ -87,7 +87,11 @@ export function useCreateDeclaration() {
       });
     },
     onSuccess: () => {
+      // Invalidate all declaration-related queries
       queryClient.invalidateQueries({ queryKey: ['professor-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['gerant-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['declaration-stats'] });
     },
   });
 }
@@ -104,8 +108,12 @@ export function useUpdateDeclaration() {
       });
     },
     onSuccess: () => {
+      // Invalidate all declaration-related queries
       queryClient.invalidateQueries({ queryKey: ['professor-declarations'] });
       queryClient.invalidateQueries({ queryKey: ['professor-declaration'] });
+      queryClient.invalidateQueries({ queryKey: ['gerant-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['declaration-stats'] });
     },
   });
 }
@@ -126,8 +134,12 @@ export function useSubmitDeclaration() {
       });
     },
     onSuccess: () => {
+      // Invalidate all declaration-related queries
       queryClient.invalidateQueries({ queryKey: ['professor-declarations'] });
       queryClient.invalidateQueries({ queryKey: ['professor-declaration'] });
+      queryClient.invalidateQueries({ queryKey: ['gerant-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['declaration-stats'] });
     },
   });
 }
@@ -139,7 +151,11 @@ export function useDeleteDeclaration() {
   return useMutation({
     mutationFn: (id: string) => declarationsApi.delete(id),
     onSuccess: () => {
+      // Invalidate all declaration-related queries
       queryClient.invalidateQueries({ queryKey: ['professor-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['gerant-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['declaration-stats'] });
     },
   });
 }

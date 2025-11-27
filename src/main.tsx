@@ -9,9 +9,14 @@ import App from './App.tsx'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true, // Refetch when window regains focus
       retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 1 * 60 * 1000, // 1 minute (reduced from 5 for better freshness)
+      cacheTime: 30 * 60 * 1000, // 30 minutes cache retention
+      refetchOnMount: 'always', // Always refetch when component mounts
+    },
+    mutations: {
+      retry: false, // Don't retry mutations
     },
   },
 })

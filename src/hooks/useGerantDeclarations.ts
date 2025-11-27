@@ -141,7 +141,11 @@ export function useCreateGerantDeclaration() {
       });
     },
     onSuccess: () => {
+      // Invalidate all declaration-related queries
       queryClient.invalidateQueries({ queryKey: ['gerant-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['professor-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['declaration-stats'] });
     },
   });
 }

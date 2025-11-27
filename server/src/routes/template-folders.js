@@ -47,11 +47,11 @@ async function hasCircularReference(folderId, newParentId) {
 /**
  * GET /api/template-folders
  * Get all folders as flat list
- * Protected: Requires training.template_folders.view_page permission
+ * Protected: Authentication only (no permission check)
+ * Users need to read folders when creating/editing formations
  */
 router.get('/',
   authenticateToken,
-  requirePermission('training.template_folders.view_page'),
   async (req, res) => {
   try {
     const result = await pool.query(`
@@ -82,11 +82,11 @@ router.get('/',
 /**
  * GET /api/template-folders/tree
  * Get folder hierarchy as tree structure
- * Protected: Requires training.template_folders.view_page permission
+ * Protected: Authentication only (no permission check)
+ * Users need to read folder tree when creating/editing formations
  */
 router.get('/tree',
   authenticateToken,
-  requirePermission('training.template_folders.view_page'),
   async (req, res) => {
   try {
     const foldersResult = await pool.query(`
@@ -117,11 +117,11 @@ router.get('/tree',
 /**
  * GET /api/template-folders/:id
  * Get single folder with details
- * Protected: Requires training.template_folders.view permission
+ * Protected: Authentication only (no permission check)
+ * Users need to read folder details when browsing templates
  */
 router.get('/:id',
   authenticateToken,
-  requirePermission('training.template_folders.view'),
   async (req, res) => {
   try {
     const { id } = req.params;

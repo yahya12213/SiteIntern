@@ -47,7 +47,13 @@ export const useCreateCity = () => {
       return citiesApi.create(id, data);
     },
     onSuccess: () => {
+      // Invalidate all city-related queries
       queryClient.invalidateQueries({ queryKey: ['cities'] });
+      queryClient.invalidateQueries({ queryKey: ['professor-cities'] });
+      queryClient.invalidateQueries({ queryKey: ['gerant-cities'] });
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] });
+      // Invalidate professor assignments since they reference cities
+      queryClient.invalidateQueries({ queryKey: ['professors'] });
     },
   });
 };
@@ -59,7 +65,13 @@ export const useUpdateCity = () => {
   return useMutation({
     mutationFn: (data: UpdateCityInput) => citiesApi.update(data),
     onSuccess: () => {
+      // Invalidate all city-related queries
       queryClient.invalidateQueries({ queryKey: ['cities'] });
+      queryClient.invalidateQueries({ queryKey: ['professor-cities'] });
+      queryClient.invalidateQueries({ queryKey: ['gerant-cities'] });
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] });
+      // Invalidate professor assignments since they reference cities
+      queryClient.invalidateQueries({ queryKey: ['professors'] });
     },
   });
 };
@@ -71,7 +83,17 @@ export const useDeleteCity = () => {
   return useMutation({
     mutationFn: (id: string) => citiesApi.delete(id),
     onSuccess: () => {
+      // Invalidate all city-related queries
       queryClient.invalidateQueries({ queryKey: ['cities'] });
+      queryClient.invalidateQueries({ queryKey: ['professor-cities'] });
+      queryClient.invalidateQueries({ queryKey: ['gerant-cities'] });
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] });
+      // Invalidate professor assignments since they reference cities
+      queryClient.invalidateQueries({ queryKey: ['professors'] });
+      // Also invalidate declarations since they reference cities
+      queryClient.invalidateQueries({ queryKey: ['professor-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['gerant-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-declarations'] });
     },
   });
 };
@@ -144,7 +166,13 @@ export const useImportCities = () => {
       return results;
     },
     onSuccess: () => {
+      // Invalidate all city-related queries after import
       queryClient.invalidateQueries({ queryKey: ['cities'] });
+      queryClient.invalidateQueries({ queryKey: ['professor-cities'] });
+      queryClient.invalidateQueries({ queryKey: ['gerant-cities'] });
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] });
+      // Invalidate professor assignments since they reference cities
+      queryClient.invalidateQueries({ queryKey: ['professors'] });
     },
   });
 };

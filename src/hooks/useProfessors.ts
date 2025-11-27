@@ -79,6 +79,10 @@ export const useCreateProfessor = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['professors'] });
+      // Invalidate all professor-related queries
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] });
+      queryClient.invalidateQueries({ queryKey: ['available-professors'] });
+      queryClient.invalidateQueries({ queryKey: ['professors-for-impression'] });
     },
   });
 };
@@ -91,6 +95,10 @@ export const useUpdateProfessor = () => {
     mutationFn: (data: UpdateProfessorInput) => profilesApi.update(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['professors'] });
+      // Invalidate all professor-related queries
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] });
+      queryClient.invalidateQueries({ queryKey: ['available-professors'] });
+      queryClient.invalidateQueries({ queryKey: ['professors-for-impression'] });
     },
   });
 };
@@ -103,6 +111,10 @@ export const useDeleteProfessor = () => {
     mutationFn: (id: string) => profilesApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['professors'] });
+      // Invalidate all professor-related queries
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] });
+      queryClient.invalidateQueries({ queryKey: ['available-professors'] });
+      queryClient.invalidateQueries({ queryKey: ['professors-for-impression'] });
     },
   });
 };
@@ -150,8 +162,16 @@ export const useAssignCityToProfessor = () => {
       return { professorId, cityId };
     },
     onSuccess: (_, variables) => {
+      // Invalidate professor-specific queries
       queryClient.invalidateQueries({ queryKey: ['professors', variables.professorId, 'cities'] });
       queryClient.invalidateQueries({ queryKey: ['professors', variables.professorId] });
+
+      // CRITICAL: Invalidate queries used by other views
+      queryClient.invalidateQueries({ queryKey: ['professor-cities'] }); // Professor dashboard
+      queryClient.invalidateQueries({ queryKey: ['gerant-cities'] }); // Gerant views
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] }); // Dropdown filtering
+      queryClient.invalidateQueries({ queryKey: ['available-professors'] }); // Impression role
+      queryClient.invalidateQueries({ queryKey: ['professors-for-impression'] }); // NewDeclarationModal
     },
   });
 };
@@ -174,8 +194,16 @@ export const useUnassignCityFromProfessor = () => {
       return { professorId, cityId };
     },
     onSuccess: (_, variables) => {
+      // Invalidate professor-specific queries
       queryClient.invalidateQueries({ queryKey: ['professors', variables.professorId, 'cities'] });
       queryClient.invalidateQueries({ queryKey: ['professors', variables.professorId] });
+
+      // CRITICAL: Invalidate queries used by other views
+      queryClient.invalidateQueries({ queryKey: ['professor-cities'] }); // Professor dashboard
+      queryClient.invalidateQueries({ queryKey: ['gerant-cities'] }); // Gerant views
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] }); // Dropdown filtering
+      queryClient.invalidateQueries({ queryKey: ['available-professors'] }); // Impression role
+      queryClient.invalidateQueries({ queryKey: ['professors-for-impression'] }); // NewDeclarationModal
     },
   });
 };
@@ -217,8 +245,16 @@ export const useAssignSegmentToProfessor = () => {
       return { professorId, segmentId };
     },
     onSuccess: (_, variables) => {
+      // Invalidate professor-specific queries
       queryClient.invalidateQueries({ queryKey: ['professors', variables.professorId, 'segments'] });
       queryClient.invalidateQueries({ queryKey: ['professors', variables.professorId] });
+
+      // CRITICAL: Invalidate queries used by other views
+      queryClient.invalidateQueries({ queryKey: ['professor-segments'] }); // Professor dashboard
+      queryClient.invalidateQueries({ queryKey: ['gerant-segments'] }); // Gerant views
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] }); // Dropdown filtering
+      queryClient.invalidateQueries({ queryKey: ['available-professors'] }); // Impression role
+      queryClient.invalidateQueries({ queryKey: ['professors-for-impression'] }); // NewDeclarationModal
     },
   });
 };
@@ -241,9 +277,17 @@ export const useUnassignSegmentFromProfessor = () => {
       return { professorId, segmentId };
     },
     onSuccess: (_, variables) => {
+      // Invalidate professor-specific queries
       queryClient.invalidateQueries({ queryKey: ['professors', variables.professorId, 'segments'] });
       queryClient.invalidateQueries({ queryKey: ['professors', variables.professorId] });
       queryClient.invalidateQueries({ queryKey: ['professors', variables.professorId, 'cities'] });
+
+      // CRITICAL: Invalidate queries used by other views
+      queryClient.invalidateQueries({ queryKey: ['professor-segments'] }); // Professor dashboard
+      queryClient.invalidateQueries({ queryKey: ['gerant-segments'] }); // Gerant views
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] }); // Dropdown filtering
+      queryClient.invalidateQueries({ queryKey: ['available-professors'] }); // Impression role
+      queryClient.invalidateQueries({ queryKey: ['professors-for-impression'] }); // NewDeclarationModal
     },
   });
 };

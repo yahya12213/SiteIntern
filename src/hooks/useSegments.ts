@@ -38,7 +38,15 @@ export const useCreateSegment = () => {
       return segmentsApi.create(id, data);
     },
     onSuccess: () => {
+      // Invalidate all segment-related queries
       queryClient.invalidateQueries({ queryKey: ['segments'] });
+      queryClient.invalidateQueries({ queryKey: ['professor-segments'] });
+      queryClient.invalidateQueries({ queryKey: ['gerant-segments'] });
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] });
+      // Invalidate cities since they reference segments
+      queryClient.invalidateQueries({ queryKey: ['cities'] });
+      // Invalidate professors since they have segment assignments
+      queryClient.invalidateQueries({ queryKey: ['professors'] });
     },
   });
 };
@@ -50,7 +58,17 @@ export const useUpdateSegment = () => {
   return useMutation({
     mutationFn: (data: UpdateSegmentInput) => segmentsApi.update(data),
     onSuccess: () => {
+      // Invalidate all segment-related queries
       queryClient.invalidateQueries({ queryKey: ['segments'] });
+      queryClient.invalidateQueries({ queryKey: ['professor-segments'] });
+      queryClient.invalidateQueries({ queryKey: ['gerant-segments'] });
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] });
+      // Invalidate cities since they reference segments
+      queryClient.invalidateQueries({ queryKey: ['cities'] });
+      // Invalidate professors since they have segment assignments
+      queryClient.invalidateQueries({ queryKey: ['professors'] });
+      // Also invalidate calculation sheets that filter by segment
+      queryClient.invalidateQueries({ queryKey: ['published-sheets-segment'] });
     },
   });
 };
@@ -62,7 +80,21 @@ export const useDeleteSegment = () => {
   return useMutation({
     mutationFn: (id: string) => segmentsApi.delete(id),
     onSuccess: () => {
+      // Invalidate all segment-related queries
       queryClient.invalidateQueries({ queryKey: ['segments'] });
+      queryClient.invalidateQueries({ queryKey: ['professor-segments'] });
+      queryClient.invalidateQueries({ queryKey: ['gerant-segments'] });
+      queryClient.invalidateQueries({ queryKey: ['professors-by-segment-city'] });
+      // Invalidate cities since they reference segments
+      queryClient.invalidateQueries({ queryKey: ['cities'] });
+      // Invalidate professors since they have segment assignments
+      queryClient.invalidateQueries({ queryKey: ['professors'] });
+      // Also invalidate declarations since they reference segments
+      queryClient.invalidateQueries({ queryKey: ['professor-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['gerant-declarations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-declarations'] });
+      // And calculation sheets that filter by segment
+      queryClient.invalidateQueries({ queryKey: ['published-sheets-segment'] });
     },
   });
 };
