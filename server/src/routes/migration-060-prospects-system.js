@@ -754,4 +754,59 @@ router.post('/run', async (req, res) => {
   }
 });
 
+// GET /status - Check if migration has been applied
+router.get('/status', async (req, res) => {
+  try {
+    // Check if the main tables exist
+    const tableCheck = await pool.query(`
+      SELECT
+        EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'prospects') as prospects_exists,
+        EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'country_phone_config') as config_exists
+    `);
+
+    const tablesExist = tableCheck.rows[0].prospects_exists && tableCheck.rows[0].config_exists;
+
+    if (!tablesExist) {
+      return res.json({
+        status: {
+          migrationNeeded: true,
+          applied: false
+        },
+        message: 'Migration needed - Prospects tables do not exist'
+      });
+    }
+
+    // Check if country data is seeded
+    const countryCount = await pool.query('SELECT COUNT(*) as count FROM country_phone_config');
+    const hasCountries = parseInt(countryCount.rows[0].count) > 0;
+
+    if (!hasCountries) {
+      return res.json({
+        status: {
+          migrationNeeded: true,
+          applied: false
+        },
+        message: 'Migration needed - Country phone configurations not seeded'
+      });
+    }
+
+    // Migration is applied
+    res.json({
+      status: {
+        migrationNeeded: false,
+        applied: true,
+        countries: parseInt(countryCount.rows[0].count)
+      },
+      message: `Migration 060 already applied (${countryCount.rows[0].count} countries configured)`
+    });
+
+  } catch (error) {
+    console.error('Error checking migration 060 status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

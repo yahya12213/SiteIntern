@@ -40,6 +40,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 059',
     description: 'Corriger chevauchements permissions - 20 permissions (fill_data vs edit_metadata, folder vs template, protéger 16 boutons)',
     endpoint: '/migration-059'
+  },
+  {
+    id: 'migration-060',
+    name: 'Migration 060',
+    description: 'Système de gestion des prospects - 4 tables, 180 pays, 11 permissions, normalisation téléphone internationale',
+    endpoint: '/migration-060'
   }
 ];
 
