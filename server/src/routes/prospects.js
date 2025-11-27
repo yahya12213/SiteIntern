@@ -216,10 +216,7 @@ router.post('/',
         return res.status(400).json({ error: 'Veuillez sélectionner un segment' });
       }
 
-      // Validation ville
-      if (!ville_id) {
-        return res.status(400).json({ error: 'Veuillez sélectionner une ville' });
-      }
+      // Note: ville_id est optionnel - si null/vide, l'auto-assignment choisira la ville
 
       // Normalisation internationale du numéro
       const phoneValidation = await normalizePhoneInternational(rawPhone);
@@ -252,12 +249,12 @@ router.post('/',
         });
       }
 
-      // Affectation automatique si ville = "Sans Ville"
+      // Affectation automatique si ville non spécifiée ou = "Sans Ville"
       let assigned_to = null;
       let finalVilleId = ville_id;
       let assignmentInfo = null;
 
-      if (ville_id === 'city-sans-ville') {
+      if (!ville_id || ville_id === 'city-sans-ville') {
         try {
           const assignment = await autoAssignProspect();
           assigned_to = assignment.assigned_to;
@@ -601,6 +598,11 @@ router.post('/:id/end-call',
         'SELECT call_start FROM prospect_call_history WHERE id = $1',
         [call_id]
       );
+
+      // Vérifier si l'appel existe
+      if (!calls || calls.length === 0) {
+        return res.status(404).json({ error: 'Appel non trouvé' });
+      }
 
       const duration = Math.floor((Date.now() - new Date(calls[0].call_start).getTime()) / 1000);
 
