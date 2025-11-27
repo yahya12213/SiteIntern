@@ -116,21 +116,36 @@ const PORT = process.env.PORT || 3001;
 // Trust proxy for Railway deployment
 app.set('trust proxy', 1);
 
-// CORS Configuration - Restrict to allowed origins
+// CORS Configuration - Allow Railway production URL and localhost
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')
-  : ['http://localhost:5173', 'http://localhost:3001'];
+  : [
+      'http://localhost:5173',
+      'http://localhost:3001',
+      'https://spectacular-enthusiasm-production.up.railway.app'
+    ];
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
+    // Allow requests with no origin (same-origin, mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    // Allow if origin is in the allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+
+    // Allow any .railway.app subdomain in production
+    if (origin.endsWith('.railway.app')) {
+      return callback(null, true);
+    }
+
+    // Allow in development mode
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
