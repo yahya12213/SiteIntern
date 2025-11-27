@@ -1,34 +1,120 @@
 // @ts-nocheck
-// Minimal Dialog stub - Replace with proper implementation later
-import React from 'react';
+/**
+ * Dialog Component - Modal amélioré
+ * Support pour différentes tailles et meilleure lisibilité
+ */
+import React, { useEffect } from 'react';
 
-export const Dialog = ({ children, open, onOpenChange }: any) => {
+interface DialogProps {
+  children: React.ReactNode;
+  open: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export const Dialog = ({ children, open, onOpenChange }: DialogProps) => {
+  // Bloquer le scroll du body quand le dialog est ouvert
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [open]);
+
+  // Fermer avec Escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onOpenChange?.(false);
+      }
+    };
+    if (open) {
+      document.addEventListener('keydown', handleEscape);
+    }
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [open, onOpenChange]);
+
   if (!open) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => onOpenChange?.(false)}>
-      <div className="bg-white rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={() => onOpenChange?.(false)}
+    >
+      <div
+        className="bg-white rounded-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         {children}
       </div>
     </div>
   );
 };
 
-export const DialogContent = ({ children, ...props }: any) => (
-  <div className="p-6 max-w-2xl max-h-[90vh] overflow-auto" {...props}>{children}</div>
+interface DialogContentProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const DialogContent = ({ children, className = '' }: DialogContentProps) => (
+  <div className={`p-6 w-[500px] max-w-[95vw] max-h-[85vh] overflow-auto ${className}`}>
+    {children}
+  </div>
 );
 
-export const DialogHeader = ({ children, ...props }: any) => (
-  <div className="mb-4" {...props}>{children}</div>
+interface DialogHeaderProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const DialogHeader = ({ children, className = '' }: DialogHeaderProps) => (
+  <div className={`mb-4 pb-4 border-b border-gray-200 ${className}`}>
+    {children}
+  </div>
 );
 
-export const DialogTitle = ({ children, ...props }: any) => (
-  <h2 className="text-xl font-bold" {...props}>{children}</h2>
+interface DialogTitleProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const DialogTitle = ({ children, className = '' }: DialogTitleProps) => (
+  <h2 className={`text-xl font-semibold text-gray-900 ${className}`}>
+    {children}
+  </h2>
 );
 
-export const DialogDescription = ({ children, ...props }: any) => (
-  <p className="text-sm text-gray-600" {...props}>{children}</p>
+interface DialogDescriptionProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const DialogDescription = ({ children, className = '' }: DialogDescriptionProps) => (
+  <p className={`mt-1 text-sm text-gray-500 ${className}`}>
+    {children}
+  </p>
 );
 
-export const DialogFooter = ({ children, ...props }: any) => (
-  <div className="mt-6 flex gap-2 justify-end" {...props}>{children}</div>
+interface DialogFooterProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const DialogFooter = ({ children, className = '' }: DialogFooterProps) => (
+  <div className={`mt-6 pt-4 border-t border-gray-200 flex gap-3 justify-end ${className}`}>
+    {children}
+  </div>
+);
+
+// Composant pour fermer le dialog
+export const DialogClose = ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => (
+  <>{children}</>
+);
+
+// Trigger pour ouvrir le dialog (optionnel)
+export const DialogTrigger = ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => (
+  <>{children}</>
 );

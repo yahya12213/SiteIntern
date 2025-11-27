@@ -128,15 +128,15 @@ export function QuickAddProspectModal({ open, onClose }: QuickAddProspectModalPr
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[550px] max-w-[95vw]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <UserPlus className="h-5 w-5 text-blue-600" />
             Ajouter un prospect
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-5 py-2">
           {/* Segment */}
           <div className="space-y-2">
             <Label htmlFor="segment">Segment *</Label>
