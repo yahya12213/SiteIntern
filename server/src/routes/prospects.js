@@ -620,26 +620,25 @@ router.post('/:id/reinject',
 );
 
 // ============================================================
-// POST /api/prospects/batch-clean - Nettoyage batch
+// POST /api/prospects/batch-clean - Nettoyage batch (analyse uniquement)
+// ⚠️ La suppression automatique est DÉSACTIVÉE
 // ============================================================
 router.post('/batch-clean',
   requirePermission('commercialisation.prospects.clean'),
   async (req, res) => {
     try {
-      const { execute_deletion } = req.body;
+      // Note: execute_deletion est ignoré - la suppression est désactivée
+      // Les prospects ne sont JAMAIS supprimés automatiquement
+      // Utiliser la réinjection pour retravailler les anciens prospects
 
-      // Recalculer les décisions
+      // Recalculer les décisions (analyse uniquement)
       const cleanStats = await runCleaningBatch();
 
-      let deleteStats = null;
-      if (execute_deletion) {
-        deleteStats = await deleteMarkedProspects();
-      }
-
       res.json({
-        message: 'Nettoyage terminé',
+        message: 'Analyse terminée (suppression désactivée)',
         clean_stats: cleanStats,
-        delete_stats: deleteStats
+        delete_stats: { deleted: 0, message: 'Suppression automatique désactivée' },
+        info: 'Les prospects ne sont jamais supprimés automatiquement. Utilisez la réinjection.'
       });
     } catch (error) {
       console.error('Error batch cleaning:', error);

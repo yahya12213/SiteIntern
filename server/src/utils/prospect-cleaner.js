@@ -59,20 +59,20 @@ export async function runCleaningBatch() {
 
 /**
  * Supprime définitivement les prospects marqués "supprimer"
- * ⚠️ ATTENTION: Cette action est irréversible
- * @returns {Promise<Object>} { deleted: number }
+ * ⚠️ DÉSACTIVÉ: La suppression automatique est interdite
+ * Les prospects ne doivent JAMAIS être supprimés automatiquement
+ * Utiliser la réinjection à la place
+ * @returns {Promise<Object>} { deleted: 0, message: string }
  */
 export async function deleteMarkedProspects() {
-  console.log('🗑️ Suppression des prospects marqués...');
+  console.log('⚠️ SUPPRESSION DÉSACTIVÉE - Les prospects ne sont jamais supprimés automatiquement');
+  console.log('💡 Utilisez la réinjection pour retravailler les anciens prospects');
 
-  const { rowCount } = await pool.query(`
-    DELETE FROM prospects
-    WHERE decision_nettoyage = 'supprimer'
-  `);
-
-  console.log(`✅ ${rowCount} prospects supprimés définitivement`);
-
-  return { deleted: rowCount };
+  // NE PAS SUPPRIMER - Retourner 0 suppressions
+  return {
+    deleted: 0,
+    message: 'Suppression automatique désactivée. Utilisez la réinjection.'
+  };
 }
 
 /**

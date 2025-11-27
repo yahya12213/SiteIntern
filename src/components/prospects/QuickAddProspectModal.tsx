@@ -100,7 +100,7 @@ export function QuickAddProspectModal({ open, onClose }: QuickAddProspectModalPr
     const prospectData = {
       segment_id: segmentId,
       ville_id: villeId || null, // Si vide, l'auto-assignment choisira la ville
-      phone_international: phoneInput,
+      phone: phoneInput, // Backend attend "phone", pas "phone_international"
       nom: nom || null,
       prenom: prenom || null,
     };
