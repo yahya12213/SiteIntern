@@ -169,72 +169,106 @@ const Header: React.FC = () => {
 
 // ==================== Hero Section ====================
 const HeroSection: React.FC = () => {
+  const [showWelcome, setShowWelcome] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowWelcome(false), 8000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image with Overlay */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=1920&q=80)'
+          backgroundImage: 'url(https://images.unsplash.com/photo-1560472355-536de3962603?auto=format&fit=crop&w=1920&q=80)'
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-900/90 via-violet-800/85 to-indigo-900/90"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-violet-900/70 via-violet-800/50 to-transparent"></div>
       </div>
 
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <div className="animate-fade-in-up">
-          <span className="inline-block px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-white/90 text-sm font-medium mb-6">
-            Centre de Formation Certifie
+          <span className="inline-block px-4 py-2 bg-violet-600/80 backdrop-blur-sm rounded-full text-white text-sm font-medium mb-6">
+            12,000+ professionnels formes - 97% de reussite
           </span>
 
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 font-montserrat leading-tight">
-            Devenez Expert en<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-400">
-              Manutention
+          <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-white mb-6 font-montserrat leading-tight italic">
+            Revolutionnez<br />
+            Votre Carriere<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-orange-500 to-yellow-400">
+              En 6 Mois<br />
+              Seulement
             </span>
           </h1>
 
-          <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-8">
-            Formations CACES certifiantes pour operateurs de chariots elevateurs,
-            nacelles et ponts roulants. Obtenez votre certification en quelques jours.
+          <p className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto mb-8">
+            Rejoignez les 12,000+ professionnels qui ont transforme leur vie
+            grace a nos formations ultra-pratiques. Des resultats concrets des
+            le premier jour.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Button
               size="lg"
-              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-8 py-6 text-lg shadow-xl shadow-orange-500/30"
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-8 py-6 text-lg shadow-xl shadow-orange-500/30 rounded-full"
               onClick={() => document.getElementById('formations')?.scrollIntoView({ behavior: 'smooth' })}
             >
-              Decouvrir nos formations
+              <GraduationCap className="w-5 h-5 mr-2" />
+              Decouvrir nos offres
             </Button>
             <Button
               size="lg"
               variant="outline"
-              className="border-2 border-white/30 text-white hover:bg-white/10 px-8 py-6 text-lg backdrop-blur-sm"
+              className="border-2 border-white/30 bg-white/10 text-white hover:bg-white/20 px-8 py-6 text-lg backdrop-blur-sm rounded-full"
               onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
             >
               Nous contacter
             </Button>
           </div>
 
-          {/* Stats */}
-          <div className="flex flex-wrap justify-center gap-8 md:gap-16">
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-white">5000+</div>
-              <div className="text-white/70 text-sm">Professionnels formes</div>
+          {/* Stats with separators */}
+          <div className="flex flex-wrap justify-center items-center gap-4 md:gap-0">
+            <div className="text-center px-6">
+              <div className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-400">12,000+</div>
+              <div className="text-white/70 text-sm">Etudiants</div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-white">98%</div>
+            <div className="hidden md:block h-12 w-px bg-white/30"></div>
+            <div className="text-center px-6">
+              <div className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-400">97%</div>
               <div className="text-white/70 text-sm">Taux de reussite</div>
             </div>
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-white">15+</div>
-              <div className="text-white/70 text-sm">Annees d'experience</div>
+            <div className="hidden md:block h-12 w-px bg-white/30"></div>
+            <div className="text-center px-6">
+              <div className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-yellow-400">6 mois</div>
+              <div className="text-white/70 text-sm">Formation max</div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Welcome Toast */}
+      {showWelcome && (
+        <div className="fixed bottom-6 right-6 bg-white rounded-xl shadow-2xl p-4 max-w-sm animate-fade-in-up z-50">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center flex-shrink-0">
+              <GraduationCap className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900">Bienvenue chez PROLEAN !</p>
+              <p className="text-sm text-gray-600">Decouvrez nos formations professionnelles de qualite.</p>
+            </div>
+            <button
+              onClick={() => setShowWelcome(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Scroll indicator */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
