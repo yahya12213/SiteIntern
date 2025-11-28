@@ -54,6 +54,7 @@ import { MyCertificates } from './pages/student/MyCertificates';
 import { ForumList } from './pages/student/ForumList';
 import { ThreadView } from './pages/student/ThreadView';
 import { CreateThread } from './pages/student/CreateThread';
+import LandingPage from './pages/LandingPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{
@@ -619,9 +620,9 @@ const AppRoutes: React.FC = () => {
         }
       />
 
-      {/* Default Route */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/* Default Route - Landing Page */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </>
   );
