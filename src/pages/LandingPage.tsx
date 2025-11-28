@@ -182,10 +182,10 @@ const HeroSection: React.FC = () => {
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1920&q=80)'
+          backgroundImage: 'url(/hero-background.jpg)'
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-violet-900/80 via-violet-800/60 to-violet-700/40"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-violet-900/50 via-violet-800/40 to-violet-700/30"></div>
       </div>
 
       {/* Content */}
