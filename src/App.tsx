@@ -37,6 +37,7 @@ import ScheduleManagement from './pages/admin/hr/ScheduleManagement';
 import PayrollManagement from './pages/admin/hr/PayrollManagement';
 import EmployeePortal from './pages/admin/hr/EmployeePortal';
 import RequestsValidation from './pages/admin/hr/RequestsValidation';
+import ProjectsManagement from './pages/admin/ProjectsManagement';
 import CommercializationDashboard from './pages/admin/commercialisation/CommercializationDashboard';
 import Clients from './pages/admin/commercialisation/Clients';
 import Prospects from './pages/admin/commercialisation/Prospects';
@@ -246,6 +247,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute requiredPermission={PERMISSIONS.accounting.declarations.view_page}>
             <DeclarationViewer />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/projects"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.accounting.projects.view_page}>
+            <ProjectsManagement />
           </ProtectedRoute>
         }
       />

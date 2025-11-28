@@ -109,6 +109,8 @@ import hrSettingsRouter from './routes/hr-settings.js';
 import hrClockingRouter from './routes/hr-clocking.js';
 import hrPublicHolidaysRouter from './routes/hr-public-holidays.js';
 import prospectsRouter from './routes/prospects.js';
+import projectsRouter from './routes/projects.js';
+import migrationProjectsRouter from './routes/migration-projects.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -187,6 +189,8 @@ app.use('/api/hr/settings', authenticateToken, hrSettingsRouter);
 app.use('/api/hr/clocking', authenticateToken, hrClockingRouter);
 app.use('/api/hr/public-holidays', authenticateToken, hrPublicHolidaysRouter);
 app.use('/api/prospects', authenticateToken, prospectsRouter);
+app.use('/api/projects', authenticateToken, projectsRouter);
+app.use('/api/migration-projects', authenticateToken, migrationProjectsRouter);
 
 // ============================================================
 // ADMIN-ONLY: Setup and Migration Routes (Protected)

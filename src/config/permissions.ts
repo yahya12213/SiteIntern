@@ -60,6 +60,20 @@ export const PERMISSIONS = {
         fill: 'accounting.professor.declarations.fill',
       },
     },
+    // Gestion de Projet
+    projects: {
+      view_page: 'accounting.projects.view_page',
+      create: 'accounting.projects.create',
+      update: 'accounting.projects.update',
+      delete: 'accounting.projects.delete',
+      export: 'accounting.projects.export',
+    },
+    actions: {
+      view_page: 'accounting.actions.view_page',
+      create: 'accounting.actions.create',
+      update: 'accounting.actions.update',
+      delete: 'accounting.actions.delete',
+    },
   },
 
   // ==================== SYSTEM MODULE ====================
@@ -437,6 +451,19 @@ export function getPermissionLabel(code: string): string {
     // Professor Declarations
     'accounting.professor.declarations.view_page': 'Voir mes déclarations',
     'accounting.professor.declarations.fill': 'Remplir',
+
+    // Gestion de Projet
+    'accounting.projects.view_page': 'Voir les projets',
+    'accounting.projects.create': 'Créer un projet',
+    'accounting.projects.update': 'Modifier un projet',
+    'accounting.projects.delete': 'Supprimer un projet',
+    'accounting.projects.export': 'Exporter les projets',
+
+    // Actions (Plan d\'Action)
+    'accounting.actions.view_page': 'Voir le plan d\'action',
+    'accounting.actions.create': 'Créer une action',
+    'accounting.actions.update': 'Modifier une action',
+    'accounting.actions.delete': 'Supprimer une action',
 
     // ==================== SYSTEM MODULE ====================
     'system.roles.view_page': 'Voir les rôles',

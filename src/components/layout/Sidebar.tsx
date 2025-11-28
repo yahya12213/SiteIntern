@@ -30,6 +30,7 @@ import {
   Wallet,
   User,
   CheckSquare,
+  FolderKanban,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -73,6 +74,7 @@ export const Sidebar: React.FC = () => {
         { to: '/admin/roles', icon: Shield, label: 'Rôles & Permissions', permission: PERMISSIONS.system.roles.view_page },
         { to: '/admin/calculation-sheets', icon: FileSpreadsheet, label: 'Fiches de calcul', permission: PERMISSIONS.accounting.calculation_sheets.view_page },
         { to: '/admin/declarations', icon: ClipboardCheck, label: 'Gérer déclarations', permission: PERMISSIONS.accounting.declarations.view_page },
+        { to: '/admin/projects', icon: FolderKanban, label: 'Gestion de Projet', permission: PERMISSIONS.accounting.projects.view_page },
       ],
     },
     {
