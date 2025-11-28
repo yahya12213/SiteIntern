@@ -178,14 +178,14 @@ const HeroSection: React.FC = () => {
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background Image with Overlay */}
+      {/* Background Image with Overlay - Diverse professionals looking forward */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: 'url(https://images.unsplash.com/photo-1560472355-536de3962603?auto=format&fit=crop&w=1920&q=80)'
+          backgroundImage: 'url(https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1920&q=80)'
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-violet-900/70 via-violet-800/50 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-violet-900/80 via-violet-800/60 to-violet-700/40"></div>
       </div>
 
       {/* Content */}
