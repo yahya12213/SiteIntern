@@ -52,6 +52,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 061',
     description: 'Boucles de validation RH - tables hr_validation_workflows, hr_validation_workflow_steps, hr_validation_instances, hr_validation_actions',
     endpoint: '/migration-061'
+  },
+  {
+    id: 'migration-projects',
+    name: 'Migration Projects',
+    description: 'Tables projects et project_actions pour la gestion de projet (Plan d\'Action)',
+    endpoint: '/migration-projects'
   }
 ];
 
