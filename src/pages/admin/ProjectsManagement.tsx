@@ -4,7 +4,7 @@
  * Deux onglets : Plan d'Action (tableau des tâches) et Projets Kanban (vue cartes)
  */
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,11 @@ import {
   Users,
   DollarSign,
   MoreVertical,
+  ChevronDown,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { profilesApi, type Profile } from '@/lib/api/profiles';
+import { rolesApi } from '@/lib/api/roles';
 import { useProjects, useActions, useActionStats, useCreateProject, useUpdateProject, useDeleteProject, useCreateAction, useUpdateAction, useDeleteAction, useLinkActionsToProject } from '@/hooks/useProjects';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -674,6 +678,73 @@ function ActionFormModal({
     commentaire: initialData?.commentaire || '',
   });
 
+  // États pour le dropdown de sélection du pilote
+  const [piloteSearchTerm, setPiloteSearchTerm] = useState('');
+  const [piloteRoleFilter, setPiloteRoleFilter] = useState('');
+  const [isPiloteDropdownOpen, setIsPiloteDropdownOpen] = useState(false);
+  const piloteDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Charger les utilisateurs
+  const { data: users = [], isLoading: usersLoading } = useQuery({
+    queryKey: ['users-for-pilote'],
+    queryFn: () => profilesApi.getAll(),
+    enabled: open,
+  });
+
+  // Charger les rôles pour le filtre
+  const { data: rolesData } = useQuery({
+    queryKey: ['roles-for-filter'],
+    queryFn: async () => {
+      const response = await rolesApi.getAllRoles();
+      return response.roles;
+    },
+    enabled: open,
+  });
+
+  // Filtrer les utilisateurs
+  const filteredUsers = useMemo(() => {
+    let result = users;
+
+    // Filtre par rôle
+    if (piloteRoleFilter) {
+      result = result.filter((u: Profile) => u.role === piloteRoleFilter);
+    }
+
+    // Filtre par recherche
+    if (piloteSearchTerm.trim()) {
+      const query = piloteSearchTerm.toLowerCase();
+      result = result.filter((u: Profile) =>
+        u.full_name?.toLowerCase().includes(query) ||
+        u.username?.toLowerCase().includes(query)
+      );
+    }
+
+    return result;
+  }, [users, piloteRoleFilter, piloteSearchTerm]);
+
+  // Trouver l'utilisateur sélectionné
+  const selectedUser = users.find((u: Profile) => u.id === formData.pilote_id);
+
+  // Fermer le dropdown au clic extérieur
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (piloteDropdownRef.current && !piloteDropdownRef.current.contains(event.target as Node)) {
+        setIsPiloteDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Reset le dropdown quand le modal se ferme
+  useEffect(() => {
+    if (!open) {
+      setIsPiloteDropdownOpen(false);
+      setPiloteSearchTerm('');
+      setPiloteRoleFilter('');
+    }
+  }, [open]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
@@ -708,16 +779,97 @@ function ActionFormModal({
             />
           </div>
 
+          {/* Dropdown de sélection du Pilote avec recherche */}
           <div className="space-y-2">
-            <Label htmlFor="pilote_id">Pilote (Responsable) *</Label>
-            <Input
-              id="pilote_id"
-              value={formData.pilote_id}
-              onChange={(e) => setFormData(prev => ({ ...prev, pilote_id: e.target.value }))}
-              placeholder="ID du responsable"
-              required
-            />
-            <p className="text-xs text-gray-500">Entrez l'ID du profil responsable</p>
+            <Label>Pilote (Responsable) *</Label>
+            <div className="relative" ref={piloteDropdownRef}>
+              {/* Bouton déclencheur */}
+              <button
+                type="button"
+                onClick={() => setIsPiloteDropdownOpen(!isPiloteDropdownOpen)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg flex items-center justify-between bg-white hover:bg-gray-50 text-left"
+              >
+                <span className={selectedUser ? 'text-gray-900' : 'text-gray-500'}>
+                  {selectedUser
+                    ? `${selectedUser.full_name} (${selectedUser.role})`
+                    : 'Sélectionner un responsable...'}
+                </span>
+                <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isPiloteDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Panel dropdown */}
+              {isPiloteDropdownOpen && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-hidden">
+                  {/* Barre de recherche */}
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={piloteSearchTerm}
+                        onChange={(e) => setPiloteSearchTerm(e.target.value)}
+                        placeholder="Rechercher par nom..."
+                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  {/* Filtre par rôle */}
+                  <div className="p-2 border-b bg-gray-50">
+                    <select
+                      value={piloteRoleFilter}
+                      onChange={(e) => setPiloteRoleFilter(e.target.value)}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      aria-label="Filtrer par rôle"
+                    >
+                      <option value="">Tous les rôles</option>
+                      {rolesData?.map(role => (
+                        <option key={role.id} value={role.name}>
+                          {role.name.charAt(0).toUpperCase() + role.name.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Liste des utilisateurs */}
+                  <div className="max-h-48 overflow-y-auto">
+                    {usersLoading ? (
+                      <div className="p-4 text-center text-gray-500">Chargement...</div>
+                    ) : filteredUsers.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">Aucun utilisateur trouvé</div>
+                    ) : (
+                      filteredUsers.map((user: Profile) => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, pilote_id: user.id }));
+                            setIsPiloteDropdownOpen(false);
+                            setPiloteSearchTerm('');
+                          }}
+                          className={`w-full px-3 py-2 text-left hover:bg-blue-50 flex items-center justify-between transition-colors ${
+                            formData.pilote_id === user.id ? 'bg-blue-100' : ''
+                          }`}
+                        >
+                          <div>
+                            <div className="font-medium text-gray-900">{user.full_name}</div>
+                            <div className="text-xs text-gray-500">@{user.username}</div>
+                          </div>
+                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
+                            {user.role}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Validation visuelle */}
+            {!formData.pilote_id && (
+              <p className="text-xs text-amber-600">Veuillez sélectionner un responsable</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -761,7 +913,7 @@ function ActionFormModal({
             <Button type="button" variant="outline" onClick={onClose}>
               Annuler
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || !formData.pilote_id}>
               {isLoading ? 'Enregistrement...' : initialData ? 'Modifier' : 'Créer'}
             </Button>
           </DialogFooter>
@@ -796,6 +948,73 @@ function ProjectFormModal({
     budget: initialData?.budget || '',
     manager_id: initialData?.manager_id || '',
   });
+
+  // États pour le dropdown de sélection du chef de projet
+  const [managerSearchTerm, setManagerSearchTerm] = useState('');
+  const [managerRoleFilter, setManagerRoleFilter] = useState('');
+  const [isManagerDropdownOpen, setIsManagerDropdownOpen] = useState(false);
+  const managerDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Charger les utilisateurs
+  const { data: projectUsers = [], isLoading: projectUsersLoading } = useQuery({
+    queryKey: ['users-for-manager'],
+    queryFn: () => profilesApi.getAll(),
+    enabled: open,
+  });
+
+  // Charger les rôles pour le filtre
+  const { data: projectRolesData } = useQuery({
+    queryKey: ['roles-for-manager-filter'],
+    queryFn: async () => {
+      const response = await rolesApi.getAllRoles();
+      return response.roles;
+    },
+    enabled: open,
+  });
+
+  // Filtrer les utilisateurs
+  const filteredProjectUsers = useMemo(() => {
+    let result = projectUsers;
+
+    // Filtre par rôle
+    if (managerRoleFilter) {
+      result = result.filter((u: Profile) => u.role === managerRoleFilter);
+    }
+
+    // Filtre par recherche
+    if (managerSearchTerm.trim()) {
+      const query = managerSearchTerm.toLowerCase();
+      result = result.filter((u: Profile) =>
+        u.full_name?.toLowerCase().includes(query) ||
+        u.username?.toLowerCase().includes(query)
+      );
+    }
+
+    return result;
+  }, [projectUsers, managerRoleFilter, managerSearchTerm]);
+
+  // Trouver l'utilisateur sélectionné
+  const selectedManager = projectUsers.find((u: Profile) => u.id === formData.manager_id);
+
+  // Fermer le dropdown au clic extérieur
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (managerDropdownRef.current && !managerDropdownRef.current.contains(event.target as Node)) {
+        setIsManagerDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Reset le dropdown quand le modal se ferme
+  useEffect(() => {
+    if (!open) {
+      setIsManagerDropdownOpen(false);
+      setManagerSearchTerm('');
+      setManagerRoleFilter('');
+    }
+  }, [open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -897,15 +1116,93 @@ function ProjectFormModal({
             />
           </div>
 
+          {/* Dropdown de sélection du Chef de projet avec recherche */}
           <div className="space-y-2">
-            <Label htmlFor="manager_id">Chef de projet</Label>
-            <Input
-              id="manager_id"
-              value={formData.manager_id}
-              onChange={(e) => setFormData(prev => ({ ...prev, manager_id: e.target.value }))}
-              placeholder="ID du chef de projet"
-            />
-            <p className="text-xs text-gray-500">Entrez l'ID du profil responsable</p>
+            <Label>Chef de projet</Label>
+            <div className="relative" ref={managerDropdownRef}>
+              {/* Bouton déclencheur */}
+              <button
+                type="button"
+                onClick={() => setIsManagerDropdownOpen(!isManagerDropdownOpen)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg flex items-center justify-between bg-white hover:bg-gray-50 text-left"
+              >
+                <span className={selectedManager ? 'text-gray-900' : 'text-gray-500'}>
+                  {selectedManager
+                    ? `${selectedManager.full_name} (${selectedManager.role})`
+                    : 'Sélectionner un chef de projet...'}
+                </span>
+                <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isManagerDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Panel dropdown */}
+              {isManagerDropdownOpen && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-hidden">
+                  {/* Barre de recherche */}
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={managerSearchTerm}
+                        onChange={(e) => setManagerSearchTerm(e.target.value)}
+                        placeholder="Rechercher par nom..."
+                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  {/* Filtre par rôle */}
+                  <div className="p-2 border-b bg-gray-50">
+                    <select
+                      value={managerRoleFilter}
+                      onChange={(e) => setManagerRoleFilter(e.target.value)}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      aria-label="Filtrer par rôle"
+                    >
+                      <option value="">Tous les rôles</option>
+                      {projectRolesData?.map(role => (
+                        <option key={role.id} value={role.name}>
+                          {role.name.charAt(0).toUpperCase() + role.name.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Liste des utilisateurs */}
+                  <div className="max-h-48 overflow-y-auto">
+                    {projectUsersLoading ? (
+                      <div className="p-4 text-center text-gray-500">Chargement...</div>
+                    ) : filteredProjectUsers.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">Aucun utilisateur trouvé</div>
+                    ) : (
+                      filteredProjectUsers.map((user: Profile) => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, manager_id: user.id }));
+                            setIsManagerDropdownOpen(false);
+                            setManagerSearchTerm('');
+                          }}
+                          className={`w-full px-3 py-2 text-left hover:bg-blue-50 flex items-center justify-between transition-colors ${
+                            formData.manager_id === user.id ? 'bg-blue-100' : ''
+                          }`}
+                        >
+                          <div>
+                            <div className="font-medium text-gray-900">{user.full_name}</div>
+                            <div className="text-xs text-gray-500">@{user.username}</div>
+                          </div>
+                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
+                            {user.role}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <DialogFooter>

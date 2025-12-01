@@ -70,14 +70,17 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
       const filtered = cities.filter(city => city.segment_id === selectedSegment);
       setFilteredCities(filtered);
       // Réinitialiser la ville sélectionnée si elle n'est plus valide
-      if (selectedCity && !filtered.find(c => c.id === selectedCity)) {
-        setSelectedCity('');
-      }
+      setSelectedCity(prev => {
+        if (prev && !filtered.find(c => c.id === prev)) {
+          return '';
+        }
+        return prev;
+      });
     } else {
       setFilteredCities([]);
       setSelectedCity('');
     }
-  }, [selectedSegment, cities, selectedCity]);
+  }, [selectedSegment, cities]);
 
   // Filtrer les professeurs en fonction du segment et de la ville sélectionnés
   useEffect(() => {
@@ -110,8 +113,13 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
       // Sélection automatique si un seul professeur correspond
       if (filtered.length === 1) {
         setSelectedProfessor(filtered[0].id);
-      } else if (filtered.length === 0 || !filtered.find(p => p.id === selectedProfessor)) {
-        setSelectedProfessor('');
+      } else {
+        setSelectedProfessor(prev => {
+          if (filtered.length === 0 || !filtered.find(p => p.id === prev)) {
+            return '';
+          }
+          return prev;
+        });
       }
     } else {
       setFilteredProfessors([]);
@@ -119,7 +127,7 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
         setSelectedProfessor('');
       }
     }
-  }, [selectedSegment, selectedCity, professors, isImpressionRole, selectedProfessor]);
+  }, [selectedSegment, selectedCity, professors, isImpressionRole]);
 
   // Filtrer les fiches de calcul en fonction du segment et de la ville sélectionnés
   useEffect(() => {
@@ -153,14 +161,19 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
       // Sélection automatique si une seule fiche correspond
       if (filtered.length === 1) {
         setSelectedSheet(filtered[0].id);
-      } else if (filtered.length === 0 || !filtered.find((s: any) => s.id === selectedSheet)) {
-        setSelectedSheet('');
+      } else {
+        setSelectedSheet(prev => {
+          if (filtered.length === 0 || !filtered.find((s: any) => s.id === prev)) {
+            return '';
+          }
+          return prev;
+        });
       }
     } else {
       setFilteredSheets([]);
       setSelectedSheet('');
     }
-  }, [selectedSegment, selectedCity, availableSheets, selectedSheet]);
+  }, [selectedSegment, selectedCity, availableSheets]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
