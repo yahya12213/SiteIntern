@@ -46,6 +46,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 060',
     description: 'Système de gestion des prospects - 4 tables, 180 pays, 11 permissions, normalisation téléphone internationale',
     endpoint: '/migration-060'
+  },
+  {
+    id: 'migration-061',
+    name: 'Migration 061',
+    description: 'Boucles de validation RH - tables hr_validation_workflows, hr_validation_workflow_steps, hr_validation_instances, hr_validation_actions',
+    endpoint: '/migration-061'
   }
 ];
 
