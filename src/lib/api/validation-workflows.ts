@@ -2,7 +2,7 @@
  * API Client - Boucles de Validation (Validation Workflows)
  */
 
-import api from '../api';
+import { apiClient } from './client';
 
 // ============================================================
 // TYPES
@@ -102,48 +102,42 @@ export const validationWorkflowsApi = {
     if (filters?.trigger_type) params.append('trigger_type', filters.trigger_type);
     if (filters?.active_only) params.append('active_only', 'true');
     const queryString = params.toString() ? `?${params.toString()}` : '';
-    const response = await api.get(`/hr/validation-workflows${queryString}`);
-    return response.data;
+    return apiClient.get<{ success: boolean; workflows: ValidationWorkflow[] }>(`/hr/validation-workflows${queryString}`);
   },
 
   /**
    * Get a single workflow
    */
   getById: async (id: string): Promise<{ success: boolean; workflow: ValidationWorkflow }> => {
-    const response = await api.get(`/hr/validation-workflows/${id}`);
-    return response.data;
+    return apiClient.get<{ success: boolean; workflow: ValidationWorkflow }>(`/hr/validation-workflows/${id}`);
   },
 
   /**
    * Create a new workflow
    */
   create: async (data: CreateWorkflowInput): Promise<{ success: boolean; workflow: ValidationWorkflow }> => {
-    const response = await api.post('/hr/validation-workflows', data);
-    return response.data;
+    return apiClient.post<{ success: boolean; workflow: ValidationWorkflow }>('/hr/validation-workflows', data);
   },
 
   /**
    * Update a workflow
    */
   update: async (id: string, data: UpdateWorkflowInput): Promise<{ success: boolean; workflow: ValidationWorkflow }> => {
-    const response = await api.put(`/hr/validation-workflows/${id}`, data);
-    return response.data;
+    return apiClient.put<{ success: boolean; workflow: ValidationWorkflow }>(`/hr/validation-workflows/${id}`, data);
   },
 
   /**
    * Toggle workflow active status
    */
   toggle: async (id: string): Promise<{ success: boolean; workflow: ValidationWorkflow; message: string }> => {
-    const response = await api.put(`/hr/validation-workflows/${id}/toggle`);
-    return response.data;
+    return apiClient.put<{ success: boolean; workflow: ValidationWorkflow; message: string }>(`/hr/validation-workflows/${id}/toggle`);
   },
 
   /**
    * Delete a workflow
    */
   delete: async (id: string): Promise<{ success: boolean; message: string }> => {
-    const response = await api.delete(`/hr/validation-workflows/${id}`);
-    return response.data;
+    return apiClient.delete<{ success: boolean; message: string }>(`/hr/validation-workflows/${id}`);
   },
 
   // === STEPS ===
@@ -152,32 +146,28 @@ export const validationWorkflowsApi = {
    * Add a step to workflow
    */
   addStep: async (workflowId: string, data: CreateStepInput): Promise<{ success: boolean; step: ValidationStep }> => {
-    const response = await api.post(`/hr/validation-workflows/${workflowId}/steps`, data);
-    return response.data;
+    return apiClient.post<{ success: boolean; step: ValidationStep }>(`/hr/validation-workflows/${workflowId}/steps`, data);
   },
 
   /**
    * Update a step
    */
   updateStep: async (workflowId: string, stepId: string, data: Partial<CreateStepInput>): Promise<{ success: boolean; step: ValidationStep }> => {
-    const response = await api.put(`/hr/validation-workflows/${workflowId}/steps/${stepId}`, data);
-    return response.data;
+    return apiClient.put<{ success: boolean; step: ValidationStep }>(`/hr/validation-workflows/${workflowId}/steps/${stepId}`, data);
   },
 
   /**
    * Delete a step
    */
   deleteStep: async (workflowId: string, stepId: string): Promise<{ success: boolean; message: string }> => {
-    const response = await api.delete(`/hr/validation-workflows/${workflowId}/steps/${stepId}`);
-    return response.data;
+    return apiClient.delete<{ success: boolean; message: string }>(`/hr/validation-workflows/${workflowId}/steps/${stepId}`);
   },
 
   /**
    * Move step up or down
    */
   moveStep: async (workflowId: string, stepId: string, direction: 'up' | 'down'): Promise<{ success: boolean; message: string }> => {
-    const response = await api.put(`/hr/validation-workflows/${workflowId}/steps/${stepId}/move`, { direction });
-    return response.data;
+    return apiClient.put<{ success: boolean; message: string }>(`/hr/validation-workflows/${workflowId}/steps/${stepId}/move`, { direction });
   },
 
   // === STATS ===
@@ -186,7 +176,6 @@ export const validationWorkflowsApi = {
    * Get workflow statistics
    */
   getStats: async (): Promise<{ success: boolean; stats: WorkflowStats }> => {
-    const response = await api.get('/hr/validation-workflows/stats/summary');
-    return response.data;
+    return apiClient.get<{ success: boolean; stats: WorkflowStats }>('/hr/validation-workflows/stats/summary');
   },
 };

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Boucles de Validation (ValidationWorkflows)
  * Système de création et gestion des circuits d'approbation automatiques pour les demandes RH
@@ -29,7 +28,7 @@ import {
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import {
   GitBranch,
   Plus,
@@ -63,10 +62,11 @@ import {
   TRIGGER_TYPES,
   APPROVER_TYPES,
   type ValidationWorkflow,
-  type ValidationStep,
 } from '@/lib/api/validation-workflows';
 
 export default function ValidationWorkflows() {
+  const { toast } = useToast();
+
   // State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showStepsModal, setShowStepsModal] = useState(false);
@@ -140,9 +140,9 @@ export default function ValidationWorkflows() {
   const handleToggleActive = async (id: string) => {
     try {
       const result = await toggleWorkflow.mutateAsync(id);
-      toast.success(result.message);
+      toast({ title: 'Succès', description: result.message });
     } catch (error: any) {
-      toast.error(error.message || 'Erreur');
+      toast({ title: 'Erreur', description: error.message || 'Erreur', variant: 'destructive' });
     }
   };
 
@@ -150,35 +150,35 @@ export default function ValidationWorkflows() {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette boucle de validation ?')) return;
     try {
       await deleteWorkflow.mutateAsync(id);
-      toast.success('Workflow supprimé');
+      toast({ title: 'Succès', description: 'Workflow supprimé' });
     } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de la suppression');
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors de la suppression', variant: 'destructive' });
     }
   };
 
   const handleSave = async () => {
     if (!formData.nom || !formData.declencheur) {
-      toast.error('Veuillez remplir tous les champs obligatoires');
+      toast({ title: 'Erreur', description: 'Veuillez remplir tous les champs obligatoires', variant: 'destructive' });
       return;
     }
 
     try {
       if (editingWorkflow) {
         await updateWorkflow.mutateAsync({ id: editingWorkflow.id, data: formData });
-        toast.success('Workflow mis à jour');
+        toast({ title: 'Succès', description: 'Workflow mis à jour' });
       } else {
         await createWorkflow.mutateAsync(formData);
-        toast.success('Workflow créé');
+        toast({ title: 'Succès', description: 'Workflow créé' });
       }
       setShowCreateModal(false);
     } catch (error: any) {
-      toast.error(error.message || 'Erreur');
+      toast({ title: 'Erreur', description: error.message || 'Erreur', variant: 'destructive' });
     }
   };
 
   const handleAddStep = async () => {
     if (!selectedWorkflow || !stepForm.validateur_nom) {
-      toast.error('Veuillez saisir un nom pour le validateur');
+      toast({ title: 'Erreur', description: 'Veuillez saisir un nom pour le validateur', variant: 'destructive' });
       return;
     }
 
@@ -192,10 +192,10 @@ export default function ValidationWorkflows() {
           timeout_hours: stepForm.timeout_hours,
         }
       });
-      toast.success('Étape ajoutée');
+      toast({ title: 'Succès', description: 'Étape ajoutée' });
       setStepForm({ validateur_type: 'manager', validateur_nom: '', validateur_role: '', timeout_hours: 48 });
     } catch (error: any) {
-      toast.error(error.message || 'Erreur');
+      toast({ title: 'Erreur', description: error.message || 'Erreur', variant: 'destructive' });
     }
   };
 
@@ -204,9 +204,9 @@ export default function ValidationWorkflows() {
     if (!confirm('Supprimer cette étape ?')) return;
     try {
       await deleteStep.mutateAsync({ workflowId: selectedWorkflow.id, stepId });
-      toast.success('Étape supprimée');
+      toast({ title: 'Succès', description: 'Étape supprimée' });
     } catch (error: any) {
-      toast.error(error.message || 'Erreur');
+      toast({ title: 'Erreur', description: error.message || 'Erreur', variant: 'destructive' });
     }
   };
 
@@ -214,9 +214,9 @@ export default function ValidationWorkflows() {
     if (!selectedWorkflow) return;
     try {
       await moveStep.mutateAsync({ workflowId: selectedWorkflow.id, stepId, direction });
-      toast.success('Étape déplacée');
+      toast({ title: 'Succès', description: 'Étape déplacée' });
     } catch (error: any) {
-      toast.error(error.message || 'Erreur');
+      toast({ title: 'Erreur', description: error.message || 'Erreur', variant: 'destructive' });
     }
   };
 
@@ -417,7 +417,7 @@ export default function ValidationWorkflows() {
                 <Label>Description</Label>
                 <Textarea
                   value={formData.description}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Description de la boucle de validation"
                   rows={3}
                 />

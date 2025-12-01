@@ -2,7 +2,7 @@
  * API Client - Portail Employé RH
  */
 
-import api from '../api';
+import { apiClient } from './client';
 
 // Types
 export interface EmployeeProfile {
@@ -114,8 +114,7 @@ export interface LeaveType {
 export const employeePortalApi = {
   // Get employee profile
   getProfile: async (): Promise<{ success: boolean; employee: EmployeeProfile }> => {
-    const response = await api.get('/hr/employee-portal/profile');
-    return response.data;
+    return apiClient.get<{ success: boolean; employee: EmployeeProfile }>('/hr/employee-portal/profile');
   },
 
   // Get attendance records for a month
@@ -123,41 +122,34 @@ export const employeePortalApi = {
     const params = new URLSearchParams();
     if (year) params.append('year', year.toString());
     if (month) params.append('month', month.toString());
-    const response = await api.get(`/hr/employee-portal/attendance?${params}`);
-    return response.data;
+    return apiClient.get<AttendanceResponse>(`/hr/employee-portal/attendance?${params}`);
   },
 
   // Get my HR requests
   getRequests: async (): Promise<{ success: boolean; requests: HRRequest[] }> => {
-    const response = await api.get('/hr/employee-portal/requests');
-    return response.data;
+    return apiClient.get<{ success: boolean; requests: HRRequest[] }>('/hr/employee-portal/requests');
   },
 
   // Create new request
   createRequest: async (data: CreateRequestInput): Promise<{ success: boolean; message: string; request_id: number }> => {
-    const response = await api.post('/hr/employee-portal/requests', data);
-    return response.data;
+    return apiClient.post<{ success: boolean; message: string; request_id: number }>('/hr/employee-portal/requests', data);
   },
 
   // Get leave types
   getLeaveTypes: async (): Promise<{ success: boolean; leave_types: LeaveType[] }> => {
-    const response = await api.get('/hr/employee-portal/leave-types');
-    return response.data;
+    return apiClient.get<{ success: boolean; leave_types: LeaveType[] }>('/hr/employee-portal/leave-types');
   },
 
   // Clocking endpoints (existing)
   getTodayClocking: async (): Promise<TodayClocking> => {
-    const response = await api.get('/hr/clocking/my-today');
-    return response.data;
+    return apiClient.get<TodayClocking>('/hr/clocking/my-today');
   },
 
   checkIn: async (): Promise<{ success: boolean; message: string; record: any }> => {
-    const response = await api.post('/hr/clocking/check-in');
-    return response.data;
+    return apiClient.post<{ success: boolean; message: string; record: any }>('/hr/clocking/check-in');
   },
 
   checkOut: async (): Promise<{ success: boolean; message: string; record: any; worked_minutes_today: number }> => {
-    const response = await api.post('/hr/clocking/check-out');
-    return response.data;
+    return apiClient.post<{ success: boolean; message: string; record: any; worked_minutes_today: number }>('/hr/clocking/check-out');
   },
 };

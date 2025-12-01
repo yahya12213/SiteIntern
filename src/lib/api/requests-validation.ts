@@ -2,7 +2,7 @@
  * API Client - Validation des Demandes RH
  */
 
-import api from '../api';
+import { apiClient } from './client';
 
 // Types
 export interface PendingRequest {
@@ -45,32 +45,27 @@ export const requestsValidationApi = {
   // Get pending requests
   getPending: async (type?: string): Promise<{ success: boolean; requests: PendingRequest[]; count: number }> => {
     const params = type && type !== 'all' ? `?type=${type}` : '';
-    const response = await api.get(`/hr/requests-validation/pending${params}`);
-    return response.data;
+    return apiClient.get<{ success: boolean; requests: PendingRequest[]; count: number }>(`/hr/requests-validation/pending${params}`);
   },
 
   // Get decision history
   getHistory: async (limit?: number): Promise<{ success: boolean; history: HistoryItem[] }> => {
     const params = limit ? `?limit=${limit}` : '';
-    const response = await api.get(`/hr/requests-validation/history${params}`);
-    return response.data;
+    return apiClient.get<{ success: boolean; history: HistoryItem[] }>(`/hr/requests-validation/history${params}`);
   },
 
   // Approve a request
   approve: async (id: number, data: DecisionInput): Promise<{ success: boolean; message: string }> => {
-    const response = await api.post(`/hr/requests-validation/${id}/approve`, data);
-    return response.data;
+    return apiClient.post<{ success: boolean; message: string }>(`/hr/requests-validation/${id}/approve`, data);
   },
 
   // Reject a request
   reject: async (id: number, data: DecisionInput): Promise<{ success: boolean; message: string }> => {
-    const response = await api.post(`/hr/requests-validation/${id}/reject`, data);
-    return response.data;
+    return apiClient.post<{ success: boolean; message: string }>(`/hr/requests-validation/${id}/reject`, data);
   },
 
   // Get request details
   getDetails: async (id: number, type: 'leave' | 'overtime'): Promise<{ success: boolean; request: any }> => {
-    const response = await api.get(`/hr/requests-validation/${id}?type=${type}`);
-    return response.data;
+    return apiClient.get<{ success: boolean; request: any }>(`/hr/requests-validation/${id}?type=${type}`);
   },
 };

@@ -33,7 +33,6 @@ import {
   ChevronRight,
   Briefcase,
   Plane,
-  Edit,
   FileCheck,
   Loader2,
 } from 'lucide-react';
@@ -359,9 +358,7 @@ export default function RequestsValidation() {
                   <p className="text-center text-gray-500 py-8">Aucun historique</p>
                 ) : (
                   <div className="space-y-4">
-                    {historyData?.history?.map((item: HistoryItem) => {
-                      const typeInfo = getRequestTypeInfo(item.type_code);
-                      return (
+                    {historyData?.history?.map((item: HistoryItem) => (
                         <div
                           key={`${item.request_type}-${item.id}`}
                           className="flex items-center justify-between p-4 border rounded-lg"
@@ -388,8 +385,7 @@ export default function RequestsValidation() {
                             {item.decision === 'approved' ? 'Approuve' : 'Rejete'}
                           </Badge>
                         </div>
-                      );
-                    })}
+                    ))}
                   </div>
                 )}
               </CardContent>
@@ -528,7 +524,7 @@ export default function RequestsValidation() {
                       : 'Veuillez indiquer le motif du rejet...'
                   }
                   value={decisionComment}
-                  onChange={(e) => setDecisionComment(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDecisionComment(e.target.value)}
                   rows={4}
                 />
               </div>

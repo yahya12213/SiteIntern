@@ -30,7 +30,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import {
   Calendar,
   Clock,
@@ -83,6 +83,7 @@ const DEFAULT_HORAIRES = JOURS_SEMAINE.reduce((acc, jour) => ({
 }), {});
 
 export default function ScheduleManagement() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<TabType>('modeles');
   const currentYear = new Date().getFullYear();
 
@@ -159,21 +160,21 @@ export default function ScheduleManagement() {
 
   const handleSaveSchedule = async () => {
     if (!scheduleForm.nom) {
-      toast.error('Le nom du modèle est requis');
+      toast({ title: 'Erreur', description: 'Le nom du modèle est requis', variant: 'destructive' });
       return;
     }
 
     try {
       if (editingSchedule) {
         await updateSchedule.mutateAsync({ id: editingSchedule.id, data: scheduleForm });
-        toast.success('Modèle mis à jour');
+        toast({ title: 'Succès', description: 'Modèle mis à jour' });
       } else {
         await createSchedule.mutateAsync(scheduleForm);
-        toast.success('Modèle créé');
+        toast({ title: 'Succès', description: 'Modèle créé' });
       }
       setShowScheduleModal(false);
     } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de la sauvegarde');
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors de la sauvegarde', variant: 'destructive' });
     }
   };
 
@@ -181,9 +182,9 @@ export default function ScheduleManagement() {
     if (!confirm('Supprimer ce modèle d\'horaires ?')) return;
     try {
       await deleteSchedule.mutateAsync(id);
-      toast.success('Modèle supprimé');
+      toast({ title: 'Succès', description: 'Modèle supprimé' });
     } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de la suppression');
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors de la suppression', variant: 'destructive' });
     }
   };
 
@@ -211,21 +212,21 @@ export default function ScheduleManagement() {
 
   const handleSaveHoliday = async () => {
     if (!holidayForm.nom || !holidayForm.date_debut) {
-      toast.error('Le nom et la date sont requis');
+      toast({ title: 'Erreur', description: 'Le nom et la date sont requis', variant: 'destructive' });
       return;
     }
 
     try {
       if (editingHoliday) {
         await updateHoliday.mutateAsync({ id: editingHoliday.id, data: holidayForm });
-        toast.success('Jour férié mis à jour');
+        toast({ title: 'Succès', description: 'Jour férié mis à jour' });
       } else {
         await createHoliday.mutateAsync(holidayForm);
-        toast.success('Jour férié ajouté');
+        toast({ title: 'Succès', description: 'Jour férié ajouté' });
       }
       setShowHolidayModal(false);
     } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de la sauvegarde');
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors de la sauvegarde', variant: 'destructive' });
     }
   };
 
@@ -233,9 +234,9 @@ export default function ScheduleManagement() {
     if (!confirm('Supprimer ce jour férié ?')) return;
     try {
       await deleteHoliday.mutateAsync(id);
-      toast.success('Jour férié supprimé');
+      toast({ title: 'Succès', description: 'Jour férié supprimé' });
     } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de la suppression');
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors de la suppression', variant: 'destructive' });
     }
   };
 
@@ -243,9 +244,9 @@ export default function ScheduleManagement() {
   const handleApproveOvertime = async (id: number, hours: number) => {
     try {
       await approveOvertime.mutateAsync({ id, data: { hours_approved: hours } });
-      toast.success('Heures supplémentaires approuvées');
+      toast({ title: 'Succès', description: 'Heures supplémentaires approuvées' });
     } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de l\'approbation');
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors de l\'approbation', variant: 'destructive' });
     }
   };
 
@@ -253,9 +254,9 @@ export default function ScheduleManagement() {
     const comment = prompt('Motif du refus (optionnel):');
     try {
       await rejectOvertime.mutateAsync({ id, comment: comment || undefined });
-      toast.success('Heures supplémentaires refusées');
+      toast({ title: 'Succès', description: 'Heures supplémentaires refusées' });
     } catch (error: any) {
-      toast.error(error.message || 'Erreur lors du refus');
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors du refus', variant: 'destructive' });
     }
   };
 

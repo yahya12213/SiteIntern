@@ -35,8 +35,6 @@ import {
   LogOut,
   Download,
   Loader2,
-  AlertCircle,
-  CheckCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -84,7 +82,7 @@ export default function EmployeePortal() {
   });
 
   // Queries
-  const { data: todayData, isLoading: loadingToday } = useTodayClocking();
+  const { data: todayData, isLoading: _loadingToday } = useTodayClocking();
   const { data: attendanceData, isLoading: loadingAttendance } = useEmployeeAttendance(
     parseInt(selectedYear),
     parseInt(selectedMonth)
@@ -546,7 +544,7 @@ export default function EmployeePortal() {
                 <Label>Description *</Label>
                 <Textarea
                   value={newDemande.description}
-                  onChange={e => setNewDemande({ ...newDemande, description: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNewDemande({ ...newDemande, description: e.target.value })}
                   placeholder="Decrivez votre demande..."
                   rows={4}
                 />

@@ -2,7 +2,7 @@
  * API Client - Gestion des Horaires (Schedule Management)
  */
 
-import api from '../api';
+import { apiClient } from './client';
 
 // ============================================================
 // TYPES - Work Schedules
@@ -134,45 +134,37 @@ export interface ScheduleStats {
 export const scheduleManagementApi = {
   // === WORK SCHEDULES ===
   getSchedules: async (): Promise<{ success: boolean; schedules: WorkSchedule[] }> => {
-    const response = await api.get('/hr/schedule-management/schedules');
-    return response.data;
+    return apiClient.get<{ success: boolean; schedules: WorkSchedule[] }>('/hr/schedule-management/schedules');
   },
 
   createSchedule: async (data: CreateScheduleInput): Promise<{ success: boolean; schedule: WorkSchedule }> => {
-    const response = await api.post('/hr/schedule-management/schedules', data);
-    return response.data;
+    return apiClient.post<{ success: boolean; schedule: WorkSchedule }>('/hr/schedule-management/schedules', data);
   },
 
   updateSchedule: async (id: string, data: Partial<CreateScheduleInput>): Promise<{ success: boolean; schedule: WorkSchedule }> => {
-    const response = await api.put(`/hr/schedule-management/schedules/${id}`, data);
-    return response.data;
+    return apiClient.put<{ success: boolean; schedule: WorkSchedule }>(`/hr/schedule-management/schedules/${id}`, data);
   },
 
   deleteSchedule: async (id: string): Promise<{ success: boolean; message: string }> => {
-    const response = await api.delete(`/hr/schedule-management/schedules/${id}`);
-    return response.data;
+    return apiClient.delete<{ success: boolean; message: string }>(`/hr/schedule-management/schedules/${id}`);
   },
 
   // === PUBLIC HOLIDAYS ===
   getHolidays: async (year?: number): Promise<{ success: boolean; holidays: PublicHoliday[] }> => {
     const params = year ? `?year=${year}` : '';
-    const response = await api.get(`/hr/schedule-management/holidays${params}`);
-    return response.data;
+    return apiClient.get<{ success: boolean; holidays: PublicHoliday[] }>(`/hr/schedule-management/holidays${params}`);
   },
 
   createHoliday: async (data: CreateHolidayInput): Promise<{ success: boolean; holiday: PublicHoliday }> => {
-    const response = await api.post('/hr/schedule-management/holidays', data);
-    return response.data;
+    return apiClient.post<{ success: boolean; holiday: PublicHoliday }>('/hr/schedule-management/holidays', data);
   },
 
   updateHoliday: async (id: string, data: Partial<CreateHolidayInput>): Promise<{ success: boolean; holiday: PublicHoliday }> => {
-    const response = await api.put(`/hr/schedule-management/holidays/${id}`, data);
-    return response.data;
+    return apiClient.put<{ success: boolean; holiday: PublicHoliday }>(`/hr/schedule-management/holidays/${id}`, data);
   },
 
   deleteHoliday: async (id: string): Promise<{ success: boolean; message: string }> => {
-    const response = await api.delete(`/hr/schedule-management/holidays/${id}`);
-    return response.data;
+    return apiClient.delete<{ success: boolean; message: string }>(`/hr/schedule-management/holidays/${id}`);
   },
 
   // === APPROVED LEAVES ===
@@ -181,8 +173,7 @@ export const scheduleManagementApi = {
     if (year) params.append('year', year.toString());
     if (month) params.append('month', month.toString());
     const queryString = params.toString() ? `?${params.toString()}` : '';
-    const response = await api.get(`/hr/schedule-management/approved-leaves${queryString}`);
-    return response.data;
+    return apiClient.get<{ success: boolean; leaves: ApprovedLeave[] }>(`/hr/schedule-management/approved-leaves${queryString}`);
   },
 
   // === OVERTIME ===
@@ -192,33 +183,27 @@ export const scheduleManagementApi = {
     if (filters?.year) params.append('year', filters.year.toString());
     if (filters?.month) params.append('month', filters.month.toString());
     const queryString = params.toString() ? `?${params.toString()}` : '';
-    const response = await api.get(`/hr/schedule-management/overtime${queryString}`);
-    return response.data;
+    return apiClient.get<{ success: boolean; overtime: OvertimeDeclaration[] }>(`/hr/schedule-management/overtime${queryString}`);
   },
 
   createOvertime: async (data: CreateOvertimeInput): Promise<{ success: boolean; overtime: OvertimeDeclaration }> => {
-    const response = await api.post('/hr/schedule-management/overtime', data);
-    return response.data;
+    return apiClient.post<{ success: boolean; overtime: OvertimeDeclaration }>('/hr/schedule-management/overtime', data);
   },
 
   approveOvertime: async (id: number, data: { hours_approved?: number; comment?: string }): Promise<{ success: boolean; overtime: OvertimeDeclaration }> => {
-    const response = await api.put(`/hr/schedule-management/overtime/${id}/approve`, data);
-    return response.data;
+    return apiClient.put<{ success: boolean; overtime: OvertimeDeclaration }>(`/hr/schedule-management/overtime/${id}/approve`, data);
   },
 
   rejectOvertime: async (id: number, comment?: string): Promise<{ success: boolean; overtime: OvertimeDeclaration }> => {
-    const response = await api.put(`/hr/schedule-management/overtime/${id}/reject`, { comment });
-    return response.data;
+    return apiClient.put<{ success: boolean; overtime: OvertimeDeclaration }>(`/hr/schedule-management/overtime/${id}/reject`, { comment });
   },
 
   deleteOvertime: async (id: number): Promise<{ success: boolean; message: string }> => {
-    const response = await api.delete(`/hr/schedule-management/overtime/${id}`);
-    return response.data;
+    return apiClient.delete<{ success: boolean; message: string }>(`/hr/schedule-management/overtime/${id}`);
   },
 
   // === STATS ===
   getStats: async (): Promise<{ success: boolean; stats: ScheduleStats }> => {
-    const response = await api.get('/hr/schedule-management/stats');
-    return response.data;
+    return apiClient.get<{ success: boolean; stats: ScheduleStats }>('/hr/schedule-management/stats');
   },
 };
