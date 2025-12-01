@@ -30,7 +30,7 @@ router.post('/run', async (req, res) => {
         name VARCHAR(255) NOT NULL,
         description TEXT,
         trigger_type VARCHAR(50) NOT NULL,
-        segment_id UUID REFERENCES segments(id) ON DELETE SET NULL,
+        segment_id TEXT REFERENCES segments(id) ON DELETE SET NULL,
         is_active BOOLEAN DEFAULT false,
         priority INT DEFAULT 0,
         conditions JSONB DEFAULT '{}',
@@ -213,23 +213,38 @@ router.get('/status', async (req, res) => {
 
   try {
     const tables = ['hr_validation_workflows', 'hr_validation_workflow_steps', 'hr_validation_instances', 'hr_validation_actions'];
-    const status = {};
+    const tableStatus = {};
 
     for (const table of tables) {
       const result = await pool.query(
         `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)`,
         [table]
       );
-      status[table] = result.rows[0].exists;
+      tableStatus[table] = result.rows[0].exists;
     }
 
+    const allTablesExist = Object.values(tableStatus).every(v => v);
+
+    // Format compatible avec MigrationPanel
     res.json({
-      success: true,
-      migrated: Object.values(status).every(v => v),
-      tables: status
+      status: {
+        migrationNeeded: !allTablesExist,
+        applied: allTablesExist,
+        tables: tableStatus
+      },
+      message: allTablesExist
+        ? 'Migration applied - All HR validation workflow tables exist'
+        : 'Migration needed - Some HR validation workflow tables are missing'
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({
+      status: {
+        migrationNeeded: true,
+        applied: false,
+        error: error.message
+      },
+      message: `Error checking status: ${error.message}`
+    });
   } finally {
     await pool.end();
   }
