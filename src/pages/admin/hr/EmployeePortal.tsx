@@ -1,7 +1,6 @@
-// @ts-nocheck
 /**
- * Portail Employé RH (EmployeePortal)
- * Interface employé pour le pointage, les demandes et la consultation des données personnelles
+ * Portail Employe RH (EmployeePortal)
+ * Interface employe pour le pointage, les demandes et la consultation des donnees personnelles
  */
 
 import { useState } from 'react';
@@ -30,16 +29,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import {
   Clock,
-  Calendar,
   FileText,
   Plus,
   LogIn,
   LogOut,
   Download,
-  Upload,
-  Search,
-  Filter,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import {
+  useEmployeeAttendance,
+  useEmployeeRequests,
+  useTodayClocking,
+  useCreateRequest,
+  useCheckIn,
+  useCheckOut,
+} from '@/hooks/useEmployeePortal';
 
 // Tabs
 type TabType = 'pointage' | 'demandes';
@@ -50,75 +57,25 @@ const TABS: { id: TabType; label: string; icon: React.ElementType }[] = [
 ];
 
 const TYPES_DEMANDES = [
-  { value: 'conge_annuel', label: 'Congé annuel' },
-  { value: 'conge_sans_solde', label: 'Congé sans solde' },
-  { value: 'conge_maladie', label: 'Congé maladie' },
+  { value: 'conge_annuel', label: 'Conge annuel' },
+  { value: 'conge_sans_solde', label: 'Conge sans solde' },
+  { value: 'conge_maladie', label: 'Conge maladie' },
   { value: 'correction_pointage', label: 'Correction de pointage' },
   { value: 'demande_administrative', label: 'Demande administrative' },
   { value: 'demande_formation', label: 'Demande de formation' },
 ];
 
-interface Pointage {
-  id: string;
-  date: string;
-  entree: string;
-  sortie: string;
-  heures_travaillees: number;
-  retard: number;
-  statut: 'present' | 'absent' | 'conge' | 'ferie';
-}
-
-interface DemandeRH {
-  id: string;
-  type: string;
-  date_soumission: string;
-  date_debut?: string;
-  date_fin?: string;
-  description: string;
-  statut: 'en_attente' | 'approuve' | 'refuse';
-  commentaire_valideur?: string;
-}
-
 const MOIS = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+  'Janvier', 'Fevrier', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Decembre'
 ];
 
 export default function EmployeePortal() {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<TabType>('pointage');
-  const [selectedYear, setSelectedYear] = useState('2025');
-  const [selectedMonth, setSelectedMonth] = useState('11');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString());
   const [showNewDemandeModal, setShowNewDemandeModal] = useState(false);
-
-  // Mock data
-  const [pointages] = useState<Pointage[]>([
-    { id: '1', date: '2025-11-28', entree: '08:15', sortie: '17:30', heures_travaillees: 8.25, retard: 15, statut: 'present' },
-    { id: '2', date: '2025-11-27', entree: '08:00', sortie: '17:00', heures_travaillees: 8, retard: 0, statut: 'present' },
-    { id: '3', date: '2025-11-26', entree: '08:05', sortie: '17:15', heures_travaillees: 8.17, retard: 5, statut: 'present' },
-    { id: '4', date: '2025-11-25', entree: '-', sortie: '-', heures_travaillees: 0, retard: 0, statut: 'conge' },
-    { id: '5', date: '2025-11-24', entree: '-', sortie: '-', heures_travaillees: 0, retard: 0, statut: 'ferie' },
-  ]);
-
-  const [demandes] = useState<DemandeRH[]>([
-    {
-      id: '1',
-      type: 'conge_annuel',
-      date_soumission: '2025-11-20',
-      date_debut: '2025-12-20',
-      date_fin: '2025-12-31',
-      description: 'Congé de fin d\'année',
-      statut: 'en_attente',
-    },
-    {
-      id: '2',
-      type: 'correction_pointage',
-      date_soumission: '2025-11-15',
-      description: 'Correction sortie du 14/11 - Oubli de pointage',
-      statut: 'approuve',
-      commentaire_valideur: 'Corrigé à 17:30',
-    },
-  ]);
-
   const [newDemande, setNewDemande] = useState({
     type: '',
     date_debut: '',
@@ -126,22 +83,100 @@ export default function EmployeePortal() {
     description: '',
   });
 
-  const totalHeures = pointages
-    .filter(p => p.statut === 'present')
-    .reduce((acc, p) => acc + p.heures_travaillees, 0);
+  // Queries
+  const { data: todayData, isLoading: loadingToday } = useTodayClocking();
+  const { data: attendanceData, isLoading: loadingAttendance } = useEmployeeAttendance(
+    parseInt(selectedYear),
+    parseInt(selectedMonth)
+  );
+  const { data: requestsData, isLoading: loadingRequests } = useEmployeeRequests();
 
-  const totalRetards = pointages
-    .filter(p => p.statut === 'present')
-    .reduce((acc, p) => acc + p.retard, 0);
+  // Mutations
+  const checkInMutation = useCheckIn();
+  const checkOutMutation = useCheckOut();
+  const createRequestMutation = useCreateRequest();
 
-  const handleSubmitDemande = () => {
+  const handleCheckIn = async () => {
+    try {
+      await checkInMutation.mutateAsync();
+      toast({
+        title: 'Entree enregistree',
+        description: 'Votre pointage d\'entree a ete enregistre avec succes.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erreur',
+        description: error.response?.data?.error || 'Erreur lors du pointage',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCheckOut = async () => {
+    try {
+      const result = await checkOutMutation.mutateAsync();
+      const minutes = result.worked_minutes_today || 0;
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      toast({
+        title: 'Sortie enregistree',
+        description: `Votre pointage de sortie a ete enregistre. Temps travaille: ${hours}h${mins.toString().padStart(2, '0')}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erreur',
+        description: error.response?.data?.error || 'Erreur lors du pointage',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSubmitDemande = async () => {
     if (!newDemande.type || !newDemande.description) {
-      alert('Veuillez remplir tous les champs obligatoires');
+      toast({
+        title: 'Champs requis',
+        description: 'Veuillez remplir tous les champs obligatoires',
+        variant: 'destructive',
+      });
       return;
     }
-    // TODO: API call
-    setShowNewDemandeModal(false);
-    setNewDemande({ type: '', date_debut: '', date_fin: '', description: '' });
+
+    try {
+      await createRequestMutation.mutateAsync({
+        type: newDemande.type,
+        start_date: newDemande.date_debut || undefined,
+        end_date: newDemande.date_fin || undefined,
+        description: newDemande.description,
+      });
+      toast({
+        title: 'Demande soumise',
+        description: 'Votre demande a ete soumise avec succes.',
+      });
+      setShowNewDemandeModal(false);
+      setNewDemande({ type: '', date_debut: '', date_fin: '', description: '' });
+    } catch (error: any) {
+      toast({
+        title: 'Erreur',
+        description: error.response?.data?.error || 'Erreur lors de la soumission',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+      case 'en_attente':
+        return <Badge className="bg-yellow-100 text-yellow-800">En attente</Badge>;
+      case 'approved':
+      case 'approuve':
+        return <Badge className="bg-green-100 text-green-800">Approuve</Badge>;
+      case 'rejected':
+      case 'refuse':
+        return <Badge className="bg-red-100 text-red-800">Refuse</Badge>;
+      default:
+        return <Badge className="bg-gray-100 text-gray-800">{status}</Badge>;
+    }
   };
 
   const renderTabContent = () => {
@@ -150,36 +185,68 @@ export default function EmployeePortal() {
         return (
           <div className="space-y-6">
             {/* Actions rapides */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card className="bg-green-50 border-green-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium text-green-800">Pointer mon entrée</h3>
-                      <p className="text-sm text-green-600">Enregistrer votre arrivée</p>
+            {todayData?.requires_clocking !== false && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card className="bg-green-50 border-green-200">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium text-green-800">Pointer mon entree</h3>
+                        <p className="text-sm text-green-600">Enregistrer votre arrivee</p>
+                        {todayData?.today?.last_action?.status === 'check_in' && (
+                          <p className="text-xs text-green-500 mt-1">
+                            Derniere entree: {new Date(todayData.today.last_action.clock_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={handleCheckIn}
+                        disabled={checkInMutation.isPending || !todayData?.today?.can_check_in}
+                      >
+                        {checkInMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <LogIn className="h-4 w-4 mr-2" />
+                            Entree
+                          </>
+                        )}
+                      </Button>
                     </div>
-                    <Button className="bg-green-600 hover:bg-green-700">
-                      <LogIn className="h-4 w-4 mr-2" />
-                      Entrée
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="bg-orange-50 border-orange-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium text-orange-800">Pointer ma sortie</h3>
-                      <p className="text-sm text-orange-600">Enregistrer votre départ</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-orange-50 border-orange-200">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium text-orange-800">Pointer ma sortie</h3>
+                        <p className="text-sm text-orange-600">Enregistrer votre depart</p>
+                        {todayData?.today?.worked_minutes != null && todayData.today.worked_minutes > 0 && (
+                          <p className="text-xs text-orange-500 mt-1">
+                            Temps: {Math.floor(todayData.today.worked_minutes / 60)}h{(todayData.today.worked_minutes % 60).toString().padStart(2, '0')}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        className="bg-orange-600 hover:bg-orange-700"
+                        onClick={handleCheckOut}
+                        disabled={checkOutMutation.isPending || !todayData?.today?.can_check_out}
+                      >
+                        {checkOutMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <LogOut className="h-4 w-4 mr-2" />
+                            Sortie
+                          </>
+                        )}
+                      </Button>
                     </div>
-                    <Button className="bg-orange-600 hover:bg-orange-700">
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Sortie
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* Stats */}
             <div className="grid gap-4 md:grid-cols-4">
@@ -190,18 +257,20 @@ export default function EmployeePortal() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{totalHeures.toFixed(1)}h</div>
+                  <div className="text-2xl font-bold">
+                    {loadingAttendance ? '-' : `${attendanceData?.stats?.total_hours || 0}h`}
+                  </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-gray-500">
-                    Jours travaillés
+                    Jours travailles
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {pointages.filter(p => p.statut === 'present').length}
+                    {loadingAttendance ? '-' : attendanceData?.stats?.present_days || 0}
                   </div>
                 </CardContent>
               </Card>
@@ -212,18 +281,20 @@ export default function EmployeePortal() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">{totalRetards} min</div>
+                  <div className="text-2xl font-bold text-orange-600">
+                    {loadingAttendance ? '-' : `${attendanceData?.stats?.late_minutes || 0} min`}
+                  </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-gray-500">
-                    Congés pris
+                    Conges pris
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-blue-600">
-                    {pointages.filter(p => p.statut === 'conge').length}
+                    {loadingAttendance ? '-' : attendanceData?.stats?.leave_days || 0}
                   </div>
                 </CardContent>
               </Card>
@@ -265,49 +336,53 @@ export default function EmployeePortal() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Entrée</TableHead>
-                      <TableHead>Sortie</TableHead>
-                      <TableHead>Heures</TableHead>
-                      <TableHead>Retard</TableHead>
-                      <TableHead>Statut</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pointages.map(pointage => (
-                      <TableRow key={pointage.id}>
-                        <TableCell className="font-medium">{pointage.date}</TableCell>
-                        <TableCell>{pointage.entree}</TableCell>
-                        <TableCell>{pointage.sortie}</TableCell>
-                        <TableCell>
-                          {pointage.heures_travaillees > 0 ? `${pointage.heures_travaillees}h` : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {pointage.retard > 0 ? (
-                            <span className="text-orange-600">{pointage.retard} min</span>
-                          ) : (
-                            <span className="text-green-600">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={
-                            pointage.statut === 'present' ? 'bg-green-100 text-green-800' :
-                            pointage.statut === 'conge' ? 'bg-blue-100 text-blue-800' :
-                            pointage.statut === 'ferie' ? 'bg-purple-100 text-purple-800' :
-                            'bg-red-100 text-red-800'
-                          }>
-                            {pointage.statut === 'present' ? 'Présent' :
-                             pointage.statut === 'conge' ? 'Congé' :
-                             pointage.statut === 'ferie' ? 'Férié' : 'Absent'}
-                          </Badge>
-                        </TableCell>
+                {loadingAttendance ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Entree</TableHead>
+                        <TableHead>Sortie</TableHead>
+                        <TableHead>Statut</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {attendanceData?.records?.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                            Aucun pointage pour cette periode
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        attendanceData?.records?.map((record, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="font-medium">
+                              {new Date(record.date).toLocaleDateString('fr-FR')}
+                            </TableCell>
+                            <TableCell>{record.check_in}</TableCell>
+                            <TableCell>{record.check_out}</TableCell>
+                            <TableCell>
+                              <Badge className={
+                                record.status === 'present' ? 'bg-green-100 text-green-800' :
+                                record.status === 'leave' ? 'bg-blue-100 text-blue-800' :
+                                record.status === 'holiday' ? 'bg-purple-100 text-purple-800' :
+                                'bg-red-100 text-red-800'
+                              }>
+                                {record.status === 'present' ? 'Present' :
+                                 record.status === 'leave' ? 'Conge' :
+                                 record.status === 'holiday' ? 'Ferie' : 'Absent'}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -327,55 +402,52 @@ export default function EmployeePortal() {
               </Button>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Date soumission</TableHead>
-                    <TableHead>Période</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Commentaire</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {demandes.length === 0 ? (
+              {loadingRequests ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                        Aucune demande
-                      </TableCell>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Date soumission</TableHead>
+                      <TableHead>Periode</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Statut</TableHead>
                     </TableRow>
-                  ) : (
-                    demandes.map(demande => (
-                      <TableRow key={demande.id}>
-                        <TableCell className="font-medium">
-                          {TYPES_DEMANDES.find(t => t.value === demande.type)?.label || demande.type}
-                        </TableCell>
-                        <TableCell>{demande.date_soumission}</TableCell>
-                        <TableCell>
-                          {demande.date_debut && demande.date_fin
-                            ? `${demande.date_debut} → ${demande.date_fin}`
-                            : '-'}
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate">{demande.description}</TableCell>
-                        <TableCell>
-                          <Badge className={
-                            demande.statut === 'en_attente' ? 'bg-yellow-100 text-yellow-800' :
-                            demande.statut === 'approuve' ? 'bg-green-100 text-green-800' :
-                            'bg-red-100 text-red-800'
-                          }>
-                            {demande.statut === 'en_attente' ? 'En attente' :
-                             demande.statut === 'approuve' ? 'Approuvé' : 'Refusé'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-gray-500">
-                          {demande.commentaire_valideur || '-'}
+                  </TableHeader>
+                  <TableBody>
+                    {requestsData?.requests?.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                          Aucune demande
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      requestsData?.requests?.map(demande => (
+                        <TableRow key={`${demande.request_type}-${demande.id}`}>
+                          <TableCell className="font-medium">
+                            {demande.type_name}
+                          </TableCell>
+                          <TableCell>
+                            {new Date(demande.date_soumission).toLocaleDateString('fr-FR')}
+                          </TableCell>
+                          <TableCell>
+                            {demande.start_date && demande.end_date && demande.start_date !== demande.end_date
+                              ? `${new Date(demande.start_date).toLocaleDateString('fr-FR')} - ${new Date(demande.end_date).toLocaleDateString('fr-FR')}`
+                              : demande.start_date
+                              ? new Date(demande.start_date).toLocaleDateString('fr-FR')
+                              : '-'}
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">{demande.description}</TableCell>
+                          <TableCell>{getStatusBadge(demande.status)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         );
@@ -389,10 +461,10 @@ export default function EmployeePortal() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
             <Clock className="h-8 w-8 text-blue-600" />
-            Portail Employé RH
+            Portail Employe RH
           </h1>
           <p className="text-gray-500 mt-1">
-            Gérez votre pointage et vos demandes RH
+            Gerez votre pointage et vos demandes RH
           </p>
         </div>
 
@@ -437,7 +509,7 @@ export default function EmployeePortal() {
                   onValueChange={v => setNewDemande({ ...newDemande, type: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez le type" />
+                    <SelectValue placeholder="Selectionnez le type" />
                   </SelectTrigger>
                   <SelectContent>
                     {TYPES_DEMANDES.map(type => (
@@ -452,7 +524,7 @@ export default function EmployeePortal() {
               {['conge_annuel', 'conge_sans_solde', 'conge_maladie'].includes(newDemande.type) && (
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Date début</Label>
+                    <Label>Date debut</Label>
                     <Input
                       type="date"
                       value={newDemande.date_debut}
@@ -475,7 +547,7 @@ export default function EmployeePortal() {
                 <Textarea
                   value={newDemande.description}
                   onChange={e => setNewDemande({ ...newDemande, description: e.target.value })}
-                  placeholder="Décrivez votre demande..."
+                  placeholder="Decrivez votre demande..."
                   rows={4}
                 />
               </div>
@@ -485,7 +557,13 @@ export default function EmployeePortal() {
               <Button variant="outline" onClick={() => setShowNewDemandeModal(false)}>
                 Annuler
               </Button>
-              <Button onClick={handleSubmitDemande}>
+              <Button
+                onClick={handleSubmitDemande}
+                disabled={createRequestMutation.isPending}
+              >
+                {createRequestMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
                 Soumettre
               </Button>
             </DialogFooter>

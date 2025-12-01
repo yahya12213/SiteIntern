@@ -2,9 +2,10 @@
 /**
  * Boucles de Validation (ValidationWorkflows)
  * Système de création et gestion des circuits d'approbation automatiques pour les demandes RH
+ * Connecté à l'API backend
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ import {
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 import {
   GitBranch,
   Plus,
@@ -38,57 +40,39 @@ import {
   ArrowUp,
   ArrowDown,
   Users,
-  UserCheck,
+  Loader2,
+  AlertCircle,
+  X,
 } from 'lucide-react';
 
-// Types de déclencheurs supportés
-const TRIGGER_TYPES = [
-  { value: 'demande_conge', label: 'Demande de congé' },
-  { value: 'demande_administrative', label: 'Demande administrative' },
-  { value: 'correction_pointage', label: 'Correction de pointage' },
-  { value: 'note_frais', label: 'Note de frais' },
-  { value: 'demande_formation', label: 'Demande de formation' },
-  { value: 'recrutement', label: 'Processus de recrutement' },
-];
+// Hooks
+import {
+  useValidationWorkflows,
+  useCreateWorkflow,
+  useUpdateWorkflow,
+  useToggleWorkflow,
+  useDeleteWorkflow,
+  useAddStep,
+  useDeleteStep,
+  useMoveStep,
+  useWorkflowStats,
+} from '@/hooks/useValidationWorkflows';
 
-interface ValidationStep {
-  id: string;
-  ordre: number;
-  validateur_type: 'user' | 'role';
-  validateur_id: string;
-  validateur_nom: string;
-  condition?: string;
-}
-
-interface ValidationWorkflow {
-  id: string;
-  nom: string;
-  description: string;
-  declencheur: string;
-  segment_id?: string;
-  actif: boolean;
-  etapes: ValidationStep[];
-  created_at: string;
-}
+// Types & Constants
+import {
+  TRIGGER_TYPES,
+  APPROVER_TYPES,
+  type ValidationWorkflow,
+  type ValidationStep,
+} from '@/lib/api/validation-workflows';
 
 export default function ValidationWorkflows() {
-  const [workflows, setWorkflows] = useState<ValidationWorkflow[]>([
-    {
-      id: '1',
-      nom: 'Approbation Congés Standard',
-      description: 'Circuit standard pour les demandes de congés',
-      declencheur: 'demande_conge',
-      actif: true,
-      etapes: [
-        { id: '1', ordre: 1, validateur_type: 'role', validateur_id: 'manager', validateur_nom: 'Manager direct' },
-        { id: '2', ordre: 2, validateur_type: 'role', validateur_id: 'rh', validateur_nom: 'Responsable RH' },
-      ],
-      created_at: '2025-01-15',
-    },
-  ]);
-
+  // State
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showStepsModal, setShowStepsModal] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<ValidationWorkflow | null>(null);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<ValidationWorkflow | null>(null);
+
   const [formData, setFormData] = useState({
     nom: '',
     description: '',
@@ -96,6 +80,41 @@ export default function ValidationWorkflows() {
     segment_id: '',
   });
 
+  const [stepForm, setStepForm] = useState({
+    validateur_type: 'manager' as 'user' | 'role' | 'manager' | 'hr',
+    validateur_nom: '',
+    validateur_role: '',
+    timeout_hours: 48,
+  });
+
+  // Queries
+  const { data: workflowsData, isLoading, error } = useValidationWorkflows();
+  const { data: statsData } = useWorkflowStats();
+
+  // Mutations
+  const createWorkflow = useCreateWorkflow();
+  const updateWorkflow = useUpdateWorkflow();
+  const toggleWorkflow = useToggleWorkflow();
+  const deleteWorkflow = useDeleteWorkflow();
+  const addStep = useAddStep();
+  const deleteStep = useDeleteStep();
+  const moveStep = useMoveStep();
+
+  // Data
+  const workflows = workflowsData?.workflows || [];
+  const stats = statsData?.stats || { total: 0, active: 0, inactive: 0, trigger_types: 0 };
+
+  // Update selectedWorkflow when workflows change
+  useEffect(() => {
+    if (selectedWorkflow) {
+      const updated = workflows.find(w => w.id === selectedWorkflow.id);
+      if (updated) {
+        setSelectedWorkflow(updated);
+      }
+    }
+  }, [workflows]);
+
+  // Handlers
   const handleCreate = () => {
     setFormData({ nom: '', description: '', declencheur: '', segment_id: '' });
     setEditingWorkflow(null);
@@ -105,7 +124,7 @@ export default function ValidationWorkflows() {
   const handleEdit = (workflow: ValidationWorkflow) => {
     setFormData({
       nom: workflow.nom,
-      description: workflow.description,
+      description: workflow.description || '',
       declencheur: workflow.declencheur,
       segment_id: workflow.segment_id || '',
     });
@@ -113,41 +132,116 @@ export default function ValidationWorkflows() {
     setShowCreateModal(true);
   };
 
-  const handleToggleActive = (id: string) => {
-    setWorkflows(prev =>
-      prev.map(w => w.id === id ? { ...w, actif: !w.actif } : w)
-    );
+  const handleManageSteps = (workflow: ValidationWorkflow) => {
+    setSelectedWorkflow(workflow);
+    setShowStepsModal(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cette boucle de validation ?')) {
-      setWorkflows(prev => prev.filter(w => w.id !== id));
+  const handleToggleActive = async (id: string) => {
+    try {
+      const result = await toggleWorkflow.mutateAsync(id);
+      toast.success(result.message);
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur');
     }
   };
 
-  const handleSave = () => {
+  const handleDelete = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette boucle de validation ?')) return;
+    try {
+      await deleteWorkflow.mutateAsync(id);
+      toast.success('Workflow supprimé');
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la suppression');
+    }
+  };
+
+  const handleSave = async () => {
     if (!formData.nom || !formData.declencheur) {
-      alert('Veuillez remplir tous les champs obligatoires');
+      toast.error('Veuillez remplir tous les champs obligatoires');
       return;
     }
 
-    if (editingWorkflow) {
-      setWorkflows(prev =>
-        prev.map(w => w.id === editingWorkflow.id ? { ...w, ...formData } : w)
-      );
-    } else {
-      const newWorkflow: ValidationWorkflow = {
-        id: Date.now().toString(),
-        ...formData,
-        actif: false,
-        etapes: [],
-        created_at: new Date().toISOString().split('T')[0],
-      };
-      setWorkflows(prev => [...prev, newWorkflow]);
+    try {
+      if (editingWorkflow) {
+        await updateWorkflow.mutateAsync({ id: editingWorkflow.id, data: formData });
+        toast.success('Workflow mis à jour');
+      } else {
+        await createWorkflow.mutateAsync(formData);
+        toast.success('Workflow créé');
+      }
+      setShowCreateModal(false);
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur');
+    }
+  };
+
+  const handleAddStep = async () => {
+    if (!selectedWorkflow || !stepForm.validateur_nom) {
+      toast.error('Veuillez saisir un nom pour le validateur');
+      return;
     }
 
-    setShowCreateModal(false);
+    try {
+      await addStep.mutateAsync({
+        workflowId: selectedWorkflow.id,
+        data: {
+          validateur_type: stepForm.validateur_type,
+          validateur_nom: stepForm.validateur_nom,
+          validateur_role: stepForm.validateur_role,
+          timeout_hours: stepForm.timeout_hours,
+        }
+      });
+      toast.success('Étape ajoutée');
+      setStepForm({ validateur_type: 'manager', validateur_nom: '', validateur_role: '', timeout_hours: 48 });
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur');
+    }
   };
+
+  const handleDeleteStep = async (stepId: string) => {
+    if (!selectedWorkflow) return;
+    if (!confirm('Supprimer cette étape ?')) return;
+    try {
+      await deleteStep.mutateAsync({ workflowId: selectedWorkflow.id, stepId });
+      toast.success('Étape supprimée');
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur');
+    }
+  };
+
+  const handleMoveStep = async (stepId: string, direction: 'up' | 'down') => {
+    if (!selectedWorkflow) return;
+    try {
+      await moveStep.mutateAsync({ workflowId: selectedWorkflow.id, stepId, direction });
+      toast.success('Étape déplacée');
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur');
+    }
+  };
+
+  // Loading/Error states
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="p-6 flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          <span className="ml-2 text-gray-500">Chargement...</span>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="p-6 flex items-center justify-center min-h-[400px]">
+          <AlertCircle className="h-8 w-8 text-red-500" />
+          <span className="ml-2 text-red-500">Erreur de chargement. Veuillez exécuter la migration 051.</span>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -176,7 +270,7 @@ export default function ValidationWorkflows() {
               <CardTitle className="text-sm font-medium text-gray-500">Total</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{workflows.length}</div>
+              <div className="text-2xl font-bold">{stats.total}</div>
             </CardContent>
           </Card>
           <Card>
@@ -184,9 +278,7 @@ export default function ValidationWorkflows() {
               <CardTitle className="text-sm font-medium text-gray-500">Actives</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {workflows.filter(w => w.actif).length}
-              </div>
+              <div className="text-2xl font-bold text-green-600">{stats.active}</div>
             </CardContent>
           </Card>
           <Card>
@@ -194,9 +286,7 @@ export default function ValidationWorkflows() {
               <CardTitle className="text-sm font-medium text-gray-500">Inactives</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-400">
-                {workflows.filter(w => !w.actif).length}
-              </div>
+              <div className="text-2xl font-bold text-gray-400">{stats.inactive}</div>
             </CardContent>
           </Card>
           <Card>
@@ -204,9 +294,7 @@ export default function ValidationWorkflows() {
               <CardTitle className="text-sm font-medium text-gray-500">Types de déclencheurs</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
-                {new Set(workflows.map(w => w.declencheur)).size}
-              </div>
+              <div className="text-2xl font-bold text-blue-600">{stats.trigger_types}</div>
             </CardContent>
           </Card>
         </div>
@@ -232,7 +320,7 @@ export default function ValidationWorkflows() {
                 {workflows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                      Aucune boucle de validation configurée
+                      Aucune boucle de validation configurée. Cliquez sur "Nouvelle boucle" pour créer.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -250,10 +338,15 @@ export default function ValidationWorkflows() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex items-center gap-1"
+                          onClick={() => handleManageSteps(workflow)}
+                        >
                           <Users className="h-4 w-4 text-gray-400" />
-                          <span>{workflow.etapes.length} étape(s)</span>
-                        </div>
+                          <span>{workflow.etapes?.length || workflow.etapes_count || 0} étape(s)</span>
+                        </Button>
                       </TableCell>
                       <TableCell>
                         {workflow.actif ? (
@@ -262,7 +355,9 @@ export default function ValidationWorkflows() {
                           <Badge variant="outline" className="text-gray-500">Inactif</Badge>
                         )}
                       </TableCell>
-                      <TableCell>{workflow.created_at}</TableCell>
+                      <TableCell>
+                        {new Date(workflow.created_at).toLocaleDateString('fr-FR')}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Button
@@ -270,6 +365,7 @@ export default function ValidationWorkflows() {
                             size="sm"
                             onClick={() => handleToggleActive(workflow.id)}
                             title={workflow.actif ? 'Désactiver' : 'Activer'}
+                            disabled={toggleWorkflow.isPending}
                           >
                             {workflow.actif ? (
                               <Pause className="h-4 w-4 text-orange-500" />
@@ -280,7 +376,12 @@ export default function ValidationWorkflows() {
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(workflow)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(workflow.id)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(workflow.id)}
+                            disabled={deleteWorkflow.isPending}
+                          >
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         </div>
@@ -340,31 +441,138 @@ export default function ValidationWorkflows() {
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-2">
-                <Label>Segment (optionnel)</Label>
-                <Select
-                  value={formData.segment_id}
-                  onValueChange={v => setFormData({ ...formData, segment_id: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Tous les segments" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Tous les segments</SelectItem>
-                    <SelectItem value="segment-1">Segment 1</SelectItem>
-                    <SelectItem value="segment-2">Segment 2</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowCreateModal(false)}>
                 Annuler
               </Button>
-              <Button onClick={handleSave}>
+              <Button
+                onClick={handleSave}
+                disabled={createWorkflow.isPending || updateWorkflow.isPending}
+              >
+                {(createWorkflow.isPending || updateWorkflow.isPending) && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
                 {editingWorkflow ? 'Enregistrer' : 'Créer'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Steps Management Modal */}
+        <Dialog open={showStepsModal} onOpenChange={setShowStepsModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                Gérer les étapes - {selectedWorkflow?.nom}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-6 py-4">
+              {/* Current Steps */}
+              <div>
+                <h3 className="font-medium mb-3">Étapes actuelles</h3>
+                {selectedWorkflow?.etapes && selectedWorkflow.etapes.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedWorkflow.etapes.map((step, index) => (
+                      <div
+                        key={step.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-medium">
+                            {step.ordre || index + 1}
+                          </div>
+                          <div>
+                            <div className="font-medium">{step.validateur_nom}</div>
+                            <div className="text-sm text-gray-500">
+                              {APPROVER_TYPES.find(t => t.value === step.validateur_type)?.label || step.validateur_type}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMoveStep(step.id, 'up')}
+                            disabled={index === 0 || moveStep.isPending}
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMoveStep(step.id, 'down')}
+                            disabled={index === selectedWorkflow.etapes.length - 1 || moveStep.isPending}
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteStep(step.id)}
+                            disabled={deleteStep.isPending}
+                          >
+                            <X className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500 bg-gray-50 rounded-lg">
+                    Aucune étape configurée
+                  </div>
+                )}
+              </div>
+
+              {/* Add Step Form */}
+              <div className="border-t pt-4">
+                <h3 className="font-medium mb-3">Ajouter une étape</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Type de validateur</Label>
+                    <Select
+                      value={stepForm.validateur_type}
+                      onValueChange={(v: any) => setStepForm({ ...stepForm, validateur_type: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {APPROVER_TYPES.map(type => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Nom du validateur</Label>
+                    <Input
+                      value={stepForm.validateur_nom}
+                      onChange={e => setStepForm({ ...stepForm, validateur_nom: e.target.value })}
+                      placeholder="Ex: Manager direct"
+                    />
+                  </div>
+                </div>
+                <Button
+                  className="mt-4"
+                  onClick={handleAddStep}
+                  disabled={addStep.isPending}
+                >
+                  {addStep.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter l'étape
+                </Button>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowStepsModal(false)}>
+                Fermer
               </Button>
             </DialogFooter>
           </DialogContent>
