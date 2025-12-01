@@ -124,18 +124,22 @@ router.get('/status', async (req, res) => {
       AND table_name IN ('projects', 'project_actions')
     `);
 
-    const permissionsResult = await pool.query(`
-      SELECT code FROM permissions
-      WHERE code LIKE 'accounting.projects.%' OR code LIKE 'accounting.actions.%'
-    `);
+    const allTablesExist = tablesResult.rows.length === 2;
 
     res.json({
+      migrationNeeded: !allTablesExist,
+      applied: allTablesExist,
       tables: tablesResult.rows.map(r => r.table_name),
-      permissions: permissionsResult.rows.map(r => r.code),
-      migrationComplete: tablesResult.rows.length === 2
+      message: allTablesExist
+        ? 'Migration Projects already applied - tables exist'
+        : 'Migration needed - projects or project_actions table missing'
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      error: error.message,
+      migrationNeeded: true,
+      applied: false
+    });
   }
 });
 
