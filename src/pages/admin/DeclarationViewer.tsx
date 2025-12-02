@@ -474,10 +474,10 @@ const DeclarationViewer: React.FC = () => {
             left: `${layout.x}px`,
             top: `${layout.y}px`,
             width: `${layout.w}px`,
-            height: `${layout.h}px`,
+            minHeight: `${layout.h}px`,
           }}
         >
-          <div className={getAdminOnlyClasses("w-full h-full border-2 border-dashed border-teal-300 bg-teal-50/50 rounded px-3 py-2 overflow-auto")}>
+          <div className={getAdminOnlyClasses("w-full min-h-full border-2 border-dashed border-teal-300 bg-teal-50/50 rounded px-3 py-2 overflow-auto")}>
             <div className="flex items-center justify-between gap-2 mb-2">
               <div className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-teal-600" />
@@ -577,10 +577,10 @@ const DeclarationViewer: React.FC = () => {
             left: `${layout.x}px`,
             top: `${layout.y}px`,
             width: `${layout.w}px`,
-            height: `${layout.h}px`,
+            minHeight: `${layout.h}px`,
           }}
         >
-          <div className={getAdminOnlyClasses("w-full h-full border-2 border-cyan-400 bg-cyan-50 rounded px-3 py-2 flex flex-col gap-2")}>
+          <div className={getAdminOnlyClasses("w-full min-h-full border-2 border-cyan-400 bg-cyan-50 rounded px-3 py-2 flex flex-col gap-2")}>
             <div className="flex items-center gap-2">
               <Link className="w-5 h-5 text-cyan-600 flex-shrink-0" />
               <span className="text-xs font-medium text-cyan-700">
