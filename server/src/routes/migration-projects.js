@@ -69,27 +69,27 @@ router.post('/run', async (req, res) => {
     `);
     console.log('✅ Indexes created');
 
-    // Add permissions to the database
+    // Add permissions to the database (using correct column names: label, menu, action)
     const permissions = [
       // Projects permissions
-      { code: 'accounting.projects.view_page', name: 'Voir Projets', description: 'Voir la page Gestion de Projet', module: 'accounting' },
-      { code: 'accounting.projects.create', name: 'Créer Projets', description: 'Créer des projets', module: 'accounting' },
-      { code: 'accounting.projects.update', name: 'Modifier Projets', description: 'Modifier des projets', module: 'accounting' },
-      { code: 'accounting.projects.delete', name: 'Supprimer Projets', description: 'Supprimer des projets', module: 'accounting' },
-      { code: 'accounting.projects.export', name: 'Exporter Projets', description: 'Exporter les projets', module: 'accounting' },
+      { code: 'accounting.projects.view_page', label: 'Voir Projets', description: 'Voir la page Gestion de Projet', module: 'accounting', menu: 'projects', action: 'view_page' },
+      { code: 'accounting.projects.create', label: 'Créer Projets', description: 'Créer des projets', module: 'accounting', menu: 'projects', action: 'create' },
+      { code: 'accounting.projects.update', label: 'Modifier Projets', description: 'Modifier des projets', module: 'accounting', menu: 'projects', action: 'update' },
+      { code: 'accounting.projects.delete', label: 'Supprimer Projets', description: 'Supprimer des projets', module: 'accounting', menu: 'projects', action: 'delete' },
+      { code: 'accounting.projects.export', label: 'Exporter Projets', description: 'Exporter les projets', module: 'accounting', menu: 'projects', action: 'export' },
       // Actions permissions
-      { code: 'accounting.actions.view_page', name: 'Voir Actions', description: 'Voir les actions du plan', module: 'accounting' },
-      { code: 'accounting.actions.create', name: 'Créer Actions', description: 'Créer des actions', module: 'accounting' },
-      { code: 'accounting.actions.update', name: 'Modifier Actions', description: 'Modifier des actions', module: 'accounting' },
-      { code: 'accounting.actions.delete', name: 'Supprimer Actions', description: 'Supprimer des actions', module: 'accounting' },
+      { code: 'accounting.actions.view_page', label: 'Voir Actions', description: 'Voir les actions du plan', module: 'accounting', menu: 'actions', action: 'view_page' },
+      { code: 'accounting.actions.create', label: 'Créer Actions', description: 'Créer des actions', module: 'accounting', menu: 'actions', action: 'create' },
+      { code: 'accounting.actions.update', label: 'Modifier Actions', description: 'Modifier des actions', module: 'accounting', menu: 'actions', action: 'update' },
+      { code: 'accounting.actions.delete', label: 'Supprimer Actions', description: 'Supprimer des actions', module: 'accounting', menu: 'actions', action: 'delete' },
     ];
 
     for (const perm of permissions) {
       await client.query(`
-        INSERT INTO permissions (code, name, description, module)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO permissions (code, label, description, module, menu, action)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (code) DO NOTHING
-      `, [perm.code, perm.name, perm.description, perm.module]);
+      `, [perm.code, perm.label, perm.description, perm.module, perm.menu, perm.action]);
     }
     console.log('✅ Permissions added');
 
@@ -126,19 +126,25 @@ router.get('/status', async (req, res) => {
 
     const allTablesExist = tablesResult.rows.length === 2;
 
+    // Format compatible avec MigrationPanel
     res.json({
-      migrationNeeded: !allTablesExist,
-      applied: allTablesExist,
-      tables: tablesResult.rows.map(r => r.table_name),
+      status: {
+        migrationNeeded: !allTablesExist,
+        applied: allTablesExist,
+        tables: tablesResult.rows.map(r => r.table_name)
+      },
       message: allTablesExist
         ? 'Migration Projects already applied - tables exist'
         : 'Migration needed - projects or project_actions table missing'
     });
   } catch (error) {
     res.status(500).json({
-      error: error.message,
-      migrationNeeded: true,
-      applied: false
+      status: {
+        migrationNeeded: true,
+        applied: false,
+        error: error.message
+      },
+      message: `Error checking status: ${error.message}`
     });
   }
 });
