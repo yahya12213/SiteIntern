@@ -185,11 +185,12 @@ router.post('/',
 );
 
 // PUT mettre à jour une déclaration
-// Permissions: update (admin), approve (pour validation), fill (professeurs)
+// Permissions: fill_data (remplir données), edit_metadata (modifier métadonnées), approve (validation), fill (professeurs)
 // SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur
 router.put('/:id',
   requirePermission(
-    'accounting.declarations.update',
+    'accounting.declarations.fill_data',
+    'accounting.declarations.edit_metadata',
     'accounting.declarations.approve',
     'accounting.professor.declarations.fill'
   ),
@@ -313,11 +314,11 @@ router.delete('/:id',
 // ==========================================
 
 // POST - Upload une pièce jointe pour une déclaration
-// Permission: update (pour ajouter des pièces jointes)
+// Permission: fill_data (pour ajouter des pièces jointes) ou fill (professeurs)
 // SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur
 router.post('/:id/attachments',
   requirePermission(
-    'accounting.declarations.update',
+    'accounting.declarations.fill_data',
     'accounting.professor.declarations.fill'
   ),
   injectUserScope,
@@ -420,11 +421,11 @@ router.get('/:id/attachments',
 );
 
 // DELETE - Supprimer une pièce jointe
-// Permission: update ou delete (pour supprimer des pièces jointes)
+// Permission: fill_data ou delete (pour supprimer des pièces jointes), fill (professeurs)
 // SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur
 router.delete('/:id/attachments/:attachmentId',
   requirePermission(
-    'accounting.declarations.update',
+    'accounting.declarations.fill_data',
     'accounting.declarations.delete',
     'accounting.professor.declarations.fill'
   ),
