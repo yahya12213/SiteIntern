@@ -1,7 +1,7 @@
 import express from 'express';
 import pool from '../config/database.js';
 import { requirePermission } from '../middleware/auth.js';
-import { injectUserScope, buildScopeFilter, requireRecordScope } from '../middleware/requireScope.js';
+import { injectUserScope, buildScopeFilter, requireRecordScope, requireRecordScopeOrOwner } from '../middleware/requireScope.js';
 import { uploadDeclarationAttachment, deleteFile } from '../middleware/upload.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -83,7 +83,7 @@ router.get('/',
 
 // GET une déclaration par ID
 // Permissions: view_page (admin/comptables), professor view (professeurs)
-// SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur
+// SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur OU que l'utilisateur est le propriétaire
 router.get('/:id',
   requirePermission(
     'accounting.declarations.view_page',
@@ -91,7 +91,7 @@ router.get('/:id',
     'accounting.professor.declarations.view_page'
   ),
   injectUserScope,
-  requireRecordScope('professor_declarations', 'id', 'segment_id', 'city_id'),
+  requireRecordScopeOrOwner('professor_declarations', 'id', 'professor_id', 'segment_id', 'city_id'),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -186,7 +186,7 @@ router.post('/',
 
 // PUT mettre à jour une déclaration
 // Permissions: fill_data (remplir données), edit_metadata (modifier métadonnées), approve (validation), fill (professeurs)
-// SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur
+// SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur OU que l'utilisateur est le propriétaire
 router.put('/:id',
   requirePermission(
     'accounting.declarations.fill_data',
@@ -195,7 +195,7 @@ router.put('/:id',
     'accounting.professor.declarations.fill'
   ),
   injectUserScope,
-  requireRecordScope('professor_declarations', 'id', 'segment_id', 'city_id'),
+  requireRecordScopeOrOwner('professor_declarations', 'id', 'professor_id', 'segment_id', 'city_id'),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -315,14 +315,14 @@ router.delete('/:id',
 
 // POST - Upload une pièce jointe pour une déclaration
 // Permission: fill_data (pour ajouter des pièces jointes) ou fill (professeurs)
-// SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur
+// SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur OU que l'utilisateur est le propriétaire
 router.post('/:id/attachments',
   requirePermission(
     'accounting.declarations.fill_data',
     'accounting.professor.declarations.fill'
   ),
   injectUserScope,
-  requireRecordScope('professor_declarations', 'id', 'segment_id', 'city_id'),
+  requireRecordScopeOrOwner('professor_declarations', 'id', 'professor_id', 'segment_id', 'city_id'),
   (req, res, next) => {
     uploadDeclarationAttachment(req, res, (err) => {
       if (err) {
@@ -389,7 +389,7 @@ router.post('/:id/attachments',
 
 // GET - Récupérer toutes les pièces jointes d'une déclaration
 // Permission: view_page (pour voir les pièces jointes)
-// SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur
+// SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur OU que l'utilisateur est le propriétaire
 router.get('/:id/attachments',
   requirePermission(
     'accounting.declarations.view_page',
@@ -397,7 +397,7 @@ router.get('/:id/attachments',
     'accounting.professor.declarations.view_page'
   ),
   injectUserScope,
-  requireRecordScope('professor_declarations', 'id', 'segment_id', 'city_id'),
+  requireRecordScopeOrOwner('professor_declarations', 'id', 'professor_id', 'segment_id', 'city_id'),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -422,7 +422,7 @@ router.get('/:id/attachments',
 
 // DELETE - Supprimer une pièce jointe
 // Permission: fill_data ou delete (pour supprimer des pièces jointes), fill (professeurs)
-// SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur
+// SCOPE: Vérifie que la déclaration est dans le segment/ville de l'utilisateur OU que l'utilisateur est le propriétaire
 router.delete('/:id/attachments/:attachmentId',
   requirePermission(
     'accounting.declarations.fill_data',
@@ -430,7 +430,7 @@ router.delete('/:id/attachments/:attachmentId',
     'accounting.professor.declarations.fill'
   ),
   injectUserScope,
-  requireRecordScope('professor_declarations', 'id', 'segment_id', 'city_id'),
+  requireRecordScopeOrOwner('professor_declarations', 'id', 'professor_id', 'segment_id', 'city_id'),
   async (req, res) => {
     try {
       const { id, attachmentId } = req.params;

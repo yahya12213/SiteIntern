@@ -481,8 +481,8 @@ const DeclarationsManagement: React.FC = () => {
                             </>
                           )}
 
-                          {/* Pour statuts en lecture seule: soumise, approuvee */}
-                          {(declaration.status === 'soumise' || declaration.status === 'approuvee') && accounting.canViewAllDeclarations && (
+                          {/* Bouton Ouvrir - Toujours visible pour Admin/Professeur */}
+                          {accounting.canViewAllDeclarations && (
                             <Button
                               variant="outline"
                               size="sm"

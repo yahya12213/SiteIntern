@@ -237,10 +237,88 @@ export const logScopeViolation = (userId, action, table, recordId, details = '')
   `);
 };
 
+/**
+ * Extended scope check that also allows access if user owns the record
+ * Specifically designed for professor_declarations where professors
+ * should be able to modify their own declarations regardless of scope
+ *
+ * @param {string} table - Table name (e.g., 'professor_declarations')
+ * @param {string} idParam - URL parameter name for record ID (default: 'id')
+ * @param {string} ownerColumn - Column that identifies ownership (default: 'professor_id')
+ * @param {string} segmentCol - Column name for segment FK (default: 'segment_id')
+ * @param {string} cityCol - Column name for city FK (default: 'city_id')
+ */
+export const requireRecordScopeOrOwner = (table, idParam = 'id', ownerColumn = 'professor_id', segmentCol = 'segment_id', cityCol = 'city_id') => {
+  return async (req, res, next) => {
+    const recordId = req.params[idParam];
+    const userScope = req.userScope;
+    const userId = req.user?.id;
+
+    if (!userScope) {
+      return res.status(500).json({
+        success: false,
+        error: 'Scope not injected. Use injectUserScope middleware first.',
+        code: 'SCOPE_NOT_INJECTED'
+      });
+    }
+
+    // Admin always has access
+    if (userScope.isAdmin) {
+      return next();
+    }
+
+    try {
+      // First check if user is the owner of the record
+      const ownerCheck = await pool.query(
+        `SELECT ${ownerColumn}, created_by FROM ${table} WHERE id = $1`,
+        [recordId]
+      );
+
+      if (ownerCheck.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Record not found',
+          code: 'NOT_FOUND'
+        });
+      }
+
+      const record = ownerCheck.rows[0];
+
+      // Allow access if user is the owner (professor_id matches) or creator (created_by matches)
+      if (record[ownerColumn] === userId || record.created_by === userId) {
+        console.log(`✅ Owner bypass: User ${userId} owns record ${recordId} in ${table}`);
+        return next();
+      }
+
+      // If not owner, fall back to scope check
+      const inScope = await verifyRecordInScope(table, recordId, segmentCol, cityCol, userScope);
+
+      if (!inScope) {
+        console.warn(`⚠️ Scope violation attempt: User ${userScope.userId} tried to access ${table}:${recordId} (not owner, outside scope)`);
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. You are not the owner of this record and it is outside your assigned scope.',
+          code: 'OUTSIDE_SCOPE'
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error('Scope/owner verification error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Error checking access permissions',
+        code: 'SCOPE_CHECK_ERROR'
+      });
+    }
+  };
+};
+
 export default {
   injectUserScope,
   buildScopeFilter,
   verifyRecordInScope,
   requireRecordScope,
+  requireRecordScopeOrOwner,
   logScopeViolation
 };
