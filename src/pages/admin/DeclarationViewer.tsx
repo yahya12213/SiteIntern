@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, XCircle, AlertCircle, Download, FileText, Eye, Save, Link, ExternalLink, Trash2, Image as ImageIcon, Send } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Download, FileText, Eye, Save, Link, ExternalLink, Trash2, Image as ImageIcon, Send, Upload, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   useAdminDeclaration,
@@ -371,6 +371,7 @@ const DeclarationViewer: React.FC = () => {
     if (field.type === 'file') {
       const fileData = values[field.ref!];
       const hasFiles = fileData && Array.isArray(fileData) && fileData.length > 0;
+      const files = hasFiles ? fileData : [];
 
       // Fonction pour formater la taille du fichier
       const formatFileSize = (bytes: number): string => {
@@ -410,6 +411,61 @@ const DeclarationViewer: React.FC = () => {
         setShowFilePreview(true);
       };
 
+      // Fonction pour ajouter des fichiers
+      const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFiles = e.target.files;
+        if (!selectedFiles || selectedFiles.length === 0) return;
+
+        const newFiles: any[] = [];
+        const maxSize = 5 * 1024 * 1024; // 5MB max par fichier
+
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const file = selectedFiles[i];
+
+          if (file.size > maxSize) {
+            alert(`Le fichier "${file.name}" est trop volumineux (max 5MB)`);
+            continue;
+          }
+
+          try {
+            const base64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+
+            newFiles.push({
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              data: base64
+            });
+          } catch (error) {
+            console.error('Erreur lecture fichier:', error);
+          }
+        }
+
+        if (newFiles.length > 0) {
+          setValues((prev) => ({
+            ...prev,
+            [field.ref!]: [...files, ...newFiles]
+          }));
+        }
+
+        // Reset input
+        e.target.value = '';
+      };
+
+      // Fonction pour supprimer un fichier
+      const handleRemoveFile = (index: number) => {
+        const updatedFiles = files.filter((_: any, i: number) => i !== index);
+        setValues((prev) => ({
+          ...prev,
+          [field.ref!]: updatedFiles
+        }));
+      };
+
       return (
         <div
           key={field.id}
@@ -421,17 +477,30 @@ const DeclarationViewer: React.FC = () => {
             height: `${layout.h}px`,
           }}
         >
-          <div className={getAdminOnlyClasses("w-full h-full border-2 border-dashed border-teal-300 bg-teal-50/50 rounded px-3 py-2")}>
-            <div className="flex items-center gap-2 mb-2">
-              <FileText className="w-5 h-5 text-teal-600" />
-              <span className="text-sm font-medium text-teal-700">
-                {field.props.label || 'Pièces jointes'} ({hasFiles ? fileData.length : 0})
-              </span>
+          <div className={getAdminOnlyClasses("w-full h-full border-2 border-dashed border-teal-300 bg-teal-50/50 rounded px-3 py-2 overflow-auto")}>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-teal-600" />
+                <span className="text-sm font-medium text-teal-700">
+                  {field.props.label || 'Pièces jointes'} ({files.length})
+                </span>
+              </div>
+              <label className="cursor-pointer p-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded transition-colors flex items-center gap-1">
+                <Plus className="w-4 h-4" />
+                <span className="text-xs font-medium">Ajouter</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
             </div>
-            {hasFiles ? (
+            {files.length > 0 ? (
               <div className="space-y-2">
-                {fileData.map((file: any, index: number) => {
-                  const isImage = file.type.startsWith('image/');
+                {files.map((file: any, index: number) => {
+                  const isImage = file.type?.startsWith('image/');
                   const Icon = isImage ? ImageIcon : FileText;
 
                   return (
@@ -463,18 +532,32 @@ const DeclarationViewer: React.FC = () => {
                         >
                           <Download className="w-3.5 h-3.5" />
                         </button>
+                        <button
+                          onClick={() => handleRemoveFile(index)}
+                          className="p-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded transition-colors"
+                          title="Supprimer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <div className="text-center py-4">
-                <FileText className="w-8 h-8 text-teal-300 mx-auto mb-2" />
-                <span className="text-xs text-teal-500 italic">
-                  Aucune pièce jointe
+              <label className="block text-center py-4 cursor-pointer hover:bg-teal-100/50 rounded transition-colors">
+                <Upload className="w-8 h-8 text-teal-400 mx-auto mb-2" />
+                <span className="text-xs text-teal-600 font-medium">
+                  Cliquez ou glissez des fichiers ici
                 </span>
-              </div>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
             )}
           </div>
           <AdminOnlyBadge />
@@ -497,36 +580,33 @@ const DeclarationViewer: React.FC = () => {
             height: `${layout.h}px`,
           }}
         >
-          <div className={getAdminOnlyClasses("w-full h-full border-2 border-cyan-400 bg-cyan-50 rounded px-3 py-2 flex items-center gap-2")}>
-            <Link className="w-5 h-5 text-cyan-600 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium text-cyan-700 mb-1">
+          <div className={getAdminOnlyClasses("w-full h-full border-2 border-cyan-400 bg-cyan-50 rounded px-3 py-2 flex flex-col gap-2")}>
+            <div className="flex items-center gap-2">
+              <Link className="w-5 h-5 text-cyan-600 flex-shrink-0" />
+              <span className="text-xs font-medium text-cyan-700">
                 {field.props.label || 'Lien'}
-              </div>
-              {hasValidUrl ? (
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-1">
+              <input
+                type="url"
+                value={url}
+                onChange={(e) => handleValueChange(field.ref!, e.target.value)}
+                placeholder="https://exemple.com/lien-session"
+                className="flex-1 px-3 py-1.5 text-sm border border-cyan-300 rounded focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white"
+              />
+              {hasValidUrl && (
                 <a
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-cyan-900 hover:text-cyan-700 underline truncate block"
+                  className="p-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors flex-shrink-0"
+                  title="Ouvrir le lien"
                 >
-                  {url}
+                  <ExternalLink className="w-4 h-4" />
                 </a>
-              ) : (
-                <span className="text-sm text-gray-400 italic">Aucun lien fourni</span>
               )}
             </div>
-            {hasValidUrl && (
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors flex-shrink-0"
-                title="Ouvrir le lien"
-              >
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            )}
           </div>
           <AdminOnlyBadge />
         </div>
