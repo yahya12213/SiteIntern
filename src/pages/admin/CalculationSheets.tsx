@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calculator, Edit3, Save, CheckCircle2, Upload, X, FileText, Download, Eye, EyeOff, User, Shield } from 'lucide-react';
+import { Calculator, Edit3, Save, CheckCircle2, Upload, X, FileText, Download, Eye, EyeOff, User, Shield, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { calculateAllValues } from '@/lib/formula/dependency';
@@ -406,6 +406,52 @@ export default function CalculationSheets() {
               />
             </label>
           )}
+        </div>
+      );
+    }
+
+    if (field.type === 'link') {
+      const url = (values[field.ref!] as string) || field.props.url || '';
+      const hasValidUrl = url && url.trim() !== '' && (url.startsWith('http://') || url.startsWith('https://'));
+
+      return (
+        <div
+          key={field.id}
+          className={`absolute ${isHiddenInUserMode ? 'ring-2 ring-red-400 opacity-60' : ''}`}
+          style={{
+            left: `${layout.x}px`,
+            top: `${layout.y}px`,
+            width: `${layout.w}px`,
+            height: `${layout.h}px`,
+          }}
+        >
+          <div className="w-full h-full border-2 border-cyan-400 bg-cyan-50 rounded px-2 flex items-center gap-2">
+            {isHiddenInUserMode && viewMode === 'admin' && (
+              <EyeOff className="w-4 h-4 text-red-500 flex-shrink-0" />
+            )}
+            <LinkIcon className="w-4 h-4 text-cyan-600 flex-shrink-0" />
+            <span className="text-xs font-medium text-cyan-700 flex-shrink-0 whitespace-nowrap">
+              {field.props.label || 'Lien'}:
+            </span>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => handleValueChange(field.ref!, e.target.value)}
+              placeholder="https://..."
+              className="flex-1 min-w-0 px-2 py-1 text-xs border border-cyan-300 rounded focus:ring-1 focus:ring-cyan-500 focus:border-transparent bg-white"
+            />
+            {hasValidUrl && (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors flex-shrink-0"
+                title="Ouvrir le lien"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+          </div>
         </div>
       );
     }
