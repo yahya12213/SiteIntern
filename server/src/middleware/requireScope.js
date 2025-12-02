@@ -269,8 +269,9 @@ export const requireRecordScopeOrOwner = (table, idParam = 'id', ownerColumn = '
 
     try {
       // First check if user is the owner of the record
+      // Note: We only check ownerColumn (professor_id) since professor_declarations doesn't have created_by
       const ownerCheck = await pool.query(
-        `SELECT ${ownerColumn}, created_by FROM ${table} WHERE id = $1`,
+        `SELECT ${ownerColumn} FROM ${table} WHERE id = $1`,
         [recordId]
       );
 
@@ -284,8 +285,8 @@ export const requireRecordScopeOrOwner = (table, idParam = 'id', ownerColumn = '
 
       const record = ownerCheck.rows[0];
 
-      // Allow access if user is the owner (professor_id matches) or creator (created_by matches)
-      if (record[ownerColumn] === userId || record.created_by === userId) {
+      // Allow access if user is the owner (professor_id matches user ID)
+      if (record[ownerColumn] === userId) {
         console.log(`✅ Owner bypass: User ${userId} owns record ${recordId} in ${table}`);
         return next();
       }
