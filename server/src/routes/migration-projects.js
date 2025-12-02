@@ -72,24 +72,24 @@ router.post('/run', async (req, res) => {
     // Add permissions to the database
     const permissions = [
       // Projects permissions
-      { code: 'accounting.projects.view_page', description: 'Voir la page Gestion de Projet', module: 'accounting' },
-      { code: 'accounting.projects.create', description: 'Créer des projets', module: 'accounting' },
-      { code: 'accounting.projects.update', description: 'Modifier des projets', module: 'accounting' },
-      { code: 'accounting.projects.delete', description: 'Supprimer des projets', module: 'accounting' },
-      { code: 'accounting.projects.export', description: 'Exporter les projets', module: 'accounting' },
+      { code: 'accounting.projects.view_page', name: 'Voir Projets', description: 'Voir la page Gestion de Projet', module: 'accounting' },
+      { code: 'accounting.projects.create', name: 'Créer Projets', description: 'Créer des projets', module: 'accounting' },
+      { code: 'accounting.projects.update', name: 'Modifier Projets', description: 'Modifier des projets', module: 'accounting' },
+      { code: 'accounting.projects.delete', name: 'Supprimer Projets', description: 'Supprimer des projets', module: 'accounting' },
+      { code: 'accounting.projects.export', name: 'Exporter Projets', description: 'Exporter les projets', module: 'accounting' },
       // Actions permissions
-      { code: 'accounting.actions.view_page', description: 'Voir les actions du plan', module: 'accounting' },
-      { code: 'accounting.actions.create', description: 'Créer des actions', module: 'accounting' },
-      { code: 'accounting.actions.update', description: 'Modifier des actions', module: 'accounting' },
-      { code: 'accounting.actions.delete', description: 'Supprimer des actions', module: 'accounting' },
+      { code: 'accounting.actions.view_page', name: 'Voir Actions', description: 'Voir les actions du plan', module: 'accounting' },
+      { code: 'accounting.actions.create', name: 'Créer Actions', description: 'Créer des actions', module: 'accounting' },
+      { code: 'accounting.actions.update', name: 'Modifier Actions', description: 'Modifier des actions', module: 'accounting' },
+      { code: 'accounting.actions.delete', name: 'Supprimer Actions', description: 'Supprimer des actions', module: 'accounting' },
     ];
 
     for (const perm of permissions) {
       await client.query(`
-        INSERT INTO permissions (code, description, module)
-        VALUES ($1, $2, $3)
+        INSERT INTO permissions (code, name, description, module)
+        VALUES ($1, $2, $3, $4)
         ON CONFLICT (code) DO NOTHING
-      `, [perm.code, perm.description, perm.module]);
+      `, [perm.code, perm.name, perm.description, perm.module]);
     }
     console.log('✅ Permissions added');
 
