@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, XCircle, AlertCircle, Download, FileText, Eye, Save, Link, ExternalLink, Trash2, Image as ImageIcon, Send, Upload, X, Plus } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, FileText, Eye, Save, Link, ExternalLink, Trash2, Send, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   useAdminDeclaration,
@@ -373,37 +373,6 @@ const DeclarationViewer: React.FC = () => {
       const hasFiles = fileData && Array.isArray(fileData) && fileData.length > 0;
       const files = hasFiles ? fileData : [];
 
-      // Fonction pour formater la taille du fichier
-      const formatFileSize = (bytes: number): string => {
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-        return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-      };
-
-      // Fonction pour télécharger un fichier
-      const downloadFile = (file: any) => {
-        try {
-          const base64Data = file.data.split(',')[1];
-          const mimeType = file.data.split(',')[0].split(':')[1].split(';')[0];
-          const byteString = atob(base64Data);
-          const arrayBuffer = new ArrayBuffer(byteString.length);
-          const uint8Array = new Uint8Array(arrayBuffer);
-          for (let i = 0; i < byteString.length; i++) {
-            uint8Array[i] = byteString.charCodeAt(i);
-          }
-          const blob = new Blob([arrayBuffer], { type: mimeType });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = file.name;
-          a.click();
-          URL.revokeObjectURL(url);
-        } catch (error) {
-          console.error('Erreur lors du téléchargement:', error);
-          alert('Erreur lors du téléchargement du fichier');
-        }
-      };
-
       // Fonction pour ouvrir la prévisualisation
       const openPreview = (index: number) => {
         setPreviewFiles(fileData as any);
@@ -474,91 +443,57 @@ const DeclarationViewer: React.FC = () => {
             left: `${layout.x}px`,
             top: `${layout.y}px`,
             width: `${layout.w}px`,
-            minHeight: `${layout.h}px`,
+            height: `${layout.h}px`,
           }}
         >
-          <div className={getAdminOnlyClasses("w-full min-h-full border-2 border-dashed border-teal-300 bg-teal-50/50 rounded px-3 py-2 overflow-auto")}>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-teal-600" />
-                <span className="text-sm font-medium text-teal-700">
-                  {field.props.label || 'Pièces jointes'} ({files.length})
-                </span>
-              </div>
-              <label className="cursor-pointer p-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded transition-colors flex items-center gap-1">
-                <Plus className="w-4 h-4" />
-                <span className="text-xs font-medium">Ajouter</span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
-            {files.length > 0 ? (
-              <div className="space-y-2">
-                {files.map((file: any, index: number) => {
-                  const isImage = file.type?.startsWith('image/');
-                  const Icon = isImage ? ImageIcon : FileText;
-
-                  return (
-                    <div
-                      key={index}
-                      className="flex items-center gap-2 p-2 bg-white rounded border border-teal-200 hover:border-teal-400 transition-colors"
+          <div className={getAdminOnlyClasses("w-full h-full border-2 border-dashed border-teal-300 bg-teal-50/50 rounded px-2 flex items-center gap-2 overflow-hidden")}>
+            <FileText className="w-4 h-4 text-teal-600 flex-shrink-0" />
+            <span className="text-xs font-medium text-teal-700 flex-shrink-0 whitespace-nowrap">
+              {field.props.label || 'Fichiers'}:
+            </span>
+            <div className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto">
+              {files.length > 0 ? (
+                files.map((file: any, index: number) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-1 px-1.5 py-0.5 bg-white rounded border border-teal-200 flex-shrink-0 group"
+                  >
+                    <span className="text-xs text-teal-800 truncate max-w-[80px]" title={file.name}>
+                      {file.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => openPreview(index)}
+                      className="p-0.5 hover:bg-blue-100 text-blue-600 rounded"
+                      title="Voir"
                     >
-                      <Icon className="w-4 h-4 text-teal-600 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-teal-900 truncate">
-                          {file.name}
-                        </div>
-                        <div className="text-xs text-teal-600">
-                          {formatFileSize(file.size)}
-                        </div>
-                      </div>
-                      <div className="flex gap-1 flex-shrink-0">
-                        <button
-                          onClick={() => openPreview(index)}
-                          className="p-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors"
-                          title="Voir"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => downloadFile(file)}
-                          className="p-1.5 bg-teal-100 hover:bg-teal-200 text-teal-700 rounded transition-colors"
-                          title="Télécharger"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleRemoveFile(index)}
-                          className="p-1.5 bg-red-100 hover:bg-red-200 text-red-700 rounded transition-colors"
-                          title="Supprimer"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <label className="block text-center py-4 cursor-pointer hover:bg-teal-100/50 rounded transition-colors">
-                <Upload className="w-8 h-8 text-teal-400 mx-auto mb-2" />
-                <span className="text-xs text-teal-600 font-medium">
-                  Cliquez ou glissez des fichiers ici
-                </span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-            )}
+                      <Eye className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFile(index)}
+                      className="p-0.5 hover:bg-red-100 text-red-600 rounded"
+                      title="Supprimer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <span className="text-xs text-teal-500 italic">Aucun fichier</span>
+              )}
+            </div>
+            <label className="cursor-pointer p-1 bg-teal-600 hover:bg-teal-700 text-white rounded transition-colors flex-shrink-0" title="Ajouter des fichiers">
+              <Plus className="w-3.5 h-3.5" />
+              <input
+                type="file"
+                multiple
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                onChange={handleFileUpload}
+                className="hidden"
+                title="Ajouter des fichiers"
+              />
+            </label>
           </div>
           <AdminOnlyBadge />
         </div>
@@ -577,36 +512,32 @@ const DeclarationViewer: React.FC = () => {
             left: `${layout.x}px`,
             top: `${layout.y}px`,
             width: `${layout.w}px`,
-            minHeight: `${layout.h}px`,
+            height: `${layout.h}px`,
           }}
         >
-          <div className={getAdminOnlyClasses("w-full min-h-full border-2 border-cyan-400 bg-cyan-50 rounded px-3 py-2 flex flex-col gap-2")}>
-            <div className="flex items-center gap-2">
-              <Link className="w-5 h-5 text-cyan-600 flex-shrink-0" />
-              <span className="text-xs font-medium text-cyan-700">
-                {field.props.label || 'Lien'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 flex-1">
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => handleValueChange(field.ref!, e.target.value)}
-                placeholder="https://exemple.com/lien-session"
-                className="flex-1 px-3 py-1.5 text-sm border border-cyan-300 rounded focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white"
-              />
-              {hasValidUrl && (
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors flex-shrink-0"
-                  title="Ouvrir le lien"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              )}
-            </div>
+          <div className={getAdminOnlyClasses("w-full h-full border-2 border-cyan-400 bg-cyan-50 rounded px-2 flex items-center gap-2")}>
+            <Link className="w-4 h-4 text-cyan-600 flex-shrink-0" />
+            <span className="text-xs font-medium text-cyan-700 flex-shrink-0 whitespace-nowrap">
+              {field.props.label || 'Lien'}:
+            </span>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => handleValueChange(field.ref!, e.target.value)}
+              placeholder="https://..."
+              className="flex-1 min-w-0 px-2 py-1 text-xs border border-cyan-300 rounded focus:ring-1 focus:ring-cyan-500 focus:border-transparent bg-white"
+            />
+            {hasValidUrl && (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors flex-shrink-0"
+                title="Ouvrir le lien"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
           </div>
           <AdminOnlyBadge />
         </div>
