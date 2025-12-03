@@ -99,7 +99,7 @@ export const Sidebar: React.FC = () => {
         { to: '/admin/hr/validation-workflows', icon: GitBranch, label: 'Boucles de Validation', permission: PERMISSIONS.hr.validation_workflows.view_page },
         { to: '/admin/hr/schedules', icon: Calendar, label: 'Gestion des Horaires', permission: PERMISSIONS.hr.schedules.view_page },
         { to: '/admin/hr/payroll', icon: Wallet, label: 'Gestion de Paie', permission: PERMISSIONS.hr.payroll.view_page },
-        { to: '/admin/hr/employee-portal', icon: Clock, label: 'Portail Employé RH', permission: PERMISSIONS.hr.employee_portal.view_page },
+        { to: '/admin/hr/employee-portal', icon: Clock, label: 'Gestion Pointage', permission: PERMISSIONS.hr.employee_portal.view_page },
         { to: '/admin/hr/employees', icon: User, label: 'Dossier Employé', permission: PERMISSIONS.hr.employees.view_page },
         { to: '/admin/hr/requests-validation', icon: CheckSquare, label: 'Validation des Demandes', permission: PERMISSIONS.hr.requests_validation.view_page },
       ],
