@@ -47,7 +47,7 @@ router.post('/run', async (req, res) => {
 
     // Auto-assign to admin role
     const adminRoleResult = await client.query(
-      "SELECT id FROM roles WHERE code = 'admin' OR name ILIKE '%admin%' LIMIT 1"
+      "SELECT id FROM roles WHERE name = 'admin' LIMIT 1"
     );
 
     if (adminRoleResult.rows.length > 0) {
@@ -65,7 +65,7 @@ router.post('/run', async (req, res) => {
 
     // Auto-assign to gerant role if exists
     const gerantRoleResult = await client.query(
-      "SELECT id FROM roles WHERE code = 'gerant' OR name ILIKE '%gerant%' LIMIT 1"
+      "SELECT id FROM roles WHERE name = 'gerant' LIMIT 1"
     );
 
     if (gerantRoleResult.rows.length > 0) {
