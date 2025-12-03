@@ -64,6 +64,18 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 063',
     description: 'Permissions sessions étudiants - training.sessions.add_student et training.sessions.edit_student',
     endpoint: '/migration-063'
+  },
+  {
+    id: 'migration-064',
+    name: 'Migration 064',
+    description: 'Labels et descriptions en français pour toutes les permissions (affichage dans le tooltip info)',
+    endpoint: '/migration-064'
+  },
+  {
+    id: 'migration-065',
+    name: 'Migration 065',
+    description: 'Permissions professeurs - view_page, create, edit, delete, assign_segments, assign_cities',
+    endpoint: '/migration-065'
   }
 ];
 
