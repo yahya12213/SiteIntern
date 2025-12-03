@@ -100,21 +100,30 @@ const getOrCreateEmployeeByProfileId = async (pool, profileId) => {
 
 // Helper: Get break rules from settings
 const getBreakRules = async (pool) => {
-  const result = await pool.query(`
-    SELECT setting_value
-    FROM hr_settings
-    WHERE setting_key = 'break_rules'
-  `);
+  try {
+    const result = await pool.query(`
+      SELECT setting_value
+      FROM hr_settings
+      WHERE setting_key = 'break_rules'
+    `);
 
-  if (result.rows.length === 0) {
-    // Default break rules
+    if (result.rows.length === 0) {
+      // Default break rules
+      return {
+        default_break_minutes: 60,
+        deduct_break_automatically: true
+      };
+    }
+
+    return result.rows[0].setting_value;
+  } catch (error) {
+    // Table hr_settings might not exist yet - return defaults
+    console.log('Warning: hr_settings table not found, using default break rules');
     return {
       default_break_minutes: 60,
       deduct_break_automatically: true
     };
   }
-
-  return result.rows[0].setting_value;
 };
 
 // Helper: Calculate worked minutes for a day
@@ -306,12 +315,43 @@ router.get('/my-today', authenticateToken, async (req, res) => {
   const pool = getPool();
 
   try {
-    const employee = await getOrCreateEmployeeByProfileId(pool, req.user.id);
+    let employee;
+    try {
+      employee = await getOrCreateEmployeeByProfileId(pool, req.user.id);
+    } catch (err) {
+      console.error('Error getting employee for my-today:', err.message);
+      // Return a default response that allows clocking
+      return res.json({
+        success: true,
+        requires_clocking: true,
+        employee: { id: null, name: req.user.fullName || 'Utilisateur' },
+        today: {
+          date: new Date().toISOString().split('T')[0],
+          records: [],
+          last_action: null,
+          can_check_in: true,
+          can_check_out: false,
+          worked_minutes: 0,
+          is_complete: true
+        }
+      });
+    }
 
     if (!employee) {
-      return res.status(404).json({
-        success: false,
-        error: 'Aucun employé trouvé pour cet utilisateur'
+      // Return default that allows clocking
+      return res.json({
+        success: true,
+        requires_clocking: true,
+        employee: { id: null, name: req.user.fullName || 'Utilisateur' },
+        today: {
+          date: new Date().toISOString().split('T')[0],
+          records: [],
+          last_action: null,
+          can_check_in: true,
+          can_check_out: false,
+          worked_minutes: 0,
+          is_complete: true
+        }
       });
     }
 
@@ -325,14 +365,19 @@ router.get('/my-today', authenticateToken, async (req, res) => {
 
     const today = new Date().toISOString().split('T')[0];
 
-    // Get all records for today
-    const records = await pool.query(`
-      SELECT id, clock_time, status, source
-      FROM hr_attendance_records
-      WHERE employee_id = $1
-        AND DATE(clock_time) = $2
-      ORDER BY clock_time ASC
-    `, [employee.id, today]);
+    // Get all records for today (with try/catch for missing table)
+    let records = { rows: [] };
+    try {
+      records = await pool.query(`
+        SELECT id, clock_time, status, source
+        FROM hr_attendance_records
+        WHERE employee_id = $1
+          AND DATE(clock_time) = $2
+        ORDER BY clock_time ASC
+      `, [employee.id, today]);
+    } catch (err) {
+      console.log('Warning: hr_attendance_records table issue:', err.message);
+    }
 
     // Get last action
     const lastAction = records.rows.length > 0 ? records.rows[records.rows.length - 1] : null;
