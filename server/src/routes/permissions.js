@@ -37,7 +37,7 @@ const MENU_LABELS = {
   overtime: 'Heures Supplémentaires',
   leaves: 'Congés',
   settings: 'Paramètres',
-  employee_portal: 'Portail Employé',
+  employee_portal: 'Gestion Pointage',
   validation_workflows: 'Boucles de Validation',
   schedules: 'Gestion des Horaires',
   payroll: 'Gestion de Paie',
