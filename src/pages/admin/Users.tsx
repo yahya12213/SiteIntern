@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, MapPin, Calculator, Shield, User, Users as UsersIcon, Eye, EyeOff, Briefcase, FileCheck, ClipboardList } from 'lucide-react';
+import { Plus, Edit, Trash2, MapPin, Calculator, Shield, User, Users as UsersIcon, Eye, EyeOff, Briefcase, FileCheck, ClipboardList, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -370,6 +370,15 @@ const CreateUserModal: React.FC<{
   });
   const [showPassword, setShowPassword] = useState(false);
 
+  // Nouveaux états pour création d'employé
+  const [createEmployee, setCreateEmployee] = useState(false);
+  const [employeeData, setEmployeeData] = useState({
+    cin: '',
+    hire_date: new Date().toISOString().split('T')[0],
+    position: '',
+    department: '',
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -379,7 +388,19 @@ const CreateUserModal: React.FC<{
     }
 
     try {
-      await createUser.mutateAsync(formData);
+      // Combiner les données utilisateur et employé si nécessaire
+      const submitData = {
+        ...formData,
+        ...(createEmployee ? {
+          create_employee: true,
+          cin: employeeData.cin || undefined,
+          hire_date: employeeData.hire_date || undefined,
+          position: employeeData.position || undefined,
+          department: employeeData.department || undefined,
+        } : {})
+      };
+
+      await createUser.mutateAsync(submitData);
       onClose();
     } catch (error) {
       console.error('Error creating user:', error);
@@ -389,7 +410,7 @@ const CreateUserModal: React.FC<{
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Nouvel utilisateur</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -462,6 +483,88 @@ const CreateUserModal: React.FC<{
               ))}
             </select>
           </div>
+
+          {/* Séparateur et checkbox employé */}
+          <div className="border-t pt-4 mt-4">
+            <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={createEmployee}
+                onChange={(e) => setCreateEmployee(e.target.checked)}
+                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <Clock className="w-5 h-5 text-blue-600" />
+              <div>
+                <span className="font-medium text-gray-900">Créer comme employé avec pointage</span>
+                <p className="text-xs text-gray-500">L'utilisateur pourra pointer ses entrées/sorties</p>
+              </div>
+            </label>
+          </div>
+
+          {/* Champs employé (visibles si checkbox coché) */}
+          {createEmployee && (
+            <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="font-medium text-blue-900 flex items-center gap-2">
+                <Briefcase className="w-4 h-4" />
+                Informations Employé
+              </h3>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    CIN
+                  </label>
+                  <input
+                    type="text"
+                    value={employeeData.cin}
+                    onChange={(e) => setEmployeeData({ ...employeeData, cin: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="AB123456"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="hire_date" className="block text-sm font-medium text-gray-700 mb-1">
+                    Date d'embauche
+                  </label>
+                  <input
+                    id="hire_date"
+                    type="date"
+                    value={employeeData.hire_date}
+                    onChange={(e) => setEmployeeData({ ...employeeData, hire_date: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    title="Date d'embauche de l'employé"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Poste
+                </label>
+                <input
+                  type="text"
+                  value={employeeData.position}
+                  onChange={(e) => setEmployeeData({ ...employeeData, position: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="ex: Assistante Administrative"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Département
+                </label>
+                <input
+                  type="text"
+                  value={employeeData.department}
+                  onChange={(e) => setEmployeeData({ ...employeeData, department: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="ex: Administration"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 mt-6">
             <Button type="button" variant="outline" onClick={onClose}>

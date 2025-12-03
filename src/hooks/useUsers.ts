@@ -31,6 +31,12 @@ export interface CreateUserInput {
   password: string;
   full_name: string;
   role: string; // Dynamic role from database
+  // Champs optionnels pour création d'employé
+  create_employee?: boolean;
+  cin?: string;
+  hire_date?: string;
+  position?: string;
+  department?: string;
 }
 
 export interface UpdateUserInput {

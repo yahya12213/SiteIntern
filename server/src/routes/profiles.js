@@ -332,7 +332,11 @@ router.post('/',
   const client = await pool.connect();
 
   try {
-    const { id, username, password, full_name, role, segment_ids, city_ids } = req.body;
+    const {
+      id, username, password, full_name, role, segment_ids, city_ids,
+      // Nouveaux champs optionnels pour création d'employé
+      create_employee, cin, hire_date, position, department
+    } = req.body;
 
     if (!id || !username || !password || !full_name || !role) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -359,6 +363,45 @@ router.post('/',
     );
 
     const profile = profileResult.rows[0];
+
+    // Assigner le rôle RBAC (user_roles)
+    const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', [role]);
+    if (roleResult.rows.length > 0) {
+      await client.query(`
+        INSERT INTO user_roles (user_id, role_id)
+        VALUES ($1, $2)
+        ON CONFLICT (user_id, role_id) DO NOTHING
+      `, [id, roleResult.rows[0].id]);
+    }
+
+    // Créer l'employé si demandé
+    if (create_employee) {
+      const nameParts = full_name.trim().split(' ');
+      const firstName = nameParts[0] || username;
+      const lastName = nameParts.slice(1).join(' ') || '';
+      const employeeNumber = `EMP-${username.toUpperCase().substring(0, 5)}-${Date.now().toString().slice(-4)}`;
+
+      const employeeResult = await client.query(`
+        INSERT INTO hr_employees (
+          employee_number, first_name, last_name,
+          profile_id, cin, hire_date, position, department,
+          requires_clocking, employment_status, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, 'active', NOW(), NOW())
+        RETURNING id, employee_number
+      `, [
+        employeeNumber,
+        firstName,
+        lastName,
+        id,
+        cin || null,
+        hire_date || new Date().toISOString().split('T')[0],
+        position || null,
+        department || null
+      ]);
+
+      profile.employee = employeeResult.rows[0];
+      console.log(`✅ Employé créé pour ${username}: ${employeeNumber}`);
+    }
 
     // Ajouter les segments
     if (segment_ids && segment_ids.length > 0) {
