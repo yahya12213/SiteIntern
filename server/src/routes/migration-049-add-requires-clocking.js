@@ -78,4 +78,45 @@ router.post('/run', async (req, res) => {
   }
 });
 
+// Check migration status
+router.get('/status', async (req, res) => {
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  });
+
+  try {
+    const checkColumn = await pool.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'hr_employees'
+        AND column_name = 'requires_clocking'
+    `);
+
+    const columnExists = checkColumn.rows.length > 0;
+
+    res.json({
+      status: {
+        migrationNeeded: !columnExists,
+        applied: columnExists,
+        column_requires_clocking: columnExists
+      },
+      message: columnExists
+        ? 'Migration 049 applied - requires_clocking column exists'
+        : 'Migration needed - requires_clocking column does not exist'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: {
+        migrationNeeded: true,
+        applied: false,
+        error: error.message
+      },
+      message: `Error checking status: ${error.message}`
+    });
+  } finally {
+    await pool.end();
+  }
+});
+
 export default router;
