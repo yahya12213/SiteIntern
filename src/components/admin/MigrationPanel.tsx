@@ -58,6 +58,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration Projects',
     description: 'Tables projects et project_actions pour la gestion de projet (Plan d\'Action)',
     endpoint: '/migration-projects'
+  },
+  {
+    id: 'migration-063',
+    name: 'Migration 063',
+    description: 'Permissions sessions étudiants - training.sessions.add_student et training.sessions.edit_student',
+    endpoint: '/migration-063'
   }
 ];
 

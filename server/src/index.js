@@ -99,6 +99,7 @@ import migration059Router from './routes/migration-059-fix-permission-overlaps.j
 import migration060Router from './routes/migration-060-prospects-system.js';
 import migration061Router from './routes/migration-061-validation-workflows.js';
 import migration062Router from './routes/migration-062-employee-portal-permissions.js';
+import migration063Router from './routes/migration-063-session-student-permissions.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -270,6 +271,7 @@ app.use('/api/migration-059', ...adminOnly, migration059Router);
 app.use('/api/migration-060', ...adminOnly, migration060Router);
 app.use('/api/migration-061', ...adminOnly, migration061Router);
 app.use('/api/migration-062', ...adminOnly, migration062Router);
+app.use('/api/migration-063', ...adminOnly, migration063Router);
 app.use('/api/migration-fix-segments-and-sheets', ...adminOnly, migrationFixRouter);
 app.use('/api/migration-fix-impression-permissions', ...adminOnly, migrationFixImpressionRouter);
 app.use('/api/migration-fix-role-sync', ...adminOnly, migrationFixRoleSyncRouter);

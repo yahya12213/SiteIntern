@@ -199,6 +199,8 @@ export function usePermission() {
     canUpdateSession: can('training.sessions.update'),
     canDeleteSession: can('training.sessions.delete'),
     canViewSessionDetails: can('training.sessions.view_details'),
+    canAddStudentToSession: can('training.sessions.add_student'),
+    canEditStudentInSession: can('training.sessions.edit_student'),
 
     // Analytics
     canViewAnalytics: can('training.analytics.view_page'),
@@ -333,7 +335,7 @@ export type PermissionCode =
   // Training module
   | 'training.formations.view_page' | 'training.formations.create' | 'training.formations.update' | 'training.formations.delete' | 'training.formations.duplicate' | 'training.formations.create_pack' | 'training.formations.edit_content'
   | 'training.corps.create' | 'training.corps.update' | 'training.corps.delete'
-  | 'training.sessions.view_page' | 'training.sessions.create' | 'training.sessions.update' | 'training.sessions.delete' | 'training.sessions.view_details'
+  | 'training.sessions.view_page' | 'training.sessions.create' | 'training.sessions.update' | 'training.sessions.delete' | 'training.sessions.view_details' | 'training.sessions.add_student' | 'training.sessions.edit_student'
   | 'training.analytics.view_page' | 'training.analytics.export_csv' | 'training.analytics.change_period'
   | 'training.student_reports.view_page' | 'training.student_reports.search' | 'training.student_reports.export_csv' | 'training.student_reports.export_pdf'
   | 'training.certificates.view_page' | 'training.certificates.download' | 'training.certificates.delete' | 'training.certificates.search'

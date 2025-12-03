@@ -115,6 +115,8 @@ export const PERMISSIONS = {
       create: 'training.sessions.create',
       update: 'training.sessions.update',
       delete: 'training.sessions.delete',
+      add_student: 'training.sessions.add_student',
+      edit_student: 'training.sessions.edit_student',
     },
     students: {
       view_page: 'training.students.view_page',
@@ -499,6 +501,8 @@ export function getPermissionLabel(code: string): string {
     'training.sessions.create': 'Créer',
     'training.sessions.update': 'Modifier',
     'training.sessions.delete': 'Supprimer',
+    'training.sessions.add_student': 'Ajouter étudiant',
+    'training.sessions.edit_student': 'Modifier étudiant',
 
     // Students
     'training.students.view_page': 'Voir les étudiants',

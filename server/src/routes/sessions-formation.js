@@ -459,11 +459,11 @@ router.delete('/:id',
 /**
  * POST /:id/etudiants
  * Inscrire un étudiant à une session
- * Protected: Requires training.sessions.update permission
+ * Protected: Requires training.sessions.add_student permission
  */
 router.post('/:id/etudiants',
   authenticateToken,
-  requirePermission('training.sessions.update'),
+  requirePermission('training.sessions.add_student'),
   async (req, res) => {
   try {
     const { id: session_id } = req.params;
@@ -601,8 +601,12 @@ router.post('/:id/etudiants',
  * PUT /api/sessions-formation/:sessionId/etudiants/bulk-status
  * Mettre à jour le statut de plusieurs étudiants en une seule requête
  * IMPORTANT: Cette route DOIT être définie AVANT /:sessionId/etudiants/:etudiantId
+ * Protected: Requires training.sessions.edit_student permission
  */
-router.put('/:sessionId/etudiants/bulk-status', async (req, res) => {
+router.put('/:sessionId/etudiants/bulk-status',
+  authenticateToken,
+  requirePermission('training.sessions.edit_student'),
+  async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { student_ids, status } = req.body;
@@ -734,8 +738,12 @@ router.get('/:sessionId/etudiants/:studentId/available-documents', async (req, r
 /**
  * PUT /api/sessions-formation/:sessionId/etudiants/:etudiantId
  * Modifier l'inscription d'un étudiant (paiement)
+ * Protected: Requires training.sessions.edit_student permission
  */
-router.put('/:sessionId/etudiants/:etudiantId', async (req, res) => {
+router.put('/:sessionId/etudiants/:etudiantId',
+  authenticateToken,
+  requirePermission('training.sessions.edit_student'),
+  async (req, res) => {
   try {
     const { sessionId, etudiantId } = req.params;
     const { statut_paiement, montant_paye, discount_percentage, discount_reason } = req.body;
