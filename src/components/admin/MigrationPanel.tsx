@@ -88,6 +88,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 067',
     description: 'Alignement HR/Sidebar - hr.validation_workflows.*, hr.schedules.*, hr.payroll.*, hr.requests_validation.*',
     endpoint: '/migration-067'
+  },
+  {
+    id: 'migration-068',
+    name: 'Migration 068',
+    description: 'Auto-création fiches employés pour utilisateurs avec permission hr.employee_portal.clock_in_out',
+    endpoint: '/migration-068'
   }
 ];
 

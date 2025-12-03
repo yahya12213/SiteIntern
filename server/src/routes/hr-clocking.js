@@ -21,6 +21,79 @@ const getEmployeeByProfileId = async (pool, profileId) => {
   return result.rows[0];
 };
 
+// Helper: Check if user has clocking permission
+const userHasClockingPermission = async (pool, profileId) => {
+  const result = await pool.query(`
+    SELECT 1 FROM profiles p
+    INNER JOIN user_roles ur ON p.id = ur.user_id
+    INNER JOIN role_permissions rp ON ur.role_id = rp.role_id
+    INNER JOIN permissions perm ON rp.permission_id = perm.id
+    WHERE p.id = $1 AND perm.code = 'hr.employee_portal.clock_in_out'
+    LIMIT 1
+  `, [profileId]);
+  return result.rows.length > 0;
+};
+
+// Helper: Auto-create employee record for user with clocking permission
+const autoCreateEmployeeRecord = async (pool, profileId) => {
+  // Get user info
+  const userResult = await pool.query(`
+    SELECT id, username, first_name, last_name, email
+    FROM profiles
+    WHERE id = $1
+  `, [profileId]);
+
+  if (userResult.rows.length === 0) return null;
+
+  const user = userResult.rows[0];
+
+  // Generate employee code
+  const employeeCode = `EMP-${user.username.toUpperCase().substring(0, 5)}-${Date.now().toString().slice(-4)}`;
+
+  // Create employee record
+  const result = await pool.query(`
+    INSERT INTO hr_employees (
+      employee_code,
+      first_name,
+      last_name,
+      email,
+      profile_id,
+      requires_clocking,
+      status,
+      created_at,
+      updated_at
+    ) VALUES ($1, $2, $3, $4, $5, true, 'active', NOW(), NOW())
+    RETURNING id, first_name, last_name, requires_clocking, employee_number
+  `, [
+    employeeCode,
+    user.first_name || user.username,
+    user.last_name || '',
+    user.email,
+    profileId
+  ]);
+
+  console.log(`✅ Auto-created employee record for ${user.username}: ${employeeCode}`);
+  return result.rows[0];
+};
+
+// Helper: Get or create employee for user with permission
+const getOrCreateEmployeeByProfileId = async (pool, profileId) => {
+  // First try to get existing employee
+  let employee = await getEmployeeByProfileId(pool, profileId);
+
+  if (employee) return employee;
+
+  // Check if user has clocking permission
+  const hasPermission = await userHasClockingPermission(pool, profileId);
+
+  if (hasPermission) {
+    // Auto-create employee record
+    employee = await autoCreateEmployeeRecord(pool, profileId);
+  }
+
+  return employee;
+};
+
 // Helper: Get break rules from settings
 const getBreakRules = async (pool) => {
   const result = await pool.query(`
@@ -69,7 +142,7 @@ router.post('/check-in', authenticateToken, async (req, res) => {
   const pool = getPool();
 
   try {
-    const employee = await getEmployeeByProfileId(pool, req.user.id);
+    const employee = await getOrCreateEmployeeByProfileId(pool, req.user.id);
 
     if (!employee) {
       return res.status(404).json({
@@ -139,7 +212,7 @@ router.post('/check-out', authenticateToken, async (req, res) => {
   const pool = getPool();
 
   try {
-    const employee = await getEmployeeByProfileId(pool, req.user.id);
+    const employee = await getOrCreateEmployeeByProfileId(pool, req.user.id);
 
     if (!employee) {
       return res.status(404).json({
@@ -229,7 +302,7 @@ router.get('/my-today', authenticateToken, async (req, res) => {
   const pool = getPool();
 
   try {
-    const employee = await getEmployeeByProfileId(pool, req.user.id);
+    const employee = await getOrCreateEmployeeByProfileId(pool, req.user.id);
 
     if (!employee) {
       return res.status(404).json({
@@ -301,7 +374,7 @@ router.get('/my-records', authenticateToken, async (req, res) => {
   try {
     const { start_date, end_date, limit = 100, offset = 0 } = req.query;
 
-    const employee = await getEmployeeByProfileId(pool, req.user.id);
+    const employee = await getOrCreateEmployeeByProfileId(pool, req.user.id);
 
     if (!employee) {
       return res.status(404).json({
