@@ -7,7 +7,10 @@ const router = express.Router();
 // Module labels in French
 const MODULE_LABELS = {
   accounting: 'Gestion Comptable',
-  training: 'Formation en Ligne'
+  training: 'Formation en Ligne',
+  hr: 'Ressources Humaines',
+  commercialisation: 'Commercialisation',
+  system: 'Système'
 };
 
 // Menu labels in French
@@ -27,7 +30,22 @@ const MENU_LABELS = {
   student_reports: 'Rapports Étudiants',
   certificates: 'Certificats',
   certificate_templates: 'Templates de Certificats',
-  forums: 'Forums'
+  forums: 'Forums',
+  // HR menus
+  employees: 'Dossiers du Personnel',
+  attendance: 'Temps & Présence',
+  overtime: 'Heures Supplémentaires',
+  leaves: 'Congés',
+  settings: 'Paramètres',
+  // Training menus
+  professors: 'Professeurs',
+  student: 'Étudiants',
+  // Accounting menus
+  actions: 'Plan d\'Action',
+  projects: 'Projets',
+  // Commercialisation menus
+  prospects: 'Prospects',
+  clients: 'Clients'
 };
 
 // Action labels in French
@@ -127,7 +145,8 @@ router.get('/tree', authenticateToken, async (req, res) => {
         action: perm.action,
         code: `${perm.module}.${perm.menu}.${perm.action}`,
         label: perm.label,
-        actionLabel: ACTION_LABELS[perm.action] || perm.action
+        actionLabel: ACTION_LABELS[perm.action] || perm.action,
+        description: perm.description
       });
     }
 

@@ -76,6 +76,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 065',
     description: 'Permissions professeurs - view_page, create, edit, delete, assign_segments, assign_cities',
     endpoint: '/migration-065'
+  },
+  {
+    id: 'migration-066',
+    name: 'Migration 066',
+    description: 'Permissions manquantes - hr.employee_portal.*, hr.leaves.approve, system.roles.*, commercialisation.clients.*',
+    endpoint: '/migration-066'
   }
 ];
 
