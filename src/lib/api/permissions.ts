@@ -19,6 +19,7 @@ export interface PermissionAction {
   code: string;
   label: string;
   actionLabel: string;
+  description?: string;
 }
 
 export interface PermissionMenu {
