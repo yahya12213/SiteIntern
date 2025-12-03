@@ -1,11 +1,11 @@
 import express from 'express';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 
 const router = express.Router();
 
 // Get attendance records with filters
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
   const { employee_id, start_date, end_date, status } = req.query;
 
   try {
@@ -56,7 +56,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Record attendance (check-in/check-out)
-router.post('/record', authenticateToken, async (req, res) => {
+router.post('/record', authenticateToken, requirePermission('hr.attendance.create'), async (req, res) => {
   try {
     const {
       employee_id,
@@ -106,7 +106,7 @@ router.post('/record', authenticateToken, async (req, res) => {
 });
 
 // Correct attendance record
-router.put('/:id/correct', authenticateToken, async (req, res) => {
+router.put('/:id/correct', authenticateToken, requirePermission('hr.attendance.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const { check_in_time, check_out_time, correction_reason } = req.body;
@@ -163,7 +163,7 @@ router.put('/:id/correct', authenticateToken, async (req, res) => {
 });
 
 // Get anomalies
-router.get('/anomalies', authenticateToken, async (req, res) => {
+router.get('/anomalies', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -183,7 +183,7 @@ router.get('/anomalies', authenticateToken, async (req, res) => {
 });
 
 // Resolve anomaly
-router.put('/anomalies/:id/resolve', authenticateToken, async (req, res) => {
+router.put('/anomalies/:id/resolve', authenticateToken, requirePermission('hr.attendance.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const { resolution_note } = req.body;
@@ -214,7 +214,7 @@ router.put('/anomalies/:id/resolve', authenticateToken, async (req, res) => {
 // === OVERTIME ===
 
 // Get overtime requests
-router.get('/overtime/requests', authenticateToken, async (req, res) => {
+router.get('/overtime/requests', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
   try {
     const { status } = req.query;
     let query = `
@@ -244,7 +244,7 @@ router.get('/overtime/requests', authenticateToken, async (req, res) => {
 });
 
 // Create overtime request
-router.post('/overtime/requests', authenticateToken, async (req, res) => {
+router.post('/overtime/requests', authenticateToken, requirePermission('hr.attendance.create'), async (req, res) => {
   try {
     const {
       employee_id,
@@ -284,7 +284,7 @@ router.post('/overtime/requests', authenticateToken, async (req, res) => {
 });
 
 // Approve overtime request
-router.put('/overtime/requests/:id/approve', authenticateToken, async (req, res) => {
+router.put('/overtime/requests/:id/approve', authenticateToken, requirePermission('hr.leaves.approve'), async (req, res) => {
   try {
     const { id } = req.params;
     const { level, comment } = req.body; // level: 'n1' or 'n2'
@@ -325,7 +325,7 @@ router.put('/overtime/requests/:id/approve', authenticateToken, async (req, res)
 });
 
 // Get work schedules
-router.get('/schedules', authenticateToken, async (req, res) => {
+router.get('/schedules', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT * FROM hr_work_schedules
@@ -340,7 +340,7 @@ router.get('/schedules', authenticateToken, async (req, res) => {
 });
 
 // Monthly summary
-router.get('/summary/:year/:month', authenticateToken, async (req, res) => {
+router.get('/summary/:year/:month', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
   try {
     const { year, month } = req.params;
     const result = await pool.query(`

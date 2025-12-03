@@ -1,11 +1,11 @@
 import express from 'express';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 
 const router = express.Router();
 
 // Get global HR statistics
-router.get('/stats', authenticateToken, async (req, res) => {
+router.get('/stats', authenticateToken, requirePermission('hr.dashboard.view_page'), async (req, res) => {
   try {
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -74,7 +74,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
 });
 
 // Get HR alerts (contracts expiring, negative balances, anomalies)
-router.get('/alerts', authenticateToken, async (req, res) => {
+router.get('/alerts', authenticateToken, requirePermission('hr.dashboard.view_page'), async (req, res) => {
   try {
     const now = new Date();
     const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -162,7 +162,7 @@ router.get('/alerts', authenticateToken, async (req, res) => {
 });
 
 // Get attendance chart data
-router.get('/charts/attendance', authenticateToken, async (req, res) => {
+router.get('/charts/attendance', authenticateToken, requirePermission('hr.dashboard.view_page'), async (req, res) => {
   const { year, month, type } = req.query;
   const targetYear = year || new Date().getFullYear();
   const targetMonth = month || new Date().getMonth() + 1;
@@ -208,7 +208,7 @@ router.get('/charts/attendance', authenticateToken, async (req, res) => {
 });
 
 // Get leaves chart data
-router.get('/charts/leaves', authenticateToken, async (req, res) => {
+router.get('/charts/leaves', authenticateToken, requirePermission('hr.dashboard.view_page'), async (req, res) => {
   const { year } = req.query;
   const targetYear = year || new Date().getFullYear();
 
@@ -255,7 +255,7 @@ router.get('/charts/leaves', authenticateToken, async (req, res) => {
 });
 
 // Get monthly summary with export capability
-router.get('/monthly-summary/:year/:month', authenticateToken, async (req, res) => {
+router.get('/monthly-summary/:year/:month', authenticateToken, requirePermission('hr.dashboard.view_page'), async (req, res) => {
   try {
     const { year, month } = req.params;
     const { format } = req.query; // format: 'json' or 'csv'

@@ -1,11 +1,11 @@
 import express from 'express';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 
 const router = express.Router();
 
 // Get all settings
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
   const { category } = req.query;
 
   try {
@@ -30,7 +30,7 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 // Get single setting
-router.get('/:key', authenticateToken, async (req, res) => {
+router.get('/:key', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
   try {
     const { key } = req.params;
     const result = await pool.query(
@@ -50,7 +50,7 @@ router.get('/:key', authenticateToken, async (req, res) => {
 });
 
 // Update setting
-router.put('/:key', authenticateToken, async (req, res) => {
+router.put('/:key', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
     const { key } = req.params;
     const { value } = req.body;
@@ -86,7 +86,7 @@ router.put('/:key', authenticateToken, async (req, res) => {
 // === LEAVE TYPES MANAGEMENT ===
 
 // Get all leave types
-router.get('/leave-types/all', authenticateToken, async (req, res) => {
+router.get('/leave-types/all', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT * FROM hr_leave_types
@@ -100,7 +100,7 @@ router.get('/leave-types/all', authenticateToken, async (req, res) => {
 });
 
 // Create leave type
-router.post('/leave-types', authenticateToken, async (req, res) => {
+router.post('/leave-types', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
     const {
       name,
@@ -141,7 +141,7 @@ router.post('/leave-types', authenticateToken, async (req, res) => {
 });
 
 // Update leave type
-router.put('/leave-types/:id', authenticateToken, async (req, res) => {
+router.put('/leave-types/:id', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -171,7 +171,7 @@ router.put('/leave-types/:id', authenticateToken, async (req, res) => {
 });
 
 // Delete leave type
-router.delete('/leave-types/:id', authenticateToken, async (req, res) => {
+router.delete('/leave-types/:id', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -207,7 +207,7 @@ router.delete('/leave-types/:id', authenticateToken, async (req, res) => {
 // === WORK SCHEDULES MANAGEMENT ===
 
 // Get all work schedules
-router.get('/schedules/all', authenticateToken, async (req, res) => {
+router.get('/schedules/all', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT * FROM hr_work_schedules
@@ -221,7 +221,7 @@ router.get('/schedules/all', authenticateToken, async (req, res) => {
 });
 
 // Create work schedule
-router.post('/schedules', authenticateToken, async (req, res) => {
+router.post('/schedules', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
     const {
       name,
@@ -281,7 +281,7 @@ router.post('/schedules', authenticateToken, async (req, res) => {
 });
 
 // Update work schedule
-router.put('/schedules/:id', authenticateToken, async (req, res) => {
+router.put('/schedules/:id', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -316,7 +316,7 @@ router.put('/schedules/:id', authenticateToken, async (req, res) => {
 });
 
 // Delete work schedule
-router.delete('/schedules/:id', authenticateToken, async (req, res) => {
+router.delete('/schedules/:id', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
     const { id } = req.params;
 

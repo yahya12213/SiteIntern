@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { permissionsApi, type PermissionModule, type PermissionMenu } from '@/lib/api/permissions';
 import { getPermissionLabel } from '@/config/permissions';
-import { ChevronDown, ChevronRight, Check, Minus, Folder, FileText } from 'lucide-react';
+import { ChevronDown, ChevronRight, Check, Minus, Folder, FileText, Info } from 'lucide-react';
 
 interface PermissionTreeProps {
   selectedPermissions: string[]; // Array of permission IDs
@@ -240,23 +240,34 @@ export function PermissionTree({
                       <div className="pl-8 py-2 bg-gray-50">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {menu.actions.map((action) => (
-                            <label
+                            <div
                               key={action.id}
                               className={`flex items-center px-3 py-2 rounded-md hover:bg-white transition-colors ${
                                 readOnly ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
                               }`}
                             >
-                              <input
-                                type="checkbox"
-                                checked={selectedPermissions.includes(action.id)}
-                                onChange={() => togglePermission(action.id)}
-                                disabled={readOnly}
-                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                              />
-                              <span className="ml-3 text-base text-gray-700">
-                                {getPermissionLabel(action.code)}
-                              </span>
-                            </label>
+                              <label className="flex items-center flex-1">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedPermissions.includes(action.id)}
+                                  onChange={() => togglePermission(action.id)}
+                                  disabled={readOnly}
+                                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                />
+                                <span className="ml-3 text-base text-gray-700">
+                                  {action.label || getPermissionLabel(action.code)}
+                                </span>
+                              </label>
+                              {action.description && (
+                                <div className="relative group ml-2">
+                                  <Info className="h-4 w-4 text-gray-400 hover:text-indigo-600 cursor-help" />
+                                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-normal min-w-[200px] max-w-[300px] z-50 shadow-lg">
+                                    {action.description}
+                                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>

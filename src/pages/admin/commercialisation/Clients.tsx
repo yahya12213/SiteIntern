@@ -1,8 +1,11 @@
 import React from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Users, Plus } from 'lucide-react';
+import { usePermission } from '@/hooks/usePermission';
 
 const Clients: React.FC = () => {
+  const { commercialisation } = usePermission();
+
   return (
     <AppLayout
       title="Gestion des Clients"
@@ -15,10 +18,12 @@ const Clients: React.FC = () => {
             <Users className="w-6 h-6 text-blue-600" />
             <h2 className="text-xl font-semibold text-gray-900">Liste des clients</h2>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-            <Plus className="w-5 h-5" />
-            Nouveau client
-          </button>
+          {commercialisation.canCreateClient && (
+            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+              <Plus className="w-5 h-5" />
+              Nouveau client
+            </button>
+          )}
         </div>
 
         {/* Development Notice */}

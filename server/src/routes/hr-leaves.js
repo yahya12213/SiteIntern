@@ -1,11 +1,11 @@
 import express from 'express';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 
 const router = express.Router();
 
 // Get leave types
-router.get('/types', authenticateToken, async (req, res) => {
+router.get('/types', authenticateToken, requirePermission('hr.leaves.view_page'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT * FROM hr_leave_types
@@ -20,7 +20,7 @@ router.get('/types', authenticateToken, async (req, res) => {
 });
 
 // Get leave requests
-router.get('/requests', authenticateToken, async (req, res) => {
+router.get('/requests', authenticateToken, requirePermission('hr.leaves.view_page'), async (req, res) => {
   const { employee_id, status, start_date, end_date } = req.query;
 
   try {
@@ -75,7 +75,7 @@ router.get('/requests', authenticateToken, async (req, res) => {
 });
 
 // Create leave request
-router.post('/requests', authenticateToken, async (req, res) => {
+router.post('/requests', authenticateToken, requirePermission('hr.leaves.create'), async (req, res) => {
   try {
     const {
       employee_id,
@@ -120,7 +120,7 @@ router.post('/requests', authenticateToken, async (req, res) => {
 });
 
 // Approve leave request
-router.put('/requests/:id/approve', authenticateToken, async (req, res) => {
+router.put('/requests/:id/approve', authenticateToken, requirePermission('hr.leaves.approve'), async (req, res) => {
   try {
     const { id } = req.params;
     const { level, comment } = req.body; // level: 'n1', 'n2', or 'hr'
@@ -182,7 +182,7 @@ router.put('/requests/:id/approve', authenticateToken, async (req, res) => {
 });
 
 // Reject leave request
-router.put('/requests/:id/reject', authenticateToken, async (req, res) => {
+router.put('/requests/:id/reject', authenticateToken, requirePermission('hr.leaves.approve'), async (req, res) => {
   try {
     const { id } = req.params;
     const { level, comment } = req.body;
@@ -223,7 +223,7 @@ router.put('/requests/:id/reject', authenticateToken, async (req, res) => {
 });
 
 // Get leave balances for employee
-router.get('/balances/:employee_id', authenticateToken, async (req, res) => {
+router.get('/balances/:employee_id', authenticateToken, requirePermission('hr.leaves.view_page'), async (req, res) => {
   try {
     const { employee_id } = req.params;
     const year = new Date().getFullYear();
@@ -248,7 +248,7 @@ router.get('/balances/:employee_id', authenticateToken, async (req, res) => {
 });
 
 // Update leave balance (adjustment)
-router.put('/balances/:id/adjust', authenticateToken, async (req, res) => {
+router.put('/balances/:id/adjust', authenticateToken, requirePermission('hr.leaves.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const { adjustment, reason } = req.body;
@@ -275,7 +275,7 @@ router.put('/balances/:id/adjust', authenticateToken, async (req, res) => {
 });
 
 // Get holidays
-router.get('/holidays', authenticateToken, async (req, res) => {
+router.get('/holidays', authenticateToken, requirePermission('hr.leaves.view_page'), async (req, res) => {
   const { year } = req.query;
   const targetYear = year || new Date().getFullYear();
 
@@ -294,7 +294,7 @@ router.get('/holidays', authenticateToken, async (req, res) => {
 });
 
 // Add holiday
-router.post('/holidays', authenticateToken, async (req, res) => {
+router.post('/holidays', authenticateToken, requirePermission('hr.leaves.create'), async (req, res) => {
   try {
     const {
       name,
@@ -329,7 +329,7 @@ router.post('/holidays', authenticateToken, async (req, res) => {
 });
 
 // Leave calendar data
-router.get('/calendar', authenticateToken, async (req, res) => {
+router.get('/calendar', authenticateToken, requirePermission('hr.leaves.view_page'), async (req, res) => {
   const { start_date, end_date } = req.query;
 
   try {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Search, Edit2, Trash2, Users, MapPin, Layers, Eye, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProfessors, useDeleteProfessor } from '@/hooks/useProfessors';
+import { usePermission } from '@/hooks/usePermission';
 import ProfessorFormModal from '@/components/admin/ProfessorFormModal';
 import AssignCitiesModal from '@/components/admin/AssignCitiesModal';
 import AssignSegmentsModal from '@/components/admin/AssignSegmentsModal';
@@ -9,6 +10,7 @@ import ViewProfessorAssignmentsModal from '@/components/admin/ViewProfessorAssig
 
 export default function Professors() {
   const navigate = useNavigate();
+  const { training } = usePermission();
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAssignCitiesOpen, setIsAssignCitiesOpen] = useState(false);
@@ -111,13 +113,15 @@ export default function Professors() {
           </div>
 
           {/* Bouton Ajouter */}
-          <button
-            onClick={() => setIsFormOpen(true)}
-            className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Nouveau Professeur
-          </button>
+          {training.canCreateProfessor && (
+            <button
+              onClick={() => setIsFormOpen(true)}
+              className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Nouveau Professeur
+            </button>
+          )}
         </div>
       </div>
 
@@ -189,34 +193,42 @@ export default function Professors() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleAssignSegments(professor)}
-                          className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Affecter des segments"
-                        >
-                          <Layers className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleAssignCities(professor)}
-                          className="text-green-600 hover:text-green-900 p-2 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Affecter des villes"
-                        >
-                          <MapPin className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleEdit(professor.id)}
-                          className="text-indigo-600 hover:text-indigo-900 p-2 hover:bg-indigo-50 rounded-lg transition-colors"
-                          title="Modifier"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(professor.id, professor.full_name)}
-                          className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {training.canAssignProfessorSegments && (
+                          <button
+                            onClick={() => handleAssignSegments(professor)}
+                            className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Affecter des segments"
+                          >
+                            <Layers className="w-4 h-4" />
+                          </button>
+                        )}
+                        {training.canAssignProfessorCities && (
+                          <button
+                            onClick={() => handleAssignCities(professor)}
+                            className="text-green-600 hover:text-green-900 p-2 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Affecter des villes"
+                          >
+                            <MapPin className="w-4 h-4" />
+                          </button>
+                        )}
+                        {training.canUpdateProfessor && (
+                          <button
+                            onClick={() => handleEdit(professor.id)}
+                            className="text-indigo-600 hover:text-indigo-900 p-2 hover:bg-indigo-50 rounded-lg transition-colors"
+                            title="Modifier"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {training.canDeleteProfessor && (
+                          <button
+                            onClick={() => handleDelete(professor.id, professor.full_name)}
+                            className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

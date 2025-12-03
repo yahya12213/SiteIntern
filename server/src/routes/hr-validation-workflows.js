@@ -4,7 +4,7 @@
  */
 
 import express from 'express';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 
 const router = express.Router();
@@ -17,7 +17,7 @@ const router = express.Router();
  * GET /api/hr/validation-workflows
  * Get all validation workflows
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, requirePermission('hr.validation_workflows.view_page'), async (req, res) => {
   try {
     const { trigger_type, active_only } = req.query;
 
@@ -91,7 +91,7 @@ router.get('/', authenticateToken, async (req, res) => {
  * GET /api/hr/validation-workflows/:id
  * Get a single workflow with all steps
  */
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticateToken, requirePermission('hr.validation_workflows.view_page'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -131,7 +131,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
  * POST /api/hr/validation-workflows
  * Create a new workflow
  */
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticateToken, requirePermission('hr.validation_workflows.create'), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -212,7 +212,7 @@ router.post('/', authenticateToken, async (req, res) => {
  * PUT /api/hr/validation-workflows/:id
  * Update a workflow
  */
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticateToken, requirePermission('hr.validation_workflows.edit'), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -292,7 +292,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
  * PUT /api/hr/validation-workflows/:id/toggle
  * Toggle workflow active status
  */
-router.put('/:id/toggle', authenticateToken, async (req, res) => {
+router.put('/:id/toggle', authenticateToken, requirePermission('hr.validation_workflows.edit'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -322,7 +322,7 @@ router.put('/:id/toggle', authenticateToken, async (req, res) => {
  * DELETE /api/hr/validation-workflows/:id
  * Delete a workflow
  */
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticateToken, requirePermission('hr.validation_workflows.delete'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -363,7 +363,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
  * POST /api/hr/validation-workflows/:id/steps
  * Add a step to workflow
  */
-router.post('/:id/steps', authenticateToken, async (req, res) => {
+router.post('/:id/steps', authenticateToken, requirePermission('hr.validation_workflows.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -407,7 +407,7 @@ router.post('/:id/steps', authenticateToken, async (req, res) => {
  * PUT /api/hr/validation-workflows/:workflowId/steps/:stepId
  * Update a step
  */
-router.put('/:workflowId/steps/:stepId', authenticateToken, async (req, res) => {
+router.put('/:workflowId/steps/:stepId', authenticateToken, requirePermission('hr.validation_workflows.edit'), async (req, res) => {
   try {
     const { stepId } = req.params;
     const {
@@ -448,7 +448,7 @@ router.put('/:workflowId/steps/:stepId', authenticateToken, async (req, res) => 
  * DELETE /api/hr/validation-workflows/:workflowId/steps/:stepId
  * Delete a step and reorder remaining
  */
-router.delete('/:workflowId/steps/:stepId', authenticateToken, async (req, res) => {
+router.delete('/:workflowId/steps/:stepId', authenticateToken, requirePermission('hr.validation_workflows.edit'), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -495,7 +495,7 @@ router.delete('/:workflowId/steps/:stepId', authenticateToken, async (req, res) 
  * PUT /api/hr/validation-workflows/:workflowId/steps/:stepId/move
  * Move step up or down
  */
-router.put('/:workflowId/steps/:stepId/move', authenticateToken, async (req, res) => {
+router.put('/:workflowId/steps/:stepId/move', authenticateToken, requirePermission('hr.validation_workflows.edit'), async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -565,7 +565,7 @@ router.put('/:workflowId/steps/:stepId/move', authenticateToken, async (req, res
  * GET /api/hr/validation-workflows/stats
  * Get workflow statistics
  */
-router.get('/stats/summary', authenticateToken, async (req, res) => {
+router.get('/stats/summary', authenticateToken, requirePermission('hr.validation_workflows.view_page'), async (req, res) => {
   try {
     const [total, active, triggers, instances] = await Promise.all([
       pool.query('SELECT COUNT(*) as count FROM hr_validation_workflows'),

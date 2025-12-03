@@ -1,6 +1,6 @@
 import express from 'express';
 import pg from 'pg';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
 const { Pool } = pg;
 const router = express.Router();
@@ -12,7 +12,7 @@ const getPool = () => new Pool({
 });
 
 // GET /api/hr/requests-validation/pending - Get pending requests for current approver
-router.get('/pending', authenticateToken, async (req, res) => {
+router.get('/pending', authenticateToken, requirePermission('hr.leaves.approve'), async (req, res) => {
   const pool = getPool();
 
   try {
@@ -111,7 +111,7 @@ router.get('/pending', authenticateToken, async (req, res) => {
 });
 
 // GET /api/hr/requests-validation/history - Get decision history
-router.get('/history', authenticateToken, async (req, res) => {
+router.get('/history', authenticateToken, requirePermission('hr.leaves.view_page'), async (req, res) => {
   const pool = getPool();
 
   try {
@@ -179,7 +179,7 @@ router.get('/history', authenticateToken, async (req, res) => {
 });
 
 // POST /api/hr/requests-validation/:id/approve - Approve a request
-router.post('/:id/approve', authenticateToken, async (req, res) => {
+router.post('/:id/approve', authenticateToken, requirePermission('hr.leaves.approve'), async (req, res) => {
   const pool = getPool();
 
   try {
@@ -248,7 +248,7 @@ router.post('/:id/approve', authenticateToken, async (req, res) => {
 });
 
 // POST /api/hr/requests-validation/:id/reject - Reject a request
-router.post('/:id/reject', authenticateToken, async (req, res) => {
+router.post('/:id/reject', authenticateToken, requirePermission('hr.leaves.approve'), async (req, res) => {
   const pool = getPool();
 
   try {
@@ -305,7 +305,7 @@ router.post('/:id/reject', authenticateToken, async (req, res) => {
 });
 
 // GET /api/hr/requests-validation/:id - Get request details
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticateToken, requirePermission('hr.leaves.view_page'), async (req, res) => {
   const pool = getPool();
 
   try {

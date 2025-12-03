@@ -17,7 +17,7 @@ const router = express.Router();
  * GET /api/hr/schedule-management/schedules
  * Get all work schedules
  */
-router.get('/schedules', authenticateToken, async (req, res) => {
+router.get('/schedules', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -78,7 +78,7 @@ router.get('/schedules', authenticateToken, async (req, res) => {
  * POST /api/hr/schedule-management/schedules
  * Create a new work schedule
  */
-router.post('/schedules', authenticateToken, async (req, res) => {
+router.post('/schedules', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
     const {
       nom, description, horaires, heures_hebdo, is_default,
@@ -146,7 +146,7 @@ router.post('/schedules', authenticateToken, async (req, res) => {
  * PUT /api/hr/schedule-management/schedules/:id
  * Update a work schedule
  */
-router.put('/schedules/:id', authenticateToken, async (req, res) => {
+router.put('/schedules/:id', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -218,7 +218,7 @@ router.put('/schedules/:id', authenticateToken, async (req, res) => {
  * DELETE /api/hr/schedule-management/schedules/:id
  * Delete a work schedule
  */
-router.delete('/schedules/:id', authenticateToken, async (req, res) => {
+router.delete('/schedules/:id', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -259,7 +259,7 @@ router.delete('/schedules/:id', authenticateToken, async (req, res) => {
  * GET /api/hr/schedule-management/holidays
  * Get all public holidays
  */
-router.get('/holidays', authenticateToken, async (req, res) => {
+router.get('/holidays', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
   try {
     const { year } = req.query;
 
@@ -296,7 +296,7 @@ router.get('/holidays', authenticateToken, async (req, res) => {
  * POST /api/hr/schedule-management/holidays
  * Create a public holiday
  */
-router.post('/holidays', authenticateToken, async (req, res) => {
+router.post('/holidays', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
     const { nom, date_debut, date_fin, type, recurrent, description } = req.body;
 
@@ -345,7 +345,7 @@ router.post('/holidays', authenticateToken, async (req, res) => {
  * PUT /api/hr/schedule-management/holidays/:id
  * Update a public holiday
  */
-router.put('/holidays/:id', authenticateToken, async (req, res) => {
+router.put('/holidays/:id', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const { nom, date_debut, recurrent, description } = req.body;
@@ -383,7 +383,7 @@ router.put('/holidays/:id', authenticateToken, async (req, res) => {
  * DELETE /api/hr/schedule-management/holidays/:id
  * Delete a public holiday
  */
-router.delete('/holidays/:id', authenticateToken, async (req, res) => {
+router.delete('/holidays/:id', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -411,7 +411,7 @@ router.delete('/holidays/:id', authenticateToken, async (req, res) => {
  * GET /api/hr/schedule-management/approved-leaves
  * Get all approved leave requests
  */
-router.get('/approved-leaves', authenticateToken, async (req, res) => {
+router.get('/approved-leaves', authenticateToken, requirePermission('hr.leaves.view_page'), async (req, res) => {
   try {
     const { year, month } = req.query;
 
@@ -469,7 +469,7 @@ router.get('/approved-leaves', authenticateToken, async (req, res) => {
  * GET /api/hr/schedule-management/overtime
  * Get all overtime declarations
  */
-router.get('/overtime', authenticateToken, async (req, res) => {
+router.get('/overtime', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
   try {
     const { status, year, month } = req.query;
 
@@ -532,7 +532,7 @@ router.get('/overtime', authenticateToken, async (req, res) => {
  * POST /api/hr/schedule-management/overtime
  * Create an overtime declaration (admin/manager)
  */
-router.post('/overtime', authenticateToken, async (req, res) => {
+router.post('/overtime', authenticateToken, requirePermission('hr.attendance.create'), async (req, res) => {
   try {
     const {
       employee_id,
@@ -586,7 +586,7 @@ router.post('/overtime', authenticateToken, async (req, res) => {
  * PUT /api/hr/schedule-management/overtime/:id/approve
  * Approve an overtime declaration
  */
-router.put('/overtime/:id/approve', authenticateToken, async (req, res) => {
+router.put('/overtime/:id/approve', authenticateToken, requirePermission('hr.leaves.approve'), async (req, res) => {
   try {
     const { id } = req.params;
     const { hours_approved, comment } = req.body;
@@ -621,7 +621,7 @@ router.put('/overtime/:id/approve', authenticateToken, async (req, res) => {
  * PUT /api/hr/schedule-management/overtime/:id/reject
  * Reject an overtime declaration
  */
-router.put('/overtime/:id/reject', authenticateToken, async (req, res) => {
+router.put('/overtime/:id/reject', authenticateToken, requirePermission('hr.leaves.approve'), async (req, res) => {
   try {
     const { id } = req.params;
     const { comment } = req.body;
@@ -655,7 +655,7 @@ router.put('/overtime/:id/reject', authenticateToken, async (req, res) => {
  * DELETE /api/hr/schedule-management/overtime/:id
  * Delete an overtime declaration (only if pending)
  */
-router.delete('/overtime/:id', authenticateToken, async (req, res) => {
+router.delete('/overtime/:id', authenticateToken, requirePermission('hr.attendance.edit'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -686,7 +686,7 @@ router.delete('/overtime/:id', authenticateToken, async (req, res) => {
  * GET /api/hr/schedule-management/stats
  * Get schedule management statistics
  */
-router.get('/stats', authenticateToken, async (req, res) => {
+router.get('/stats', authenticateToken, requirePermission('hr.dashboard.view_page'), async (req, res) => {
   try {
     const [schedules, holidays, leaves, overtime] = await Promise.all([
       pool.query('SELECT COUNT(*) as count FROM hr_work_schedules WHERE is_active = true'),

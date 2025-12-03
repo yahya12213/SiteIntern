@@ -180,6 +180,14 @@ export function usePermission() {
 
   // Training module specific checks
   const training = useMemo(() => ({
+    // Professors
+    canViewProfessors: can('training.professors.view_page'),
+    canCreateProfessor: can('training.professors.create'),
+    canUpdateProfessor: can('training.professors.edit'),
+    canDeleteProfessor: can('training.professors.delete'),
+    canAssignProfessorSegments: can('training.professors.assign_segments'),
+    canAssignProfessorCities: can('training.professors.assign_cities'),
+
     // Formations
     canViewFormations: can('training.formations.view_page'),
     canCreateFormation: can('training.formations.create'),
