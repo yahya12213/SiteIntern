@@ -45,6 +45,12 @@ router.post('/run', async (req, res) => {
     }
     console.log('✅ Session student permissions added');
 
+    // Get the permission IDs we just inserted
+    const permissionIds = await client.query(`
+      SELECT id, code FROM permissions
+      WHERE code IN ('training.sessions.add_student', 'training.sessions.edit_student')
+    `);
+
     // Auto-assign to admin role
     const adminRoleResult = await client.query(
       "SELECT id FROM roles WHERE name = 'admin' LIMIT 1"
@@ -53,12 +59,12 @@ router.post('/run', async (req, res) => {
     if (adminRoleResult.rows.length > 0) {
       const adminRoleId = adminRoleResult.rows[0].id;
 
-      for (const perm of permissions) {
+      for (const perm of permissionIds.rows) {
         await client.query(`
-          INSERT INTO role_permissions (role_id, permission_code)
+          INSERT INTO role_permissions (role_id, permission_id)
           VALUES ($1, $2)
           ON CONFLICT DO NOTHING
-        `, [adminRoleId, perm.code]);
+        `, [adminRoleId, perm.id]);
       }
       console.log('✅ Permissions assigned to admin role');
     }
@@ -71,12 +77,12 @@ router.post('/run', async (req, res) => {
     if (gerantRoleResult.rows.length > 0) {
       const gerantRoleId = gerantRoleResult.rows[0].id;
 
-      for (const perm of permissions) {
+      for (const perm of permissionIds.rows) {
         await client.query(`
-          INSERT INTO role_permissions (role_id, permission_code)
+          INSERT INTO role_permissions (role_id, permission_id)
           VALUES ($1, $2)
           ON CONFLICT DO NOTHING
-        `, [gerantRoleId, perm.code]);
+        `, [gerantRoleId, perm.id]);
       }
       console.log('✅ Permissions assigned to gerant role');
     }
