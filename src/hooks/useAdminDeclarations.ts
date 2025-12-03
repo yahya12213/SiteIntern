@@ -18,6 +18,7 @@ export function useAdminDeclarations(status?: string) {
 
       return declarations;
     },
+    refetchInterval: 30000, // Polling toutes les 30 secondes pour mise à jour temps réel
   });
 }
 
@@ -122,6 +123,7 @@ export function useDeclarationStats() {
         a_declarer: declarations.filter(d => d.status === 'a_declarer').length,
       };
     },
+    refetchInterval: 30000, // Polling toutes les 30 secondes
   });
 }
 

@@ -17,29 +17,31 @@ router.post('/run', async (req, res) => {
     // Add new permissions for session student management
     const permissions = [
       {
+        module: 'training',
+        menu: 'sessions',
+        action: 'add_student',
         code: 'training.sessions.add_student',
         label: 'Ajouter étudiant',
         description: 'Inscrire un étudiant à une session de formation',
-        module: 'training',
-        menu: 'sessions',
-        action: 'add_student'
+        sort_order: 50
       },
       {
+        module: 'training',
+        menu: 'sessions',
+        action: 'edit_student',
         code: 'training.sessions.edit_student',
         label: 'Modifier étudiant',
         description: 'Modifier l\'inscription d\'un étudiant dans une session',
-        module: 'training',
-        menu: 'sessions',
-        action: 'edit_student'
+        sort_order: 51
       },
     ];
 
     for (const perm of permissions) {
       await client.query(`
-        INSERT INTO permissions (code, label, description, module, menu, action)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO permissions (module, menu, action, code, label, description, sort_order, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
         ON CONFLICT (code) DO NOTHING
-      `, [perm.code, perm.label, perm.description, perm.module, perm.menu, perm.action]);
+      `, [perm.module, perm.menu, perm.action, perm.code, perm.label, perm.description, perm.sort_order]);
     }
     console.log('✅ Session student permissions added');
 

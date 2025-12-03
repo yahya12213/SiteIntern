@@ -16,6 +16,7 @@ export const useProspects = (filters?: ProspectFilters) => {
   return useQuery({
     queryKey: ['prospects', filters],
     queryFn: () => prospectsApi.getAll(filters),
+    refetchInterval: 30000, // Polling toutes les 30 secondes pour mise à jour temps réel
   });
 };
 
