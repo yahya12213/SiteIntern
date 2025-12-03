@@ -18,6 +18,12 @@ interface MigrationStatus {
 
 const MIGRATIONS: Migration[] = [
   {
+    id: 'migration-049',
+    name: 'Migration 049',
+    description: 'Ajouter colonne requires_clocking à hr_employees (requis pour le pointage)',
+    endpoint: '/migration-049'
+  },
+  {
     id: 'migration-055',
     name: 'Migration 055',
     description: 'Fix critical permissions (system.roles, corps.view_page, professor/student permissions)',
