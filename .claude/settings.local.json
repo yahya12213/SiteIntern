@@ -91,7 +91,8 @@
       "Bash(node:*)",
       "Bash(cd:*)",
       "Bash(npm outdated:*)",
-      "Bash(npm update:*)"
+      "Bash(npm update:*)",
+      "Bash(move:*)"
     ],
     "deny": [],
     "ask": []
