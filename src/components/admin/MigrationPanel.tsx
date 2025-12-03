@@ -82,6 +82,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 066',
     description: 'Permissions manquantes - hr.employee_portal.*, hr.leaves.approve, system.roles.*, commercialisation.clients.*',
     endpoint: '/migration-066'
+  },
+  {
+    id: 'migration-067',
+    name: 'Migration 067',
+    description: 'Alignement HR/Sidebar - hr.validation_workflows.*, hr.schedules.*, hr.payroll.*, hr.requests_validation.*',
+    endpoint: '/migration-067'
   }
 ];
 

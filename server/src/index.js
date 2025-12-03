@@ -103,6 +103,7 @@ import migration063Router from './routes/migration-063-session-student-permissio
 import migration064Router from './routes/migration-064-permission-labels-fr.js';
 import migration065Router from './routes/migration-065-professor-permissions.js';
 import migration066Router from './routes/migration-066-missing-permissions.js';
+import migration067Router from './routes/migration-067-hr-alignment.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -278,6 +279,7 @@ app.use('/api/migration-063', ...adminOnly, migration063Router);
 app.use('/api/migration-064', ...adminOnly, migration064Router);
 app.use('/api/migration-065', ...adminOnly, migration065Router);
 app.use('/api/migration-066', ...adminOnly, migration066Router);
+app.use('/api/migration-067', ...adminOnly, migration067Router);
 app.use('/api/migration-fix-segments-and-sheets', ...adminOnly, migrationFixRouter);
 app.use('/api/migration-fix-impression-permissions', ...adminOnly, migrationFixImpressionRouter);
 app.use('/api/migration-fix-role-sync', ...adminOnly, migrationFixRoleSyncRouter);
