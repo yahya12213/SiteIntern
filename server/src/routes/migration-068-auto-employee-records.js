@@ -17,7 +17,7 @@ router.post('/run', async (req, res) => {
 
     // Find all users who have the clocking permission but don't have an employee record
     const usersWithoutEmployee = await client.query(`
-      SELECT DISTINCT p.id as profile_id, p.username, p.first_name, p.last_name, p.email
+      SELECT DISTINCT p.id as profile_id, p.username, p.full_name, p.email
       FROM profiles p
       INNER JOIN user_roles ur ON p.id = ur.user_id
       INNER JOIN role_permissions rp ON ur.role_id = rp.role_id
@@ -37,6 +37,11 @@ router.post('/run', async (req, res) => {
       // Generate employee number from username
       const employeeNumber = `EMP-${user.username.toUpperCase().substring(0, 5)}-${Date.now().toString().slice(-4)}`;
 
+      // Parse full_name into first_name and last_name
+      const nameParts = (user.full_name || user.username || '').trim().split(' ');
+      const firstName = nameParts[0] || user.username;
+      const lastName = nameParts.slice(1).join(' ') || '';
+
       // Create employee record with requires_clocking = true
       const result = await client.query(`
         INSERT INTO hr_employees (
@@ -54,8 +59,8 @@ router.post('/run', async (req, res) => {
         RETURNING id, employee_number
       `, [
         employeeNumber,
-        user.first_name || user.username,
-        user.last_name || '',
+        firstName,
+        lastName,
         user.email,
         user.profile_id
       ]);

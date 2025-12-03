@@ -38,7 +38,7 @@ const userHasClockingPermission = async (pool, profileId) => {
 const autoCreateEmployeeRecord = async (pool, profileId) => {
   // Get user info
   const userResult = await pool.query(`
-    SELECT id, username, first_name, last_name, email
+    SELECT id, username, full_name, email
     FROM profiles
     WHERE id = $1
   `, [profileId]);
@@ -46,6 +46,11 @@ const autoCreateEmployeeRecord = async (pool, profileId) => {
   if (userResult.rows.length === 0) return null;
 
   const user = userResult.rows[0];
+
+  // Parse full_name into first_name and last_name
+  const nameParts = (user.full_name || user.username || '').trim().split(' ');
+  const firstName = nameParts[0] || user.username;
+  const lastName = nameParts.slice(1).join(' ') || '';
 
   // Generate employee number
   const employeeNumber = `EMP-${user.username.toUpperCase().substring(0, 5)}-${Date.now().toString().slice(-4)}`;
@@ -67,8 +72,8 @@ const autoCreateEmployeeRecord = async (pool, profileId) => {
     RETURNING id, first_name, last_name, requires_clocking, employee_number
   `, [
     employeeNumber,
-    user.first_name || user.username,
-    user.last_name || '',
+    firstName,
+    lastName,
     user.email,
     profileId
   ]);
