@@ -1,7 +1,4 @@
-# Disable static site detection - this is a Node.js Express app
-[staticAssets]
-enable = false
-
+# Node.js Express app configuration
 [phases.setup]
 nixPkgs = ['nodejs_20']
 
