@@ -47,32 +47,33 @@ const autoCreateEmployeeRecord = async (pool, profileId) => {
 
   const user = userResult.rows[0];
 
-  // Generate employee code
-  const employeeCode = `EMP-${user.username.toUpperCase().substring(0, 5)}-${Date.now().toString().slice(-4)}`;
+  // Generate employee number
+  const employeeNumber = `EMP-${user.username.toUpperCase().substring(0, 5)}-${Date.now().toString().slice(-4)}`;
 
   // Create employee record
   const result = await pool.query(`
     INSERT INTO hr_employees (
-      employee_code,
+      employee_number,
       first_name,
       last_name,
       email,
       profile_id,
       requires_clocking,
-      status,
+      employment_status,
+      hire_date,
       created_at,
       updated_at
-    ) VALUES ($1, $2, $3, $4, $5, true, 'active', NOW(), NOW())
+    ) VALUES ($1, $2, $3, $4, $5, true, 'active', CURRENT_DATE, NOW(), NOW())
     RETURNING id, first_name, last_name, requires_clocking, employee_number
   `, [
-    employeeCode,
+    employeeNumber,
     user.first_name || user.username,
     user.last_name || '',
     user.email,
     profileId
   ]);
 
-  console.log(`✅ Auto-created employee record for ${user.username}: ${employeeCode}`);
+  console.log(`✅ Auto-created employee record for ${user.username}: ${employeeNumber}`);
   return result.rows[0];
 };
 

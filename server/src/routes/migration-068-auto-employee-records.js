@@ -34,25 +34,26 @@ router.post('/run', async (req, res) => {
     const createdEmployees = [];
 
     for (const user of usersWithoutEmployee.rows) {
-      // Generate employee code from username
-      const employeeCode = `EMP-${user.username.toUpperCase().substring(0, 5)}-${Date.now().toString().slice(-4)}`;
+      // Generate employee number from username
+      const employeeNumber = `EMP-${user.username.toUpperCase().substring(0, 5)}-${Date.now().toString().slice(-4)}`;
 
       // Create employee record with requires_clocking = true
       const result = await client.query(`
         INSERT INTO hr_employees (
-          employee_code,
+          employee_number,
           first_name,
           last_name,
           email,
           profile_id,
           requires_clocking,
-          status,
+          employment_status,
+          hire_date,
           created_at,
           updated_at
-        ) VALUES ($1, $2, $3, $4, $5, true, 'active', NOW(), NOW())
-        RETURNING id, employee_code
+        ) VALUES ($1, $2, $3, $4, $5, true, 'active', CURRENT_DATE, NOW(), NOW())
+        RETURNING id, employee_number
       `, [
-        employeeCode,
+        employeeNumber,
         user.first_name || user.username,
         user.last_name || '',
         user.email,
@@ -62,12 +63,12 @@ router.post('/run', async (req, res) => {
       createdCount++;
       createdEmployees.push({
         employee_id: result.rows[0].id,
-        employee_code: result.rows[0].employee_code,
+        employee_number: result.rows[0].employee_number,
         username: user.username,
         profile_id: user.profile_id
       });
 
-      console.log(`✅ Created employee record for ${user.username}: ${employeeCode}`);
+      console.log(`✅ Created employee record for ${user.username}: ${employeeNumber}`);
     }
 
     await client.query('COMMIT');
