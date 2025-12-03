@@ -82,7 +82,7 @@ export default function EmployeePortal() {
   });
 
   // Queries
-  const { data: todayData, isLoading: _loadingToday } = useTodayClocking();
+  const { data: todayData, isLoading: loadingToday, isError: errorToday } = useTodayClocking();
   const { data: attendanceData, isLoading: loadingAttendance } = useEmployeeAttendance(
     parseInt(selectedYear),
     parseInt(selectedMonth)
@@ -182,6 +182,14 @@ export default function EmployeePortal() {
       case 'pointage':
         return (
           <div className="space-y-6">
+            {/* Message d'erreur API */}
+            {errorToday && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+                <p className="font-medium">Erreur de chargement du pointage</p>
+                <p className="text-sm">Veuillez recharger la page ou contacter l'administrateur.</p>
+              </div>
+            )}
+
             {/* Actions rapides */}
             {todayData?.requires_clocking !== false && (
               <div className="grid gap-4 md:grid-cols-2">
@@ -200,9 +208,9 @@ export default function EmployeePortal() {
                       <Button
                         className="bg-green-600 hover:bg-green-700"
                         onClick={handleCheckIn}
-                        disabled={checkInMutation.isPending || !todayData?.today?.can_check_in}
+                        disabled={loadingToday || checkInMutation.isPending || (todayData?.today && !todayData.today.can_check_in)}
                       >
-                        {checkInMutation.isPending ? (
+                        {loadingToday || checkInMutation.isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <>
@@ -229,9 +237,10 @@ export default function EmployeePortal() {
                       <Button
                         className="bg-orange-600 hover:bg-orange-700"
                         onClick={handleCheckOut}
-                        disabled={checkOutMutation.isPending || !todayData?.today?.can_check_out}
+                        disabled={loadingToday || checkOutMutation.isPending || !todayData?.today?.can_check_out}
+                        title={!todayData?.today?.can_check_out ? "Vous devez d'abord pointer l'entrée" : ""}
                       >
-                        {checkOutMutation.isPending ? (
+                        {loadingToday || checkOutMutation.isPending ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <>
