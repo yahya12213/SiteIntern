@@ -36,9 +36,9 @@ const userHasClockingPermission = async (pool, profileId) => {
 
 // Helper: Auto-create employee record for user with clocking permission
 const autoCreateEmployeeRecord = async (pool, profileId) => {
-  // Get user info
+  // Get user info (profiles table only has: id, username, password, full_name, role, created_at)
   const userResult = await pool.query(`
-    SELECT id, username, full_name, email
+    SELECT id, username, full_name
     FROM profiles
     WHERE id = $1
   `, [profileId]);
@@ -55,26 +55,24 @@ const autoCreateEmployeeRecord = async (pool, profileId) => {
   // Generate employee number
   const employeeNumber = `EMP-${user.username.toUpperCase().substring(0, 5)}-${Date.now().toString().slice(-4)}`;
 
-  // Create employee record
+  // Create employee record (no email since profiles table doesn't have it)
   const result = await pool.query(`
     INSERT INTO hr_employees (
       employee_number,
       first_name,
       last_name,
-      email,
       profile_id,
       requires_clocking,
       employment_status,
       hire_date,
       created_at,
       updated_at
-    ) VALUES ($1, $2, $3, $4, $5, true, 'active', CURRENT_DATE, NOW(), NOW())
+    ) VALUES ($1, $2, $3, $4, true, 'active', CURRENT_DATE, NOW(), NOW())
     RETURNING id, first_name, last_name, requires_clocking, employee_number
   `, [
     employeeNumber,
     firstName,
     lastName,
-    user.email,
     profileId
   ]);
 
