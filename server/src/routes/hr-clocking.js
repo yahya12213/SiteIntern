@@ -194,11 +194,12 @@ router.post('/check-in', authenticateToken, async (req, res) => {
     const result = await pool.query(`
       INSERT INTO hr_attendance_records (
         employee_id,
+        attendance_date,
         clock_time,
         status,
         source,
         created_at
-      ) VALUES ($1, NOW(), 'check_in', 'self_service', NOW())
+      ) VALUES ($1, CURRENT_DATE, NOW(), 'check_in', 'self_service', NOW())
       RETURNING id, clock_time, status
     `, [employee.id]);
 
@@ -271,11 +272,12 @@ router.post('/check-out', authenticateToken, async (req, res) => {
     const result = await pool.query(`
       INSERT INTO hr_attendance_records (
         employee_id,
+        attendance_date,
         clock_time,
         status,
         source,
         created_at
-      ) VALUES ($1, NOW(), 'check_out', 'self_service', NOW())
+      ) VALUES ($1, CURRENT_DATE, NOW(), 'check_out', 'self_service', NOW())
       RETURNING id, clock_time, status
     `, [employee.id]);
 

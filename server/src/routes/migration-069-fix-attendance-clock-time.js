@@ -30,6 +30,14 @@ router.post('/run', async (req, res) => {
     `);
     console.log('✓ clock_time column added');
 
+    // Step 1.5: Make attendance_date nullable to allow clocking model
+    console.log('Step 1.5: Making attendance_date nullable...');
+    await client.query(`
+      ALTER TABLE hr_attendance_records
+        ALTER COLUMN attendance_date DROP NOT NULL
+    `);
+    console.log('✓ attendance_date is now nullable');
+
     // Step 2: Update status CHECK constraint to include 'check_in' and 'check_out'
     console.log('Step 2: Updating status CHECK constraint...');
     await client.query(`
@@ -91,6 +99,7 @@ router.post('/run', async (req, res) => {
       message: 'Migration 069 completed successfully - hr_attendance_records structure fixed',
       changes: [
         'Added clock_time TIMESTAMP column',
+        'Made attendance_date nullable to support clocking model',
         'Updated status CHECK constraint to include check_in/check_out',
         'Updated source CHECK constraint to include self_service',
         'Removed UNIQUE(employee_id, attendance_date) constraint',
@@ -157,6 +166,12 @@ router.post('/rollback', async (req, res) => {
       ALTER TABLE hr_attendance_records
         ADD CONSTRAINT hr_attendance_records_employee_id_attendance_date_key
         UNIQUE (employee_id, attendance_date)
+    `);
+
+    // Restore NOT NULL on attendance_date
+    await client.query(`
+      ALTER TABLE hr_attendance_records
+        ALTER COLUMN attendance_date SET NOT NULL
     `);
 
     // Remove clock_time column
