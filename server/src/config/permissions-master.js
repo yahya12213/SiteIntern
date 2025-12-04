@@ -391,6 +391,12 @@ export const PERMISSIONS_MASTER = {
         label: 'Modifier un étudiant',
         description: 'Permet de modifier l\'inscription d\'un étudiant',
         sort_order: 6
+      },
+      {
+        action: 'remove_student',
+        label: 'Retirer un étudiant',
+        description: 'Permet de retirer un étudiant inscrit à une session',
+        sort_order: 7
       }
     ],
 

@@ -858,8 +858,12 @@ router.put('/:sessionId/etudiants/:etudiantId',
 /**
  * DELETE /api/sessions-formation/:sessionId/etudiants/:etudiantId
  * Retirer un étudiant d'une session
+ * Protected: Requires training.sessions.remove_student permission
  */
-router.delete('/:sessionId/etudiants/:etudiantId', async (req, res) => {
+router.delete('/:sessionId/etudiants/:etudiantId',
+  authenticateToken,
+  requirePermission('training.sessions.remove_student'),
+  async (req, res) => {
   try {
     const { sessionId, etudiantId } = req.params;
 

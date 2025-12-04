@@ -112,6 +112,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 070',
     description: 'Structure de permissions complète - Ajoute 45+ permissions manquantes avec labels/descriptions FR (RH, Formation, Comptabilité)',
     endpoint: '/migration-070'
+  },
+  {
+    id: 'migration-071',
+    name: 'Migration 071',
+    description: 'FIX SÉCURITÉ: Ajoute permission training.sessions.remove_student et protège route DELETE étudiant',
+    endpoint: '/migration-071'
   }
 ];
 
