@@ -106,6 +106,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 069',
     description: 'FIX CRITIQUE: Ajoute colonne clock_time et CHECK constraints pour hr_attendance_records (pointage)',
     endpoint: '/migration-069'
+  },
+  {
+    id: 'migration-070',
+    name: 'Migration 070',
+    description: 'Structure de permissions complète - Ajoute 45+ permissions manquantes avec labels/descriptions FR (RH, Formation, Comptabilité)',
+    endpoint: '/migration-070'
   }
 ];
 
