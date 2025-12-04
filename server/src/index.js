@@ -105,6 +105,7 @@ import migration065Router from './routes/migration-065-professor-permissions.js'
 import migration066Router from './routes/migration-066-missing-permissions.js';
 import migration067Router from './routes/migration-067-hr-alignment.js';
 import migration068Router from './routes/migration-068-auto-employee-records.js';
+import migration069Router from './routes/migration-069-fix-attendance-clock-time.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -282,6 +283,7 @@ app.use('/api/migration-065', ...adminOnly, migration065Router);
 app.use('/api/migration-066', ...adminOnly, migration066Router);
 app.use('/api/migration-067', ...adminOnly, migration067Router);
 app.use('/api/migration-068', ...adminOnly, migration068Router);
+app.use('/api/migration-069', ...adminOnly, migration069Router);
 app.use('/api/migration-fix-segments-and-sheets', ...adminOnly, migrationFixRouter);
 app.use('/api/migration-fix-impression-permissions', ...adminOnly, migrationFixImpressionRouter);
 app.use('/api/migration-fix-role-sync', ...adminOnly, migrationFixRoleSyncRouter);

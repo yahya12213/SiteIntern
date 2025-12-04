@@ -100,6 +100,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 068',
     description: 'Auto-création fiches employés pour utilisateurs avec permission hr.employee_portal.clock_in_out',
     endpoint: '/migration-068'
+  },
+  {
+    id: 'migration-069',
+    name: 'Migration 069',
+    description: 'FIX CRITIQUE: Ajoute colonne clock_time et CHECK constraints pour hr_attendance_records (pointage)',
+    endpoint: '/migration-069'
   }
 ];
 
