@@ -1,5 +1,5 @@
 /**
- * Migration 072: Audit de Sécurité - 5 Permissions Manquantes
+ * Migration 073: Audit de Sécurité - 5 Permissions Manquantes
  *
  * Résultats de l'audit de sécurité (2025-12-05) :
  * - 8 vulnérabilités critiques identifiées dans 3 fichiers
@@ -30,7 +30,7 @@ router.post('/run', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    console.log('=== Migration 072: Security Audit Fixes ===');
+    console.log('=== Migration 073: Security Audit Fixes ===');
 
     const stats = {
       added: 0,
@@ -162,14 +162,14 @@ router.post('/run', async (req, res) => {
 
     await client.query('COMMIT');
 
-    console.log('\n=== Migration 072 Complete ===');
+    console.log('\n=== Migration 073 Complete ===');
     console.log(`Permissions added: ${stats.added}`);
     console.log(`Permissions skipped: ${stats.skipped}`);
     console.log(`Total roles assigned: ${stats.roles_assigned}`);
 
     res.json({
       success: true,
-      message: `Migration 072 completed successfully - ${stats.added} permissions added`,
+      message: `Migration 073 completed successfully - ${stats.added} permissions added`,
       stats,
       next_steps: [
         'Protect routes in sessions-formation.js (6 routes)',
@@ -181,7 +181,7 @@ router.post('/run', async (req, res) => {
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('❌ Migration 072 error:', error);
+    console.error('❌ Migration 073 error:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -201,7 +201,7 @@ router.post('/rollback', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    console.log('Rolling back Migration 072...');
+    console.log('Rolling back Migration 073...');
 
     const permissionCodes = [
       'training.sessions.delete_payment',
@@ -232,14 +232,14 @@ router.post('/rollback', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Migration 072 rolled back successfully',
+      message: 'Migration 073 rolled back successfully',
       deleted_permissions: deleteResult.rows.map(r => r.code),
       warning: 'Routes are now unprotected again - security vulnerabilities restored!'
     });
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('❌ Rollback 072 error:', error);
+    console.error('❌ Rollback 073 error:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -296,7 +296,7 @@ router.get('/status', async (req, res) => {
       },
       message: migrationNeeded
         ? `Migration needed - ${missingPermissions.length} permission(s) missing`
-        : `Migration 072 applied - All ${permissionCodes.length} permissions exist`
+        : `Migration 073 applied - All ${permissionCodes.length} permissions exist`
     });
   } catch (error) {
     res.status(500).json({

@@ -284,7 +284,7 @@ router.post('/overtime/requests', authenticateToken, requirePermission('hr.atten
 });
 
 // Approve overtime request
-router.put('/overtime/requests/:id/approve', authenticateToken, requirePermission('hr.leaves.approve'), async (req, res) => {
+router.put('/overtime/requests/:id/approve', authenticateToken, requirePermission('hr.attendance.approve_overtime'), async (req, res) => {
   try {
     const { id } = req.params;
     const { level, comment } = req.body; // level: 'n1' or 'n2'
@@ -320,6 +320,33 @@ router.put('/overtime/requests/:id/approve', authenticateToken, requirePermissio
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Error approving overtime:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Reject overtime request
+router.put('/overtime/requests/:id/reject', authenticateToken, requirePermission('hr.attendance.reject_overtime'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { level, comment } = req.body; // level: 'n1' or 'n2'
+
+    const result = await pool.query(`
+      UPDATE hr_overtime_requests
+      SET
+        status = 'rejected',
+        ${level}_comment = $2,
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `, [id, comment]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Request not found' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error rejecting overtime:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

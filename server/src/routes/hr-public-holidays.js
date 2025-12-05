@@ -12,7 +12,7 @@ const getPool = () => new Pool({
 });
 
 // GET /api/hr/public-holidays - Get all public holidays
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, requirePermission('hr.holidays.view_page'), async (req, res) => {
   const pool = getPool();
 
   try {
@@ -55,6 +55,85 @@ router.get('/', authenticateToken, async (req, res) => {
       details: error.message
     });
   } finally {
+    await pool.end();
+  }
+});
+
+/**
+ * POST /api/hr/public-holidays/bulk - Bulk create holidays
+ * IMPORTANT: Must be defined BEFORE /:id route to avoid route conflicts
+ * Protected: Requires hr.holidays.manage permission
+ */
+router.post('/bulk',
+  authenticateToken,
+  requirePermission('hr.holidays.manage'),
+  async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const { holidays } = req.body;
+
+    if (!Array.isArray(holidays) || holidays.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Un tableau de jours fériés est requis'
+      });
+    }
+
+    await client.query('BEGIN');
+
+    const created = [];
+    const skipped = [];
+
+    for (const holiday of holidays) {
+      const { holiday_date, name, description, is_recurring } = holiday;
+
+      if (!holiday_date || !name) {
+        skipped.push({ ...holiday, reason: 'Date ou nom manquant' });
+        continue;
+      }
+
+      // Check if exists
+      const existing = await client.query(`
+        SELECT id FROM hr_public_holidays WHERE holiday_date = $1
+      `, [holiday_date]);
+
+      if (existing.rows.length > 0) {
+        skipped.push({ ...holiday, reason: 'Déjà existant' });
+        continue;
+      }
+
+      // Insert
+      const result = await client.query(`
+        INSERT INTO hr_public_holidays (
+          holiday_date, name, description, is_recurring, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, NOW(), NOW())
+        RETURNING *
+      `, [holiday_date, name, description || null, is_recurring || false]);
+
+      created.push(result.rows[0]);
+    }
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: `${created.length} jours fériés créés, ${skipped.length} ignorés`,
+      created,
+      skipped
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error bulk creating holidays:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la création en masse',
+      details: error.message
+    });
+  } finally {
+    client.release();
     await pool.end();
   }
 });
@@ -224,84 +303,6 @@ router.delete('/:id',
       details: error.message
     });
   } finally {
-    await pool.end();
-  }
-});
-
-/**
- * POST /api/hr/public-holidays/bulk - Bulk create holidays
- * Protected: Requires hr.holidays.manage permission
- */
-router.post('/bulk',
-  authenticateToken,
-  requirePermission('hr.holidays.manage'),
-  async (req, res) => {
-  const pool = getPool();
-  const client = await pool.connect();
-
-  try {
-    const { holidays } = req.body;
-
-    if (!Array.isArray(holidays) || holidays.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Un tableau de jours fériés est requis'
-      });
-    }
-
-    await client.query('BEGIN');
-
-    const created = [];
-    const skipped = [];
-
-    for (const holiday of holidays) {
-      const { holiday_date, name, description, is_recurring } = holiday;
-
-      if (!holiday_date || !name) {
-        skipped.push({ ...holiday, reason: 'Date ou nom manquant' });
-        continue;
-      }
-
-      // Check if exists
-      const existing = await client.query(`
-        SELECT id FROM hr_public_holidays WHERE holiday_date = $1
-      `, [holiday_date]);
-
-      if (existing.rows.length > 0) {
-        skipped.push({ ...holiday, reason: 'Déjà existant' });
-        continue;
-      }
-
-      // Insert
-      const result = await client.query(`
-        INSERT INTO hr_public_holidays (
-          holiday_date, name, description, is_recurring, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, NOW(), NOW())
-        RETURNING *
-      `, [holiday_date, name, description || null, is_recurring || false]);
-
-      created.push(result.rows[0]);
-    }
-
-    await client.query('COMMIT');
-
-    res.json({
-      success: true,
-      message: `${created.length} jours fériés créés, ${skipped.length} ignorés`,
-      created,
-      skipped
-    });
-
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error bulk creating holidays:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erreur lors de la création en masse',
-      details: error.message
-    });
-  } finally {
-    client.release();
     await pool.end();
   }
 });

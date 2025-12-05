@@ -118,6 +118,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 071',
     description: 'FIX SÉCURITÉ: Ajoute permission training.sessions.remove_student et protège route DELETE étudiant',
     endpoint: '/migration-071'
+  },
+  {
+    id: 'migration-073',
+    name: 'Migration 073',
+    description: 'AUDIT SÉCURITÉ: Ajoute 5 permissions (delete_payment, approve_overtime, reject_overtime, holidays.*) + Protège 10 routes vulnérables',
+    endpoint: '/migration-073'
   }
 ];
 
