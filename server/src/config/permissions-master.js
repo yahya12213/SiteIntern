@@ -397,6 +397,12 @@ export const PERMISSIONS_MASTER = {
         label: 'Retirer un étudiant',
         description: 'Permet de retirer un étudiant inscrit à une session',
         sort_order: 7
+      },
+      {
+        action: 'delete_payment',
+        label: 'Supprimer un paiement',
+        description: 'Permet de supprimer un paiement enregistré (opération sensible)',
+        sort_order: 8
       }
     ],
 
@@ -777,6 +783,18 @@ export const PERMISSIONS_MASTER = {
         label: 'Exporter les présences',
         description: 'Permet d\'exporter les données de présence',
         sort_order: 6
+      },
+      {
+        action: 'approve_overtime',
+        label: 'Approuver heures supplémentaires',
+        description: 'Permet d\'approuver les demandes d\'heures supplémentaires',
+        sort_order: 7
+      },
+      {
+        action: 'reject_overtime',
+        label: 'Rejeter heures supplémentaires',
+        description: 'Permet de rejeter les demandes d\'heures supplémentaires',
+        sort_order: 8
       }
     ],
 
@@ -828,6 +846,21 @@ export const PERMISSIONS_MASTER = {
         label: 'Gérer la discipline',
         description: 'Permet de gérer les dossiers disciplinaires',
         sort_order: 8
+      }
+    ],
+
+    holidays: [
+      {
+        action: 'view_page',
+        label: 'Voir les jours fériés',
+        description: 'Permet de consulter la liste des jours fériés',
+        sort_order: 1
+      },
+      {
+        action: 'manage',
+        label: 'Gérer les jours fériés',
+        description: 'Permet de créer, modifier et supprimer des jours fériés',
+        sort_order: 2
       }
     ],
 

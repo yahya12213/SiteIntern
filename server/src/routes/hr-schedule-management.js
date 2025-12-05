@@ -75,6 +75,46 @@ router.get('/schedules', authenticateToken, requirePermission('hr.settings.view_
 });
 
 /**
+ * GET /api/hr/schedule-management/schedules/:id
+ * Get a single work schedule by ID
+ */
+router.get('/schedules/:id', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(`
+      SELECT
+        id, name, description,
+        monday_start, monday_end,
+        tuesday_start, tuesday_end,
+        wednesday_start, wednesday_end,
+        thursday_start, thursday_end,
+        friday_start, friday_end,
+        saturday_start, saturday_end,
+        sunday_start, sunday_end,
+        break_start, break_end,
+        weekly_hours,
+        tolerance_late_minutes,
+        tolerance_early_leave_minutes,
+        min_hours_for_half_day,
+        is_default, is_active,
+        created_at, updated_at
+      FROM hr_work_schedules
+      WHERE id = $1
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Horaire non trouvé' });
+    }
+
+    res.json({ success: true, schedule: result.rows[0] });
+  } catch (error) {
+    console.error('Error fetching schedule:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * POST /api/hr/schedule-management/schedules
  * Create a new work schedule
  */
@@ -82,7 +122,8 @@ router.post('/schedules', authenticateToken, requirePermission('hr.settings.edit
   try {
     const {
       nom, description, horaires, heures_hebdo, is_default,
-      tolerance_late, tolerance_early, actif
+      tolerance_late, tolerance_early, actif,
+      break_start, break_end, min_hours_for_half_day
     } = req.body;
 
     // If setting as default, unset others
@@ -100,15 +141,17 @@ router.post('/schedules', authenticateToken, requirePermission('hr.settings.edit
         friday_start, friday_end,
         saturday_start, saturday_end,
         sunday_start, sunday_end,
+        break_start, break_end,
         weekly_hours,
         tolerance_late_minutes,
         tolerance_early_leave_minutes,
+        min_hours_for_half_day,
         is_default,
         is_active,
         created_by
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-        $13, $14, $15, $16, $17, $18, $19, $20, $21
+        $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
       ) RETURNING *
     `, [
       nom,
@@ -127,9 +170,12 @@ router.post('/schedules', authenticateToken, requirePermission('hr.settings.edit
       horaires?.Samedi?.actif ? horaires.Samedi.heureFin : null,
       horaires?.Dimanche?.actif ? horaires.Dimanche.heureDebut : null,
       horaires?.Dimanche?.actif ? horaires.Dimanche.heureFin : null,
+      break_start || null,
+      break_end || null,
       heures_hebdo || 44,
       tolerance_late || 15,
       tolerance_early || 10,
+      min_hours_for_half_day || 4,
       is_default || false,
       actif !== false,
       req.user.id
@@ -151,7 +197,8 @@ router.put('/schedules/:id', authenticateToken, requirePermission('hr.settings.e
     const { id } = req.params;
     const {
       nom, description, horaires, heures_hebdo, is_default,
-      tolerance_late, tolerance_early, actif
+      tolerance_late, tolerance_early, actif,
+      break_start, break_end, min_hours_for_half_day
     } = req.body;
 
     // If setting as default, unset others
@@ -170,13 +217,15 @@ router.put('/schedules/:id', authenticateToken, requirePermission('hr.settings.e
         friday_start = $11, friday_end = $12,
         saturday_start = $13, saturday_end = $14,
         sunday_start = $15, sunday_end = $16,
-        weekly_hours = $17,
-        tolerance_late_minutes = $18,
-        tolerance_early_leave_minutes = $19,
-        is_default = $20,
-        is_active = $21,
+        break_start = $17, break_end = $18,
+        weekly_hours = $19,
+        tolerance_late_minutes = $20,
+        tolerance_early_leave_minutes = $21,
+        min_hours_for_half_day = $22,
+        is_default = $23,
+        is_active = $24,
         updated_at = NOW()
-      WHERE id = $22
+      WHERE id = $25
       RETURNING *
     `, [
       nom,
@@ -195,9 +244,12 @@ router.put('/schedules/:id', authenticateToken, requirePermission('hr.settings.e
       horaires?.Samedi?.actif ? horaires.Samedi.heureFin : null,
       horaires?.Dimanche?.actif ? horaires.Dimanche.heureDebut : null,
       horaires?.Dimanche?.actif ? horaires.Dimanche.heureFin : null,
+      break_start || null,
+      break_end || null,
       heures_hebdo || 44,
       tolerance_late || 15,
       tolerance_early || 10,
+      min_hours_for_half_day || 4,
       is_default || false,
       actif !== false,
       id

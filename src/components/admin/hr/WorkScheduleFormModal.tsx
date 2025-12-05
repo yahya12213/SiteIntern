@@ -26,6 +26,11 @@ interface WorkSchedule {
   saturday_end?: string;
   sunday_start?: string;
   sunday_end?: string;
+  break_start?: string;
+  break_end?: string;
+  tolerance_late_minutes?: number;
+  tolerance_early_leave_minutes?: number;
+  min_hours_for_half_day?: number;
   weekly_hours: number;
   is_default: boolean;
   is_active: boolean;
@@ -60,6 +65,11 @@ export default function WorkScheduleFormModal({ scheduleId, onClose }: WorkSched
     saturday_end: '',
     sunday_start: '',
     sunday_end: '',
+    break_start: '13:00',
+    break_end: '14:00',
+    tolerance_late: 15,
+    tolerance_early: 10,
+    min_hours_half_day: 4,
     is_default: false,
     is_active: true,
   });
@@ -69,8 +79,8 @@ export default function WorkScheduleFormModal({ scheduleId, onClose }: WorkSched
     queryKey: ['hr-work-schedule', scheduleId],
     queryFn: async () => {
       if (!scheduleId) return null;
-      const response = await apiClient.get<{ success: boolean; data: WorkSchedule }>(`/hr/settings/work-schedules/${scheduleId}`);
-      return (response as any).data;
+      const response = await apiClient.get<{ success: boolean; schedule: WorkSchedule }>(`/hr/schedule-management/schedules/${scheduleId}`);
+      return (response as any).schedule;
     },
     enabled: !!scheduleId,
   });
@@ -95,8 +105,13 @@ export default function WorkScheduleFormModal({ scheduleId, onClose }: WorkSched
         saturday_end: scheduleData.saturday_end || '',
         sunday_start: scheduleData.sunday_start || '',
         sunday_end: scheduleData.sunday_end || '',
-        is_default: scheduleData.is_default,
-        is_active: scheduleData.is_active,
+        break_start: scheduleData.break_start || '13:00',
+        break_end: scheduleData.break_end || '14:00',
+        tolerance_late: scheduleData.tolerance_late_minutes !== undefined ? scheduleData.tolerance_late_minutes : 15,
+        tolerance_early: scheduleData.tolerance_early_leave_minutes !== undefined ? scheduleData.tolerance_early_leave_minutes : 10,
+        min_hours_half_day: scheduleData.min_hours_for_half_day !== undefined ? scheduleData.min_hours_for_half_day : 4,
+        is_default: scheduleData.is_default || false,
+        is_active: scheduleData.is_active !== false,
       });
     }
   }, [scheduleData]);
@@ -104,8 +119,8 @@ export default function WorkScheduleFormModal({ scheduleId, onClose }: WorkSched
   // Create mutation
   const createSchedule = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiClient.post<{ success: boolean; data: WorkSchedule }>('/hr/settings/work-schedules', data);
-      return (response as any).data;
+      const response = await apiClient.post<{ success: boolean; schedule: WorkSchedule }>('/hr/schedule-management/schedules', data);
+      return (response as any).schedule;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-work-schedules'] });
@@ -117,8 +132,8 @@ export default function WorkScheduleFormModal({ scheduleId, onClose }: WorkSched
   // Update mutation
   const updateSchedule = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiClient.put<{ success: boolean; data: WorkSchedule }>(`/hr/settings/work-schedules/${scheduleId}`, data);
-      return (response as any).data;
+      const response = await apiClient.put<{ success: boolean; schedule: WorkSchedule }>(`/hr/schedule-management/schedules/${scheduleId}`, data);
+      return (response as any).schedule;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr-work-schedules'] });
@@ -186,25 +201,25 @@ export default function WorkScheduleFormModal({ scheduleId, onClose }: WorkSched
     }
 
     const payload = {
-      name: formData.name.trim(),
+      nom: formData.name.trim(),
       description: formData.description.trim() || null,
-      monday_start: formData.monday_start || null,
-      monday_end: formData.monday_end || null,
-      tuesday_start: formData.tuesday_start || null,
-      tuesday_end: formData.tuesday_end || null,
-      wednesday_start: formData.wednesday_start || null,
-      wednesday_end: formData.wednesday_end || null,
-      thursday_start: formData.thursday_start || null,
-      thursday_end: formData.thursday_end || null,
-      friday_start: formData.friday_start || null,
-      friday_end: formData.friday_end || null,
-      saturday_start: formData.saturday_start || null,
-      saturday_end: formData.saturday_end || null,
-      sunday_start: formData.sunday_start || null,
-      sunday_end: formData.sunday_end || null,
-      weekly_hours: parseFloat(calculateWeeklyHours()),
+      horaires: {
+        Lundi: { actif: !!formData.monday_start, heureDebut: formData.monday_start || '', heureFin: formData.monday_end || '' },
+        Mardi: { actif: !!formData.tuesday_start, heureDebut: formData.tuesday_start || '', heureFin: formData.tuesday_end || '' },
+        Mercredi: { actif: !!formData.wednesday_start, heureDebut: formData.wednesday_start || '', heureFin: formData.wednesday_end || '' },
+        Jeudi: { actif: !!formData.thursday_start, heureDebut: formData.thursday_start || '', heureFin: formData.thursday_end || '' },
+        Vendredi: { actif: !!formData.friday_start, heureDebut: formData.friday_start || '', heureFin: formData.friday_end || '' },
+        Samedi: { actif: !!formData.saturday_start, heureDebut: formData.saturday_start || '', heureFin: formData.saturday_end || '' },
+        Dimanche: { actif: !!formData.sunday_start, heureDebut: formData.sunday_start || '', heureFin: formData.sunday_end || '' },
+      },
+      break_start: formData.break_start || null,
+      break_end: formData.break_end || null,
+      heures_hebdo: parseFloat(calculateWeeklyHours()),
+      tolerance_late: formData.tolerance_late,
+      tolerance_early: formData.tolerance_early,
+      min_hours_for_half_day: formData.min_hours_half_day,
       is_default: formData.is_default,
-      is_active: formData.is_active,
+      actif: formData.is_active,
     };
 
     try {
@@ -377,6 +392,129 @@ export default function WorkScheduleFormModal({ scheduleId, onClose }: WorkSched
             </div>
           </div>
 
+          {/* Break Configuration */}
+          <div className="space-y-4 border-t border-gray-200 pt-6">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-gray-600" />
+              Pause quotidienne
+            </h3>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-800">
+                ⏸️ Les employés n'ont pas besoin de pointer pendant la pause.
+                Le temps sera automatiquement déduit si la journée dure ≥ 4 heures.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Début de la pause
+                </label>
+                <input
+                  type="time"
+                  value={formData.break_start || ''}
+                  onChange={(e) => handleChange('break_start', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fin de la pause
+                </label>
+                <input
+                  type="time"
+                  value={formData.break_end || ''}
+                  onChange={(e) => handleChange('break_end', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {formData.break_start && formData.break_end && (
+              <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                Durée: {(() => {
+                  const [startH, startM] = formData.break_start.split(':').map(Number);
+                  const [endH, endM] = formData.break_end.split(':').map(Number);
+                  const minutes = (endH * 60 + endM) - (startH * 60 + startM);
+                  return `${Math.floor(minutes / 60)}h${(minutes % 60).toString().padStart(2, '0')}`;
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* Tolerance Configuration */}
+          <div className="space-y-4 border-t border-gray-200 pt-6">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-gray-600" />
+              Paramètres de tolérance
+            </h3>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-sm text-yellow-800">
+                ⚙️ Configurez les seuils de tolérance et les règles de calcul des présences.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label htmlFor="tolerance_late" className="block text-sm font-medium text-gray-700 mb-2">
+                  Tolérance retard (minutes)
+                </label>
+                <input
+                  id="tolerance_late"
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={formData.tolerance_late}
+                  onChange={(e) => handleChange('tolerance_late', parseInt(e.target.value) || 0)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Délai accepté après l'heure de début
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="tolerance_early" className="block text-sm font-medium text-gray-700 mb-2">
+                  Tolérance départ anticipé (minutes)
+                </label>
+                <input
+                  id="tolerance_early"
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={formData.tolerance_early}
+                  onChange={(e) => handleChange('tolerance_early', parseInt(e.target.value) || 0)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Délai accepté avant l'heure de fin
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="min_hours_half_day" className="block text-sm font-medium text-gray-700 mb-2">
+                  Heures min. pour demi-journée
+                </label>
+                <input
+                  id="min_hours_half_day"
+                  type="number"
+                  min="1"
+                  max="8"
+                  step="0.5"
+                  value={formData.min_hours_half_day}
+                  onChange={(e) => handleChange('min_hours_half_day', parseFloat(e.target.value) || 4)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Seuil pour comptabiliser 0.5 jour
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Options */}
           <div className="space-y-4">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
@@ -400,16 +538,26 @@ export default function WorkScheduleFormModal({ scheduleId, onClose }: WorkSched
               </label>
 
               {/* Is Active */}
-              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+              <label className="flex items-center gap-3 p-3 border border-red-200 rounded-lg hover:bg-red-50 cursor-pointer bg-red-50">
                 <input
                   type="checkbox"
                   checked={formData.is_active}
-                  onChange={(e) => handleChange('is_active', e.target.checked)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      const confirmed = window.confirm(
+                        "⚠️ ATTENTION: Activer cet horaire désactivera automatiquement tous les autres horaires du système.\n\nTous les employés utiliseront cet horaire.\n\nContinuer?"
+                      );
+                      if (!confirmed) return;
+                    }
+                    handleChange('is_active', e.target.checked);
+                  }}
                   className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">Actif</p>
-                  <p className="text-xs text-gray-500">Cet horaire peut être assigné aux employés</p>
+                  <p className="text-xs text-red-600 font-medium">
+                    ⚠️ Un seul horaire peut être actif à la fois
+                  </p>
                 </div>
               </label>
             </div>

@@ -16,6 +16,8 @@ const router = express.Router();
  * SCOPE: Filtre automatiquement par segment ET ville assignés à l'utilisateur
  */
 router.get('/',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
   injectUserScope,
   async (req, res) => {
     try {
@@ -109,6 +111,8 @@ router.get('/',
  * SCOPE: Vérifie que la session est dans le segment/ville de l'utilisateur
  */
 router.get('/:id',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
   injectUserScope,
   requireRecordScope('sessions_formation', 'id', 'segment_id', 'ville_id'),
   async (req, res) => {
@@ -237,6 +241,8 @@ router.get('/:id',
  * SCOPE: Vérifie que segment_id et ville_id sont dans le scope de l'utilisateur
  */
 router.post('/',
+  authenticateToken,
+  requirePermission('training.sessions.create'),
   injectUserScope,
   async (req, res) => {
     try {
@@ -322,6 +328,8 @@ router.post('/',
  * SCOPE: Vérifie que la session est dans le scope et que les nouvelles valeurs restent dans le scope
  */
 router.put('/:id',
+  authenticateToken,
+  requirePermission('training.sessions.update'),
   injectUserScope,
   requireRecordScope('sessions_formation', 'id', 'segment_id', 'ville_id'),
   async (req, res) => {
@@ -415,6 +423,8 @@ router.put('/:id',
  * SCOPE: Vérifie que la session est dans le segment/ville de l'utilisateur
  */
 router.delete('/:id',
+  authenticateToken,
+  requirePermission('training.sessions.delete'),
   injectUserScope,
   requireRecordScope('sessions_formation', 'id', 'segment_id', 'ville_id'),
   async (req, res) => {
@@ -1283,7 +1293,7 @@ router.get('/:sessionId/etudiants/:studentId/paiements',
  */
 router.delete('/:sessionId/etudiants/:studentId/paiements/:paymentId',
   authenticateToken,
-  requirePermission('training.sessions.edit_student'),
+  requirePermission('training.sessions.delete_payment'),
   async (req, res) => {
   try {
     const { sessionId, studentId, paymentId } = req.params;

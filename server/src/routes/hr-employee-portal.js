@@ -177,25 +177,90 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       return acc + Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
     }, 0);
 
-    // Calculate total hours and late minutes
+    // Fetch active schedule from database
+    let schedule = { tolerance_late_minutes: 15, min_hours_for_half_day: 4 };
+    try {
+      const activeScheduleResult = await pool.query(`
+        SELECT
+          monday_start, monday_end,
+          tuesday_start, tuesday_end,
+          wednesday_start, wednesday_end,
+          thursday_start, thursday_end,
+          friday_start, friday_end,
+          saturday_start, saturday_end,
+          sunday_start, sunday_end,
+          break_start, break_end,
+          tolerance_late_minutes,
+          min_hours_for_half_day
+        FROM hr_work_schedules
+        WHERE is_active = true
+        LIMIT 1
+      `);
+      if (activeScheduleResult.rows.length > 0) {
+        schedule = activeScheduleResult.rows[0];
+      }
+    } catch (err) {
+      console.log('Warning: Could not fetch active schedule, using defaults:', err.message);
+    }
+
+    // Calculate total hours, late minutes, and days worked
     let totalMinutes = 0;
     let totalLateMinutes = 0;
-    const scheduleStart = '08:00';
+    let daysWorked = 0;
 
     records.rows.forEach(r => {
-      if (r.check_in && r.check_out) {
-        const checkIn = new Date(r.check_in);
-        const checkOut = new Date(r.check_out);
-        const workedMinutes = Math.floor((checkOut - checkIn) / 1000 / 60) - 60; // minus break
-        totalMinutes += Math.max(0, workedMinutes);
+      if (!r.check_in || !r.check_out) return;
 
-        // Calculate late minutes
-        const scheduleTime = new Date(r.date);
-        const [hours, mins] = scheduleStart.split(':');
-        scheduleTime.setHours(parseInt(hours), parseInt(mins), 0);
-        if (checkIn > scheduleTime) {
-          totalLateMinutes += Math.floor((checkIn - scheduleTime) / 1000 / 60);
+      const checkIn = new Date(r.check_in);
+      const checkOut = new Date(r.check_out);
+      const recordDate = new Date(r.date);
+      const dayOfWeek = recordDate.getDay();
+
+      // Get day-specific schedule (0=Sunday, 1=Monday, ..., 6=Saturday)
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[dayOfWeek];
+      const scheduledStart = schedule[`${dayName}_start`];
+      const scheduledEnd = schedule[`${dayName}_end`];
+
+      if (!scheduledStart || !scheduledEnd) return; // No schedule for this day
+
+      // Calculate raw worked minutes
+      let workedMinutes = Math.floor((checkOut - checkIn) / 1000 / 60);
+
+      // Deduct break time if overlaps AND worked >= 4 hours
+      if (workedMinutes >= 240 && schedule.break_start && schedule.break_end) {
+        const breakStart = new Date(r.date + ' ' + schedule.break_start);
+        const breakEnd = new Date(r.date + ' ' + schedule.break_end);
+
+        // Check for overlap between work period and break period
+        if (checkIn < breakEnd && checkOut > breakStart) {
+          const overlapStart = checkIn > breakStart ? checkIn : breakStart;
+          const overlapEnd = checkOut < breakEnd ? checkOut : breakEnd;
+          const overlapMinutes = Math.floor((overlapEnd - overlapStart) / 1000 / 60);
+          workedMinutes -= overlapMinutes;
         }
+      }
+
+      totalMinutes += Math.max(0, workedMinutes);
+
+      // Calculate days worked: 1 day if >= 6h, 0.5 if >= 4h (min_hours_for_half_day), 0 otherwise
+      const hoursWorked = workedMinutes / 60;
+      if (hoursWorked >= 6) {
+        daysWorked += 1;
+      } else if (hoursWorked >= (schedule.min_hours_for_half_day || 4)) {
+        daysWorked += 0.5;
+      }
+
+      // Calculate late minutes based on scheduled start time + tolerance
+      const [schedStartHour, schedStartMin] = scheduledStart.split(':').map(Number);
+      const scheduleTime = new Date(r.date);
+      scheduleTime.setHours(schedStartHour, schedStartMin, 0, 0);
+
+      const tolerance = schedule.tolerance_late_minutes || 15;
+      const scheduleTimeWithTolerance = new Date(scheduleTime.getTime() + tolerance * 60 * 1000);
+
+      if (checkIn > scheduleTimeWithTolerance) {
+        totalLateMinutes += Math.floor((checkIn - scheduleTime) / 1000 / 60);
       }
     });
 
@@ -214,6 +279,7 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       stats: {
         total_hours: (totalMinutes / 60).toFixed(1),
         present_days: presentDays,
+        days_worked: daysWorked,
         leave_days: leaveDays,
         late_minutes: totalLateMinutes
       }
