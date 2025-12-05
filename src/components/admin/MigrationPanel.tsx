@@ -30,6 +30,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-049'
   },
   {
+    id: 'migration-050',
+    name: 'Migration 050',
+    description: 'Table hr_public_holidays - Gestion jours fériés pour calculs pointage et congés',
+    endpoint: '/migration-050'
+  },
+  {
     id: 'migration-055',
     name: 'Migration 055',
     description: 'Fix critical permissions (system.roles, corps.view_page, professor/student permissions)',
