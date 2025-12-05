@@ -477,7 +477,7 @@ router.get('/approved-leaves', authenticateToken, requirePermission('hr.leaves.v
         lr.end_date as date_fin,
         lr.days_requested as jours,
         lr.status as statut,
-        lr.description,
+        lr.reason as description,
         lr.n1_action_at,
         lr.n2_action_at,
         lr.hr_action_at
