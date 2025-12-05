@@ -36,6 +36,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-050'
   },
   {
+    id: 'migration-054',
+    name: 'Migration 054',
+    description: 'PREREQUIS GERANT: Crée le rôle gerant et assigne TOUTES les permissions disponibles',
+    endpoint: '/migration-054'
+  },
+  {
     id: 'migration-055',
     name: 'Migration 055',
     description: 'Fix critical permissions (system.roles, corps.view_page, professor/student permissions)',
