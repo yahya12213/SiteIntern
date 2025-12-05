@@ -234,7 +234,7 @@ export default function WorkScheduleFormModal({ scheduleId, onClose }: WorkSched
     }
   };
 
-  const handleChange = (field: string, value: string | boolean) => {
+  const handleChange = (field: string, value: string | boolean | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
