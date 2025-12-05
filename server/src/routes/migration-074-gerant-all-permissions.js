@@ -17,21 +17,29 @@ router.post('/run', async (req, res) => {
 
     console.log('=== Migration 074: Assign ALL Permissions to Gérant Role ===');
 
-    // 1. Find the gérant role
+    // 1. Find the gérant role (try multiple variations)
     const gerantRoleResult = await client.query(`
-      SELECT id FROM roles WHERE name = 'gerant' LIMIT 1
+      SELECT id, name FROM roles
+      WHERE LOWER(name) IN ('gerant', 'gérant', 'manager', 'gestionnaire')
+      LIMIT 1
     `);
 
     if (gerantRoleResult.rows.length === 0) {
+      // Show available roles for debugging
+      const allRoles = await client.query(`SELECT id, name FROM roles ORDER BY name`);
+      console.log('Available roles:', allRoles.rows.map(r => r.name).join(', '));
+
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        error: 'Gérant role not found. Please run migration 054 first.'
+        error: `Gérant role not found. Available roles: ${allRoles.rows.map(r => r.name).join(', ')}. Please specify the correct role name or run migration 054 first.`,
+        availableRoles: allRoles.rows
       });
     }
 
     const gerantRoleId = gerantRoleResult.rows[0].id;
-    console.log(`  ✓ Found gérant role with ID: ${gerantRoleId}`);
+    const gerantRoleName = gerantRoleResult.rows[0].name;
+    console.log(`  ✓ Found role "${gerantRoleName}" with ID: ${gerantRoleId}`);
 
     // 2. Get ALL permissions from ALL modules
     const allPermissionsResult = await client.query(`
