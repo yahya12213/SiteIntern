@@ -478,9 +478,9 @@ router.get('/approved-leaves', authenticateToken, requirePermission('hr.leaves.v
         lr.days_requested as jours,
         lr.status as statut,
         lr.description,
-        lr.approved_by_n1_at,
-        lr.approved_by_n2_at,
-        lr.approved_by_hr_at
+        lr.n1_action_at,
+        lr.n2_action_at,
+        lr.hr_action_at
       FROM hr_leave_requests lr
       JOIN hr_employees e ON e.id = lr.employee_id
       LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
@@ -533,13 +533,11 @@ router.get('/overtime', authenticateToken, requirePermission('hr.attendance.view
         o.request_date,
         o.start_time,
         o.end_time,
-        o.hours_requested as heures_demandees,
-        o.hours_approved as heures_approuvees,
+        o.estimated_hours as heures_demandees,
         o.reason as motif,
         o.status as statut,
-        o.is_prior_approved,
-        o.approved_by_n1_at,
-        o.approved_by_n2_at,
+        o.n1_approved_at,
+        o.n2_approved_at,
         o.n1_comment,
         o.n2_comment,
         TO_CHAR(o.request_date, 'Month YYYY') as periode
@@ -609,12 +607,11 @@ router.post('/overtime', authenticateToken, requirePermission('hr.attendance.cre
         request_date,
         start_time,
         end_time,
-        hours_requested,
+        estimated_hours,
         reason,
-        is_prior_approved,
         status,
-        created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8)
+        requested_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)
       RETURNING *
     `, [
       employee_id,
@@ -623,7 +620,6 @@ router.post('/overtime', authenticateToken, requirePermission('hr.attendance.cre
       end_time,
       hours_requested,
       reason,
-      is_prior_approved || false,
       req.user.id
     ]);
 
@@ -646,14 +642,13 @@ router.put('/overtime/:id/approve', authenticateToken, requirePermission('hr.lea
     const result = await pool.query(`
       UPDATE hr_overtime_requests SET
         status = 'approved',
-        hours_approved = $1,
-        approved_by_n1 = $2,
-        approved_by_n1_at = NOW(),
-        n1_comment = $3,
+        n1_approver_id = $1,
+        n1_approved_at = NOW(),
+        n1_comment = $2,
         updated_at = NOW()
-      WHERE id = $4 AND status = 'pending'
+      WHERE id = $3 AND status = 'pending'
       RETURNING *
-    `, [hours_approved, req.user.id, comment, id]);
+    `, [req.user.id, comment, id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -681,8 +676,8 @@ router.put('/overtime/:id/reject', authenticateToken, requirePermission('hr.leav
     const result = await pool.query(`
       UPDATE hr_overtime_requests SET
         status = 'rejected',
-        approved_by_n1 = $1,
-        approved_by_n1_at = NOW(),
+        n1_approver_id = $1,
+        n1_approved_at = NOW(),
         n1_comment = $2,
         updated_at = NOW()
       WHERE id = $3 AND status = 'pending'

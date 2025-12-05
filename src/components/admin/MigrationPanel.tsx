@@ -18,6 +18,12 @@ interface MigrationStatus {
 
 const MIGRATIONS: Migration[] = [
   {
+    id: 'migration-047',
+    name: 'Migration 047',
+    description: 'FIX HORAIRES: Ajoute colonnes jour-spécifiques (monday_start, tuesday_start, etc.) à hr_work_schedules + weekly_hours',
+    endpoint: '/migration-047'
+  },
+  {
     id: 'migration-049',
     name: 'Migration 049',
     description: 'Ajouter colonne requires_clocking à hr_employees (requis pour le pointage)',
