@@ -142,6 +142,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 073',
     description: 'AUDIT SÉCURITÉ: Ajoute 5 permissions (delete_payment, approve_overtime, reject_overtime, holidays.*) + Protège 10 routes vulnérables',
     endpoint: '/migration-073'
+  },
+  {
+    id: 'migration-074',
+    name: 'Migration 074',
+    description: 'FIX CRITIQUE GERANT: Assigne TOUTES les permissions au rôle gerant (training.certificate_templates.*, etc.)',
+    endpoint: '/migration-074'
   }
 ];
 
