@@ -509,15 +509,11 @@ export class CertificateTemplateEngine {
       }
     }
 
-    // FIX: Position text to match canvas editor exactly (including padding)
-    // Canvas editor: text has 4px top padding and starts at top of padded area (CanvasEditor.tsx:209)
-    // jsPDF: Y coordinate is the text baseline, not the top
-    // Solution: Y + paddingTop + ascender height for pixel-perfect alignment
-    const fontSizeMm = fontSize * 0.3527; // Convert pt to mm (1pt = 0.3527mm)
-    const paddingTopPx = 4; // From CanvasEditor.tsx line 209
-    const paddingTopMm = this.pxToMm(paddingTopPx, 'y');
-    // Ascender height ≈ 65% of font size (adjusted after testing for accurate baseline positioning)
-    const adjustedY = y + paddingTopMm + (fontSizeMm * 0.65);
+    // FIX: Use baseline:'top' to match canvas CSS positioning system
+    // Canvas CSS: Y = top edge of text (like CSS top property)
+    // jsPDF with baseline:'top': Y = top edge of text (same coordinate system!)
+    // This eliminates need for complex baseline calculations
+    const adjustedY = y;
 
     // Gérer le maxWidth (retour à la ligne automatique)
     if (element.maxWidth) {
@@ -525,16 +521,16 @@ export class CertificateTemplateEngine {
       const lines = this.doc.splitTextToSize(text, maxWidthMm);
 
       if (lines.length === 1) {
-        this.doc.text(lines[0], adjustedX, adjustedY, { align });
+        this.doc.text(lines[0], adjustedX, adjustedY, { align, baseline: 'top' });
       } else {
         // Afficher plusieurs lignes avec un espacement
         const lineHeightMm = (fontSize * 0.3527) * 1.2; // Conversion points → mm avec espacement
         lines.forEach((line: string, index: number) => {
-          this.doc.text(line, adjustedX, adjustedY + index * lineHeightMm, { align });
+          this.doc.text(line, adjustedX, adjustedY + index * lineHeightMm, { align, baseline: 'top' });
         });
       }
     } else {
-      this.doc.text(text, adjustedX, adjustedY, { align });
+      this.doc.text(text, adjustedX, adjustedY, { align, baseline: 'top' });
     }
   }
 
