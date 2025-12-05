@@ -120,6 +120,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-071'
   },
   {
+    id: 'migration-072',
+    name: 'Migration 072',
+    description: 'FIX HORAIRES RH: Contrainte horaire actif unique + Calculs pointage avec pauses/tolérances + UI configuration complète',
+    endpoint: '/migration-072'
+  },
+  {
     id: 'migration-073',
     name: 'Migration 073',
     description: 'AUDIT SÉCURITÉ: Ajoute 5 permissions (delete_payment, approve_overtime, reject_overtime, holidays.*) + Protège 10 routes vulnérables',
