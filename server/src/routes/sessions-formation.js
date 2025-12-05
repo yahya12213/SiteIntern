@@ -669,7 +669,10 @@ router.put('/:sessionId/etudiants/bulk-status',
  * GET /api/sessions-formation/:sessionId/etudiants/:studentId/available-documents
  * Récupérer les templates de documents disponibles pour un étudiant
  */
-router.get('/:sessionId/etudiants/:studentId/available-documents', async (req, res) => {
+router.get('/:sessionId/etudiants/:studentId/available-documents',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
+  async (req, res) => {
   try {
     const { sessionId, studentId } = req.params;
 
@@ -1109,7 +1112,10 @@ router.delete('/fichiers/:fichierId',
  * POST /api/sessions-formation/:sessionId/etudiants/:studentId/paiements
  * Enregistrer un nouveau paiement pour un étudiant
  */
-router.post('/:sessionId/etudiants/:studentId/paiements', async (req, res) => {
+router.post('/:sessionId/etudiants/:studentId/paiements',
+  authenticateToken,
+  requirePermission('training.sessions.edit_student'),
+  async (req, res) => {
   try {
     const { sessionId, studentId } = req.params;
     const { amount, payment_date, payment_method, reference_number, note } = req.body;
@@ -1221,7 +1227,10 @@ router.post('/:sessionId/etudiants/:studentId/paiements', async (req, res) => {
  * GET /api/sessions-formation/:sessionId/etudiants/:studentId/paiements
  * Récupérer l'historique des paiements d'un étudiant
  */
-router.get('/:sessionId/etudiants/:studentId/paiements', async (req, res) => {
+router.get('/:sessionId/etudiants/:studentId/paiements',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
+  async (req, res) => {
   try {
     const { sessionId, studentId } = req.params;
 
@@ -1272,7 +1281,10 @@ router.get('/:sessionId/etudiants/:studentId/paiements', async (req, res) => {
  * DELETE /api/sessions-formation/:sessionId/etudiants/:studentId/paiements/:paymentId
  * Annuler/Supprimer un paiement
  */
-router.delete('/:sessionId/etudiants/:studentId/paiements/:paymentId', async (req, res) => {
+router.delete('/:sessionId/etudiants/:studentId/paiements/:paymentId',
+  authenticateToken,
+  requirePermission('training.sessions.edit_student'),
+  async (req, res) => {
   try {
     const { sessionId, studentId, paymentId } = req.params;
 

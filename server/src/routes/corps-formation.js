@@ -373,7 +373,10 @@ router.delete('/:id',
  * Endpoint de diagnostic pour identifier les problèmes de données
  * TEMPORAIRE - Pour déboguer les formations orphelines
  */
-router.get('/:id/debug', async (req, res) => {
+router.get('/:id/debug',
+  authenticateToken,
+  requirePermission('training.corps.view_page'),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -697,7 +700,10 @@ router.post('/:id/duplicate',
  * - move_to_default: Déplace vers un corps par défaut (si fourni)
  * - delete: Supprime les formations orphelines
  */
-router.post('/:id/fix-orphaned-formations', async (req, res) => {
+router.post('/:id/fix-orphaned-formations',
+  authenticateToken,
+  requirePermission('training.corps.update'),
+  async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -823,7 +829,10 @@ router.post('/:id/fix-orphaned-formations', async (req, res) => {
  * 4. Tente de supprimer le corps vidé
  * 5. Retourne un rapport détaillé de toutes les actions
  */
-router.post('/cleanup-all-orphans', async (req, res) => {
+router.post('/cleanup-all-orphans',
+  authenticateToken,
+  requirePermission('training.corps.delete'),
+  async (req, res) => {
   const client = await pool.connect();
 
   try {
