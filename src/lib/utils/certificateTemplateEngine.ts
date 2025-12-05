@@ -509,11 +509,13 @@ export class CertificateTemplateEngine {
       }
     }
 
-    // FIX: Use baseline:'top' to match canvas CSS positioning system
-    // Canvas CSS: Y = top edge of text (like CSS top property)
-    // jsPDF with baseline:'top': Y = top edge of text (same coordinate system!)
-    // This eliminates need for complex baseline calculations
-    const adjustedY = y;
+    // FIX: Use baseline:'top' + canvas padding to match canvas CSS positioning
+    // Canvas CSS: Y = top edge of box, text starts at Y + 4px padding (CanvasEditor.tsx:209)
+    // jsPDF with baseline:'top': Y = top edge of text
+    // Solution: Add 4px padding to Y to match canvas visual position
+    const paddingTopPx = 4; // From CanvasEditor.tsx line 209
+    const paddingTopMm = this.pxToMm(paddingTopPx, 'y');
+    const adjustedY = y + paddingTopMm;
 
     // Gérer le maxWidth (retour à la ligne automatique)
     if (element.maxWidth) {
