@@ -21,7 +21,7 @@ router.get('/status', async (req, res) => {
     // 1. Find the user
     const userResult = await pool.query(`
       SELECT id, username, email, role, role_id
-      FROM users
+      FROM accounts
       WHERE LOWER(username) LIKE '%khalid%' OR LOWER(email) LIKE '%khalid%'
     `);
 
@@ -115,7 +115,7 @@ router.post('/run', async (req, res) => {
     // 1. Find the user
     const userResult = await pool.query(`
       SELECT id, username, email, role, role_id
-      FROM users
+      FROM accounts
       WHERE LOWER(username) LIKE '%khalid%' OR LOWER(email) LIKE '%khalid%'
     `);
 
