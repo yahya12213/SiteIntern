@@ -8,6 +8,7 @@ import express from 'express';
 import pool from '../config/database.js';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import { nanoid } from 'nanoid';
+import { validateProjectForeignKeys } from '../utils/fk-validator.js';
 
 const router = express.Router();
 
@@ -110,6 +111,15 @@ router.post('/', authenticateToken, requirePermission('accounting.projects.creat
       return res.status(400).json({ error: 'Le nom du projet est obligatoire' });
     }
 
+    // Validate foreign keys before INSERT
+    const fkValidation = await validateProjectForeignKeys({ manager_id, segment_id, city_id });
+    if (!fkValidation.valid) {
+      return res.status(400).json({
+        error: 'Validation des références échouée',
+        details: fkValidation.errors
+      });
+    }
+
     const id = `proj-${nanoid(10)}`;
 
     const result = await pool.query(`
@@ -121,6 +131,15 @@ router.post('/', authenticateToken, requirePermission('accounting.projects.creat
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error creating project:', error);
+
+    // Handle FK constraint violation as fallback
+    if (error.code === '23503') {
+      return res.status(400).json({
+        error: 'Référence invalide',
+        details: ['Une ou plusieurs références sont invalides']
+      });
+    }
+
     res.status(500).json({ error: error.message });
   }
 });
@@ -130,6 +149,23 @@ router.put('/:id', authenticateToken, requirePermission('accounting.projects.upd
   try {
     const { id } = req.params;
     const { name, description, status, priority, start_date, end_date, budget, manager_id, segment_id, city_id } = req.body;
+
+    // Only validate FK fields that are being updated (not undefined)
+    const fkFields = {};
+    if (manager_id !== undefined) fkFields.manager_id = manager_id;
+    if (segment_id !== undefined) fkFields.segment_id = segment_id;
+    if (city_id !== undefined) fkFields.city_id = city_id;
+
+    // Validate foreign keys if any FK field is being updated
+    if (Object.keys(fkFields).length > 0) {
+      const fkValidation = await validateProjectForeignKeys(fkFields);
+      if (!fkValidation.valid) {
+        return res.status(400).json({
+          error: 'Validation des références échouée',
+          details: fkValidation.errors
+        });
+      }
+    }
 
     const result = await pool.query(`
       UPDATE projects
@@ -155,6 +191,15 @@ router.put('/:id', authenticateToken, requirePermission('accounting.projects.upd
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating project:', error);
+
+    // Handle FK constraint violation as fallback
+    if (error.code === '23503') {
+      return res.status(400).json({
+        error: 'Référence invalide',
+        details: ['Une ou plusieurs références sont invalides']
+      });
+    }
+
     res.status(500).json({ error: error.message });
   }
 });

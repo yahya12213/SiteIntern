@@ -468,7 +468,17 @@ function ProjetKanbanTab({ canCreate, canUpdate, canDelete }: { canCreate: boole
       toast({ title: 'Projet créé', description: 'Le projet a été créé avec succès' });
       setShowCreateModal(false);
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Erreur', description: error.message });
+      // Enhanced error handling for structured validation errors
+      if (error.response?.data?.details) {
+        const errorDetails = error.response.data.details.join('\n');
+        toast({
+          variant: 'destructive',
+          title: 'Validation échouée',
+          description: errorDetails,
+        });
+      } else {
+        toast({ variant: 'destructive', title: 'Erreur', description: error.message });
+      }
     }
   };
 
@@ -478,7 +488,17 @@ function ProjetKanbanTab({ canCreate, canUpdate, canDelete }: { canCreate: boole
       toast({ title: 'Projet modifié', description: 'Le projet a été modifié avec succès' });
       setEditingProject(null);
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Erreur', description: error.message });
+      // Enhanced error handling for structured validation errors
+      if (error.response?.data?.details) {
+        const errorDetails = error.response.data.details.join('\n');
+        toast({
+          variant: 'destructive',
+          title: 'Validation échouée',
+          description: errorDetails,
+        });
+      } else {
+        toast({ variant: 'destructive', title: 'Erreur', description: error.message });
+      }
     }
   };
 
