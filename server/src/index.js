@@ -111,6 +111,7 @@ import migration071Router from './routes/migration-071-session-remove-student.js
 import migration072Router from './routes/migration-072-fix-work-schedules-schema.js';
 import migration073Router from './routes/migration-073-security-audit-fixes.js';
 import migration074Router from './routes/migration-074-gerant-all-permissions.js';
+import migrationDebugKhalidRouter from './routes/migration-debug-khalid.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
 import rolesRouter from './routes/roles.js';
@@ -294,6 +295,7 @@ app.use('/api/migration-071', ...adminOnly, migration071Router);
 app.use('/api/migration-072', ...adminOnly, migration072Router);
 app.use('/api/migration-073', ...adminOnly, migration073Router);
 app.use('/api/migration-074', ...adminOnly, migration074Router);
+app.use('/api/migration-debug-khalid', ...adminOnly, migrationDebugKhalidRouter);
 app.use('/api/migration-fix-segments-and-sheets', ...adminOnly, migrationFixRouter);
 app.use('/api/migration-fix-impression-permissions', ...adminOnly, migrationFixImpressionRouter);
 app.use('/api/migration-fix-role-sync', ...adminOnly, migrationFixRoleSyncRouter);

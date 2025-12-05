@@ -154,6 +154,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 074',
     description: 'FIX CRITIQUE GERANT: Assigne TOUTES les permissions au rôle gerant (training.certificate_templates.*, etc.)',
     endpoint: '/migration-074'
+  },
+  {
+    id: 'migration-debug-khalid',
+    name: 'DEBUG: Analyse Khalid Fathi',
+    description: '🔍 Affiche le rôle, permissions et diagnostic complet pour l\'utilisateur khalid fathi',
+    endpoint: '/migration-debug-khalid'
   }
 ];
 
