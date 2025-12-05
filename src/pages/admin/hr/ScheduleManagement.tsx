@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
+import WorkScheduleFormModal from '@/components/admin/hr/WorkScheduleFormModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,8 +49,6 @@ import {
 // Hooks
 import {
   useWorkSchedules,
-  useCreateSchedule,
-  useUpdateSchedule,
   useDeleteSchedule,
   usePublicHolidays,
   useCreateHoliday,
@@ -76,12 +75,6 @@ const TABS: { id: TabType; label: string; icon: React.ElementType }[] = [
 
 const JOURS_SEMAINE = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
-// Default empty schedule for form
-const DEFAULT_HORAIRES = JOURS_SEMAINE.reduce((acc, jour) => ({
-  ...acc,
-  [jour]: { actif: jour !== 'Samedi' && jour !== 'Dimanche', heureDebut: '08:00', heureFin: '17:00', pauses: [] }
-}), {});
-
 export default function ScheduleManagement() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<TabType>('modeles');
@@ -94,15 +87,6 @@ export default function ScheduleManagement() {
   const [editingHoliday, setEditingHoliday] = useState<PublicHoliday | null>(null);
 
   // Form states
-  const [scheduleForm, setScheduleForm] = useState({
-    nom: '',
-    description: '',
-    horaires: DEFAULT_HORAIRES,
-    heures_hebdo: 44,
-    is_default: false,
-    actif: true,
-  });
-
   const [holidayForm, setHolidayForm] = useState({
     nom: '',
     date_debut: '',
@@ -117,8 +101,6 @@ export default function ScheduleManagement() {
   const { data: overtimeData, isLoading: overtimeLoading, error: overtimeError } = useOvertimeDeclarations();
 
   // Mutations
-  const createSchedule = useCreateSchedule();
-  const updateSchedule = useUpdateSchedule();
   const deleteSchedule = useDeleteSchedule();
   const createHoliday = useCreateHoliday();
   const updateHoliday = useUpdateHoliday();
@@ -134,48 +116,8 @@ export default function ScheduleManagement() {
 
   // Handlers - Schedules
   const handleOpenScheduleModal = (schedule?: WorkSchedule) => {
-    if (schedule) {
-      setEditingSchedule(schedule);
-      setScheduleForm({
-        nom: schedule.nom,
-        description: schedule.description || '',
-        horaires: schedule.horaires,
-        heures_hebdo: schedule.heures_hebdo,
-        is_default: schedule.is_default || false,
-        actif: schedule.actif,
-      });
-    } else {
-      setEditingSchedule(null);
-      setScheduleForm({
-        nom: '',
-        description: '',
-        horaires: DEFAULT_HORAIRES,
-        heures_hebdo: 44,
-        is_default: false,
-        actif: true,
-      });
-    }
+    setEditingSchedule(schedule || null);
     setShowScheduleModal(true);
-  };
-
-  const handleSaveSchedule = async () => {
-    if (!scheduleForm.nom) {
-      toast({ title: 'Erreur', description: 'Le nom du modèle est requis', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      if (editingSchedule) {
-        await updateSchedule.mutateAsync({ id: editingSchedule.id, data: scheduleForm });
-        toast({ title: 'Succès', description: 'Modèle mis à jour' });
-      } else {
-        await createSchedule.mutateAsync(scheduleForm);
-        toast({ title: 'Succès', description: 'Modèle créé' });
-      }
-      setShowScheduleModal(false);
-    } catch (error: any) {
-      toast({ title: 'Erreur', description: error.message || 'Erreur lors de la sauvegarde', variant: 'destructive' });
-    }
   };
 
   const handleDeleteSchedule = async (id: string) => {
@@ -621,105 +563,15 @@ export default function ScheduleManagement() {
       </div>
 
       {/* Schedule Modal */}
-      <Dialog open={showScheduleModal} onOpenChange={setShowScheduleModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingSchedule ? 'Modifier le modèle' : 'Nouveau modèle d\'horaires'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Nom du modèle *</Label>
-                <Input
-                  value={scheduleForm.nom}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, nom: e.target.value })}
-                  placeholder="Ex: Horaire Standard"
-                />
-              </div>
-              <div>
-                <Label>Heures/Semaine</Label>
-                <Input
-                  type="number"
-                  value={scheduleForm.heures_hebdo}
-                  onChange={(e) => setScheduleForm({ ...scheduleForm, heures_hebdo: parseInt(e.target.value) || 44 })}
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Description</Label>
-              <Textarea
-                value={scheduleForm.description}
-                onChange={(e) => setScheduleForm({ ...scheduleForm, description: e.target.value })}
-                placeholder="Description du modèle..."
-              />
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={scheduleForm.is_default}
-                  onCheckedChange={(checked) => setScheduleForm({ ...scheduleForm, is_default: !!checked })}
-                />
-                <Label>Modèle par défaut</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={scheduleForm.actif}
-                  onCheckedChange={(checked) => setScheduleForm({ ...scheduleForm, actif: !!checked })}
-                />
-                <Label>Actif</Label>
-              </div>
-            </div>
-            <div>
-              <Label className="mb-2 block">Jours travaillés</Label>
-              <div className="grid grid-cols-7 gap-2">
-                {JOURS_SEMAINE.map(jour => (
-                  <div
-                    key={jour}
-                    className={`p-2 rounded border text-center cursor-pointer ${
-                      scheduleForm.horaires[jour]?.actif
-                        ? 'bg-blue-50 border-blue-300'
-                        : 'bg-gray-50 border-gray-200'
-                    }`}
-                    onClick={() => setScheduleForm({
-                      ...scheduleForm,
-                      horaires: {
-                        ...scheduleForm.horaires,
-                        [jour]: {
-                          ...scheduleForm.horaires[jour],
-                          actif: !scheduleForm.horaires[jour]?.actif
-                        }
-                      }
-                    })}
-                  >
-                    <div className="font-medium text-sm">{jour.slice(0, 3)}</div>
-                    {scheduleForm.horaires[jour]?.actif && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        {scheduleForm.horaires[jour].heureDebut} - {scheduleForm.horaires[jour].heureFin}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowScheduleModal(false)}>
-              Annuler
-            </Button>
-            <Button
-              onClick={handleSaveSchedule}
-              disabled={createSchedule.isPending || updateSchedule.isPending}
-            >
-              {(createSchedule.isPending || updateSchedule.isPending) && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
-              {editingSchedule ? 'Mettre à jour' : 'Créer'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {showScheduleModal && (
+        <WorkScheduleFormModal
+          scheduleId={editingSchedule?.id || null}
+          onClose={() => {
+            setShowScheduleModal(false);
+            setEditingSchedule(null);
+          }}
+        />
+      )}
 
       {/* Holiday Modal */}
       <Dialog open={showHolidayModal} onOpenChange={setShowHolidayModal}>
