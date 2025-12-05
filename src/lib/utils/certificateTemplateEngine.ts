@@ -516,8 +516,8 @@ export class CertificateTemplateEngine {
     const fontSizeMm = fontSize * 0.3527; // Convert pt to mm (1pt = 0.3527mm)
     const paddingTopPx = 4; // From CanvasEditor.tsx line 209
     const paddingTopMm = this.pxToMm(paddingTopPx, 'y');
-    // Ascender height ≈ 80% of font size (where baseline sits relative to top)
-    const adjustedY = y + paddingTopMm + (fontSizeMm * 0.8);
+    // Ascender height ≈ 65% of font size (adjusted after testing for accurate baseline positioning)
+    const adjustedY = y + paddingTopMm + (fontSizeMm * 0.65);
 
     // Gérer le maxWidth (retour à la ligne automatique)
     if (element.maxWidth) {
