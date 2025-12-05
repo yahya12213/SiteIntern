@@ -509,16 +509,15 @@ export class CertificateTemplateEngine {
       }
     }
 
-    // CRITICAL FIX: Adjust Y coordinate for vertical centering
-    // The stored Y is the TOP of the bounding box
-    // jsPDF expects Y to be the text baseline (bottom of text)
-    let adjustedY = y;
-    if (element.height) {
-      const heightMm = this.pxToMm(element.height, 'y');
-      const fontSizeMm = fontSize * 0.3527; // Convert pt to mm
-      // Center text vertically: move to middle of box, then adjust for baseline
-      adjustedY = y + (heightMm / 2) + (fontSizeMm / 3);
-    }
+    // FIX: Position text to match canvas editor exactly (including padding)
+    // Canvas editor: text has 4px top padding and starts at top of padded area (CanvasEditor.tsx:209)
+    // jsPDF: Y coordinate is the text baseline, not the top
+    // Solution: Y + paddingTop + ascender height for pixel-perfect alignment
+    const fontSizeMm = fontSize * 0.3527; // Convert pt to mm (1pt = 0.3527mm)
+    const paddingTopPx = 4; // From CanvasEditor.tsx line 209
+    const paddingTopMm = this.pxToMm(paddingTopPx, 'y');
+    // Ascender height ≈ 80% of font size (where baseline sits relative to top)
+    const adjustedY = y + paddingTopMm + (fontSizeMm * 0.8);
 
     // Gérer le maxWidth (retour à la ligne automatique)
     if (element.maxWidth) {
