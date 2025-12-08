@@ -100,6 +100,7 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
             ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
             ctx.fillStyle = element.color || '#000000';
             ctx.textAlign = (element.textAlign || 'left') as CanvasTextAlign;
+            ctx.textBaseline = 'top'; // Aligner en haut comme CSS pour matcher l'éditeur
 
             // Remplacer les placeholders par les données de test
             let text = element.content || '';
@@ -109,7 +110,9 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
             text = text.replace(/\{instructor\}/g, testData.instructor);
             text = text.replace(/\{duration\}/g, testData.duration);
 
-            ctx.fillText(text, x, y);
+            // Compenser le padding CSS de l'éditeur (padding-top: 4px)
+            const EDITOR_PADDING_TOP = 4;
+            ctx.fillText(text, x, y + EDITOR_PADDING_TOP);
             break;
 
           case 'rectangle':
