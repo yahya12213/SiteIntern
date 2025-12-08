@@ -133,7 +133,16 @@ import migrationProjectsRouter from './routes/migration-projects.js';
 import migrationFixKhalidRoleRouter from './routes/migration-fix-khalid-role.js';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+
+// Parse PORT correctly - ensure it's a number
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
+
+// Debug logging for PORT configuration
+console.log('🔍 PORT Configuration Debug:');
+console.log('  - process.env.PORT:', process.env.PORT);
+console.log('  - process.env.PGPORT:', process.env.PGPORT);
+console.log('  - Parsed PORT value:', PORT);
+console.log('  - PORT type:', typeof PORT);
 
 // Trust proxy for Railway deployment
 app.set('trust proxy', 1);
