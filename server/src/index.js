@@ -135,14 +135,17 @@ import migrationFixKhalidRoleRouter from './routes/migration-fix-khalid-role.js'
 const app = express();
 
 // Parse PORT correctly - ensure it's a number
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
+// FIX: Railway incorrectly sets PORT=5432 (PostgreSQL port) instead of web service port
+// We must ignore PORT when it's 5432 and use a safe default
+const rawPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
+const PORT = rawPort === 5432 ? 3001 : rawPort;
 
 // Debug logging for PORT configuration
 console.log('🔍 PORT Configuration Debug:');
 console.log('  - process.env.PORT:', process.env.PORT);
-console.log('  - process.env.PGPORT:', process.env.PGPORT);
-console.log('  - Parsed PORT value:', PORT);
-console.log('  - PORT type:', typeof PORT);
+console.log('  - Raw parsed PORT:', rawPort);
+console.log('  - Final PORT (ignoring 5432):', PORT);
+console.log('  - Reason:', rawPort === 5432 ? '⚠️  PostgreSQL port detected - using default 3001' : '✅ Using provided PORT');
 
 // Trust proxy for Railway deployment
 app.set('trust proxy', 1);
