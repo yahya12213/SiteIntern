@@ -130,6 +130,7 @@ import hrValidationWorkflowsRouter from './routes/hr-validation-workflows.js';
 import prospectsRouter from './routes/prospects.js';
 import projectsRouter from './routes/projects.js';
 import migrationProjectsRouter from './routes/migration-projects.js';
+import migrationFixKhalidRoleRouter from './routes/migration-fix-khalid-role.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -296,6 +297,7 @@ app.use('/api/migration-072', ...adminOnly, migration072Router);
 app.use('/api/migration-073', ...adminOnly, migration073Router);
 app.use('/api/migration-074', ...adminOnly, migration074Router);
 app.use('/api/migration-debug-khalid', ...adminOnly, migrationDebugKhalidRouter);
+app.use('/api/migration-fix-khalid-role', ...adminOnly, migrationFixKhalidRoleRouter);
 app.use('/api/migration-fix-segments-and-sheets', ...adminOnly, migrationFixRouter);
 app.use('/api/migration-fix-impression-permissions', ...adminOnly, migrationFixImpressionRouter);
 app.use('/api/migration-fix-role-sync', ...adminOnly, migrationFixRoleSyncRouter);

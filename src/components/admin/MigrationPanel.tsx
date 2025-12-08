@@ -156,6 +156,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-074'
   },
   {
+    id: 'migration-fix-khalid-role',
+    name: 'FIX: Synchroniser role_id de Khalid Fathi',
+    description: '🔧 CRITIQUE: Corrige le role_id de "khalid fathi" pour pointer vers le rôle gérant au lieu de professor',
+    endpoint: '/migration-fix-khalid-role'
+  },
+  {
     id: 'migration-debug-khalid',
     name: 'DEBUG: Analyse Khalid Fathi',
     description: '🔍 Affiche le rôle, permissions et diagnostic complet pour l\'utilisateur khalid fathi',
