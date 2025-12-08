@@ -92,7 +92,9 @@
       "Bash(cd:*)",
       "Bash(npm outdated:*)",
       "Bash(npm update:*)",
-      "Bash(move:*)"
+      "Bash(move:*)",
+      "Bash(ls:*)",
+      "Bash(if not exist \"C:\\Users\\pc\\.claude\\plans\" mkdir \"C:\\Users\\pc\\.claude\\plans\")"
     ],
     "deny": [],
     "ask": []

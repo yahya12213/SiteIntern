@@ -162,6 +162,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-fix-khalid-role'
   },
   {
+    id: 'migration-verify-gerant-permissions',
+    name: 'DEBUG: Vérifier Permissions Gérant',
+    description: '🔍 DIAGNOSTIC: Vérifie toutes les permissions training.certificate_templates.* et les assigne si manquantes',
+    endpoint: '/migration-verify-gerant-permissions'
+  },
+  {
     id: 'migration-debug-khalid',
     name: 'DEBUG: Analyse Khalid Fathi',
     description: '🔍 Affiche le rôle, permissions et diagnostic complet pour l\'utilisateur khalid fathi',
