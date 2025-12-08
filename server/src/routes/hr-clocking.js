@@ -126,6 +126,113 @@ const getBreakRules = async (pool) => {
   }
 };
 
+// Helper: Get active work schedule
+const getActiveSchedule = async (pool) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        id, name,
+        monday_start, monday_end,
+        tuesday_start, tuesday_end,
+        wednesday_start, wednesday_end,
+        thursday_start, thursday_end,
+        friday_start, friday_end,
+        saturday_start, saturday_end,
+        sunday_start, sunday_end,
+        working_days,
+        break_duration_minutes,
+        tolerance_late_minutes,
+        tolerance_early_leave_minutes,
+        min_hours_for_half_day
+      FROM hr_work_schedules
+      WHERE is_active = true
+      LIMIT 1
+    `);
+
+    if (result.rows.length === 0) {
+      console.warn('No active work schedule found');
+      return null;
+    }
+
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error fetching active schedule:', error);
+    return null;
+  }
+};
+
+// Helper: Get scheduled times for a specific date
+const getScheduledTimesForDate = (schedule, date) => {
+  if (!schedule) return null;
+
+  const dateObj = new Date(date);
+  const dayOfWeek = dateObj.getDay(); // 0=Dimanche, 1=Lundi, ..., 6=Samedi
+  const isoDay = dayOfWeek === 0 ? 7 : dayOfWeek; // 1=Lundi, 7=Dimanche
+
+  const isWorkingDay = schedule.working_days?.includes(isoDay);
+
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayName = dayNames[dayOfWeek];
+
+  const startTime = schedule[`${dayName}_start`];
+  const endTime = schedule[`${dayName}_end`];
+
+  if (!startTime || !endTime) {
+    return { isWorkingDay: false, scheduledStart: null, scheduledEnd: null };
+  }
+
+  return { isWorkingDay, scheduledStart: startTime, scheduledEnd: endTime };
+};
+
+// Helper: Calculate late minutes with tolerance
+const calculateLateMinutes = (clockTime, scheduledStart, toleranceMinutes = 0) => {
+  if (!scheduledStart) return 0;
+
+  const clockTimeObj = new Date(clockTime);
+  const clockTotalMinutes = clockTimeObj.getHours() * 60 + clockTimeObj.getMinutes();
+
+  const [schedHours, schedMinutes] = scheduledStart.split(':').map(Number);
+  const schedTotalMinutes = schedHours * 60 + schedMinutes;
+
+  const diffMinutes = clockTotalMinutes - schedTotalMinutes;
+
+  if (diffMinutes <= toleranceMinutes) return 0;
+
+  return Math.max(0, diffMinutes);
+};
+
+// Helper: Calculate early leave minutes with tolerance
+const calculateEarlyLeaveMinutes = (clockTime, scheduledEnd, toleranceMinutes = 0) => {
+  if (!scheduledEnd) return 0;
+
+  const clockTimeObj = new Date(clockTime);
+  const clockTotalMinutes = clockTimeObj.getHours() * 60 + clockTimeObj.getMinutes();
+
+  const [schedHours, schedMinutes] = scheduledEnd.split(':').map(Number);
+  const schedTotalMinutes = schedHours * 60 + schedMinutes;
+
+  const diffMinutes = schedTotalMinutes - clockTotalMinutes;
+
+  if (diffMinutes <= toleranceMinutes) return 0;
+
+  return Math.max(0, diffMinutes);
+};
+
+// Helper: Calculate overtime minutes
+const calculateOvertimeMinutes = (clockTime, scheduledEnd) => {
+  if (!scheduledEnd) return 0;
+
+  const clockTimeObj = new Date(clockTime);
+  const clockTotalMinutes = clockTimeObj.getHours() * 60 + clockTimeObj.getMinutes();
+
+  const [schedHours, schedMinutes] = scheduledEnd.split(':').map(Number);
+  const schedTotalMinutes = schedHours * 60 + schedMinutes;
+
+  const diffMinutes = clockTotalMinutes - schedTotalMinutes;
+
+  return Math.max(0, diffMinutes);
+};
+
 // Helper: Calculate worked minutes for a day
 const calculateWorkedMinutes = (records, breakRules) => {
   if (records.length === 0) return 0;
@@ -173,6 +280,11 @@ router.post('/check-in', authenticateToken, async (req, res) => {
 
     // Check last action today
     const today = new Date().toISOString().split('T')[0];
+
+    // Récupérer l'horaire actif
+    const schedule = await getActiveSchedule(pool);
+    const scheduledTimes = schedule ? getScheduledTimesForDate(schedule, today) : null;
+
     const lastAction = await pool.query(`
       SELECT clock_time, status
       FROM hr_attendance_records
@@ -190,6 +302,30 @@ router.post('/check-in', authenticateToken, async (req, res) => {
       });
     }
 
+    // Calculer les données d'horaire
+    let scheduledStart = null;
+    let lateMinutes = 0;
+    let initialStatus = 'check_in';
+
+    if (scheduledTimes) {
+      if (scheduledTimes.isWorkingDay) {
+        scheduledStart = scheduledTimes.scheduledStart;
+
+        lateMinutes = calculateLateMinutes(
+          new Date(),
+          scheduledStart,
+          schedule.tolerance_late_minutes || 0
+        );
+
+        if (lateMinutes > 0) {
+          initialStatus = 'late';
+        }
+      } else {
+        // Jour non ouvrable (weekend)
+        initialStatus = 'weekend';
+      }
+    }
+
     // Insert check-in record
     const result = await pool.query(`
       INSERT INTO hr_attendance_records (
@@ -198,15 +334,21 @@ router.post('/check-in', authenticateToken, async (req, res) => {
         clock_time,
         status,
         source,
+        scheduled_start,
+        late_minutes,
         created_at
-      ) VALUES ($1, CURRENT_DATE, NOW(), 'check_in', 'self_service', NOW())
-      RETURNING id, clock_time, status
-    `, [employee.id]);
+      ) VALUES ($1, CURRENT_DATE, NOW(), $2, 'self_service', $3, $4, NOW())
+      RETURNING id, clock_time, status, late_minutes, scheduled_start
+    `, [employee.id, initialStatus, scheduledStart, lateMinutes]);
 
     res.json({
       success: true,
-      message: 'Entrée enregistrée avec succès',
-      record: result.rows[0]
+      message: lateMinutes > 0
+        ? `Entrée enregistrée (${lateMinutes} min de retard)`
+        : 'Entrée enregistrée avec succès',
+      record: result.rows[0],
+      late_minutes: lateMinutes,
+      scheduled_start: scheduledStart
     });
 
   } catch (error) {
@@ -244,6 +386,22 @@ router.post('/check-out', authenticateToken, async (req, res) => {
 
     // Check last action today
     const today = new Date().toISOString().split('T')[0];
+
+    // Récupérer l'horaire actif
+    const schedule = await getActiveSchedule(pool);
+    const scheduledTimes = schedule ? getScheduledTimesForDate(schedule, today) : null;
+
+    // Récupérer le check-in pour obtenir scheduled_start et late_minutes
+    const checkInRecord = await pool.query(`
+      SELECT scheduled_start, status, clock_time, late_minutes
+      FROM hr_attendance_records
+      WHERE employee_id = $1
+        AND DATE(clock_time) = $2
+        AND status IN ('check_in', 'late', 'weekend')
+      ORDER BY clock_time DESC
+      LIMIT 1
+    `, [employee.id, today]);
+
     const lastAction = await pool.query(`
       SELECT clock_time, status
       FROM hr_attendance_records
@@ -268,6 +426,35 @@ router.post('/check-out', authenticateToken, async (req, res) => {
       });
     }
 
+    const checkIn = checkInRecord.rows[0];
+    const scheduledStartFromCheckIn = checkIn?.scheduled_start || null;
+
+    // Calculer les écarts
+    let scheduledEnd = null;
+    let earlyLeaveMinutes = 0;
+    let overtimeMinutes = 0;
+    let finalStatus = 'check_out';
+
+    if (scheduledTimes) {
+      if (scheduledTimes.isWorkingDay) {
+        scheduledEnd = scheduledTimes.scheduledEnd;
+
+        const now = new Date();
+
+        earlyLeaveMinutes = calculateEarlyLeaveMinutes(
+          now,
+          scheduledEnd,
+          schedule.tolerance_early_leave_minutes || 0
+        );
+
+        if (earlyLeaveMinutes === 0) {
+          overtimeMinutes = calculateOvertimeMinutes(now, scheduledEnd);
+        }
+      } else {
+        finalStatus = 'weekend';
+      }
+    }
+
     // Insert check-out record
     const result = await pool.query(`
       INSERT INTO hr_attendance_records (
@@ -276,10 +463,14 @@ router.post('/check-out', authenticateToken, async (req, res) => {
         clock_time,
         status,
         source,
+        scheduled_start,
+        scheduled_end,
+        early_leave_minutes,
+        overtime_minutes,
         created_at
-      ) VALUES ($1, CURRENT_DATE, NOW(), 'check_out', 'self_service', NOW())
-      RETURNING id, clock_time, status
-    `, [employee.id]);
+      ) VALUES ($1, CURRENT_DATE, NOW(), $2, 'self_service', $3, $4, $5, $6, NOW())
+      RETURNING id, clock_time, status, scheduled_end, early_leave_minutes, overtime_minutes
+    `, [employee.id, finalStatus, scheduledStartFromCheckIn, scheduledEnd, earlyLeaveMinutes, overtimeMinutes]);
 
     // Calculate worked minutes for today
     const todayRecords = await pool.query(`
@@ -291,13 +482,58 @@ router.post('/check-out', authenticateToken, async (req, res) => {
     `, [employee.id, today]);
 
     const breakRules = await getBreakRules(pool);
-    const workedMinutes = calculateWorkedMinutes(todayRecords.rows, breakRules);
+    // Utiliser la pause de l'horaire si disponible
+    const breakMinutes = schedule?.break_duration_minutes || breakRules.default_break_minutes || 60;
+    const workedMinutes = calculateWorkedMinutes(todayRecords.rows, {
+      deduct_break_automatically: true,
+      default_break_minutes: breakMinutes
+    });
+
+    // Déterminer le statut final de la journée
+    let dayStatus = 'present';
+
+    if (checkIn?.status === 'late') {
+      dayStatus = 'late';
+    }
+
+    if (earlyLeaveMinutes > 0) {
+      dayStatus = 'late';
+    }
+
+    if (workedMinutes !== null && schedule) {
+      const workedHours = workedMinutes / 60;
+      if (workedHours < (schedule.min_hours_for_half_day || 4)) {
+        dayStatus = 'half_day';
+      }
+    }
+
+    if (scheduledTimes && !scheduledTimes.isWorkingDay) {
+      dayStatus = 'weekend';
+    }
+
+    // Mettre à jour le record check-in avec le statut final
+    await pool.query(`
+      UPDATE hr_attendance_records
+      SET status = $1
+      WHERE employee_id = $2
+        AND DATE(clock_time) = $3
+        AND status IN ('check_in', 'late')
+    `, [dayStatus, employee.id, today]);
 
     res.json({
       success: true,
       message: 'Sortie enregistrée avec succès',
       record: result.rows[0],
-      worked_minutes_today: workedMinutes
+      worked_minutes_today: workedMinutes,
+      summary: {
+        scheduled_start: scheduledStartFromCheckIn,
+        scheduled_end: scheduledEnd,
+        late_minutes: checkIn?.late_minutes || 0,
+        early_leave_minutes: earlyLeaveMinutes,
+        overtime_minutes: overtimeMinutes,
+        break_minutes: breakMinutes,
+        day_status: dayStatus
+      }
     });
 
   } catch (error) {
