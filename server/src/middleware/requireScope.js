@@ -44,16 +44,30 @@ export const injectUserScope = async (req, res, next) => {
       return next();
     }
 
+    // Determine which tables to query based on role
+    let segmentsTable, citiesTable, userIdColumn;
+
+    if (userRole === 'gerant') {
+      segmentsTable = 'gerant_segments';
+      citiesTable = 'gerant_cities';
+      userIdColumn = 'gerant_id';
+    } else {
+      // Default to professor tables for backwards compatibility
+      segmentsTable = 'professor_segments';
+      citiesTable = 'professor_cities';
+      userIdColumn = 'professor_id';
+    }
+
     // Fetch user's assigned segments
     const segmentsResult = await pool.query(
-      'SELECT segment_id FROM professor_segments WHERE professor_id = $1',
+      `SELECT segment_id FROM ${segmentsTable} WHERE ${userIdColumn} = $1`,
       [userId]
     );
     const segmentIds = segmentsResult.rows.map(row => row.segment_id);
 
     // Fetch user's assigned cities
     const citiesResult = await pool.query(
-      'SELECT city_id FROM professor_cities WHERE professor_id = $1',
+      `SELECT city_id FROM ${citiesTable} WHERE ${userIdColumn} = $1`,
       [userId]
     );
     const cityIds = citiesResult.rows.map(row => row.city_id);
