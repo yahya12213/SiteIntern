@@ -168,6 +168,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-verify-gerant-permissions'
   },
   {
+    id: 'migration-add-certificate-update-permission',
+    name: 'FIX: Créer permission certificate update',
+    description: '🚨 CRITIQUE: Crée la permission training.certificate_templates.update manquante et l\'assigne au gérant',
+    endpoint: '/migration-add-certificate-update-permission'
+  },
+  {
     id: 'migration-debug-khalid',
     name: 'DEBUG: Analyse Khalid Fathi',
     description: '🔍 Affiche le rôle, permissions et diagnostic complet pour l\'utilisateur khalid fathi',

@@ -132,6 +132,7 @@ import projectsRouter from './routes/projects.js';
 import migrationProjectsRouter from './routes/migration-projects.js';
 import migrationFixKhalidRoleRouter from './routes/migration-fix-khalid-role.js';
 import migrationVerifyGerantPermissionsRouter from './routes/migration-verify-gerant-permissions.js';
+import migrationAddCertificateUpdatePermissionRouter from './routes/migration-add-certificate-update-permission.js';
 
 const app = express();
 
@@ -312,6 +313,7 @@ app.use('/api/migration-074', ...adminOnly, migration074Router);
 app.use('/api/migration-debug-khalid', ...adminOnly, migrationDebugKhalidRouter);
 app.use('/api/migration-fix-khalid-role', ...adminOnly, migrationFixKhalidRoleRouter);
 app.use('/api/migration-verify-gerant-permissions', ...adminOnly, migrationVerifyGerantPermissionsRouter);
+app.use('/api/migration-add-certificate-update-permission', ...adminOnly, migrationAddCertificateUpdatePermissionRouter);
 app.use('/api/migration-fix-segments-and-sheets', ...adminOnly, migrationFixRouter);
 app.use('/api/migration-fix-impression-permissions', ...adminOnly, migrationFixImpressionRouter);
 app.use('/api/migration-fix-role-sync', ...adminOnly, migrationFixRoleSyncRouter);
