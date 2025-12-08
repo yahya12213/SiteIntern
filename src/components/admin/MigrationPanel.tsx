@@ -174,6 +174,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-add-certificate-update-permission'
   },
   {
+    id: 'migration-create-gerant-tables',
+    name: 'CRITICAL: Créer tables gerant_segments et gerant_cities',
+    description: '🔴 URGENT: Crée les tables gerant_segments et gerant_cities pour le SBAC des gérants',
+    endpoint: '/migration-create-gerant-tables'
+  },
+  {
     id: 'migration-debug-khalid',
     name: 'DEBUG: Analyse Khalid Fathi',
     description: '🔍 Affiche le rôle, permissions et diagnostic complet pour l\'utilisateur khalid fathi',
