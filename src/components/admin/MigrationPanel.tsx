@@ -156,6 +156,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-074'
   },
   {
+    id: 'migration-075',
+    name: 'Migration 075',
+    description: 'FIX DROPDOWNS GERANT: Ajoute permissions accounting.segments.view_page et accounting.cities.view_page (requis pour React Query)',
+    endpoint: '/migration-075'
+  },
+  {
     id: 'migration-fix-khalid-role',
     name: 'FIX: Synchroniser role_id de Khalid Fathi',
     description: '🔧 CRITIQUE: Corrige le role_id de "khalid fathi" pour pointer vers le rôle gérant au lieu de professor',
