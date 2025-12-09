@@ -5,6 +5,27 @@ import { generateToken, loginRateLimiter, authenticateToken, getUserPermissions 
 
 const router = express.Router();
 
+/**
+ * Determine which segment/city tables to use based on user role
+ * Ensures gérant users query gerant_segments/gerant_cities tables
+ * and professors query professor_segments/professor_cities tables
+ */
+function getTablesForRole(role) {
+  if (role === 'gerant') {
+    return {
+      segmentsTable: 'gerant_segments',
+      citiesTable: 'gerant_cities',
+      userIdColumn: 'gerant_id'
+    };
+  }
+  // Default to professor tables for backwards compatibility
+  return {
+    segmentsTable: 'professor_segments',
+    citiesTable: 'professor_cities',
+    userIdColumn: 'professor_id'
+  };
+}
+
 // Helper function to check if RBAC tables exist
 const checkRbacTablesExist = async () => {
   try {
@@ -168,21 +189,24 @@ router.post('/login', loginRateLimiter, async (req, res) => {
     let segment_ids = [];
     let city_ids = [];
     try {
-      // Query professor_segments table
+      // Use correct tables based on role (gerant_segments OR professor_segments)
+      const tables = getTablesForRole(user.role);
+
+      // Query segments table (professor_segments OR gerant_segments)
       const segmentsResult = await pool.query(
-        'SELECT segment_id FROM professor_segments WHERE professor_id = $1',
+        `SELECT segment_id FROM ${tables.segmentsTable} WHERE ${tables.userIdColumn} = $1`,
         [user.id]
       );
       segment_ids = segmentsResult.rows.map(row => row.segment_id);
 
-      // Query professor_cities table
+      // Query cities table (professor_cities OR gerant_cities)
       const citiesResult = await pool.query(
-        'SELECT city_id FROM professor_cities WHERE professor_id = $1',
+        `SELECT city_id FROM ${tables.citiesTable} WHERE ${tables.userIdColumn} = $1`,
         [user.id]
       );
       city_ids = citiesResult.rows.map(row => row.city_id);
 
-      console.log(`📊 Loaded scopes for user ${user.username}: ${segment_ids.length} segments, ${city_ids.length} cities`);
+      console.log(`📊 Loaded scopes for user ${user.username} (${user.role}): ${segment_ids.length} segments, ${city_ids.length} cities`);
     } catch (err) {
       console.warn('Could not load user scopes (tables may not exist yet):', err.message);
     }
