@@ -9,11 +9,11 @@ export type { Segment, CreateSegmentInput, UpdateSegmentInput };
 
 // Récupérer tous les segments
 export const useSegments = () => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const canViewSegments = hasPermission('accounting.segments.view_page');
 
   return useQuery<Segment[]>({
-    queryKey: ['segments'],
+    queryKey: ['segments', user?.id],
     queryFn: () => segmentsApi.getAll(),
     enabled: canViewSegments,
   });

@@ -9,11 +9,11 @@ export type { City, CreateCityInput, UpdateCityInput };
 
 // Récupérer toutes les villes avec les informations du segment
 export const useCities = () => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const canViewCities = hasPermission('accounting.cities.view_page');
 
   return useQuery<City[]>({
-    queryKey: ['cities'],
+    queryKey: ['cities', user?.id],
     queryFn: () => citiesApi.getAll(),
     enabled: canViewCities,
   });
