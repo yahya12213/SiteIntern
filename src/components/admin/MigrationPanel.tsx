@@ -193,6 +193,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-080-create-system-roles-view-permission'
   },
   {
+    id: 'migration-081',
+    name: 'Migration 081',
+    description: '🔍 DEBUG: Analyser quelles permissions getUserPermissions retourne pour admin',
+    endpoint: '/migration-081-debug-admin-permissions'
+  },
+  {
     id: 'migration-fix-khalid-role',
     name: 'FIX: Synchroniser role_id de Khalid Fathi',
     description: '🔧 CRITIQUE: Corrige le role_id de "khalid fathi" pour pointer vers le rôle gérant au lieu de professor',
