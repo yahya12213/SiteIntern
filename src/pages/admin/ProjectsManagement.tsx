@@ -37,6 +37,9 @@ import {
   DollarSign,
   MoreVertical,
   ChevronDown,
+  Palette,
+  Eye,
+  ListChecks,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { profilesApi, type Profile } from '@/lib/api/profiles';
@@ -45,6 +48,9 @@ import { useProjects, useActions, useActionStats, useCreateProject, useUpdatePro
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { PERMISSIONS } from '@/config/permissions';
+import ColorPicker from '@/components/ui/ColorPicker';
+import ViewActionsModal from '@/components/projects/ViewActionsModal';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 // ==================== Constants ====================
 
@@ -456,11 +462,24 @@ function ProjetKanbanTab({ canCreate, canUpdate, canDelete }: { canCreate: boole
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
   const [managingActionsProject, setManagingActionsProject] = useState<any>(null);
+  const [viewingActionsProject, setViewingActionsProject] = useState<any>(null);
 
   const { data: projects = [], isLoading } = useProjects({ search: searchTerm || undefined });
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
+
+  const handleUpdateProjectColor = async (projectId: string, color: string) => {
+    try {
+      await updateProject.mutateAsync({
+        id: projectId,
+        data: { color }
+      });
+      toast({ title: 'Couleur mise à jour' });
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de changer la couleur' });
+    }
+  };
 
   const handleCreateProject = async (data: any) => {
     try {
@@ -563,10 +582,10 @@ function ProjetKanbanTab({ canCreate, canUpdate, canDelete }: { canCreate: boole
               : 0;
 
             return (
-              <Card key={project.id} className="hover:shadow-lg transition-shadow">
+              <Card key={project.id} className="hover:shadow-lg transition-shadow" style={{ borderLeft: `4px solid ${project.color || '#3b82f6'}` }}>
                 <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
                       <CardTitle className="text-lg">{project.name}</CardTitle>
                       {project.description && (
                         <CardDescription className="mt-1 line-clamp-2">
@@ -574,7 +593,24 @@ function ProjetKanbanTab({ canCreate, canUpdate, canDelete }: { canCreate: boole
                         </CardDescription>
                       )}
                     </div>
-                    <Badge variant={priorityInfo?.variant}>{priorityInfo?.label}</Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge variant={priorityInfo?.variant}>{priorityInfo?.label}</Badge>
+                      {canUpdate && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Palette className="h-4 w-4" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <ColorPicker
+                              value={project.color || '#3b82f6'}
+                              onChange={(newColor) => handleUpdateProjectColor(project.id, newColor)}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -618,12 +654,16 @@ function ProjetKanbanTab({ canCreate, canUpdate, canDelete }: { canCreate: boole
                   <Badge className={statusInfo?.color}>{statusInfo?.label}</Badge>
 
                   {/* Actions */}
-                  <div className="flex gap-2 pt-2 border-t">
+                  <div className="flex flex-wrap gap-2 pt-2 border-t">
+                    <Button variant="outline" size="sm" onClick={() => setViewingActionsProject(project)}>
+                      <Eye className="h-4 w-4 mr-1" />
+                      Visualiser
+                    </Button>
                     {canUpdate && (
                       <>
-                        <Button variant="outline" size="sm" className="flex-1" onClick={() => setManagingActionsProject(project)}>
-                          <Settings className="h-4 w-4 mr-1" />
-                          Gérer actions
+                        <Button variant="outline" size="sm" onClick={() => setManagingActionsProject(project)}>
+                          <ListChecks className="h-4 w-4 mr-1" />
+                          Gérer
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => setEditingProject(project)}>
                           <Edit className="h-4 w-4" />
@@ -670,6 +710,12 @@ function ProjetKanbanTab({ canCreate, canUpdate, canDelete }: { canCreate: boole
           project={managingActionsProject}
         />
       )}
+
+      {/* View Actions Modal */}
+      <ViewActionsModal
+        project={viewingActionsProject}
+        onClose={() => setViewingActionsProject(null)}
+      />
     </div>
   );
 }

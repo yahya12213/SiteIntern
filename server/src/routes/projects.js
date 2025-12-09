@@ -104,11 +104,16 @@ router.get('/:id', authenticateToken, requirePermission('accounting.projects.vie
 // POST create project
 router.post('/', authenticateToken, requirePermission('accounting.projects.create'), async (req, res) => {
   try {
-    const { name, description, status, priority, start_date, end_date, budget, manager_id, segment_id, city_id } = req.body;
+    const { name, description, status, priority, start_date, end_date, budget, manager_id, segment_id, city_id, color } = req.body;
     const userId = req.user.id;
 
     if (!name) {
       return res.status(400).json({ error: 'Le nom du projet est obligatoire' });
+    }
+
+    // Validate color format if provided
+    if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      return res.status(400).json({ error: 'Format couleur invalide (doit être #RRGGBB)' });
     }
 
     // Validate foreign keys before INSERT
@@ -123,10 +128,10 @@ router.post('/', authenticateToken, requirePermission('accounting.projects.creat
     const id = `proj-${nanoid(10)}`;
 
     const result = await pool.query(`
-      INSERT INTO projects (id, name, description, status, priority, start_date, end_date, budget, manager_id, segment_id, city_id, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      INSERT INTO projects (id, name, description, status, priority, start_date, end_date, budget, manager_id, segment_id, city_id, color, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *
-    `, [id, name, description, status || 'planning', priority || 'normale', start_date, end_date, budget, manager_id, segment_id, city_id, userId]);
+    `, [id, name, description, status || 'planning', priority || 'normale', start_date, end_date, budget, manager_id, segment_id, city_id, color || '#3b82f6', userId]);
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -148,7 +153,12 @@ router.post('/', authenticateToken, requirePermission('accounting.projects.creat
 router.put('/:id', authenticateToken, requirePermission('accounting.projects.update'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, status, priority, start_date, end_date, budget, manager_id, segment_id, city_id } = req.body;
+    const { name, description, status, priority, start_date, end_date, budget, manager_id, segment_id, city_id, color } = req.body;
+
+    // Validate color format if provided
+    if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      return res.status(400).json({ error: 'Format couleur invalide (doit être #RRGGBB)' });
+    }
 
     // Only validate FK fields that are being updated (not undefined)
     const fkFields = {};
@@ -179,10 +189,11 @@ router.put('/:id', authenticateToken, requirePermission('accounting.projects.upd
           manager_id = COALESCE($8, manager_id),
           segment_id = COALESCE($9, segment_id),
           city_id = COALESCE($10, city_id),
+          color = COALESCE($11, color),
           updated_at = NOW()
-      WHERE id = $11
+      WHERE id = $12
       RETURNING *
-    `, [name, description, status, priority, start_date, end_date, budget, manager_id, segment_id, city_id, id]);
+    `, [name, description, status, priority, start_date, end_date, budget, manager_id, segment_id, city_id, color, id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Projet non trouvé' });

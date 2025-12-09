@@ -199,6 +199,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-081-debug-admin-permissions'
   },
   {
+    id: 'migration-083',
+    name: 'Migration 083',
+    description: '🎨 Ajoute colonne color aux projets pour personnalisation visuelle des cartes',
+    endpoint: '/migration-083-add-project-color'
+  },
+  {
     id: 'migration-fix-khalid-role',
     name: 'FIX: Synchroniser role_id de Khalid Fathi',
     description: '🔧 CRITIQUE: Corrige le role_id de "khalid fathi" pour pointer vers le rôle gérant au lieu de professor',

@@ -56,10 +56,10 @@ export function useProject(id: string) {
   });
 }
 
-export function useProjectActions(projectId: string) {
+export function useProjectActions(projectId?: string) {
   return useQuery({
-    queryKey: projectKeys.projectActions(projectId),
-    queryFn: () => projectsApi.getProjectActions(projectId),
+    queryKey: projectKeys.projectActions(projectId || ''),
+    queryFn: () => projectId ? projectsApi.getProjectActions(projectId) : Promise.resolve([]),
     enabled: !!projectId,
   });
 }

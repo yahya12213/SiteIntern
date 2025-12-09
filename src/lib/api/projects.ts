@@ -18,6 +18,7 @@ export interface Project {
   manager_id?: string;
   segment_id?: string;
   city_id?: string;
+  color?: string;
   created_by?: string;
   created_at: string;
   updated_at: string;
@@ -41,6 +42,7 @@ export interface CreateProjectInput {
   manager_id?: string;
   segment_id?: string;
   city_id?: string;
+  color?: string;
 }
 
 export interface UpdateProjectInput {
@@ -54,6 +56,7 @@ export interface UpdateProjectInput {
   manager_id?: string;
   segment_id?: string;
   city_id?: string;
+  color?: string;
 }
 
 export interface ProjectAction {
