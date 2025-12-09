@@ -94,7 +94,11 @@
       "Bash(npm update:*)",
       "Bash(move:*)",
       "Bash(ls:*)",
-      "Bash(if not exist \"C:\\Users\\pc\\.claude\\plans\" mkdir \"C:\\Users\\pc\\.claude\\plans\")"
+      "Bash(if not exist \"C:\\Users\\pc\\.claude\\plans\" mkdir \"C:\\Users\\pc\\.claude\\plans\")",
+      "Bash(xargs -I {} bash -c \"echo \"\"=== {} ===\"\" && grep -c \"\"requirePermission\\|checkPermission\"\" {}\")",
+      "Bash(if not exist \"c:\\Users\\pc\\Desktop\\systeme de calcul\\server\\scripts\" mkdir \"c:\\Users\\pc\\Desktop\\systeme de calcul\\server\\scripts\")",
+      "Bash(npm test:*)",
+      "Bash(if not exist \"c:\\Users\\pc\\Desktop\\systeme de calcul\\.github\\workflows\" mkdir \"c:\\Users\\pc\\Desktop\\systeme de calcul\\.github\\workflows\")"
     ],
     "deny": [],
     "ask": []

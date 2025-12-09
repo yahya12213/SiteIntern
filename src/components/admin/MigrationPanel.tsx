@@ -181,6 +181,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-078'
   },
   {
+    id: 'migration-079',
+    name: 'Migration 079',
+    description: '🔴 FIX CRITIQUE: Synchronise profiles.role avec roles.name pour bypass admin (403 Forbidden)',
+    endpoint: '/migration-079-fix-admin-bypass'
+  },
+  {
     id: 'migration-fix-khalid-role',
     name: 'FIX: Synchroniser role_id de Khalid Fathi',
     description: '🔧 CRITIQUE: Corrige le role_id de "khalid fathi" pour pointer vers le rôle gérant au lieu de professor',
