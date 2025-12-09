@@ -169,6 +169,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-076'
   },
   {
+    id: 'migration-077',
+    name: 'Migration 077',
+    description: 'FIX TEMPLATES: Crée permission training.certificate_templates.create manquante (requis pour créer templates)',
+    endpoint: '/migration-077'
+  },
+  {
     id: 'migration-fix-khalid-role',
     name: 'FIX: Synchroniser role_id de Khalid Fathi',
     description: '🔧 CRITIQUE: Corrige le role_id de "khalid fathi" pour pointer vers le rôle gérant au lieu de professor',
