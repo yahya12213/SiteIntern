@@ -7,6 +7,27 @@ import { injectUserScope } from '../middleware/requireScope.js';
 const router = express.Router();
 
 /**
+ * Determine which segment/city tables to use based on user role
+ * Gérant users use gerant_segments/gerant_cities
+ * All other users (professor, admin) use professor_segments/professor_cities
+ */
+function getTablesForRole(role) {
+  if (role === 'gerant') {
+    return {
+      segmentsTable: 'gerant_segments',
+      citiesTable: 'gerant_cities',
+      userIdColumn: 'gerant_id'
+    };
+  }
+  // Default to professor tables for backwards compatibility
+  return {
+    segmentsTable: 'professor_segments',
+    citiesTable: 'professor_cities',
+    userIdColumn: 'professor_id'
+  };
+}
+
+/**
  * GET tous les profils (sans mots de passe)
  * Protected: SBAC filtering only (no permission check)
  * Non-admin users only see users from their assigned segments/cities
@@ -74,16 +95,18 @@ router.get('/',
     // Pour chaque profil, récupérer ses segments et villes
     const profiles = await Promise.all(
       result.rows.map(async (profile) => {
+        const tables = getTablesForRole(profile.role);
+
         // Récupérer les segments
         const segmentsResult = await pool.query(
-          'SELECT segment_id FROM professor_segments WHERE professor_id = $1',
+          `SELECT segment_id FROM ${tables.segmentsTable} WHERE ${tables.userIdColumn} = $1`,
           [profile.id]
         );
         profile.segment_ids = segmentsResult.rows.map(row => row.segment_id);
 
         // Récupérer les villes
         const citiesResult = await pool.query(
-          'SELECT city_id FROM professor_cities WHERE professor_id = $1',
+          `SELECT city_id FROM ${tables.citiesTable} WHERE ${tables.userIdColumn} = $1`,
           [profile.id]
         );
         profile.city_ids = citiesResult.rows.map(row => row.city_id);
@@ -207,16 +230,18 @@ router.get('/professors',
     // Pour chaque professeur, récupérer ses segments et villes
     const professors = await Promise.all(
       result.rows.map(async (professor) => {
+        const tables = getTablesForRole(professor.role);
+
         // Récupérer les segments
         const segmentsResult = await pool.query(
-          'SELECT segment_id FROM professor_segments WHERE professor_id = $1',
+          `SELECT segment_id FROM ${tables.segmentsTable} WHERE ${tables.userIdColumn} = $1`,
           [professor.id]
         );
         professor.segment_ids = segmentsResult.rows.map(row => row.segment_id);
 
         // Récupérer les villes
         const citiesResult = await pool.query(
-          'SELECT city_id FROM professor_cities WHERE professor_id = $1',
+          `SELECT city_id FROM ${tables.citiesTable} WHERE ${tables.userIdColumn} = $1`,
           [professor.id]
         );
         professor.city_ids = citiesResult.rows.map(row => row.city_id);
@@ -299,16 +324,18 @@ router.get('/:id',
 
     const profile = profileResult.rows[0];
 
+    const tables = getTablesForRole(profile.role);
+
     // Segments
     const segmentsResult = await pool.query(
-      'SELECT segment_id FROM professor_segments WHERE professor_id = $1',
+      `SELECT segment_id FROM ${tables.segmentsTable} WHERE ${tables.userIdColumn} = $1`,
       [id]
     );
     profile.segment_ids = segmentsResult.rows.map(row => row.segment_id);
 
     // Villes
     const citiesResult = await pool.query(
-      'SELECT city_id FROM professor_cities WHERE professor_id = $1',
+      `SELECT city_id FROM ${tables.citiesTable} WHERE ${tables.userIdColumn} = $1`,
       [id]
     );
     profile.city_ids = citiesResult.rows.map(row => row.city_id);
@@ -403,11 +430,13 @@ router.post('/',
       console.log(`✅ Employé créé pour ${username}: ${employeeNumber}`);
     }
 
+    const tables = getTablesForRole(role);
+
     // Ajouter les segments
     if (segment_ids && segment_ids.length > 0) {
       for (const segmentId of segment_ids) {
         await client.query(
-          'INSERT INTO professor_segments (professor_id, segment_id) VALUES ($1, $2)',
+          `INSERT INTO ${tables.segmentsTable} (${tables.userIdColumn}, segment_id) VALUES ($1, $2)`,
           [id, segmentId]
         );
       }
@@ -418,7 +447,7 @@ router.post('/',
     if (city_ids && city_ids.length > 0) {
       for (const cityId of city_ids) {
         await client.query(
-          'INSERT INTO professor_cities (professor_id, city_id) VALUES ($1, $2)',
+          `INSERT INTO ${tables.citiesTable} (${tables.userIdColumn}, city_id) VALUES ($1, $2)`,
           [id, cityId]
         );
       }
@@ -520,13 +549,18 @@ router.put('/:id',
       await client.query(query, values);
     }
 
+    // Récupérer le rôle actuel pour déterminer les tables à utiliser
+    const roleCheck = await client.query('SELECT role FROM profiles WHERE id = $1', [id]);
+    const currentRole = role !== undefined ? role : roleCheck.rows[0].role;
+    const tables = getTablesForRole(currentRole);
+
     // Mettre à jour les segments si fournis
     if (segment_ids !== undefined) {
-      await client.query('DELETE FROM professor_segments WHERE professor_id = $1', [id]);
+      await client.query(`DELETE FROM ${tables.segmentsTable} WHERE ${tables.userIdColumn} = $1`, [id]);
       if (segment_ids.length > 0) {
         for (const segmentId of segment_ids) {
           await client.query(
-            'INSERT INTO professor_segments (professor_id, segment_id) VALUES ($1, $2)',
+            `INSERT INTO ${tables.segmentsTable} (${tables.userIdColumn}, segment_id) VALUES ($1, $2)`,
             [id, segmentId]
           );
         }
@@ -535,11 +569,11 @@ router.put('/:id',
 
     // Mettre à jour les villes si fournies
     if (city_ids !== undefined) {
-      await client.query('DELETE FROM professor_cities WHERE professor_id = $1', [id]);
+      await client.query(`DELETE FROM ${tables.citiesTable} WHERE ${tables.userIdColumn} = $1`, [id]);
       if (city_ids.length > 0) {
         for (const cityId of city_ids) {
           await client.query(
-            'INSERT INTO professor_cities (professor_id, city_id) VALUES ($1, $2)',
+            `INSERT INTO ${tables.citiesTable} (${tables.userIdColumn}, city_id) VALUES ($1, $2)`,
             [id, cityId]
           );
         }
@@ -554,16 +588,19 @@ router.put('/:id',
 
     const profile = profileResult.rows[0];
 
+    // Re-fetch tables in case role was updated
+    const finalTables = getTablesForRole(profile.role);
+
     // Ajouter les segment_ids
     const segmentsResult = await client.query(
-      'SELECT segment_id FROM professor_segments WHERE professor_id = $1',
+      `SELECT segment_id FROM ${finalTables.segmentsTable} WHERE ${finalTables.userIdColumn} = $1`,
       [id]
     );
     profile.segment_ids = segmentsResult.rows.map(row => row.segment_id);
 
     // Ajouter les city_ids
     const citiesResult = await client.query(
-      'SELECT city_id FROM professor_cities WHERE professor_id = $1',
+      `SELECT city_id FROM ${finalTables.citiesTable} WHERE ${finalTables.userIdColumn} = $1`,
       [id]
     );
     profile.city_ids = citiesResult.rows.map(row => row.city_id);
