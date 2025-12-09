@@ -175,6 +175,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-077'
   },
   {
+    id: 'migration-078',
+    name: 'Migration 078',
+    description: 'AUDIT COMPLET: Crée 54 permissions manquantes (HR: 31, Training: 15, Accounting: 7, Commercial: 1)',
+    endpoint: '/migration-078'
+  },
+  {
     id: 'migration-fix-khalid-role',
     name: 'FIX: Synchroniser role_id de Khalid Fathi',
     description: '🔧 CRITIQUE: Corrige le role_id de "khalid fathi" pour pointer vers le rôle gérant au lieu de professor',
