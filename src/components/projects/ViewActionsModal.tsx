@@ -2,9 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Circle, Clock, CheckCircle2, User, Calendar } from 'lucide-react';
 import { useProjectActions } from '@/hooks/useProjects';
-import { Project } from '@/lib/api/projects';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import type { Project } from '@/lib/api/projects';
 
 interface ViewActionsModalProps {
   project: Project | null;
@@ -25,7 +23,8 @@ export default function ViewActionsModal({ project, onClose }: ViewActionsModalP
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'Non défini';
     try {
-      return format(new Date(dateStr), 'dd/MM/yyyy', { locale: fr });
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch {
       return dateStr;
     }
