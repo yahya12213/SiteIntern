@@ -5,7 +5,7 @@
 
 import express from 'express';
 import pool from '../config/database.js';
-import { requirePermission } from '../middleware/auth.js';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import { injectUserScope, buildScopeFilter, requireRecordScope } from '../middleware/requireScope.js';
 import { normalizePhoneInternational } from '../utils/phone-validator.js';
 import { autoAssignProspect, reassignIfOutOfScope } from '../utils/prospect-assignment.js';
@@ -19,6 +19,7 @@ const router = express.Router();
 // IMPORTANT: Doit être AVANT les routes /:id pour éviter conflits
 // ============================================================
 router.get('/country-codes',
+  authenticateToken,
   async (req, res) => {
     try {
       const query = `

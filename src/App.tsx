@@ -31,6 +31,7 @@ import { SessionsFormation } from './pages/admin/SessionsFormation';
 import { SessionDetail } from './pages/admin/SessionDetail';
 import CorpsFormation from './pages/admin/CorpsFormation';
 import { RolesManagement } from './pages/admin/RolesManagement';
+import PermissionsDiagnostic from './pages/admin/PermissionsDiagnostic';
 import HREmployees from './pages/admin/hr/HREmployees';
 import ValidationWorkflows from './pages/admin/hr/ValidationWorkflows';
 import ScheduleManagement from './pages/admin/hr/ScheduleManagement';
@@ -376,6 +377,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute requiredPermission={PERMISSIONS.system.roles.view_page}>
             <RolesManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/permissions-diagnostic"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.system.roles.view_page}>
+            <PermissionsDiagnostic />
           </ProtectedRoute>
         }
       />

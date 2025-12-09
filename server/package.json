@@ -7,7 +7,11 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "db:setup": "node src/config/setup.js"
+    "db:setup": "node src/config/setup.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "test:permissions": "node --experimental-vm-modules node_modules/jest/bin/jest.js permissions"
   },
   "dependencies": {
     "axios": "^1.13.2",
@@ -23,6 +27,9 @@
     "pg": "^8.11.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "@types/jest": "^30.0.0",
+    "jest": "^30.2.0",
+    "nodemon": "^3.1.11",
+    "supertest": "^7.1.4"
   }
 }
