@@ -112,6 +112,7 @@ import migration072Router from './routes/migration-072-fix-work-schedules-schema
 import migration073Router from './routes/migration-073-security-audit-fixes.js';
 import migration074Router from './routes/migration-074-gerant-all-permissions.js';
 import migration075Router from './routes/migration-075-add-segments-cities-permissions.js';
+import migration076Router from './routes/migration-076-fix-permission-visibility.js';
 import migrationDebugKhalidRouter from './routes/migration-debug-khalid.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
@@ -313,6 +314,7 @@ app.use('/api/migration-072', ...adminOnly, migration072Router);
 app.use('/api/migration-073', ...adminOnly, migration073Router);
 app.use('/api/migration-074', ...adminOnly, migration074Router);
 app.use('/api/migration-075', ...adminOnly, migration075Router);
+app.use('/api/migration-076', ...adminOnly, migration076Router);
 app.use('/api/migration-debug-khalid', ...adminOnly, migrationDebugKhalidRouter);
 app.use('/api/migration-fix-khalid-role', ...adminOnly, migrationFixKhalidRoleRouter);
 app.use('/api/migration-verify-gerant-permissions', ...adminOnly, migrationVerifyGerantPermissionsRouter);

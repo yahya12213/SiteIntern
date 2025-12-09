@@ -162,6 +162,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-075'
   },
   {
+    id: 'migration-076',
+    name: 'Migration 076',
+    description: 'FIX VISIBILITÉ: Corrige affichage permissions segments/villes dans module Système (system.roles.*)',
+    endpoint: '/migration-076'
+  },
+  {
     id: 'migration-fix-khalid-role',
     name: 'FIX: Synchroniser role_id de Khalid Fathi',
     description: '🔧 CRITIQUE: Corrige le role_id de "khalid fathi" pour pointer vers le rôle gérant au lieu de professor',
