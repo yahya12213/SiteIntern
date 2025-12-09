@@ -1301,10 +1301,10 @@ function ManageActionsModal({
   const [selectedActions, setSelectedActions] = useState<string[]>([]);
 
   // Initialize with currently linked actions
-  useState(() => {
+  useEffect(() => {
     const linkedIds = allActions.filter(a => a.project_id === project.id).map(a => a.id);
     setSelectedActions(linkedIds);
-  });
+  }, [allActions, project.id]);
 
   const handleToggleAction = (actionId: string) => {
     setSelectedActions(prev =>
