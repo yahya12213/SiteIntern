@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Shield, AlertTriangle, CheckCircle2, Activity, Users, Key, FileCheck } from 'lucide-react';
-import AppLayout from '@/components/AppLayout';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 interface DiagnosticData {
   overview: {
@@ -111,12 +111,6 @@ export default function PermissionsDiagnostic() {
     if (score >= 80) return 'text-green-600';
     if (score >= 60) return 'text-yellow-600';
     return 'text-red-600';
-  };
-
-  const getHealthScoreBg = (score: number) => {
-    if (score >= 80) return 'bg-green-100';
-    if (score >= 60) return 'bg-yellow-100';
-    return 'bg-red-100';
   };
 
   const getSeverityBadge = (severity: string) => {
