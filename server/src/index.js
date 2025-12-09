@@ -116,6 +116,7 @@ import migration076Router from './routes/migration-076-fix-permission-visibility
 import migration077Router from './routes/migration-077-create-certificate-template-create-permission.js';
 import migration078Router from './routes/migration-078-create-missing-permissions.js';
 import migration079Router from './routes/migration-079-fix-admin-bypass.js';
+import migration080Router from './routes/migration-080-create-system-roles-view-permission.js';
 import migrationDebugKhalidRouter from './routes/migration-debug-khalid.js';
 import studentsRouter from './routes/students.js';
 import centresRouter from './routes/centres.js';
@@ -321,6 +322,7 @@ app.use('/api/migration-076', ...adminOnly, migration076Router);
 app.use('/api/migration-077', ...adminOnly, migration077Router);
 app.use('/api/migration-078', ...adminOnly, migration078Router);
 app.use('/api/migration-079-fix-admin-bypass', ...adminOnly, migration079Router);
+app.use('/api/migration-080-create-system-roles-view-permission', ...adminOnly, migration080Router);
 app.use('/api/migration-debug-khalid', ...adminOnly, migrationDebugKhalidRouter);
 app.use('/api/migration-fix-khalid-role', ...adminOnly, migrationFixKhalidRoleRouter);
 app.use('/api/migration-verify-gerant-permissions', ...adminOnly, migrationVerifyGerantPermissionsRouter);

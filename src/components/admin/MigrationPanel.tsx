@@ -187,6 +187,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-079-fix-admin-bypass'
   },
   {
+    id: 'migration-080',
+    name: 'Migration 080',
+    description: '🚨 URGENCE: Crée permission system.roles.view_page et l\'assigne à admin (requis pour diagnostic)',
+    endpoint: '/migration-080-create-system-roles-view-permission'
+  },
+  {
     id: 'migration-fix-khalid-role',
     name: 'FIX: Synchroniser role_id de Khalid Fathi',
     description: '🔧 CRITIQUE: Corrige le role_id de "khalid fathi" pour pointer vers le rôle gérant au lieu de professor',
