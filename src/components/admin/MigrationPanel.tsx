@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { CheckCircle, XCircle, AlertCircle, Play, RefreshCw, X, Trash2 } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Play, RefreshCw, X, Trash2, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/lib/api/client';
 
 interface Migration {
@@ -205,6 +206,7 @@ interface MigrationPanelProps {
 }
 
 export function MigrationPanel({ open, onOpenChange }: MigrationPanelProps) {
+  const navigate = useNavigate();
   const [statuses, setStatuses] = useState<Record<string, MigrationStatus>>({});
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState<Record<string, boolean>>({});
@@ -395,6 +397,13 @@ export function MigrationPanel({ open, onOpenChange }: MigrationPanelProps) {
                 <Trash2 className="h-4 w-4" />
               )}
               Cleanup Duplicate Corps
+            </button>
+            <button
+              onClick={() => navigate('/admin/permissions-diagnostic')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm"
+            >
+              <Shield className="h-4 w-4" />
+              Permission Diagnostic
             </button>
           </div>
 
