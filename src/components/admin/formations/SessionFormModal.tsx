@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Calendar, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { Input } from '@/components/ui/input';
 import { useCreateSession, useUpdateSession } from '@/hooks/useSessionsFormation';
 import { SessionFormationSelector } from '@/components/formations/SessionFormationSelector';
@@ -367,7 +368,8 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
             >
               Annuler
             </Button>
-            <Button
+            <ProtectedButton
+              permission={isEdit ? 'training.sessions.update' : 'training.sessions.create'}
               type="submit"
               disabled={isSubmitting}
               className="min-w-[100px]"
@@ -382,7 +384,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
               ) : (
                 'Créer'
               )}
-            </Button>
+            </ProtectedButton>
           </div>
         </form>
       </div>

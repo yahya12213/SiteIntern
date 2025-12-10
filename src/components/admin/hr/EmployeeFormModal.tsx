@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle } from 'lucide-react';
+import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { apiClient } from '@/lib/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSegments } from '@/hooks/useSegments';
@@ -638,7 +639,8 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
             >
               Annuler
             </button>
-            <button
+            <ProtectedButton
+              permission={isEdit ? 'hr.employees.update' : 'hr.employees.create'}
               type="submit"
               disabled={isPending}
               className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -648,7 +650,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                 : isEdit
                 ? 'Mettre à jour'
                 : 'Créer l\'employé'}
-            </button>
+            </ProtectedButton>
           </div>
         </form>
       </div>

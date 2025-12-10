@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, BookOpen, AlertCircle, Award, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { Input } from '@/components/ui/input';
 import { useCreateFormation, useUpdateFormation, useAddFormationTemplates, useFormationTemplates } from '@/hooks/useCours';
 import { useCertificateTemplates } from '@/hooks/useCertificateTemplates';
@@ -388,7 +389,8 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
             >
               Annuler
             </Button>
-            <Button
+            <ProtectedButton
+              permission={isEdit ? 'training.formations.update' : 'training.formations.create'}
               type="submit"
               disabled={isSubmitting}
               className="min-w-[100px]"
@@ -403,7 +405,7 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
               ) : (
                 'Créer'
               )}
-            </Button>
+            </ProtectedButton>
           </div>
         </form>
       </div>
