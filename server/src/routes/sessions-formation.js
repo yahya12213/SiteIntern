@@ -1598,4 +1598,48 @@ router.post('/:sessionId/students/:studentId/transfer',
   }
 );
 
+// GET /api/sessions-formation/:sessionId/students/:studentId/documents
+// Liste tous les documents générés pour un étudiant dans une session
+router.get('/:sessionId/students/:studentId/documents',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
+  async (req, res) => {
+    try {
+      const { sessionId, studentId } = req.params;
+
+      const documents = await pool.query(`
+        SELECT
+          c.id,
+          c.certificate_number,
+          c.document_type,
+          c.template_name,
+          c.issued_at,
+          c.file_path,
+          c.archive_folder,
+          c.grade,
+          c.printed_at,
+          c.printer_name,
+          c.print_status,
+          ct.name as template_display_name,
+          ct.preview_image_url
+        FROM certificates c
+        LEFT JOIN certificate_templates ct ON c.template_id = ct.id
+        WHERE c.student_id = $1 AND c.session_id = $2
+        ORDER BY c.issued_at DESC
+      `, [studentId, sessionId]);
+
+      res.json({
+        success: true,
+        documents: documents.rows
+      });
+    } catch (error) {
+      console.error('Error fetching student documents:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
 export default router;

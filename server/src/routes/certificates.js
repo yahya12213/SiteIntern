@@ -552,4 +552,52 @@ router.patch('/:id/metadata',
   }
 });
 
+// POST /api/certificates/:id/mark-printed
+// Marque un document comme imprimé avec le nom de l'imprimante
+router.post('/:id/mark-printed',
+  authenticateToken,
+  requirePermission('training.certificates.generate'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { printer_name } = req.body;
+
+      if (!printer_name) {
+        return res.status(400).json({
+          success: false,
+          error: 'printer_name is required'
+        });
+      }
+
+      const result = await pool.query(`
+        UPDATE certificates
+        SET printed_at = NOW(),
+            printer_name = $1,
+            print_status = 'printed'
+        WHERE id = $2
+        RETURNING *
+      `, [printer_name, id]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Certificate not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Document marqué comme imprimé',
+        certificate: result.rows[0]
+      });
+    } catch (error) {
+      console.error('Error marking certificate as printed:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
 export default router;
