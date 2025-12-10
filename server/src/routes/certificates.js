@@ -33,7 +33,7 @@ router.post('/generate',
   let createdFolders = [];
 
   try {
-    const { student_id, formation_id, session_id, completion_date, grade, metadata, template_id } = req.body;
+    let { student_id, formation_id, session_id, completion_date, grade, metadata, template_id } = req.body;
 
     // Validation des champs requis
     if (!student_id || !formation_id || !completion_date) {
@@ -43,9 +43,25 @@ router.post('/generate',
       });
     }
 
-    // session_id est maintenant recommandé mais pas obligatoire pour compatibilité
+    // Si session_id n'est pas fourni, essayer de le récupérer automatiquement
     if (!session_id) {
-      console.warn('Warning: session_id not provided, certificate will not be stored in archive');
+      console.log('🔍 session_id not provided, attempting automatic detection...');
+
+      const sessionLookup = await client.query(
+        `SELECT se.session_id
+         FROM session_etudiants se
+         WHERE se.student_id = $1 AND se.formation_id = $2
+         ORDER BY se.date_inscription DESC
+         LIMIT 1`,
+        [student_id, formation_id]
+      );
+
+      if (sessionLookup.rows.length > 0) {
+        session_id = sessionLookup.rows[0].session_id;
+        console.log(`✓ session_id detected automatically: ${session_id}`);
+      } else {
+        console.warn('⚠ Warning: No session enrollment found for this student/formation. Certificate will be created without archive.');
+      }
     }
 
     // Vérifier si un certificat existe déjà
