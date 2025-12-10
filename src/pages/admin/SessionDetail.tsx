@@ -6,6 +6,7 @@ import { AddStudentToSessionModal } from '@/components/admin/sessions-formation/
 import { EditStudentModal } from '@/components/admin/sessions-formation/EditStudentModal';
 import { DiscountModal } from '@/components/admin/sessions-formation/DiscountModal';
 import { PaymentManagerModal } from '@/components/admin/sessions-formation/PaymentManagerModal';
+import { StudentDocumentsModal } from '@/components/admin/sessions-formation/StudentDocumentsModal';
 import { ImageCropperModal } from '@/components/admin/students/ImageCropperModal';
 import { apiClient } from '@/lib/api/client';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
