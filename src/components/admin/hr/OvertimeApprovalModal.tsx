@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, TrendingUp, User, Clock, FileText, CheckCircle, XCircle, AlertCircle, MessageSquare } from 'lucide-react';
+import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { apiClient } from '@/lib/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -306,20 +307,22 @@ export default function OvertimeApprovalModal({ requestId, onClose }: OvertimeAp
 
               {!action ? (
                 <div className="flex gap-3">
-                  <button
+                  <ProtectedButton
+                    permission="hr.overtime.approve"
                     onClick={() => setAction('approve')}
                     className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
                   >
                     <CheckCircle className="w-5 h-5" />
                     Approuver
-                  </button>
-                  <button
+                  </ProtectedButton>
+                  <ProtectedButton
+                    permission="hr.overtime.reject"
                     onClick={() => setAction('reject')}
                     className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
                   >
                     <XCircle className="w-5 h-5" />
                     Rejeter
-                  </button>
+                  </ProtectedButton>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -345,7 +348,8 @@ export default function OvertimeApprovalModal({ requestId, onClose }: OvertimeAp
                     >
                       Annuler
                     </button>
-                    <button
+                    <ProtectedButton
+                      permission={action === 'approve' ? 'hr.overtime.approve' : 'hr.overtime.reject'}
                       onClick={action === 'approve' ? handleApprove : handleReject}
                       disabled={isPending || !comment.trim()}
                       className={`flex-1 px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -355,7 +359,7 @@ export default function OvertimeApprovalModal({ requestId, onClose }: OvertimeAp
                       }`}
                     >
                       {isPending ? 'Traitement...' : action === 'approve' ? 'Confirmer l\'approbation' : 'Confirmer le rejet'}
-                    </button>
+                    </ProtectedButton>
                   </div>
                 </div>
               )}
