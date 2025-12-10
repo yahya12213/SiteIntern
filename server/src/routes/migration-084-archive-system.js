@@ -1,33 +1,31 @@
-import pg from 'pg';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
+/**
+ * Migration 084: Archive System for Student Documents
+ *
+ * Purpose: Create archive structure for storing student PDFs on Railway
+ *
+ * Changes:
+ * - Add session_id, file_path, archive_folder columns to certificates table
+ * - Create archive_folders table for session folders
+ * - Create student_archive_folders table for student subfolders
+ * - Add necessary indexes for performance
+ */
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import express from 'express';
+import pool from '../config/database.js';
 
-// Load environment variables
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+const router = express.Router();
 
-const { Pool } = pg;
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
-
-async function runMigration() {
+router.post('/run', async (req, res) => {
   const client = await pool.connect();
 
   try {
-    console.log('Starting Migration 084: Archive System...');
-
     await client.query('BEGIN');
 
-    // Migration 1: Add columns to certificates table
-    console.log('Adding columns to certificates table...');
+    console.log('=== Migration 084: Archive System ===\n');
 
-    // Check if columns already exist before adding
+    // 1. Add columns to certificates table
+    console.log('Step 1: Adding columns to certificates table...');
+
     const checkSessionId = await client.query(`
       SELECT column_name
       FROM information_schema.columns
@@ -41,7 +39,7 @@ async function runMigration() {
       `);
       console.log('✓ Added session_id column');
     } else {
-      console.log('⚠ session_id column already exists, skipping');
+      console.log('⚠ session_id column already exists');
     }
 
     const checkFilePath = await client.query(`
@@ -57,7 +55,7 @@ async function runMigration() {
       `);
       console.log('✓ Added file_path column');
     } else {
-      console.log('⚠ file_path column already exists, skipping');
+      console.log('⚠ file_path column already exists');
     }
 
     const checkArchiveFolder = await client.query(`
@@ -73,32 +71,21 @@ async function runMigration() {
       `);
       console.log('✓ Added archive_folder column');
     } else {
-      console.log('⚠ archive_folder column already exists, skipping');
+      console.log('⚠ archive_folder column already exists');
     }
 
-    // Create indexes
-    console.log('Creating indexes...');
+    // 2. Create indexes
+    console.log('\nStep 2: Creating indexes...');
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_certificates_session_id ON certificates(session_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_certificates_file_path ON certificates(file_path)
+    `);
+    console.log('✓ Indexes created');
 
-    try {
-      await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_certificates_session_id ON certificates(session_id)
-      `);
-      console.log('✓ Created index on session_id');
-    } catch (error) {
-      console.log('⚠ Index idx_certificates_session_id may already exist');
-    }
-
-    try {
-      await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_certificates_file_path ON certificates(file_path)
-      `);
-      console.log('✓ Created index on file_path');
-    } catch (error) {
-      console.log('⚠ Index idx_certificates_file_path may already exist');
-    }
-
-    // Migration 2: Create archive_folders table
-    console.log('Creating archive_folders table...');
+    // 3. Create archive_folders table
+    console.log('\nStep 3: Creating archive_folders table...');
 
     const checkArchiveFoldersTable = await client.query(`
       SELECT table_name
@@ -118,21 +105,15 @@ async function runMigration() {
       `);
       console.log('✓ Created archive_folders table');
     } else {
-      console.log('⚠ archive_folders table already exists, skipping');
+      console.log('⚠ archive_folders table already exists');
     }
 
-    // Create index for archive_folders
-    try {
-      await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_archive_folders_session ON archive_folders(session_id)
-      `);
-      console.log('✓ Created index on archive_folders.session_id');
-    } catch (error) {
-      console.log('⚠ Index idx_archive_folders_session may already exist');
-    }
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_archive_folders_session ON archive_folders(session_id)
+    `);
 
-    // Migration 3: Create student_archive_folders table
-    console.log('Creating student_archive_folders table...');
+    // 4. Create student_archive_folders table
+    console.log('\nStep 4: Creating student_archive_folders table...');
 
     const checkStudentArchiveFoldersTable = await client.query(`
       SELECT table_name
@@ -153,52 +134,85 @@ async function runMigration() {
       `);
       console.log('✓ Created student_archive_folders table');
     } else {
-      console.log('⚠ student_archive_folders table already exists, skipping');
+      console.log('⚠ student_archive_folders table already exists');
     }
 
-    // Create indexes for student_archive_folders
-    try {
-      await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_student_archive_session ON student_archive_folders(session_id)
-      `);
-      console.log('✓ Created index on student_archive_folders.session_id');
-    } catch (error) {
-      console.log('⚠ Index idx_student_archive_session may already exist');
-    }
-
-    try {
-      await client.query(`
-        CREATE INDEX IF NOT EXISTS idx_student_archive_student ON student_archive_folders(student_id)
-      `);
-      console.log('✓ Created index on student_archive_folders.student_id');
-    } catch (error) {
-      console.log('⚠ Index idx_student_archive_student may already exist');
-    }
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_student_archive_session ON student_archive_folders(session_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_student_archive_student ON student_archive_folders(student_id)
+    `);
 
     await client.query('COMMIT');
-    console.log('\n✅ Migration 084 completed successfully!');
+
+    console.log('\n=== Migration 084 completed successfully! ===');
+    console.log('\n📋 Summary:');
+    console.log('  - Added columns to certificates table: session_id, file_path, archive_folder');
+    console.log('  - Created archive_folders table for session folders');
+    console.log('  - Created student_archive_folders table for student subfolders');
+    console.log('  - Created indexes for performance');
+    console.log('\n✅ Archive system ready for use!\n');
+
+    res.json({
+      success: true,
+      message: 'Archive system tables and columns created successfully'
+    });
 
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('❌ Migration 084 failed:', error);
-    throw error;
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   } finally {
     client.release();
-    await pool.end();
   }
-}
+});
 
-// Run migration if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runMigration()
-    .then(() => {
-      console.log('Migration process completed');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('Migration process failed:', error);
-      process.exit(1);
+router.get('/status', async (req, res) => {
+  try {
+    // Check if tables exist
+    const checkTables = await pool.query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_name IN ('archive_folders', 'student_archive_folders')
+    `);
+
+    const tablesExist = checkTables.rows.length === 2;
+
+    // Check if columns exist
+    const checkColumns = await pool.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'certificates'
+        AND column_name IN ('session_id', 'file_path', 'archive_folder')
+    `);
+
+    const columnsExist = checkColumns.rows.length === 3;
+
+    const applied = tablesExist && columnsExist;
+
+    res.json({
+      status: {
+        migrationNeeded: !applied,
+        applied: applied,
+        details: {
+          tablesExist,
+          columnsExist
+        }
+      },
+      message: applied
+        ? 'Archive system tables and columns exist'
+        : 'Archive system not fully configured - run migration to create tables and columns'
     });
-}
+  } catch (error) {
+    res.status(500).json({
+      status: { migrationNeeded: true, applied: false, error: error.message },
+      message: `Error checking status: ${error.message}`
+    });
+  }
+});
 
-export default runMigration;
+export default router;
