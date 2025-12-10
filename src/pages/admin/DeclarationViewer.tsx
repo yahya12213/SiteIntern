@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, XCircle, AlertCircle, FileText, Eye, Save, Link, ExternalLink, Trash2, Send, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import {
   useAdminDeclaration,
   useApproveDeclaration,
@@ -622,14 +623,15 @@ const DeclarationViewer: React.FC = () => {
 
             {/* Bouton Supprimer - Admin uniquement */}
             {isAdmin && (
-              <Button
+              <ProtectedButton
+                permission="accounting.declarations.delete"
                 variant="outline"
                 className="text-red-600 hover:bg-red-50"
                 onClick={handleDelete}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Supprimer
-              </Button>
+              </ProtectedButton>
             )}
 
             <Button
@@ -658,30 +660,33 @@ const DeclarationViewer: React.FC = () => {
 
             {declaration.status === 'soumise' && (
               <>
-                <Button
+                <ProtectedButton
+                  permission="accounting.declarations.approve"
                   variant="outline"
                   className="text-green-600 hover:bg-green-50"
                   onClick={handleApprove}
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Approuver
-                </Button>
-                <Button
+                </ProtectedButton>
+                <ProtectedButton
+                  permission="accounting.declarations.request_modification"
                   variant="outline"
                   className="text-yellow-600 hover:bg-yellow-50"
                   onClick={() => setShowModificationModal(true)}
                 >
                   <AlertCircle className="w-4 h-4 mr-2" />
                   Demander modification
-                </Button>
-                <Button
+                </ProtectedButton>
+                <ProtectedButton
+                  permission="accounting.declarations.reject"
                   variant="outline"
                   className="text-red-600 hover:bg-red-50"
                   onClick={() => setShowRejectModal(true)}
                 >
                   <XCircle className="w-4 h-4 mr-2" />
                   Refuser
-                </Button>
+                </ProtectedButton>
               </>
             )}
           </div>
