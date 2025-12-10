@@ -1607,6 +1607,8 @@ router.get('/:sessionId/students/:studentId/documents',
     try {
       const { sessionId, studentId } = req.params;
 
+      console.log('📄 Fetching documents for student:', studentId, 'in session:', sessionId);
+
       const documents = await pool.query(`
         SELECT
           c.id,
@@ -1627,6 +1629,25 @@ router.get('/:sessionId/students/:studentId/documents',
         WHERE c.student_id = $1 AND c.session_id = $2
         ORDER BY c.issued_at DESC
       `, [studentId, sessionId]);
+
+      console.log(`✓ Found ${documents.rows.length} document(s)`);
+
+      // Debug: Check if there are certificates for this student but with NULL session_id
+      const allCerts = await pool.query(`
+        SELECT id, certificate_number, session_id
+        FROM certificates
+        WHERE student_id = $1
+        ORDER BY issued_at DESC
+      `, [studentId]);
+
+      if (allCerts.rows.length > 0 && documents.rows.length === 0) {
+        console.warn('⚠️  Student has certificates but none match session_id:', sessionId);
+        console.warn('All certificates for student:', allCerts.rows.map(c => ({
+          id: c.id,
+          number: c.certificate_number,
+          session_id: c.session_id || 'NULL'
+        })));
+      }
 
       res.json({
         success: true,
