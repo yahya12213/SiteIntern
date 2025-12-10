@@ -87,7 +87,7 @@ export default function PermissionsDiagnostic() {
   const fetchDiagnostic = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token'); // Fixed: use correct token key
       const response = await fetch('/api/permissions/diagnostic', {
         headers: {
           'Authorization': `Bearer ${token}`
