@@ -20,6 +20,12 @@ interface Document {
   preview_image_url: string | null;
 }
 
+interface DocumentsResponse {
+  success: boolean;
+  documents: Document[];
+  error?: string;
+}
+
 interface StudentDocumentsModalProps {
   sessionId: string;
   studentId: string;
@@ -46,14 +52,14 @@ export const StudentDocumentsModal: React.FC<StudentDocumentsModalProps> = ({
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.get(
+      const response = await apiClient.get<DocumentsResponse>(
         `/sessions-formation/${sessionId}/students/${studentId}/documents`
       );
 
       if (response.success) {
         setDocuments(response.documents || []);
       } else {
-        setError('Erreur lors du chargement des documents');
+        setError(response.error || 'Erreur lors du chargement des documents');
       }
     } catch (err: any) {
       console.error('Error loading documents:', err);

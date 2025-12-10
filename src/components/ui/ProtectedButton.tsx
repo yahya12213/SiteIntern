@@ -1,6 +1,6 @@
-import { Button, ButtonProps } from '@/components/ui/button';
+import { Button, type ButtonProps } from '@/components/ui/button';
 import { usePermission } from '@/hooks/usePermission';
-import { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 
 interface ProtectedButtonProps extends ButtonProps {
   permission: string | string[];
