@@ -205,6 +205,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-083-add-project-color'
   },
   {
+    id: 'migration-084',
+    name: 'Migration 084',
+    description: 'Système d\'archivage automatique - Tables archive_folders, student_archive_folders + colonnes certificates (session_id, file_path)',
+    endpoint: '/migration-084-archive-system'
+  },
+  {
     id: 'migration-fix-khalid-role',
     name: 'FIX: Synchroniser role_id de Khalid Fathi',
     description: '🔧 CRITIQUE: Corrige le role_id de "khalid fathi" pour pointer vers le rôle gérant au lieu de professor',
