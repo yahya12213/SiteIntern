@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ProtectedButton } from '@/components/ui/ProtectedButton';
 
 interface ResetDatabaseModalProps {
   onClose: () => void;
@@ -123,14 +124,15 @@ export default function ResetDatabaseModal({ onClose }: ResetDatabaseModalProps)
             >
               Annuler
             </button>
-            <button
+            <ProtectedButton
+              permission="system.roles.view_page"
               onClick={handleReset}
               disabled={confirmText !== 'RESET' || isResetting}
               className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <RefreshCw className={`w-5 h-5 ${isResetting ? 'animate-spin' : ''}`} />
               {isResetting ? 'Réinitialisation...' : 'Réinitialiser'}
-            </button>
+            </ProtectedButton>
           </div>
         </div>
       </div>
