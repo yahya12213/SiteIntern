@@ -3,6 +3,7 @@ import pool from '../config/database.js';
 import { nanoid } from 'nanoid';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import { injectUserScope, buildScopeFilter, requireRecordScope } from '../middleware/requireScope.js';
+import * as archiveManager from '../utils/archiveManager.js';
 
 const router = express.Router();
 
@@ -305,10 +306,31 @@ router.post('/',
       ];
 
       const result = await pool.query(query, values);
+      const newSession = result.rows[0];
+
+      // NOUVEAU : Créer dossier d'archive pour la session
+      try {
+        const folderPath = await archiveManager.createSessionFolder(
+          newSession.id,
+          newSession.titre
+        );
+
+        // Enregistrer le chemin du dossier en base de données
+        await pool.query(
+          'INSERT INTO archive_folders (id, session_id, folder_path, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)',
+          [nanoid(), newSession.id, folderPath, now, now]
+        );
+
+        console.log(`✓ Dossier archive créé pour la session: ${folderPath}`);
+      } catch (folderError) {
+        console.error('Erreur création dossier archive:', folderError);
+        // Non-bloquant : la session est créée même si le dossier échoue
+        newSession.archive_folder_error = true;
+      }
 
       res.status(201).json({
         success: true,
-        session: result.rows[0],
+        session: newSession,
         message: 'Session créée avec succès'
       });
 
@@ -1371,5 +1393,209 @@ router.delete('/:sessionId/etudiants/:studentId/paiements/:paymentId',
     });
   }
 });
+
+/**
+ * POST /api/sessions-formation/:sessionId/students/:studentId/transfer
+ * Transférer un étudiant d'une session à une autre
+ * Body: { new_session_id, preserve_payments?, transfer_documents? }
+ * SCOPE: Vérifie que les deux sessions sont dans le scope de l'utilisateur
+ */
+router.post('/:sessionId/students/:studentId/transfer',
+  authenticateToken,
+  requirePermission('training.sessions.transfer_student'),
+  injectUserScope,
+  async (req, res) => {
+    const { sessionId, studentId } = req.params;
+    const { new_session_id, preserve_payments = true, transfer_documents = true, reason } = req.body;
+
+    if (!new_session_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'new_session_id is required'
+      });
+    }
+
+    if (sessionId === new_session_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Source and destination sessions cannot be the same'
+      });
+    }
+
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Vérifier que les deux sessions existent et sont dans le scope
+      const sessionsCheck = await client.query(
+        'SELECT id, titre FROM sessions_formation WHERE id = ANY($1)',
+        [[sessionId, new_session_id]]
+      );
+
+      if (sessionsCheck.rows.length !== 2) {
+        throw new Error('One or both sessions not found');
+      }
+
+      // SCOPE: Vérifier que les sessions sont dans le scope
+      if (!req.userScope.isAdmin) {
+        for (const session of sessionsCheck.rows) {
+          // Récupérer segment_id et ville_id de la session
+          const scopeCheck = await client.query(
+            'SELECT segment_id, ville_id FROM sessions_formation WHERE id = $1',
+            [session.id]
+          );
+
+          const sess = scopeCheck.rows[0];
+          if (sess.segment_id && !req.userScope.segmentIds.includes(sess.segment_id)) {
+            return res.status(403).json({
+              success: false,
+              error: `Session ${session.titre} is outside your scope`,
+              code: 'OUTSIDE_SCOPE'
+            });
+          }
+          if (sess.ville_id && !req.userScope.cityIds.includes(sess.ville_id)) {
+            return res.status(403).json({
+              success: false,
+              error: `Session ${session.titre} is outside your scope`,
+              code: 'OUTSIDE_SCOPE'
+            });
+          }
+        }
+      }
+
+      // 1. Récupérer l'enrollment actuel
+      const enrollmentResult = await client.query(
+        'SELECT * FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
+        [sessionId, studentId]
+      );
+
+      if (enrollmentResult.rows.length === 0) {
+        throw new Error('Student enrollment not found in source session');
+      }
+
+      const enrollment = enrollmentResult.rows[0];
+
+      // 2. Vérifier que l'étudiant n'est pas déjà inscrit dans la session cible
+      const existingCheck = await client.query(
+        'SELECT id FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
+        [new_session_id, studentId]
+      );
+
+      if (existingCheck.rows.length > 0) {
+        throw new Error('Student is already enrolled in the target session');
+      }
+
+      // 3. Déplacer le dossier de documents si demandé
+      let moveResult = { filesCount: 0, old_path: null, new_path: null };
+      if (transfer_documents) {
+        try {
+          moveResult = await archiveManager.moveStudentFolder(
+            sessionId,
+            studentId,
+            new_session_id
+          );
+          console.log(`✓ Dossier déplacé: ${moveResult.filesCount} fichiers`);
+        } catch (moveError) {
+          console.warn('Warning: Could not move student folder:', moveError.message);
+          // Non-bloquant : continuer même si le déplacement échoue
+        }
+      }
+
+      // 4. Supprimer l'ancien enrollment
+      await client.query(
+        'DELETE FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
+        [sessionId, studentId]
+      );
+
+      // 5. Créer le nouvel enrollment
+      const now = new Date().toISOString();
+      const newEnrollment = {
+        id: nanoid(),
+        session_id: new_session_id,
+        student_id: studentId,
+        formation_id: enrollment.formation_id,
+        montant_total: preserve_payments ? enrollment.montant_total : 0,
+        montant_paye: preserve_payments ? enrollment.montant_paye : 0,
+        montant_du: preserve_payments ? enrollment.montant_du : 0,
+        statut_paiement: preserve_payments ? enrollment.statut_paiement : 'impaye',
+        discount_percentage: preserve_payments ? enrollment.discount_percentage : 0,
+        discount_amount: preserve_payments ? enrollment.discount_amount : 0,
+        discount_reason: preserve_payments ? enrollment.discount_reason : null,
+        formation_original_price: enrollment.formation_original_price,
+        centre_id: enrollment.centre_id,
+        classe_id: enrollment.classe_id,
+        numero_bon: enrollment.numero_bon,
+        student_status: enrollment.student_status || 'valide',
+        date_inscription: now,
+        created_at: now,
+        updated_at: now
+      };
+
+      await client.query(
+        `INSERT INTO session_etudiants (
+          id, session_id, student_id, formation_id,
+          montant_total, montant_paye, montant_du, statut_paiement,
+          discount_percentage, discount_amount, discount_reason, formation_original_price,
+          centre_id, classe_id, numero_bon, student_status,
+          date_inscription, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+        [
+          newEnrollment.id, newEnrollment.session_id, newEnrollment.student_id,
+          newEnrollment.formation_id, newEnrollment.montant_total, newEnrollment.montant_paye,
+          newEnrollment.montant_du, newEnrollment.statut_paiement,
+          newEnrollment.discount_percentage, newEnrollment.discount_amount,
+          newEnrollment.discount_reason, newEnrollment.formation_original_price,
+          newEnrollment.centre_id, newEnrollment.classe_id, newEnrollment.numero_bon,
+          newEnrollment.student_status, newEnrollment.date_inscription,
+          newEnrollment.created_at, newEnrollment.updated_at
+        ]
+      );
+
+      // 6. Mettre à jour les certificats pour pointer vers la nouvelle session
+      const certUpdateResult = await client.query(
+        'UPDATE certificates SET session_id = $1 WHERE student_id = $2 AND session_id = $3 RETURNING id',
+        [new_session_id, studentId, sessionId]
+      );
+
+      // 7. Log du transfert (optionnel - pour audit)
+      console.log(`✓ Étudiant ${studentId} transféré de ${sessionId} vers ${new_session_id}`);
+      if (reason) {
+        console.log(`  Raison: ${reason}`);
+      }
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: 'Étudiant transféré avec succès',
+        transfer_details: {
+          from_session: sessionId,
+          to_session: new_session_id,
+          student_id: studentId,
+          documents_moved: moveResult.filesCount,
+          certificates_updated: certUpdateResult.rows.length,
+          payments_preserved: preserve_payments,
+          old_folder: moveResult.old_path,
+          new_folder: moveResult.new_path
+        }
+      });
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error transferring student:', error);
+
+      // Tentative de rollback du déplacement de dossier si nécessaire
+      // (dans la pratique, c'est complexe, donc on log juste l'erreur)
+
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    } finally {
+      client.release();
+    }
+  }
+);
 
 export default router;

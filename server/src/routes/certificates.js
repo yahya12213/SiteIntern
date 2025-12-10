@@ -1,6 +1,10 @@
 import express from 'express';
 import pool from '../config/database.js';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { nanoid } from 'nanoid';
+import path from 'path';
+import * as archiveManager from '../utils/archiveManager.js';
+import { CertificatePDFGenerator } from '../services/certificatePDFGenerator.js';
 
 const router = express.Router();
 
@@ -16,18 +20,22 @@ function generateCertificateNumber() {
 }
 
 /**
- * Générer un certificat pour un étudiant
+ * Générer un certificat pour un étudiant avec génération PDF serveur
  * POST /api/certificates/generate
- * Body: { student_id, formation_id, completion_date, grade? }
+ * Body: { student_id, formation_id, session_id, completion_date, grade?, metadata?, template_id? }
  * Protected: Requires training.certificates.generate permission
  */
 router.post('/generate',
   authenticateToken,
   requirePermission('training.certificates.generate'),
   async (req, res) => {
-  try {
-    const { student_id, formation_id, completion_date, grade, metadata, template_id } = req.body;
+  const client = await pool.connect();
+  let createdFolders = [];
 
+  try {
+    const { student_id, formation_id, session_id, completion_date, grade, metadata, template_id } = req.body;
+
+    // Validation des champs requis
     if (!student_id || !formation_id || !completion_date) {
       return res.status(400).json({
         success: false,
@@ -35,8 +43,13 @@ router.post('/generate',
       });
     }
 
+    // session_id est maintenant recommandé mais pas obligatoire pour compatibilité
+    if (!session_id) {
+      console.warn('Warning: session_id not provided, certificate will not be stored in archive');
+    }
+
     // Vérifier si un certificat existe déjà
-    const existingCert = await pool.query(
+    const existingCert = await client.query(
       'SELECT id FROM certificates WHERE student_id = $1 AND formation_id = $2',
       [student_id, formation_id]
     );
@@ -49,44 +62,77 @@ router.post('/generate',
       });
     }
 
-    // Déterminer le template à utiliser
-    let finalTemplateId = template_id;
+    // Récupérer les informations de l'étudiant
+    const studentResult = await client.query(
+      'SELECT id, prenom, nom, cin FROM students WHERE id = $1',
+      [student_id]
+    );
 
-    // Si pas de template_id fourni, essayer de le récupérer
+    if (studentResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Student not found',
+      });
+    }
+
+    const student = studentResult.rows[0];
+
+    // Récupérer les informations de la formation
+    const formationResult = await client.query(
+      'SELECT id, title, duration_hours, certificate_template_id FROM formations WHERE id = $1',
+      [formation_id]
+    );
+
+    if (formationResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Formation not found',
+      });
+    }
+
+    const formation = formationResult.rows[0];
+
+    // Déterminer le template à utiliser
+    let finalTemplateId = template_id || formation.certificate_template_id;
+
     if (!finalTemplateId) {
-      // 1. Essayer de récupérer le template de la formation
-      const formationResult = await pool.query(
-        'SELECT certificate_template_id FROM formations WHERE id = $1',
-        [formation_id]
+      // Prendre le premier template disponible
+      const templatesResult = await client.query(
+        'SELECT id FROM certificate_templates ORDER BY created_at ASC LIMIT 1'
       );
 
-      if (formationResult.rows.length > 0 && formationResult.rows[0].certificate_template_id) {
-        finalTemplateId = formationResult.rows[0].certificate_template_id;
+      if (templatesResult.rows.length > 0) {
+        finalTemplateId = templatesResult.rows[0].id;
       } else {
-        // 2. Si pas de template, prendre le premier template disponible
-        const templatesResult = await pool.query(
-          'SELECT id FROM certificate_templates ORDER BY created_at ASC LIMIT 1'
-        );
-
-        if (templatesResult.rows.length > 0) {
-          finalTemplateId = templatesResult.rows[0].id;
-        } else {
-          // 3. Aucun template disponible
-          return res.status(400).json({
-            success: false,
-            error: 'No certificate template available. Please create a certificate template first.',
-          });
-        }
+        return res.status(400).json({
+          success: false,
+          error: 'No certificate template available. Please create a certificate template first.',
+        });
       }
     }
+
+    // Récupérer le template
+    const templateResult = await client.query(
+      'SELECT * FROM certificate_templates WHERE id = $1',
+      [finalTemplateId]
+    );
+
+    if (templateResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Certificate template not found',
+      });
+    }
+
+    const template = templateResult.rows[0];
 
     // Générer le numéro de certificat
     let certificateNumber = generateCertificateNumber();
 
-    // Vérifier l'unicité (rare collision, mais on vérifie quand même)
+    // Vérifier l'unicité
     let attempts = 0;
     while (attempts < 5) {
-      const exists = await pool.query(
+      const exists = await client.query(
         'SELECT id FROM certificates WHERE certificate_number = $1',
         [certificateNumber]
       );
@@ -95,14 +141,20 @@ router.post('/generate',
       attempts++;
     }
 
-    // Créer le certificat avec template_id
-    const result = await pool.query(
-      `INSERT INTO certificates (student_id, formation_id, certificate_number, completion_date, grade, metadata, template_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING *`,
+    // Début de la transaction
+    await client.query('BEGIN');
+
+    // Créer l'enregistrement du certificat
+    const certResult = await client.query(
+      `INSERT INTO certificates (
+        student_id, formation_id, session_id, certificate_number,
+        completion_date, grade, metadata, template_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *`,
       [
         student_id,
         formation_id,
+        session_id || null,
         certificateNumber,
         completion_date,
         grade || null,
@@ -111,16 +163,94 @@ router.post('/generate',
       ]
     );
 
+    const certificate = certResult.rows[0];
+
+    // Préparer les données pour le PDF
+    const certData = {
+      ...certificate,
+      student_name: `${student.prenom} ${student.nom}`,
+      formation_title: formation.title,
+      duration_hours: formation.duration_hours,
+      metadata: {
+        ...JSON.parse(certificate.metadata || '{}'),
+        prenom: student.prenom,
+        nom: student.nom,
+        cin: student.cin
+      }
+    };
+
+    // Générer le PDF si session_id est fourni
+    let pdfPath = null;
+    let folderPath = null;
+
+    if (session_id) {
+      try {
+        // Créer ou récupérer le dossier étudiant
+        folderPath = await archiveManager.getOrCreateStudentFolder(session_id, student);
+        createdFolders.push(folderPath);
+
+        // Générer le nom du fichier PDF
+        const pdfFileName = `certificat_${certificateNumber}.pdf`;
+        pdfPath = path.join(folderPath, pdfFileName);
+
+        // Générer le PDF
+        const pdfGenerator = new CertificatePDFGenerator();
+        await pdfGenerator.generateCertificate(certData, template, pdfPath);
+
+        // Mettre à jour l'enregistrement avec le chemin du fichier
+        await client.query(
+          'UPDATE certificates SET file_path = $1, archive_folder = $2 WHERE id = $3',
+          [pdfPath, folderPath, certificate.id]
+        );
+
+        console.log(`✓ PDF généré et stocké: ${pdfPath}`);
+      } catch (pdfError) {
+        console.error('Error generating PDF:', pdfError);
+        // Rollback et cleanup
+        await client.query('ROLLBACK');
+
+        // Cleanup des dossiers créés
+        for (const folder of createdFolders) {
+          await archiveManager.cleanupFolder(folder);
+        }
+
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to generate PDF: ' + pdfError.message,
+        });
+      }
+    }
+
+    // Commit de la transaction
+    await client.query('COMMIT');
+
     res.status(201).json({
       success: true,
-      certificate: result.rows[0],
+      certificate: {
+        ...certificate,
+        file_path: pdfPath,
+        archive_folder: folderPath
+      },
+      pdf_generated: !!pdfPath,
+      message: pdfPath ? 'Certificate created and PDF generated successfully' : 'Certificate created (no PDF generated - session_id required)'
     });
+
   } catch (error) {
+    // Rollback en cas d'erreur
+    await client.query('ROLLBACK');
+
+    // Cleanup des dossiers créés
+    for (const folder of createdFolders) {
+      await archiveManager.cleanupFolder(folder);
+    }
+
     console.error('Error generating certificate:', error);
     res.status(500).json({
       success: false,
       error: error.message,
     });
+  } finally {
+    client.release();
   }
 });
 

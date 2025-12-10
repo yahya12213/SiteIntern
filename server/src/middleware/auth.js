@@ -139,16 +139,27 @@ export const requirePermission = (...requiredPermissions) => {
     }
 
     try {
-      // Check if user has any of the required permissions
-      const permissions = await getUserPermissions(req.user.id);
-      const hasPermission = requiredPermissions.some(perm => permissions.includes(perm));
-
-      // Admin has all permissions
-      if (req.user.role === 'admin' || permissions.includes('*')) {
+      // 🔧 FIX: Check admin role FIRST, before any database queries
+      // This ensures admin users bypass permission checks entirely and prevents
+      // database errors from blocking admin access
+      if (req.user.role === 'admin') {
+        console.log(`✅ Admin bypass for user ${req.user.username} on ${requiredPermissions.join(', ')}`);
         return next();
       }
 
+      // Only query permissions if NOT admin
+      const permissions = await getUserPermissions(req.user.id);
+
+      // Check wildcard permission
+      if (permissions.includes('*')) {
+        console.log(`✅ Wildcard permission bypass for user ${req.user.username}`);
+        return next();
+      }
+
+      const hasPermission = requiredPermissions.some(perm => permissions.includes(perm));
+
       if (!hasPermission) {
+        console.log(`❌ Permission denied for user ${req.user.username}: required ${requiredPermissions.join(' or ')}`);
         return res.status(403).json({
           success: false,
           error: `Access denied. Required permission: ${requiredPermissions.join(' or ')}`,
@@ -156,6 +167,7 @@ export const requirePermission = (...requiredPermissions) => {
         });
       }
 
+      console.log(`✅ Permission granted for user ${req.user.username}: ${requiredPermissions.join(', ')}`);
       next();
     } catch (error) {
       console.error('Permission check error:', error);
