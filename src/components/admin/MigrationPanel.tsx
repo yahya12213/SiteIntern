@@ -211,6 +211,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-084-archive-system'
   },
   {
+    id: 'migration-085',
+    name: 'Migration 085',
+    description: '📋 Suivi documents & impression - Colonnes document_type, template_name, printed_at, printer_name, print_status pour tracking et QZ Tray',
+    endpoint: '/migration-085-document-tracking'
+  },
+  {
     id: 'migration-fix-khalid-role',
     name: 'FIX: Synchroniser role_id de Khalid Fathi',
     description: '🔧 CRITIQUE: Corrige le role_id de "khalid fathi" pour pointer vers le rôle gérant au lieu de professor',
