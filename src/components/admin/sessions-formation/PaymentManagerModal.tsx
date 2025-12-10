@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, DollarSign, AlertCircle, Trash2, Calendar, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { Input } from '@/components/ui/input';
 import { useStudentPayments, useRecordPayment, useDeletePayment } from '@/hooks/usePayments';
 import { PAYMENT_METHODS, type PaymentMethod, type PaymentFormData } from '@/types/payments';
@@ -331,7 +332,8 @@ export const PaymentManagerModal: React.FC<PaymentManagerModalProps> = ({
                   >
                     Annuler
                   </Button>
-                  <Button
+                  <ProtectedButton
+                    permission="training.sessions.manage_payments"
                     type="submit"
                     disabled={recordPayment.isPending}
                     className="min-w-[120px]"
@@ -344,7 +346,7 @@ export const PaymentManagerModal: React.FC<PaymentManagerModalProps> = ({
                     ) : (
                       'Enregistrer'
                     )}
-                  </Button>
+                  </ProtectedButton>
                 </div>
               </form>
             </div>
@@ -352,7 +354,9 @@ export const PaymentManagerModal: React.FC<PaymentManagerModalProps> = ({
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Historique des Paiements</h3>
               {totals.montant_du > 0 && (
-                <Button onClick={() => setShowAddForm(true)}>Ajouter un Paiement</Button>
+                <ProtectedButton permission="training.sessions.manage_payments" onClick={() => setShowAddForm(true)}>
+                  Ajouter un Paiement
+                </ProtectedButton>
               )}
             </div>
           )}
@@ -400,14 +404,15 @@ export const PaymentManagerModal: React.FC<PaymentManagerModalProps> = ({
                         {payment.note || '-'}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <button
+                        <ProtectedButton
+                          permission="training.sessions.manage_payments"
                           onClick={() => handleDeletePayment(payment.id)}
                           disabled={deletePayment.isPending}
-                          className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50"
+                          className="text-red-600 hover:text-red-800 transition-colors disabled:opacity-50 p-0 h-auto bg-transparent border-0 shadow-none hover:bg-transparent"
                           title="Annuler ce paiement"
                         >
                           <Trash2 className="h-4 w-4" />
-                        </button>
+                        </ProtectedButton>
                       </td>
                     </tr>
                   ))}
