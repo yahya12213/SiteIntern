@@ -402,8 +402,38 @@ export const SessionDetail: React.FC = () => {
 
       combinedDoc.save(filename);
 
+      // Enregistrer chaque certificat en base de données
+      console.log('💾 Enregistrement des certificats en base de données...');
+      let savedCount = 0;
+
+      for (const etudiant of selectedEtudiants) {
+        try {
+          const response = await apiClient.post('/certificates/generate', {
+            student_id: etudiant.student_id,
+            formation_id: etudiant.formation_id,
+            session_id: id || session?.id, // ✅ CONFIRMÉ: id disponible (ligne 42)
+            template_id: template.template_id,
+            completion_date: new Date().toISOString(),
+            grade: null,
+            document_type: template.document_type || 'certificat',
+            template_name: template.template_name
+          }) as { success: boolean; error?: string };
+
+          if (response.success) {
+            savedCount++;
+            console.log(`✅ Certificat enregistré pour ${etudiant.student_name}`);
+          } else {
+            console.error(`❌ Échec enregistrement pour ${etudiant.student_name}:`, response.error);
+          }
+        } catch (error) {
+          console.error(`❌ Erreur enregistrement pour ${etudiant.student_name}:`, error);
+        }
+      }
+
+      console.log(`✅ ${savedCount}/${selectedEtudiants.length} certificats enregistrés en base de données`);
+
       setShowBulkDocumentModal(false);
-      alert(`PDF combiné généré avec succès pour ${selectedEtudiants.length} étudiant(s)`);
+      alert(`PDF combiné généré avec succès pour ${selectedEtudiants.length} étudiant(s)\n\n${savedCount} certificat(s) enregistré(s) en base de données`);
     } catch (error: any) {
       console.error('Error generating bulk documents:', error);
       alert('Erreur lors de la génération: ' + error.message);
