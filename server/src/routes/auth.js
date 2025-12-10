@@ -131,6 +131,26 @@ router.post('/login', loginRateLimiter, async (req, res) => {
       }
     } else {
       user = result.rows[0];
+
+      // 🔧 FIX: Sync profiles.role with roles.name for JWT token admin bypass
+      // If user has a role_id and we fetched role_name from roles table,
+      // but profiles.role is NULL or doesn't match, update it
+      if (rbacEnabled && user.role_id && user.role_name && (!user.role || user.role !== user.role_name)) {
+        console.log(`🔄 Syncing role for user ${user.username}: "${user.role}" -> "${user.role_name}"`);
+        user.role = user.role_name;
+
+        // Update profiles.role in database permanently (self-healing)
+        try {
+          await pool.query(
+            'UPDATE profiles SET role = $1 WHERE id = $2',
+            [user.role_name, user.id]
+          );
+          console.log(`✅ Updated profiles.role to "${user.role_name}" for user ${user.username}`);
+        } catch (updateErr) {
+          console.warn(`⚠️ Could not update profiles.role in database:`, updateErr.message);
+          // Continue anyway - at least the JWT token will have correct role
+        }
+      }
     }
 
     // If still no user found, return error
