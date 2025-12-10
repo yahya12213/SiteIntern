@@ -3,7 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { rolesApi, type Role, type GroupedPermissions } from '@/lib/api/roles';
 import { permissionsApi } from '@/lib/api/permissions';
 import { PermissionTree } from '@/components/admin/PermissionTree';
-import { usePermission } from '@/hooks/usePermission';
+import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import {
   Shield,
   Plus,
@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 
 export const RolesManagement: React.FC = () => {
-  const { system } = usePermission();
   const [roles, setRoles] = useState<Role[]>([]);
   const [groupedPermissions, setGroupedPermissions] = useState<GroupedPermissions>({});
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
@@ -372,7 +371,8 @@ export const RolesManagement: React.FC = () => {
               </p>
             </div>
 
-            <button
+            <ProtectedButton
+              permission="system.roles.view_page"
               onClick={runMigration}
               disabled={isRunningMigration}
               className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
@@ -388,7 +388,7 @@ export const RolesManagement: React.FC = () => {
                   Exécuter la Migration
                 </>
               )}
-            </button>
+            </ProtectedButton>
 
             {migrationChecks && (
               <div className="mt-6 pt-6 border-t border-gray-200">
@@ -420,18 +420,17 @@ export const RolesManagement: React.FC = () => {
               </p>
             </div>
           </div>
-          {system.canCreateRole && (
-            <button
-              onClick={() => {
-                resetForm();
-                setShowCreateModal(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Nouveau Rôle
-            </button>
-          )}
+          <ProtectedButton
+            permission="system.roles.create"
+            onClick={() => {
+              resetForm();
+              setShowCreateModal(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Nouveau Rôle
+          </ProtectedButton>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -459,8 +458,9 @@ export const RolesManagement: React.FC = () => {
                         )}
                         <span className="font-medium text-gray-900">{role.name}</span>
                       </div>
-                      {system.canDeleteRole && !role.is_system_role && (
-                        <button
+                      {!role.is_system_role && (
+                        <ProtectedButton
+                          permission="system.roles.delete"
                           onClick={e => {
                             e.stopPropagation();
                             handleDeleteRole(role);
@@ -468,7 +468,7 @@ export const RolesManagement: React.FC = () => {
                           className="p-1 text-red-600 hover:bg-red-50 rounded"
                         >
                           <Trash2 className="h-4 w-4" />
-                        </button>
+                        </ProtectedButton>
                       )}
                     </div>
                     <p className="text-sm text-gray-600 mt-1">{role.description || 'Pas de description'}</p>
@@ -504,15 +504,14 @@ export const RolesManagement: React.FC = () => {
                     </h2>
                     <p className="text-sm text-gray-600">{selectedRole.description}</p>
                   </div>
-                  {system.canUpdateRole && (
-                    <button
-                      onClick={() => openEditModal(selectedRole)}
-                      className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      <Edit className="h-4 w-4" />
-                      Modifier
-                    </button>
-                  )}
+                  <ProtectedButton
+                    permission="system.roles.update"
+                    onClick={() => openEditModal(selectedRole)}
+                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Modifier
+                  </ProtectedButton>
                 </div>
 
                 <div className="p-4">
