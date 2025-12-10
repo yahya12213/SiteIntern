@@ -60,6 +60,67 @@ interface DiagnosticData {
     message: string;
     count?: number;
   }>;
+  frontendAnalysis?: {
+    scannedFiles: number;
+    scanDuration: number;
+    routes: {
+      total: number;
+      protected: number;
+      unprotected: number;
+      list: Array<{
+        path: string;
+        file: string;
+        line: number;
+        hasProtection: boolean;
+        permission: string | null;
+      }>;
+    };
+    buttons: {
+      total: number;
+      protected: number;
+      unprotected: number;
+      list: Array<{
+        file: string;
+        line: number;
+        element: string;
+        handler: string;
+        hasProtection: boolean;
+      }>;
+    };
+    permissionsUsed: string[];
+    issues: Array<{
+      type: string;
+      severity: string;
+      file: string;
+      path?: string;
+      handler?: string;
+      line: number;
+      recommendation: string;
+    }>;
+  } | null;
+  uiStructure?: {
+    menuStructure: Record<string, any>;
+    menuItems: number;
+    validMenuItems: number;
+    invalidMenuItems: number;
+    issues: Array<{
+      type: string;
+      severity: string;
+      menu?: string;
+      path?: string;
+      permission?: string;
+      menuPermission?: string;
+      pagePermission?: string;
+      file?: string;
+      recommendation: string;
+    }>;
+  } | null;
+  permissionCoverage?: {
+    totalPermissions: number;
+    usedInFrontend: number;
+    unusedInFrontend: string[];
+    usedButNotInMaster: string[];
+  } | null;
   recommendations: Array<{
     priority: string;
     message: string;
@@ -409,6 +470,186 @@ export default function PermissionsDiagnostic() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Frontend Analysis */}
+        {data.frontendAnalysis && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-blue-600" />
+                Analyse Frontend
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="p-3 bg-blue-50 rounded">
+                  <p className="text-xs text-gray-600">Fichiers scannés</p>
+                  <p className="text-2xl font-bold text-blue-600">{data.frontendAnalysis.scannedFiles}</p>
+                </div>
+                <div className="p-3 bg-green-50 rounded">
+                  <p className="text-xs text-gray-600">Routes protégées</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {data.frontendAnalysis.routes.protected}/{data.frontendAnalysis.routes.total}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-50 rounded">
+                  <p className="text-xs text-gray-600">Boutons protégés</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {data.frontendAnalysis.buttons.protected}/{data.frontendAnalysis.buttons.total}
+                  </p>
+                </div>
+                <div className="p-3 bg-purple-50 rounded">
+                  <p className="text-xs text-gray-600">Permissions utilisées</p>
+                  <p className="text-2xl font-bold text-purple-600">{data.frontendAnalysis.permissionsUsed.length}</p>
+                </div>
+              </div>
+
+              {data.frontendAnalysis.issues.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="font-semibold mb-2 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    Problèmes détectés ({data.frontendAnalysis.issues.length})
+                  </h4>
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {data.frontendAnalysis.issues.map((issue, idx) => (
+                      <div key={idx} className={`p-3 rounded border ${
+                        issue.severity === 'CRITICAL' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'
+                      }`}>
+                        <div className="flex items-start gap-2">
+                          <Badge variant={issue.severity === 'CRITICAL' ? 'destructive' : 'default'}>
+                            {issue.type}
+                          </Badge>
+                          <div className="flex-1 text-sm">
+                            <p className="font-mono text-xs text-gray-700">{issue.file}:{issue.line}</p>
+                            {issue.path && <p className="text-xs text-gray-600 mt-1">Route: {issue.path}</p>}
+                            {issue.handler && <p className="text-xs text-gray-600 mt-1">Handler: {issue.handler}</p>}
+                            <p className="text-xs text-gray-600 mt-1 italic">{issue.recommendation}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* UI Structure Validation */}
+        {data.uiStructure && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileCheck className="h-5 w-5 text-indigo-600" />
+                Structure UI
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="p-3 bg-indigo-50 rounded">
+                  <p className="text-xs text-gray-600">Menus total</p>
+                  <p className="text-2xl font-bold text-indigo-600">{data.uiStructure.menuItems}</p>
+                </div>
+                <div className="p-3 bg-green-50 rounded">
+                  <p className="text-xs text-gray-600">Menus valides</p>
+                  <p className="text-2xl font-bold text-green-600">{data.uiStructure.validMenuItems}</p>
+                </div>
+                <div className="p-3 bg-red-50 rounded">
+                  <p className="text-xs text-gray-600">Menus invalides</p>
+                  <p className="text-2xl font-bold text-red-600">{data.uiStructure.invalidMenuItems}</p>
+                </div>
+              </div>
+
+              {data.uiStructure.issues.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="font-semibold mb-2">Problèmes de structure ({data.uiStructure.issues.length})</h4>
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {data.uiStructure.issues.map((issue, idx) => (
+                      <div key={idx} className="p-3 bg-yellow-50 rounded border border-yellow-200">
+                        <div className="flex items-start gap-2">
+                          <Badge className="bg-orange-500">{issue.type}</Badge>
+                          <div className="flex-1 text-sm">
+                            {issue.menu && <p className="font-semibold">{issue.menu}</p>}
+                            {issue.path && <p className="text-xs text-gray-600">Path: {issue.path}</p>}
+                            {issue.menuPermission && issue.pagePermission && (
+                              <p className="text-xs text-gray-600 mt-1">
+                                Menu: {issue.menuPermission} → Page: {issue.pagePermission}
+                              </p>
+                            )}
+                            {issue.file && <p className="font-mono text-xs text-gray-700">{issue.file}</p>}
+                            <p className="text-xs text-gray-600 mt-1 italic">{issue.recommendation}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Permission Coverage */}
+        {data.permissionCoverage && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5 text-teal-600" />
+                Couverture des Permissions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="p-3 bg-teal-50 rounded">
+                  <p className="text-xs text-gray-600">Total</p>
+                  <p className="text-2xl font-bold text-teal-600">{data.permissionCoverage.totalPermissions}</p>
+                </div>
+                <div className="p-3 bg-green-50 rounded">
+                  <p className="text-xs text-gray-600">Utilisées</p>
+                  <p className="text-2xl font-bold text-green-600">{data.permissionCoverage.usedInFrontend}</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded">
+                  <p className="text-xs text-gray-600">Non utilisées</p>
+                  <p className="text-2xl font-bold text-gray-600">{data.permissionCoverage.unusedInFrontend.length}</p>
+                </div>
+                <div className="p-3 bg-red-50 rounded">
+                  <p className="text-xs text-gray-600">Manquantes</p>
+                  <p className="text-2xl font-bold text-red-600">{data.permissionCoverage.usedButNotInMaster.length}</p>
+                </div>
+              </div>
+
+              {data.permissionCoverage.unusedInFrontend.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="font-semibold mb-2 text-sm">
+                    Top 10 permissions inutilisées (candidates à la suppression)
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {data.permissionCoverage.unusedInFrontend.slice(0, 10).map((code, idx) => (
+                      <div key={idx} className="p-2 bg-gray-50 rounded">
+                        <code className="text-xs text-gray-700">{code}</code>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {data.permissionCoverage.usedButNotInMaster.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="font-semibold mb-2 text-sm text-red-600">
+                    Permissions utilisées mais non définies dans PERMISSIONS_MASTER
+                  </h4>
+                  <div className="space-y-1">
+                    {data.permissionCoverage.usedButNotInMaster.map((code, idx) => (
+                      <div key={idx} className="p-2 bg-red-50 rounded border border-red-200">
+                        <code className="text-xs text-red-700">{code}</code>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Orphan Permissions */}
         {data.orphanPermissions.length > 0 && (

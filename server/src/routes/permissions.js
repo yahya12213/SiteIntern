@@ -470,7 +470,41 @@ router.get('/diagnostic',
       });
     }
 
-    // 9. Score de santé global
+    // 9. Frontend Analysis - Scan frontend for unprotected routes/buttons
+    let frontendAnalysis = null;
+    let uiStructure = null;
+    let permissionCoverage = null;
+
+    try {
+      const { scan } = await import('../utils/frontendPermissionScanner.js');
+      const { validate } = await import('../utils/uiStructureValidator.js');
+
+      // Run frontend scanner
+      frontendAnalysis = await scan();
+
+      // Run UI structure validator
+      uiStructure = await validate();
+
+      // Calculate permission coverage
+      const masterPermissions = await pool.query('SELECT code FROM permissions');
+      const masterCodes = masterPermissions.rows.map(r => r.code);
+
+      permissionCoverage = {
+        totalPermissions: masterCodes.length,
+        usedInFrontend: frontendAnalysis.permissionsUsed.length,
+        unusedInFrontend: masterCodes.filter(
+          code => !frontendAnalysis.permissionsUsed.includes(code)
+        ),
+        usedButNotInMaster: frontendAnalysis.permissionsUsed.filter(
+          code => !masterCodes.includes(code)
+        )
+      };
+    } catch (scanError) {
+      console.warn('Frontend scanner error:', scanError.message);
+      // Continue without frontend analysis if scanner fails
+    }
+
+    // 10. Score de santé global
     const orphanPercentage = (orphanPerms.rows.length / parseInt(totalPerms.rows[0].count)) * 100;
     const assignmentRatio = parseInt(totalAssignments.rows[0].count) / parseInt(totalPerms.rows[0].count);
 
@@ -478,7 +512,57 @@ router.get('/diagnostic',
     healthScore -= Math.min(orphanPercentage, 30); // -1 point par % de permissions orphelines (max -30)
     healthScore -= securityIssues.length * 5; // -5 points par issue de sécurité
     healthScore -= (testResults.failed / testResults.totalTests) * 20; // -20 points max si tous les tests échouent
+
+    // Deduct points for frontend issues if scanner ran
+    if (frontendAnalysis && frontendAnalysis.issues) {
+      const criticalIssues = frontendAnalysis.issues.filter(i => i.severity === 'CRITICAL').length;
+      const highIssues = frontendAnalysis.issues.filter(i => i.severity === 'HIGH').length;
+      healthScore -= criticalIssues * 5; // -5 points per critical issue
+      healthScore -= highIssues * 2; // -2 points per high issue
+    }
+
     healthScore = Math.max(0, Math.round(healthScore));
+
+    // Build recommendations
+    const recommendations = [
+      {
+        priority: 'high',
+        message: 'Exécuter les tests régulièrement avec npm test',
+        action: 'Run tests'
+      },
+      orphanPerms.rows.length > 0 && {
+        priority: 'medium',
+        message: `${orphanPerms.rows.length} permissions ne sont assignées à aucun rôle`,
+        action: 'Review orphan permissions'
+      },
+      securityIssues.length > 0 && {
+        priority: 'high',
+        message: `${securityIssues.length} problème(s) de sécurité détecté(s)`,
+        action: 'Fix security issues'
+      }
+    ];
+
+    // Add frontend recommendations
+    if (frontendAnalysis && frontendAnalysis.issues) {
+      const criticalCount = frontendAnalysis.issues.filter(i => i.severity === 'CRITICAL').length;
+      const highCount = frontendAnalysis.issues.filter(i => i.severity === 'HIGH').length;
+
+      if (criticalCount > 0) {
+        recommendations.push({
+          priority: 'critical',
+          message: `${criticalCount} route(s) non protégée(s) détectée(s)`,
+          action: 'Secure unprotected routes'
+        });
+      }
+
+      if (highCount > 0) {
+        recommendations.push({
+          priority: 'high',
+          message: `${highCount} bouton(s) non protégé(s) détecté(s)`,
+          action: 'Add permission checks to buttons'
+        });
+      }
+    }
 
     res.json({
       success: true,
@@ -501,23 +585,10 @@ router.get('/diagnostic',
         topUsers: topUsers.rows,
         testResults,
         securityIssues,
-        recommendations: [
-          {
-            priority: 'high',
-            message: 'Exécuter les tests régulièrement avec npm test',
-            action: 'Run tests'
-          },
-          orphanPerms.rows.length > 0 && {
-            priority: 'medium',
-            message: `${orphanPerms.rows.length} permissions ne sont assignées à aucun rôle`,
-            action: 'Review orphan permissions'
-          },
-          securityIssues.length > 0 && {
-            priority: 'high',
-            message: `${securityIssues.length} problème(s) de sécurité détecté(s)`,
-            action: 'Fix security issues'
-          }
-        ].filter(Boolean)
+        frontendAnalysis,
+        uiStructure,
+        permissionCoverage,
+        recommendations: recommendations.filter(Boolean)
       }
     });
   } catch (error) {
