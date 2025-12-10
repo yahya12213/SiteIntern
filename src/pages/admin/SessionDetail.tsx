@@ -47,6 +47,7 @@ export const SessionDetail: React.FC = () => {
   const [showEditStudentModal, setShowEditStudentModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [showCropModal, setShowCropModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -961,6 +962,18 @@ export const SessionDetail: React.FC = () => {
                                         Paiements
                                       </button>
 
+                                      <button
+                                        onClick={() => {
+                                          setSelectedStudent(etudiant);
+                                          setShowDocumentsModal(true);
+                                          setOpenMenuId(null);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                      >
+                                        <FileText className="h-4 w-4" />
+                                        Voir les documents
+                                      </button>
+
                                       {/* Documents submenu */}
                                       <div className="relative">
                                         <button
@@ -1268,6 +1281,19 @@ export const SessionDetail: React.FC = () => {
           onSuccess={() => {
             refetch();
             setShowPaymentModal(false);
+            setSelectedStudent(null);
+          }}
+        />
+      )}
+
+      {/* Student Documents Modal */}
+      {showDocumentsModal && selectedStudent && session && (
+        <StudentDocumentsModal
+          sessionId={session.id}
+          studentId={selectedStudent.student_id}
+          studentName={`${selectedStudent.prenom} ${selectedStudent.nom}`}
+          onClose={() => {
+            setShowDocumentsModal(false);
             setSelectedStudent(null);
           }}
         />
