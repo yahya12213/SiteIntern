@@ -12,7 +12,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { parse } from '@babel/parser';
 import traverse from '@babel/traverse';
-import { PERMISSIONS_MASTER } from '../config/permissions.js';
+import { PERMISSIONS_MASTER } from '../config/permissions-master.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
