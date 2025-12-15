@@ -252,6 +252,39 @@ export const ElementPropertiesPanel: React.FC<ElementPropertiesPanelProps> = ({
                 ))}
               </div>
             </div>
+
+            {/* Options de mise en forme du texte */}
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-gray-600 mb-2">
+                Options de mise en forme
+              </label>
+
+              {/* Checkbox 1: Retour à la ligne */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={element.wrapText || false}
+                  onChange={(e) => handleFieldChange('wrapText', e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">Retour à la ligne automatique</span>
+              </label>
+
+              {/* Checkbox 2: Adapter la taille */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={element.shrinkToFit || false}
+                  onChange={(e) => handleFieldChange('shrinkToFit', e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">Adapter la taille du texte</span>
+              </label>
+
+              <p className="text-xs text-gray-500 mt-1">
+                Basé sur la largeur du cadre ({element.width ? `${element.width}px` : 'non définie'})
+              </p>
+            </div>
           </>
         )}
 

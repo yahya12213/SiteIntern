@@ -46,6 +46,9 @@ export interface TemplateElement {
   fontFamily?: string;
   align?: 'left' | 'center' | 'right';
   maxWidth?: string | number;
+  // Options de gestion du débordement de texte
+  wrapText?: boolean;      // Retour à la ligne si texte > width
+  shrinkToFit?: boolean;   // Réduire la taille de police pour tenir dans width
 
   // Pour les couleurs
   color?: string;

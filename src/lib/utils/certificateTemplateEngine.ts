@@ -517,21 +517,50 @@ export class CertificateTemplateEngine {
     const paddingTopMm = this.pxToMm(paddingTopPx, 'y');
     const adjustedY = y + paddingTopMm;
 
-    // Gérer le maxWidth (retour à la ligne automatique)
-    if (element.maxWidth) {
+    // Calculer la largeur disponible en mm (priorité: width du canvas)
+    const widthPx = element.width;
+    const widthMm = widthPx ? this.pxToMm(widthPx, 'x') : null;
+
+    // Option 1: Adapter la taille du texte (shrinkToFit)
+    let effectiveFontSize = fontSize;
+    if (element.shrinkToFit && widthMm) {
+      this.doc.setFontSize(fontSize);
+      const textWidth = this.doc.getTextWidth(text);
+      if (textWidth > widthMm) {
+        // Réduire proportionnellement (avec minimum de 6pt)
+        effectiveFontSize = Math.max(6, fontSize * (widthMm / textWidth) * 0.95);
+        this.doc.setFontSize(effectiveFontSize);
+      }
+    }
+
+    // Option 2: Retour à la ligne automatique (wrapText) - utilise width du canvas
+    if (element.wrapText && widthMm) {
+      const lines = this.doc.splitTextToSize(text, widthMm);
+      if (lines.length === 1) {
+        this.doc.text(lines[0], adjustedX, adjustedY, { align, baseline: 'top' });
+      } else {
+        const lineHeightMm = (effectiveFontSize * 0.3527) * 1.2;
+        lines.forEach((line: string, index: number) => {
+          this.doc.text(line, adjustedX, adjustedY + index * lineHeightMm, { align, baseline: 'top' });
+        });
+      }
+    }
+    // Fallback: maxWidth existant (rétrocompatibilité)
+    else if (element.maxWidth) {
       const maxWidthMm = this.pxToMm(element.maxWidth, 'x');
       const lines = this.doc.splitTextToSize(text, maxWidthMm);
 
       if (lines.length === 1) {
         this.doc.text(lines[0], adjustedX, adjustedY, { align, baseline: 'top' });
       } else {
-        // Afficher plusieurs lignes avec un espacement
-        const lineHeightMm = (fontSize * 0.3527) * 1.2; // Conversion points → mm avec espacement
+        const lineHeightMm = (effectiveFontSize * 0.3527) * 1.2;
         lines.forEach((line: string, index: number) => {
           this.doc.text(line, adjustedX, adjustedY + index * lineHeightMm, { align, baseline: 'top' });
         });
       }
-    } else {
+    }
+    // Texte normal sans wrapping
+    else {
       this.doc.text(text, adjustedX, adjustedY, { align, baseline: 'top' });
     }
   }
