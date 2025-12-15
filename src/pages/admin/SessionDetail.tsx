@@ -294,12 +294,12 @@ export const SessionDetail: React.FC = () => {
         await engine.appendToDocument(combinedDoc);
       }
 
-      // Nom du fichier combiné
-      const sessionName = session?.titre?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Session';
-      const templateName = template.document_type?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Document';
-      const filename = `${templateName}_${sessionName}_${selectedEtudiants.length}_etudiants.pdf`;
-
-      combinedDoc.save(filename);
+      // Téléchargement automatique désactivé (Option A)
+      // L'utilisateur peut télécharger via le bouton "Télécharger Documents"
+      // const sessionName = session?.titre?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Session';
+      // const templateName = template.document_type?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Document';
+      // const filename = `${templateName}_${sessionName}_${selectedEtudiants.length}_etudiants.pdf`;
+      // combinedDoc.save(filename);
 
       // Enregistrer chaque certificat en base de données
       console.log('💾 Enregistrement des certificats en base de données...');
