@@ -1,5 +1,3 @@
-import pool from '../db.js';
-
 /**
  * Migration 086: Fix Critical Certificate Issues
  *
@@ -11,22 +9,22 @@ import pool from '../db.js';
  * Cette migration est CRITIQUE et doit être exécutée AVANT toute modification UI
  */
 
-export const migrationInfo = {
-  id: '086',
-  name: 'fix-certificates-constraints',
-  description: 'Fix UNIQUE constraint and add indexes for certificates table',
-  date: '2025-12-15'
-};
+import express from 'express';
+import pool from '../config/database.js';
 
-export async function up() {
+const router = express.Router();
+
+router.post('/run', async (req, res) => {
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
-    console.log('Migration 086: Starting...');
+    console.log('=== Migration 086: Fix Certificate Constraints ===\n');
 
     // 1. Vérifier et supprimer l'ancienne contrainte UNIQUE si elle existe
+    console.log('Step 1: Checking for old UNIQUE constraint...');
+
     const constraintCheck = await client.query(`
       SELECT conname FROM pg_constraint
       WHERE conrelid = 'certificates'::regclass
@@ -34,17 +32,19 @@ export async function up() {
     `);
 
     if (constraintCheck.rows.length > 0) {
-      console.log('Migration 086: Dropping old UNIQUE constraint...');
+      console.log('Found old constraint, dropping...');
       await client.query(`
         ALTER TABLE certificates
         DROP CONSTRAINT certificates_student_id_formation_id_key
       `);
-      console.log('Migration 086: Old constraint dropped');
+      console.log('✓ Old UNIQUE constraint dropped');
     } else {
-      console.log('Migration 086: Old constraint not found, skipping drop');
+      console.log('⚠ Old constraint not found, skipping drop');
     }
 
     // 2. Ajouter la nouvelle contrainte UNIQUE correcte
+    console.log('\nStep 2: Adding new UNIQUE constraint...');
+
     const newConstraintCheck = await client.query(`
       SELECT conname FROM pg_constraint
       WHERE conrelid = 'certificates'::regclass
@@ -52,18 +52,19 @@ export async function up() {
     `);
 
     if (newConstraintCheck.rows.length === 0) {
-      console.log('Migration 086: Adding new UNIQUE constraint...');
       await client.query(`
         ALTER TABLE certificates
         ADD CONSTRAINT certificates_unique_document
         UNIQUE NULLS NOT DISTINCT (student_id, formation_id, session_id, document_type)
       `);
-      console.log('Migration 086: New UNIQUE constraint added');
+      console.log('✓ New UNIQUE constraint added (student_id, formation_id, session_id, document_type)');
     } else {
-      console.log('Migration 086: New UNIQUE constraint already exists, skipping');
+      console.log('⚠ New UNIQUE constraint already exists, skipping');
     }
 
     // 3. Ajouter CHECK constraint pour document_type (si pas déjà présent)
+    console.log('\nStep 3: Adding CHECK constraint for document_type...');
+
     const checkConstraintExists = await client.query(`
       SELECT conname FROM pg_constraint
       WHERE conrelid = 'certificates'::regclass
@@ -71,18 +72,19 @@ export async function up() {
     `);
 
     if (checkConstraintExists.rows.length === 0) {
-      console.log('Migration 086: Adding CHECK constraint for document_type...');
       await client.query(`
         ALTER TABLE certificates
         ADD CONSTRAINT check_document_type
         CHECK (document_type IN ('certificat', 'attestation', 'badge'))
       `);
-      console.log('Migration 086: CHECK constraint added');
+      console.log('✓ CHECK constraint added for document_type');
     } else {
-      console.log('Migration 086: CHECK constraint already exists, skipping');
+      console.log('⚠ CHECK constraint already exists, skipping');
     }
 
     // 4. Créer index sur session_id (si pas déjà présent)
+    console.log('\nStep 4: Creating index on session_id...');
+
     const sessionIdIndexExists = await client.query(`
       SELECT indexname FROM pg_indexes
       WHERE tablename = 'certificates'
@@ -90,18 +92,19 @@ export async function up() {
     `);
 
     if (sessionIdIndexExists.rows.length === 0) {
-      console.log('Migration 086: Creating index on session_id...');
       await client.query(`
         CREATE INDEX idx_certificates_session_id
         ON certificates(session_id)
         WHERE session_id IS NOT NULL
       `);
-      console.log('Migration 086: Index idx_certificates_session_id created');
+      console.log('✓ Index idx_certificates_session_id created');
     } else {
-      console.log('Migration 086: Index idx_certificates_session_id already exists, skipping');
+      console.log('⚠ Index idx_certificates_session_id already exists, skipping');
     }
 
     // 5. Créer index composite pour (session_id, document_type)
+    console.log('\nStep 5: Creating composite index on (session_id, document_type)...');
+
     const compositeIndexExists = await client.query(`
       SELECT indexname FROM pg_indexes
       WHERE tablename = 'certificates'
@@ -109,89 +112,99 @@ export async function up() {
     `);
 
     if (compositeIndexExists.rows.length === 0) {
-      console.log('Migration 086: Creating composite index...');
       await client.query(`
         CREATE INDEX idx_certificates_session_document
         ON certificates(session_id, document_type)
         WHERE session_id IS NOT NULL
       `);
-      console.log('Migration 086: Index idx_certificates_session_document created');
+      console.log('✓ Index idx_certificates_session_document created');
     } else {
-      console.log('Migration 086: Index idx_certificates_session_document already exists, skipping');
+      console.log('⚠ Index idx_certificates_session_document already exists, skipping');
     }
 
     // 6. Analyser la table pour mettre à jour les statistiques
-    console.log('Migration 086: Analyzing table...');
+    console.log('\nStep 6: Analyzing table for updated statistics...');
     await client.query('ANALYZE certificates');
+    console.log('✓ Table analyzed');
 
     await client.query('COMMIT');
 
-    console.log('Migration 086: Completed successfully');
+    console.log('\n=== Migration 086 Completed Successfully ===');
 
-    return {
+    res.json({
       success: true,
-      message: 'Migration 086 completed: Fixed UNIQUE constraint and added indexes'
-    };
+      message: 'Migration 086 completed: Fixed UNIQUE constraint and added indexes',
+      details: {
+        constraint_dropped: constraintCheck.rows.length > 0,
+        new_constraint_added: newConstraintCheck.rows.length === 0,
+        check_constraint_added: checkConstraintExists.rows.length === 0,
+        session_index_created: sessionIdIndexExists.rows.length === 0,
+        composite_index_created: compositeIndexExists.rows.length === 0
+      }
+    });
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Migration 086: Failed', error);
-    throw error;
+    console.error('Migration 086 Failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.detail || 'Check server logs for more information'
+    });
   } finally {
     client.release();
   }
-}
+});
 
-export async function down() {
-  const client = await pool.connect();
-
+// Route pour vérifier le statut
+router.get('/status', async (req, res) => {
   try {
-    await client.query('BEGIN');
+    // Vérifier si les contraintes et index existent
+    const [newConstraint, checkConstraint, sessionIndex, compositeIndex] = await Promise.all([
+      pool.query(`
+        SELECT conname FROM pg_constraint
+        WHERE conrelid = 'certificates'::regclass
+        AND conname = 'certificates_unique_document'
+      `),
+      pool.query(`
+        SELECT conname FROM pg_constraint
+        WHERE conrelid = 'certificates'::regclass
+        AND conname = 'check_document_type'
+      `),
+      pool.query(`
+        SELECT indexname FROM pg_indexes
+        WHERE tablename = 'certificates'
+        AND indexname = 'idx_certificates_session_id'
+      `),
+      pool.query(`
+        SELECT indexname FROM pg_indexes
+        WHERE tablename = 'certificates'
+        AND indexname = 'idx_certificates_session_document'
+      `)
+    ]);
 
-    console.log('Migration 086 Rollback: Starting...');
+    const allApplied =
+      newConstraint.rows.length > 0 &&
+      checkConstraint.rows.length > 0 &&
+      sessionIndex.rows.length > 0 &&
+      compositeIndex.rows.length > 0;
 
-    // 1. Supprimer les index créés
-    await client.query('DROP INDEX IF EXISTS idx_certificates_session_document');
-    await client.query('DROP INDEX IF EXISTS idx_certificates_session_id');
-
-    // 2. Supprimer la CHECK constraint
-    await client.query(`
-      ALTER TABLE certificates
-      DROP CONSTRAINT IF EXISTS check_document_type
-    `);
-
-    // 3. Supprimer la nouvelle contrainte UNIQUE
-    await client.query(`
-      ALTER TABLE certificates
-      DROP CONSTRAINT IF EXISTS certificates_unique_document
-    `);
-
-    // 4. Restaurer l'ancienne contrainte UNIQUE (attention: peut échouer si données incompatibles)
-    // await client.query(`
-    //   ALTER TABLE certificates
-    //   ADD CONSTRAINT certificates_student_id_formation_id_key
-    //   UNIQUE (student_id, formation_id)
-    // `);
-
-    await client.query('COMMIT');
-
-    console.log('Migration 086 Rollback: Completed');
-
-    return {
+    res.json({
       success: true,
-      message: 'Migration 086 rollback completed'
-    };
-
+      applied: allApplied,
+      details: {
+        unique_constraint: newConstraint.rows.length > 0,
+        check_constraint: checkConstraint.rows.length > 0,
+        session_index: sessionIndex.rows.length > 0,
+        composite_index: compositeIndex.rows.length > 0
+      }
+    });
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Migration 086 Rollback: Failed', error);
-    throw error;
-  } finally {
-    client.release();
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
-}
+});
 
-// Fonction pour exécution directe
-export default async function runMigration() {
-  return await up();
-}
+export default router;

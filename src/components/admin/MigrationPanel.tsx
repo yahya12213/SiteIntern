@@ -217,6 +217,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/migration-085-document-tracking'
   },
   {
+    id: 'migration-086',
+    name: 'Migration 086',
+    description: '🔧 FIX CRITIQUE: Corrige contrainte UNIQUE certificates (student_id, formation_id, session_id, document_type) + Index performance',
+    endpoint: '/migration-086-fix-certificates'
+  },
+  {
     id: 'migration-fix-khalid-role',
     name: 'FIX: Synchroniser role_id de Khalid Fathi',
     description: '🔧 CRITIQUE: Corrige le role_id de "khalid fathi" pour pointer vers le rôle gérant au lieu de professor',
