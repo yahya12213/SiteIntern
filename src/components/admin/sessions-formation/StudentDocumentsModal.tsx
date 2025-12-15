@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, Printer, FileText, CheckCircle2, Clock } from 'lucide-react';
+import { X, Download, Printer, FileText, CheckCircle2, Clock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { apiClient, tokenManager } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
+import { CertificateTemplateEngine } from '@/lib/utils/certificateTemplateEngine';
+import type { Certificate } from '@/lib/api/certificates';
+import type { CertificateTemplate } from '@/types/certificateTemplate';
 
 interface Document {
   id: string;
@@ -42,6 +45,7 @@ export const StudentDocumentsModal: React.FC<StudentDocumentsModalProps> = ({
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
 
   useEffect(() => {
     loadDocuments();
@@ -69,45 +73,65 @@ export const StudentDocumentsModal: React.FC<StudentDocumentsModalProps> = ({
     }
   };
 
+  /**
+   * Régénère le PDF côté frontend avec CertificateTemplateEngine
+   * pour avoir le même rendu visuel que lors de la génération initiale
+   */
+  const regeneratePdf = async (documentId: string): Promise<{ blob: Blob; fileName: string } | null> => {
+    try {
+      // Récupérer les données complètes pour régénération
+      const response = await apiClient.get<{
+        success: boolean;
+        certificate: Certificate;
+        template: CertificateTemplate;
+        error?: string;
+      }>(`/certificates/${documentId}/regenerate-data`);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Erreur lors de la récupération des données');
+      }
+
+      const { certificate, template } = response;
+
+      // Régénérer le PDF avec CertificateTemplateEngine
+      const engine = new CertificateTemplateEngine(certificate, template);
+      const doc = await engine.generate();
+
+      // Convertir en Blob
+      const pdfBlob = doc.output('blob');
+
+      // Construire le nom du fichier
+      const studentNameClean = (certificate.student_name || 'etudiant')
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9_]/g, '');
+      // Utiliser template.name car document_type n'est pas dans le type frontend
+      const docType = (template.name || 'document')
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9_]/g, '');
+      const fileName = `${docType}_${studentNameClean}_${certificate.certificate_number}.pdf`;
+
+      return { blob: pdfBlob, fileName };
+    } catch (error) {
+      console.error('Error regenerating PDF:', error);
+      throw error;
+    }
+  };
+
   const handleDownload = async (document: Document) => {
     try {
-      // Utiliser l'endpoint API pour télécharger le fichier
-      const API_URL = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_URL || '/api');
-      const token = tokenManager.getToken();
+      setGeneratingPdf(document.id);
 
-      const response = await fetch(
-        `${API_URL}/certificates/${document.id}/download`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Erreur lors du téléchargement');
+      // Régénérer le PDF côté frontend
+      const result = await regeneratePdf(document.id);
+      if (!result) {
+        throw new Error('Impossible de régénérer le PDF');
       }
 
       // Créer un lien de téléchargement
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(result.blob);
       const link = window.document.createElement('a');
       link.href = url;
-
-      // Extraire le nom du fichier du header Content-Disposition si disponible
-      const contentDisposition = response.headers.get('content-disposition');
-      let fileName = `${document.document_type}_${document.certificate_number}.pdf`;
-
-      if (contentDisposition) {
-        const matches = contentDisposition.match(/filename="?([^";\n]+)"?/);
-        if (matches && matches[1]) {
-          fileName = matches[1];
-        }
-      }
-
-      link.download = fileName;
+      link.download = result.fileName;
       window.document.body.appendChild(link);
       link.click();
       window.document.body.removeChild(link);
@@ -115,35 +139,23 @@ export const StudentDocumentsModal: React.FC<StudentDocumentsModalProps> = ({
     } catch (error: any) {
       console.error('Error downloading document:', error);
       alert(error.message || 'Erreur lors du téléchargement du document');
+    } finally {
+      setGeneratingPdf(null);
     }
   };
 
   const handlePrint = async (document: Document) => {
     try {
-      // Ouvrir le PDF dans un nouvel onglet pour visualisation et impression
-      const API_URL = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_URL || '/api');
-      const token = tokenManager.getToken();
+      setGeneratingPdf(document.id);
 
-      // Construire l'URL avec le token dans le header n'est pas possible pour window.open
-      // On utilise donc fetch puis on crée un blob URL
-      const response = await fetch(
-        `${API_URL}/certificates/${document.id}/view`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Erreur lors du chargement du document');
+      // Régénérer le PDF côté frontend
+      const result = await regeneratePdf(document.id);
+      if (!result) {
+        throw new Error('Impossible de régénérer le PDF');
       }
 
       // Créer un blob URL et l'ouvrir dans un nouvel onglet
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(result.blob);
 
       // Ouvrir dans un nouvel onglet - le PDF s'affichera dans le viewer du navigateur
       const printWindow = window.open(url, '_blank');
@@ -156,6 +168,8 @@ export const StudentDocumentsModal: React.FC<StudentDocumentsModalProps> = ({
     } catch (error: any) {
       console.error('Error printing document:', error);
       alert(error.message || 'Erreur lors de l\'ouverture du document');
+    } finally {
+      setGeneratingPdf(null);
     }
   };
 
@@ -237,7 +251,7 @@ export const StudentDocumentsModal: React.FC<StudentDocumentsModalProps> = ({
               <div className="text-center text-red-600">
                 <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>{error}</p>
-                <Button onClick={loadDocuments} variant="outline" className="mt-4">
+                <Button type="button" onClick={loadDocuments} variant="outline" className="mt-4">
                   Réessayer
                 </Button>
               </div>
@@ -290,26 +304,36 @@ export const StudentDocumentsModal: React.FC<StudentDocumentsModalProps> = ({
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
-                          {doc.file_path && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleDownload(doc)}
-                                title="Télécharger"
-                              >
-                                <Download className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handlePrint(doc)}
-                                title="Imprimer"
-                              >
-                                <Printer className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDownload(doc)}
+                            disabled={generatingPdf === doc.id}
+                            title="Télécharger le document"
+                            aria-label={`Télécharger ${getDocumentTypeLabel(doc.document_type)}`}
+                          >
+                            {generatingPdf === doc.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handlePrint(doc)}
+                            disabled={generatingPdf === doc.id}
+                            title="Ouvrir pour impression"
+                            aria-label={`Imprimer ${getDocumentTypeLabel(doc.document_type)}`}
+                          >
+                            {generatingPdf === doc.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Printer className="h-4 w-4" />
+                            )}
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -322,7 +346,7 @@ export const StudentDocumentsModal: React.FC<StudentDocumentsModalProps> = ({
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
-          <Button onClick={onClose} variant="outline">
+          <Button type="button" onClick={onClose} variant="outline">
             Fermer
           </Button>
         </div>

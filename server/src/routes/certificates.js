@@ -750,4 +750,136 @@ router.post('/:id/mark-printed',
   }
 );
 
+/**
+ * Récupérer les données complètes d'un certificat pour régénération PDF côté frontend
+ * GET /api/certificates/:certificateId/regenerate-data
+ * Protected: Requires training.certificates.view permission
+ *
+ * Retourne toutes les données nécessaires pour régénérer le PDF avec CertificateTemplateEngine côté frontend
+ */
+router.get('/:certificateId/regenerate-data',
+  authenticateToken,
+  requirePermission('training.certificates.view'),
+  async (req, res) => {
+    try {
+      const { certificateId } = req.params;
+
+      // Récupérer le certificat avec toutes les données jointes
+      const certResult = await pool.query(`
+        SELECT
+          c.*,
+          s.prenom as student_first_name,
+          s.nom as student_last_name,
+          s.cin as student_cin,
+          s.email as student_email,
+          s.telephone as student_phone,
+          s.whatsapp as student_whatsapp,
+          s.date_naissance as student_birth_date,
+          s.lieu_naissance as student_birth_place,
+          s.adresse as student_address,
+          s.profile_image_url as student_photo_url,
+          f.title as formation_title,
+          f.description as formation_description,
+          f.duration_hours,
+          sf.titre as session_title,
+          sf.date_debut as session_date_debut,
+          sf.date_fin as session_date_fin,
+          v.name as session_ville,
+          seg.name as session_segment,
+          cf.name as session_corps_formation
+        FROM certificates c
+        LEFT JOIN students s ON s.id = c.student_id
+        LEFT JOIN formations f ON f.id = c.formation_id
+        LEFT JOIN sessions_formation sf ON sf.id = c.session_id
+        LEFT JOIN villes v ON v.id = sf.ville_id
+        LEFT JOIN segments seg ON seg.id = sf.segment_id
+        LEFT JOIN corps_formation cf ON cf.id = sf.corps_formation_id
+        WHERE c.id = $1
+      `, [certificateId]);
+
+      if (certResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Certificat introuvable'
+        });
+      }
+
+      const cert = certResult.rows[0];
+
+      // Récupérer le template complet
+      if (!cert.template_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Template non défini pour ce certificat'
+        });
+      }
+
+      const templateResult = await pool.query(
+        'SELECT * FROM certificate_templates WHERE id = $1',
+        [cert.template_id]
+      );
+
+      if (templateResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Template introuvable'
+        });
+      }
+
+      const template = templateResult.rows[0];
+
+      // Construire les données pour CertificateTemplateEngine
+      const certificateData = {
+        id: cert.id,
+        student_id: cert.student_id,
+        formation_id: cert.formation_id,
+        student_name: `${cert.student_first_name || ''} ${cert.student_last_name || ''}`.trim(),
+        student_email: cert.student_email || '',
+        formation_title: cert.formation_title || '',
+        formation_description: cert.formation_description || '',
+        duration_hours: cert.duration_hours || 0,
+        certificate_number: cert.certificate_number,
+        issued_at: cert.issued_at,
+        completion_date: cert.completion_date,
+        grade: cert.grade,
+        metadata: {
+          ...(typeof cert.metadata === 'object' ? cert.metadata : {}),
+          student_first_name: cert.student_first_name || '',
+          student_last_name: cert.student_last_name || '',
+          cin: cert.student_cin || '',
+          phone: cert.student_phone || '',
+          whatsapp: cert.student_whatsapp || '',
+          date_naissance: cert.student_birth_date || '',
+          lieu_naissance: cert.student_birth_place || '',
+          adresse: cert.student_address || '',
+          organization_name: cert.session_title || 'Session de Formation',
+          session_title: cert.session_title || '',
+          session_date_debut: cert.session_date_debut || '',
+          session_date_fin: cert.session_date_fin || '',
+          session_ville: cert.session_ville || '',
+          session_segment: cert.session_segment || '',
+          session_corps_formation: cert.session_corps_formation || '',
+          student_photo_url: cert.student_photo_url || '',
+          certificate_serial: cert.certificate_number || '',
+        },
+        created_at: cert.created_at,
+        updated_at: cert.updated_at,
+      };
+
+      res.json({
+        success: true,
+        certificate: certificateData,
+        template: template
+      });
+
+    } catch (error) {
+      console.error('Error fetching regenerate data:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
 export default router;
