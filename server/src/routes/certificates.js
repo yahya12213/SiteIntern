@@ -192,13 +192,18 @@ router.post('/generate',
     const certificate = certResult.rows[0];
 
     // Préparer les données pour le PDF
+    // Note: certificate.metadata est déjà un objet JS (PostgreSQL jsonb est auto-parsé par le driver pg)
+    const existingMetadata = typeof certificate.metadata === 'string'
+      ? JSON.parse(certificate.metadata || '{}')
+      : (certificate.metadata || {});
+
     const certData = {
       ...certificate,
       student_name: `${student.prenom} ${student.nom}`,
       formation_title: formation.title,
       duration_hours: formation.duration_hours,
       metadata: {
-        ...JSON.parse(certificate.metadata || '{}'),
+        ...existingMetadata,
         prenom: student.prenom,
         nom: student.nom,
         cin: student.cin
