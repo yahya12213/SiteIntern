@@ -276,17 +276,23 @@ export function MigrationPanel({ open, onOpenChange }: MigrationPanelProps) {
       addLog(`Checking status of ${migration.name}...`);
       const response = await apiClient.get<any>(`${migration.endpoint}/status`);
 
+      // Handle different response formats from migrations
+      // Format 1: { status: { migrationNeeded: boolean }, message: string }
+      // Format 2: { success: boolean, applied: boolean, details: object }
+      const isApplied = response.applied ?? (response.status && !response.status.migrationNeeded);
+      const needsRun = !isApplied;
+
       setStatuses(prev => ({
         ...prev,
         [migration.id]: {
-          applied: !response.status.migrationNeeded,
-          needsRun: response.status.migrationNeeded,
-          message: response.message,
-          details: response.status
+          applied: isApplied,
+          needsRun: needsRun,
+          message: response.message || (isApplied ? 'Migration applied' : 'Migration needed'),
+          details: response.details || response.status
         }
       }));
 
-      addLog(`✓ ${migration.name}: ${response.message}`);
+      addLog(`✓ ${migration.name}: ${response.message || (isApplied ? 'Applied' : 'Needs run')}`);
     } catch (error: any) {
       addLog(`✗ Error checking ${migration.name}: ${error.message}`);
       setStatuses(prev => ({
