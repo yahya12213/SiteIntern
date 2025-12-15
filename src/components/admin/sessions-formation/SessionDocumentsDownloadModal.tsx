@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Download, FileText, Loader2, AlertCircle, Package } from 'lucide-react';
-import { apiClient, tokenManager } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 import { CertificateTemplateEngine } from '@/lib/utils/certificateTemplateEngine';
 import type { Certificate } from '@/lib/api/certificates';
 import type { CertificateTemplate } from '@/types/certificateTemplate';
