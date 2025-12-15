@@ -1174,7 +1174,7 @@ export const SessionDetail: React.FC = () => {
         <StudentDocumentsModal
           sessionId={session.id}
           studentId={selectedStudent.student_id}
-          studentName={`${selectedStudent.prenom} ${selectedStudent.nom}`}
+          studentName={selectedStudent.student_name || `${selectedStudent.student_first_name || ''} ${selectedStudent.student_last_name || ''}`.trim() || 'Étudiant'}
           onClose={() => {
             setShowDocumentsModal(false);
             setSelectedStudent(null);
