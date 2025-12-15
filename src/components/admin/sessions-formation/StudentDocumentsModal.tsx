@@ -119,8 +119,44 @@ export const StudentDocumentsModal: React.FC<StudentDocumentsModalProps> = ({
   };
 
   const handlePrint = async (document: Document) => {
-    // For now, just download - QZ Tray integration will come later
-    handleDownload(document);
+    try {
+      // Ouvrir le PDF dans un nouvel onglet pour visualisation et impression
+      const API_URL = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_URL || '/api');
+      const token = tokenManager.getToken();
+
+      // Construire l'URL avec le token dans le header n'est pas possible pour window.open
+      // On utilise donc fetch puis on crée un blob URL
+      const response = await fetch(
+        `${API_URL}/certificates/${document.id}/view`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erreur lors du chargement du document');
+      }
+
+      // Créer un blob URL et l'ouvrir dans un nouvel onglet
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      // Ouvrir dans un nouvel onglet - le PDF s'affichera dans le viewer du navigateur
+      const printWindow = window.open(url, '_blank');
+
+      if (!printWindow) {
+        // Si le popup est bloqué, informer l'utilisateur
+        alert('Le popup a été bloqué par le navigateur. Veuillez autoriser les popups pour ce site puis réessayer.');
+      }
+      // Note: L'utilisateur pourra imprimer manuellement depuis le viewer PDF du navigateur (Ctrl+P)
+    } catch (error: any) {
+      console.error('Error printing document:', error);
+      alert(error.message || 'Erreur lors de l\'ouverture du document');
+    }
   };
 
   const getDocumentTypeLabel = (type: string) => {
