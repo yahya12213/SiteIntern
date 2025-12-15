@@ -303,20 +303,29 @@ export const SessionDetail: React.FC = () => {
 
       // Enregistrer chaque certificat en base de données
       console.log('💾 Enregistrement des certificats en base de données...');
+      console.log('📋 Données template:', {
+        template_id: template.template_id,
+        document_type: template.document_type,
+        template_name: template.template_name
+      });
       let savedCount = 0;
 
       for (const etudiant of selectedEtudiants) {
         try {
-          const response = await apiClient.post('/certificates/generate', {
+          // Debug: afficher les données envoyées
+          const requestData = {
             student_id: etudiant.student_id,
             formation_id: etudiant.formation_id,
-            session_id: id || session?.id, // ✅ CONFIRMÉ: id disponible (ligne 42)
+            session_id: id || session?.id,
             template_id: template.template_id,
             completion_date: new Date().toISOString(),
             grade: null,
             document_type: template.document_type || 'certificat',
             template_name: template.template_name
-          }) as { success: boolean; error?: string };
+          };
+          console.log(`📤 Envoi pour ${etudiant.student_name}:`, requestData);
+
+          const response = await apiClient.post('/certificates/generate', requestData) as { success: boolean; error?: string };
 
           if (response.success) {
             savedCount++;
@@ -324,8 +333,14 @@ export const SessionDetail: React.FC = () => {
           } else {
             console.error(`❌ Échec enregistrement pour ${etudiant.student_name}:`, response.error);
           }
-        } catch (error) {
-          console.error(`❌ Erreur enregistrement pour ${etudiant.student_name}:`, error);
+        } catch (error: any) {
+          // Log détaillé pour debug
+          console.error(`❌ Erreur enregistrement pour ${etudiant.student_name}:`, {
+            message: error.message,
+            status: error.status,
+            code: error.code,
+            fullError: error
+          });
         }
       }
 
