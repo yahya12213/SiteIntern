@@ -784,14 +784,14 @@ router.get('/:certificateId/regenerate-data',
           sf.titre as session_title,
           sf.date_debut as session_date_debut,
           sf.date_fin as session_date_fin,
-          v.name as session_ville,
+          ci.name as session_ville,
           seg.name as session_segment,
           cf.name as session_corps_formation
         FROM certificates c
         LEFT JOIN students s ON s.id = c.student_id
         LEFT JOIN formations f ON f.id = c.formation_id
         LEFT JOIN sessions_formation sf ON sf.id = c.session_id
-        LEFT JOIN villes v ON v.id = sf.ville_id
+        LEFT JOIN cities ci ON ci.id = sf.ville_id
         LEFT JOIN segments seg ON seg.id = sf.segment_id
         LEFT JOIN corps_formation cf ON cf.id = sf.corps_formation_id
         WHERE c.id = $1
