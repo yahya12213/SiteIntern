@@ -1853,4 +1853,62 @@ router.get('/:sessionId/documents/:documentType/download',
   }
 );
 
+/**
+ * GET /api/sessions-formation/:sessionId/certificates-list
+ * Retourne la liste des IDs de certificats pour un type de document donné
+ * Utilisé par le frontend pour régénérer les PDFs côté client
+ * SCOPE: Vérifie que l'utilisateur a accès à cette session
+ */
+router.get('/:sessionId/certificates-list',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
+  injectUserScope,
+  requireRecordScope('sessions_formation', 'sessionId', 'segment_id', 'ville_id'),
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { document_type } = req.query;
+
+      console.log(`📋 Fetching certificates list for session: ${sessionId}, type: ${document_type || 'all'}`);
+
+      let query = `
+        SELECT
+          c.id,
+          c.certificate_number,
+          c.document_type,
+          c.issued_at,
+          s.nom as student_last_name,
+          s.prenom as student_first_name
+        FROM certificates c
+        LEFT JOIN students s ON s.id = c.student_id
+        WHERE c.session_id = $1
+      `;
+      const params = [sessionId];
+
+      if (document_type) {
+        query += ` AND c.document_type = $2`;
+        params.push(document_type);
+      }
+
+      query += ` ORDER BY s.nom, s.prenom`;
+
+      const result = await pool.query(query, params);
+
+      console.log(`✓ Found ${result.rows.length} certificate(s)`);
+
+      res.json({
+        success: true,
+        certificates: result.rows
+      });
+
+    } catch (error) {
+      console.error('Error fetching certificates list:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
 export default router;

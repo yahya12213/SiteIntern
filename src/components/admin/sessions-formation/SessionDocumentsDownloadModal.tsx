@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { X, Download, FileText, Loader2, AlertCircle, Package } from 'lucide-react';
 import { apiClient, tokenManager } from '@/lib/api/client';
+import { CertificateTemplateEngine } from '@/lib/utils/certificateTemplateEngine';
+import type { Certificate } from '@/lib/api/certificates';
+import type { CertificateTemplate } from '@/types/certificateTemplate';
+import JSZip from 'jszip';
 
 interface DocumentSummary {
   document_type: string;
@@ -8,6 +12,15 @@ interface DocumentSummary {
   latest_date: string;
   first_date: string;
   printed_count: string;
+}
+
+interface CertificateListItem {
+  id: string;
+  certificate_number: string;
+  document_type: string;
+  issued_at: string;
+  student_last_name: string;
+  student_first_name: string;
 }
 
 interface SessionDocumentsDownloadModalProps {
@@ -37,6 +50,7 @@ export function SessionDocumentsDownloadModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number } | null>(null);
   const [totalDocuments, setTotalDocuments] = useState(0);
 
   useEffect(() => {
@@ -66,61 +80,122 @@ export function SessionDocumentsDownloadModal({
     }
   };
 
+  /**
+   * Régénère un PDF côté frontend avec CertificateTemplateEngine
+   */
+  const regeneratePdf = async (certificateId: string): Promise<{ blob: Blob; fileName: string } | null> => {
+    try {
+      const response = await apiClient.get<{
+        success: boolean;
+        certificate: Certificate;
+        template: CertificateTemplate;
+        error?: string;
+      }>(`/certificates/${certificateId}/regenerate-data`);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Erreur lors de la récupération des données');
+      }
+
+      const { certificate, template } = response;
+
+      // Régénérer le PDF avec CertificateTemplateEngine
+      const engine = new CertificateTemplateEngine(certificate, template);
+      const doc = await engine.generate();
+
+      // Convertir en Blob
+      const pdfBlob = doc.output('blob');
+
+      // Construire le nom du fichier
+      const studentName = (certificate.student_name || 'etudiant')
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9_]/g, '');
+      const fileName = `${studentName}_${certificate.certificate_number}.pdf`;
+
+      return { blob: pdfBlob, fileName };
+    } catch (error) {
+      console.error('Error regenerating PDF:', error);
+      return null;
+    }
+  };
+
+  /**
+   * Télécharge tous les documents d'un type en créant un ZIP côté frontend
+   */
   const handleDownload = async (documentType: string) => {
     try {
       setDownloading(documentType);
+      setDownloadProgress({ current: 0, total: 0 });
 
-      // Utiliser fetch directement pour les téléchargements de blob
-      const API_URL = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_URL || '/api');
-      const token = tokenManager.getToken();
+      // 1. Récupérer la liste des certificats pour ce type
+      const listResponse = await apiClient.get<{
+        success: boolean;
+        certificates: CertificateListItem[];
+        error?: string
+      }>(`/sessions-formation/${sessionId}/certificates-list?document_type=${documentType}`);
 
-      const response = await fetch(
-        `${API_URL}/sessions-formation/${sessionId}/documents/${documentType}/download`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          alert('Aucun document trouvé pour ce type');
-          return;
-        }
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Erreur lors du téléchargement');
+      if (!listResponse.success || !listResponse.certificates?.length) {
+        alert('Aucun document trouvé pour ce type');
+        return;
       }
 
-      // Créer un lien de téléchargement
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const certificates = listResponse.certificates;
+      setDownloadProgress({ current: 0, total: certificates.length });
+
+      // 2. Créer le ZIP
+      const zip = new JSZip();
+      let successCount = 0;
+      let errorCount = 0;
+
+      // 3. Régénérer chaque PDF et l'ajouter au ZIP
+      for (let i = 0; i < certificates.length; i++) {
+        const cert = certificates[i];
+        setDownloadProgress({ current: i + 1, total: certificates.length });
+
+        try {
+          const result = await regeneratePdf(cert.id);
+          if (result) {
+            zip.file(result.fileName, result.blob);
+            successCount++;
+          } else {
+            console.error(`Failed to regenerate PDF for ${cert.certificate_number}`);
+            errorCount++;
+          }
+        } catch (err) {
+          console.error(`Error regenerating PDF for ${cert.certificate_number}:`, err);
+          errorCount++;
+        }
+      }
+
+      if (successCount === 0) {
+        alert('Impossible de générer les PDFs. Veuillez réessayer.');
+        return;
+      }
+
+      // 4. Générer et télécharger le ZIP
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+      const cleanTitle = sessionTitle.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 50);
+      const fileName = `${documentType}_${cleanTitle}_${new Date().toISOString().split('T')[0]}.zip`;
+
+      const url = window.URL.createObjectURL(zipBlob);
       const link = document.createElement('a');
       link.href = url;
-
-      // Extraire le nom du fichier du header Content-Disposition si disponible
-      const contentDisposition = response.headers.get('content-disposition');
-      let fileName = `${documentType}_${sessionTitle.replace(/[^a-zA-Z0-9]/g, '_')}.zip`;
-
-      if (contentDisposition) {
-        const matches = contentDisposition.match(/filename="?([^";\n]+)"?/);
-        if (matches && matches[1]) {
-          fileName = matches[1];
-        }
-      }
-
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
+      if (errorCount > 0) {
+        alert(`ZIP téléchargé avec ${successCount} document(s). ${errorCount} document(s) n'ont pas pu être générés.`);
+      }
+
     } catch (err: any) {
       console.error('Error downloading documents:', err);
       alert(err.message || 'Erreur lors du téléchargement');
     } finally {
       setDownloading(null);
+      setDownloadProgress(null);
     }
   };
 
@@ -156,7 +231,8 @@ export function SessionDocumentsDownloadModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            disabled={downloading !== null}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
           >
             <X className="h-5 w-5 text-gray-500" />
           </button>
@@ -221,9 +297,9 @@ export function SessionDocumentsDownloadModal({
                   <button
                     type="button"
                     onClick={() => handleDownload(doc.document_type)}
-                    disabled={downloading === doc.document_type}
+                    disabled={downloading !== null}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      downloading === doc.document_type
+                      downloading !== null
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
@@ -231,7 +307,11 @@ export function SessionDocumentsDownloadModal({
                     {downloading === doc.document_type ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Préparation...
+                        {downloadProgress ? (
+                          <span>{downloadProgress.current}/{downloadProgress.total}</span>
+                        ) : (
+                          <span>Préparation...</span>
+                        )}
                       </>
                     ) : (
                       <>
@@ -251,7 +331,8 @@ export function SessionDocumentsDownloadModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            disabled={downloading !== null}
+            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
           >
             Fermer
           </button>
