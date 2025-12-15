@@ -7,6 +7,7 @@ import { EditStudentModal } from '@/components/admin/sessions-formation/EditStud
 import { DiscountModal } from '@/components/admin/sessions-formation/DiscountModal';
 import { PaymentManagerModal } from '@/components/admin/sessions-formation/PaymentManagerModal';
 import { StudentDocumentsModal } from '@/components/admin/sessions-formation/StudentDocumentsModal';
+import { SessionDocumentsDownloadModal } from '@/components/admin/sessions-formation/SessionDocumentsDownloadModal';
 import { ImageCropperModal } from '@/components/admin/students/ImageCropperModal';
 import { apiClient } from '@/lib/api/client';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
@@ -33,9 +34,9 @@ import {
   Square,
   ShieldCheck,
   ShieldX,
-  ChevronRight,
   FileDown,
   Loader2,
+  Download,
 } from 'lucide-react';
 
 export const SessionDetail: React.FC = () => {
@@ -54,113 +55,11 @@ export const SessionDetail: React.FC = () => {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [isChangingStatus, setIsChangingStatus] = useState(false);
-  const [documentSubmenuOpen, setDocumentSubmenuOpen] = useState<string | null>(null);
-  const [availableDocuments, setAvailableDocuments] = useState<Record<string, any[]>>({});
-  const [loadingDocuments, setLoadingDocuments] = useState<string | null>(null);
-  const [generatingDocument, setGeneratingDocument] = useState<string | null>(null);
   const [showBulkDocumentModal, setShowBulkDocumentModal] = useState(false);
   const [bulkTemplates, setBulkTemplates] = useState<any[]>([]);
   const [generatingBulkDocuments, setGeneratingBulkDocuments] = useState(false);
   const [bulkGenerationProgress, setBulkGenerationProgress] = useState({ current: 0, total: 0, templateName: '' });
-
-  // Charger les documents disponibles pour un étudiant
-  const loadAvailableDocuments = async (studentId: string) => {
-    if (availableDocuments[studentId]) {
-      setDocumentSubmenuOpen(studentId);
-      return;
-    }
-
-    setLoadingDocuments(studentId);
-    try {
-      const response = await apiClient.get(`/sessions-formation/${id}/etudiants/${studentId}/available-documents`) as { templates: any[] };
-      setAvailableDocuments(prev => ({
-        ...prev,
-        [studentId]: response.templates || []
-      }));
-      setDocumentSubmenuOpen(studentId);
-    } catch (error: any) {
-      console.error('Error loading documents:', error);
-      alert('Erreur lors du chargement des documents: ' + error.message);
-    } finally {
-      setLoadingDocuments(null);
-    }
-  };
-
-  // Générer et télécharger un document
-  const handleGenerateDocument = async (etudiant: any, template: any) => {
-    if (etudiant.student_status === 'abandonne') {
-      alert('Impossible de générer le document: cet étudiant a le statut "Abandonné".');
-      return;
-    }
-
-    setGeneratingDocument(`${etudiant.student_id}-${template.template_id}`);
-    try {
-      // Récupérer le template complet avec sa configuration
-      const templateResponse = await apiClient.get(`/certificate-templates/${template.template_id}`) as { success: boolean; template: CertificateTemplate };
-      const fullTemplate: CertificateTemplate = templateResponse.template;
-
-      // Construire l'objet Certificate avec les données de l'étudiant
-      const certificateData: Certificate = {
-        id: `temp-${Date.now()}`,
-        student_id: etudiant.student_id,
-        formation_id: etudiant.formation_id,
-        student_name: etudiant.student_name,
-        student_email: etudiant.student_email || '',
-        formation_title: etudiant.formation_title || '',
-        formation_description: '',
-        duration_hours: 0,
-        certificate_number: `DOC-${Date.now()}`,
-        issued_at: new Date().toISOString(),
-        completion_date: new Date().toISOString(),
-        grade: null,
-        metadata: {
-          student_first_name: etudiant.student_first_name || etudiant.student_name?.split(' ')[0] || '',
-          student_last_name: etudiant.student_last_name || etudiant.student_name?.split(' ').slice(1).join(' ') || '',
-          cin: etudiant.student_cin || '',
-          phone: etudiant.student_phone || '',
-          whatsapp: etudiant.student_whatsapp || '',
-          date_naissance: etudiant.student_birth_date || '',
-          lieu_naissance: etudiant.student_birth_place || '',
-          adresse: etudiant.student_address || '',
-          organization_name: session?.titre || 'Session de Formation',
-          // Session data
-          session_title: session?.titre || '',
-          session_date_debut: session?.date_debut || '',
-          session_date_fin: session?.date_fin || '',
-          session_ville: session?.ville_name || '',
-          session_segment: session?.segment_name || '',
-          session_corps_formation: session?.corps_formation_name || '',
-          // Student photo
-          student_photo_url: etudiant.profile_image_url || '',
-          // Certificate serial (to be generated)
-          certificate_serial: `${etudiant.student_id?.substring(0, 8) || 'XXXX'}-${Date.now().toString(36).toUpperCase()}`,
-        },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      // Générer le PDF
-      const engine = new CertificateTemplateEngine(certificateData, fullTemplate);
-      const doc = await engine.generate();
-
-      // Formater le nom de fichier: NomPrenom_NomSession_TypeDocument.pdf
-      const studentName = etudiant.student_name?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Etudiant';
-      const sessionName = session?.titre?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Session';
-      const documentType = template.document_type?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Document';
-      const filename = `${studentName}_${sessionName}_${documentType}.pdf`;
-
-      // Télécharger le PDF
-      doc.save(filename);
-
-      setOpenMenuId(null);
-      setDocumentSubmenuOpen(null);
-    } catch (error: any) {
-      console.error('Error generating document:', error);
-      alert('Erreur lors de la génération du document: ' + error.message);
-    } finally {
-      setGeneratingDocument(null);
-    }
-  };
+  const [showSessionDocumentsModal, setShowSessionDocumentsModal] = useState(false);
 
   const handleDeleteStudent = async (etudiant: any) => {
     if (!confirm(`Êtes-vous sûr de vouloir retirer ${etudiant.student_name} de cette session?`)) {
@@ -706,12 +605,21 @@ export const SessionDetail: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">
                     Liste des étudiants ({session.etudiants?.length || 0})
                   </h3>
-                  <button
-                    onClick={() => setShowAddStudentModal(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Ajouter un étudiant
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setShowAddStudentModal(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Ajouter un étudiant
+                    </button>
+                    <button
+                      onClick={() => setShowSessionDocumentsModal(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <Download className="h-4 w-4" />
+                      Télécharger Documents
+                    </button>
+                  </div>
                 </div>
 
                 {session.etudiants && session.etudiants.length > 0 ? (
@@ -952,7 +860,6 @@ export const SessionDetail: React.FC = () => {
                                       className="fixed inset-0 z-10"
                                       onClick={() => {
                                         setOpenMenuId(null);
-                                        setDocumentSubmenuOpen(null);
                                       }}
                                     />
                                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
@@ -1003,60 +910,6 @@ export const SessionDetail: React.FC = () => {
                                         <FileText className="h-4 w-4" />
                                         Voir les documents
                                       </button>
-
-                                      {/* Documents submenu */}
-                                      <div className="relative">
-                                        <button
-                                          onClick={() => loadAvailableDocuments(etudiant.student_id)}
-                                          onMouseEnter={() => loadAvailableDocuments(etudiant.student_id)}
-                                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between"
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            <FileDown className="h-4 w-4" />
-                                            Documents
-                                          </div>
-                                          {loadingDocuments === etudiant.student_id ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                          ) : (
-                                            <ChevronRight className="h-4 w-4" />
-                                          )}
-                                        </button>
-
-                                        {/* Documents submenu panel */}
-                                        {documentSubmenuOpen === etudiant.student_id && availableDocuments[etudiant.student_id] && (
-                                          <div className="absolute left-full top-0 ml-1 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-30">
-                                            {availableDocuments[etudiant.student_id].length === 0 ? (
-                                              <div className="px-4 py-3 text-sm text-gray-500 italic">
-                                                Aucun document disponible pour cette formation
-                                              </div>
-                                            ) : (
-                                              <>
-                                                <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase border-b border-gray-100">
-                                                  Documents disponibles
-                                                </div>
-                                                {availableDocuments[etudiant.student_id].map((template: any) => (
-                                                  <button
-                                                    key={template.template_id}
-                                                    onClick={() => handleGenerateDocument(etudiant, template)}
-                                                    disabled={generatingDocument === `${etudiant.student_id}-${template.template_id}` || etudiant.student_status === 'abandonne'}
-                                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-blue-50 flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed"
-                                                  >
-                                                    <div className="flex flex-col">
-                                                      <span className="font-medium">{template.template_name}</span>
-                                                      <span className="text-xs text-gray-500">{template.document_type}</span>
-                                                    </div>
-                                                    {generatingDocument === `${etudiant.student_id}-${template.template_id}` ? (
-                                                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                                                    ) : (
-                                                      <FileDown className="h-4 w-4 text-blue-600" />
-                                                    )}
-                                                  </button>
-                                                ))}
-                                              </>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
 
                                       <div className="border-t border-gray-200 my-1" />
 
@@ -1406,6 +1259,15 @@ export const SessionDetail: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal téléchargement documents session */}
+      {showSessionDocumentsModal && session && (
+        <SessionDocumentsDownloadModal
+          sessionId={session.id}
+          sessionTitle={session.titre}
+          onClose={() => setShowSessionDocumentsModal(false)}
+        />
       )}
     </AppLayout>
   );

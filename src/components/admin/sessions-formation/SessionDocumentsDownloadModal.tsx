@@ -1,0 +1,264 @@
+import { useState, useEffect } from 'react';
+import { X, Download, FileText, Loader2, AlertCircle, Package } from 'lucide-react';
+import { apiClient, tokenManager } from '@/lib/api/client';
+
+interface DocumentSummary {
+  document_type: string;
+  count: string;
+  latest_date: string;
+  first_date: string;
+  printed_count: string;
+}
+
+interface SessionDocumentsDownloadModalProps {
+  sessionId: string;
+  sessionTitle: string;
+  onClose: () => void;
+}
+
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  certificat: 'Certificats',
+  attestation: 'Attestations',
+  badge: 'Badges'
+};
+
+const DOCUMENT_TYPE_COLORS: Record<string, string> = {
+  certificat: 'bg-blue-100 text-blue-800',
+  attestation: 'bg-green-100 text-green-800',
+  badge: 'bg-purple-100 text-purple-800'
+};
+
+export function SessionDocumentsDownloadModal({
+  sessionId,
+  sessionTitle,
+  onClose
+}: SessionDocumentsDownloadModalProps) {
+  const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [totalDocuments, setTotalDocuments] = useState(0);
+
+  useEffect(() => {
+    loadDocumentsSummary();
+  }, [sessionId]);
+
+  const loadDocumentsSummary = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await apiClient.get<{ success: boolean; documents: DocumentSummary[]; total_documents: number; error?: string }>(
+        `/sessions-formation/${sessionId}/documents-summary`
+      );
+
+      if (response.success) {
+        setDocuments(response.documents);
+        setTotalDocuments(response.total_documents || 0);
+      } else {
+        setError(response.error || 'Erreur lors du chargement');
+      }
+    } catch (err: any) {
+      console.error('Error loading documents summary:', err);
+      setError(err.message || 'Erreur de connexion');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = async (documentType: string) => {
+    try {
+      setDownloading(documentType);
+
+      // Utiliser fetch directement pour les téléchargements de blob
+      const API_URL = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_URL || '/api');
+      const token = tokenManager.getToken();
+
+      const response = await fetch(
+        `${API_URL}/sessions-formation/${sessionId}/documents/${documentType}/download`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          alert('Aucun document trouvé pour ce type');
+          return;
+        }
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erreur lors du téléchargement');
+      }
+
+      // Créer un lien de téléchargement
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Extraire le nom du fichier du header Content-Disposition si disponible
+      const contentDisposition = response.headers.get('content-disposition');
+      let fileName = `${documentType}_${sessionTitle.replace(/[^a-zA-Z0-9]/g, '_')}.zip`;
+
+      if (contentDisposition) {
+        const matches = contentDisposition.match(/filename="?([^";\n]+)"?/);
+        if (matches && matches[1]) {
+          fileName = matches[1];
+        }
+      }
+
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+    } catch (err: any) {
+      console.error('Error downloading documents:', err);
+      alert(err.message || 'Erreur lors du téléchargement');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <Package className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Télécharger Documents
+              </h2>
+              <p className="text-sm text-gray-500 truncate max-w-xs">
+                {sessionTitle}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-4">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 text-blue-500 animate-spin mb-3" />
+              <p className="text-gray-500">Chargement des documents...</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-8 text-red-500">
+              <AlertCircle className="h-8 w-8 mb-3" />
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={loadDocumentsSummary}
+                className="mt-3 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+              >
+                Réessayer
+              </button>
+            </div>
+          ) : documents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+              <FileText className="h-12 w-12 mb-3 text-gray-300" />
+              <p className="text-lg font-medium">Aucun document généré</p>
+              <p className="text-sm mt-1">
+                Générez d'abord des documents pour les étudiants de cette session
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Résumé total */}
+              <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold text-gray-900">{totalDocuments}</span> document(s) générés au total
+                </p>
+              </div>
+
+              {/* Liste des types de documents */}
+              {documents.map((doc) => (
+                <div
+                  key={doc.document_type}
+                  className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 text-sm font-medium rounded-full ${DOCUMENT_TYPE_COLORS[doc.document_type] || 'bg-gray-100 text-gray-800'}`}>
+                      {DOCUMENT_TYPE_LABELS[doc.document_type] || doc.document_type}
+                    </span>
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {doc.count} document{parseInt(doc.count) > 1 ? 's' : ''}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Dernier: {formatDate(doc.latest_date)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDownload(doc.document_type)}
+                    disabled={downloading === doc.document_type}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      downloading === doc.document_type
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    {downloading === doc.document_type ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Préparation...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4" />
+                        ZIP
+                      </>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-3 p-4 border-t bg-gray-50 rounded-b-lg">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default SessionDocumentsDownloadModal;

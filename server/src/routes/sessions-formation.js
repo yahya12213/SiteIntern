@@ -1663,4 +1663,194 @@ router.get('/:sessionId/students/:studentId/documents',
   }
 );
 
+// ============================================
+// DOCUMENTS DE SESSION - RÉSUMÉ ET TÉLÉCHARGEMENT
+// ============================================
+
+const VALID_DOCUMENT_TYPES = ['certificat', 'attestation', 'badge'];
+
+/**
+ * GET /api/sessions-formation/:sessionId/documents-summary
+ * Retourne un résumé des documents générés pour une session, groupés par type
+ * SCOPE: Vérifie que l'utilisateur a accès à cette session
+ */
+router.get('/:sessionId/documents-summary',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
+  injectUserScope,
+  requireRecordScope('sessions_formation', 'sessionId', 'segment_id', 'ville_id'),
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+
+      console.log(`📊 Fetching documents summary for session: ${sessionId}`);
+
+      // Récupérer le résumé des documents par type
+      const summary = await pool.query(`
+        SELECT
+          c.document_type,
+          COUNT(c.id) as count,
+          MAX(c.issued_at) as latest_date,
+          MIN(c.issued_at) as first_date,
+          COUNT(CASE WHEN c.print_status = 'printed' THEN 1 END) as printed_count
+        FROM certificates c
+        WHERE c.session_id = $1
+        GROUP BY c.document_type
+        ORDER BY c.document_type
+      `, [sessionId]);
+
+      // Calculer le total
+      const totalDocuments = summary.rows.reduce(
+        (sum, doc) => sum + parseInt(doc.count), 0
+      );
+
+      console.log(`✓ Found ${totalDocuments} document(s) in ${summary.rows.length} type(s)`);
+
+      res.json({
+        success: true,
+        documents: summary.rows,
+        total_documents: totalDocuments
+      });
+
+    } catch (error) {
+      console.error('Error fetching documents summary:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/sessions-formation/:sessionId/documents/:documentType/download
+ * Télécharge un ZIP contenant tous les PDFs d'un type de document pour une session
+ * SCOPE: Vérifie que l'utilisateur a accès à cette session
+ */
+router.get('/:sessionId/documents/:documentType/download',
+  authenticateToken,
+  requirePermission('training.sessions.view_page'),
+  injectUserScope,
+  requireRecordScope('sessions_formation', 'sessionId', 'segment_id', 'ville_id'),
+  async (req, res) => {
+    try {
+      const { sessionId, documentType } = req.params;
+
+      console.log(`📥 Download request: session=${sessionId}, type=${documentType}`);
+
+      // Validation du type de document
+      if (!VALID_DOCUMENT_TYPES.includes(documentType)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid document type',
+          allowed_types: VALID_DOCUMENT_TYPES
+        });
+      }
+
+      // Récupérer les informations de la session pour le nom du fichier
+      const sessionResult = await pool.query(
+        'SELECT titre FROM sessions_formation WHERE id = $1',
+        [sessionId]
+      );
+
+      const sessionTitle = sessionResult.rows[0]?.titre || 'session';
+
+      // Récupérer tous les certificats avec leurs chemins de fichiers
+      const certs = await pool.query(`
+        SELECT
+          c.file_path,
+          c.certificate_number,
+          c.document_type,
+          c.issued_at,
+          s.nom,
+          s.prenom
+        FROM certificates c
+        LEFT JOIN students s ON s.id = c.student_id
+        WHERE c.session_id = $1 AND c.document_type = $2
+        ORDER BY s.nom, s.prenom
+      `, [sessionId, documentType]);
+
+      if (certs.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Aucun document trouvé pour ce type'
+        });
+      }
+
+      console.log(`📦 Creating ZIP with ${certs.rows.length} document(s)`);
+
+      // Vérifier si archiver est disponible
+      const archiver = (await import('archiver')).default;
+      const fs = await import('fs');
+      const path = await import('path');
+
+      // Créer le ZIP
+      const archive = archiver('zip', { zlib: { level: 9 } });
+
+      // Nettoyer le titre pour le nom de fichier
+      const cleanTitle = sessionTitle.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 50);
+      const fileName = `${documentType}_${cleanTitle}_${new Date().toISOString().split('T')[0]}.zip`;
+
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+      archive.pipe(res);
+
+      // Compteur de fichiers ajoutés
+      let addedCount = 0;
+      let missingCount = 0;
+
+      for (const cert of certs.rows) {
+        if (cert.file_path) {
+          // Construire le chemin absolu
+          let filePath = cert.file_path;
+
+          // Si c'est un chemin relatif, le rendre absolu
+          if (!path.default.isAbsolute(filePath)) {
+            filePath = path.default.join(process.cwd(), filePath);
+          }
+
+          // Vérifier si le fichier existe
+          if (fs.default.existsSync(filePath)) {
+            const studentName = [cert.nom, cert.prenom].filter(Boolean).join('_') || 'unknown';
+            const pdfName = `${studentName}_${cert.certificate_number}.pdf`;
+
+            archive.file(filePath, { name: pdfName });
+            addedCount++;
+          } else {
+            console.warn(`⚠️ File not found: ${filePath}`);
+            missingCount++;
+          }
+        } else {
+          console.warn(`⚠️ No file_path for certificate: ${cert.certificate_number}`);
+          missingCount++;
+        }
+      }
+
+      console.log(`✓ ZIP created: ${addedCount} files added, ${missingCount} missing`);
+
+      // Si aucun fichier n'a été ajouté, ajouter un fichier README
+      if (addedCount === 0) {
+        archive.append(
+          `Aucun fichier PDF trouvé pour les ${certs.rows.length} certificat(s) de type "${documentType}".\n\nLes fichiers PDF ne sont pas disponibles sur le serveur.`,
+          { name: 'README.txt' }
+        );
+      }
+
+      await archive.finalize();
+
+    } catch (error) {
+      console.error('Error downloading documents:', error);
+
+      // Si headers pas encore envoyés, envoyer erreur JSON
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    }
+  }
+);
+
 export default router;
