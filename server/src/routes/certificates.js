@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'fs';
 import pool from '../config/database.js';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import { nanoid } from 'nanoid';
@@ -284,6 +285,73 @@ router.post('/generate',
     client.release();
   }
 });
+
+/**
+ * Télécharger un certificat par son ID
+ * GET /api/certificates/:certificateId/download
+ * Protected: Requires training.certificates.view permission
+ */
+router.get('/:certificateId/download',
+  authenticateToken,
+  requirePermission('training.certificates.view'),
+  async (req, res) => {
+    try {
+      const { certificateId } = req.params;
+
+      // Récupérer le certificat
+      const result = await pool.query(
+        `SELECT c.*, s.nom, s.prenom
+         FROM certificates c
+         LEFT JOIN students s ON s.id = c.student_id
+         WHERE c.id = $1`,
+        [certificateId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Certificat non trouvé'
+        });
+      }
+
+      const certificate = result.rows[0];
+
+      if (!certificate.file_path) {
+        return res.status(404).json({
+          success: false,
+          error: 'Fichier PDF non disponible pour ce certificat'
+        });
+      }
+
+      // Vérifier que le fichier existe
+      if (!fs.existsSync(certificate.file_path)) {
+        console.error(`File not found: ${certificate.file_path}`);
+        return res.status(404).json({
+          success: false,
+          error: 'Fichier PDF introuvable sur le serveur'
+        });
+      }
+
+      // Générer un nom de fichier propre
+      const studentName = `${certificate.nom || 'Etudiant'}_${certificate.prenom || ''}`.replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `${certificate.document_type || 'certificat'}_${studentName}_${certificate.certificate_number}.pdf`;
+
+      // Envoyer le fichier
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+      const fileStream = fs.createReadStream(certificate.file_path);
+      fileStream.pipe(res);
+
+    } catch (error) {
+      console.error('Error downloading certificate:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
 
 /**
  * Récupérer tous les certificats d'un étudiant

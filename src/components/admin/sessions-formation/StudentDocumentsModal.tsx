@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Download, Printer, FileText, CheckCircle2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { apiClient } from '@/lib/api/client';
+import { apiClient, tokenManager } from '@/lib/api/client';
 
 interface Document {
   id: string;
@@ -69,10 +69,52 @@ export const StudentDocumentsModal: React.FC<StudentDocumentsModalProps> = ({
     }
   };
 
-  const handleDownload = (document: Document) => {
-    if (document.file_path) {
-      // Open PDF in new tab for download
-      window.open(document.file_path, '_blank');
+  const handleDownload = async (document: Document) => {
+    try {
+      // Utiliser l'endpoint API pour télécharger le fichier
+      const API_URL = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_URL || '/api');
+      const token = tokenManager.getToken();
+
+      const response = await fetch(
+        `${API_URL}/certificates/${document.id}/download`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erreur lors du téléchargement');
+      }
+
+      // Créer un lien de téléchargement
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+
+      // Extraire le nom du fichier du header Content-Disposition si disponible
+      const contentDisposition = response.headers.get('content-disposition');
+      let fileName = `${document.document_type}_${document.certificate_number}.pdf`;
+
+      if (contentDisposition) {
+        const matches = contentDisposition.match(/filename="?([^";\n]+)"?/);
+        if (matches && matches[1]) {
+          fileName = matches[1];
+        }
+      }
+
+      link.download = fileName;
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Error downloading document:', error);
+      alert(error.message || 'Erreur lors du téléchargement du document');
     }
   };
 
