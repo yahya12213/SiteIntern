@@ -33,7 +33,7 @@ router.post('/generate',
   let createdFolders = [];
 
   try {
-    let { student_id, formation_id, session_id, completion_date, grade, metadata, template_id } = req.body;
+    let { student_id, formation_id, session_id, completion_date, grade, metadata, template_id, document_type, template_name } = req.body;
 
     // Validation des champs requis
     if (!student_id || !formation_id || !completion_date) {
@@ -64,16 +64,20 @@ router.post('/generate',
       }
     }
 
-    // Vérifier si un certificat existe déjà
+    // Vérifier si un certificat existe déjà pour cette combinaison student + formation + session
+    // Note: On vérifie avec session_id pour permettre plusieurs certificats par formation dans différentes sessions
     const existingCert = await client.query(
-      'SELECT id FROM certificates WHERE student_id = $1 AND formation_id = $2',
-      [student_id, formation_id]
+      `SELECT id FROM certificates
+       WHERE student_id = $1 AND formation_id = $2
+       AND (session_id = $3 OR (session_id IS NULL AND $3 IS NULL))`,
+      [student_id, formation_id, session_id || null]
     );
 
     if (existingCert.rows.length > 0) {
+      console.log(`⚠️ Certificate already exists for student ${student_id}, formation ${formation_id}, session ${session_id || 'NULL'}`);
       return res.status(409).json({
         success: false,
-        error: 'Certificate already exists for this student and formation',
+        error: 'Certificate already exists for this student and formation in this session',
         certificate_id: existingCert.rows[0].id,
       });
     }
@@ -164,8 +168,9 @@ router.post('/generate',
     const certResult = await client.query(
       `INSERT INTO certificates (
         student_id, formation_id, session_id, certificate_number,
-        completion_date, grade, metadata, template_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        completion_date, grade, metadata, template_id,
+        document_type, template_name, print_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
       [
         student_id,
@@ -176,6 +181,9 @@ router.post('/generate',
         grade || null,
         metadata ? JSON.stringify(metadata) : '{}',
         finalTemplateId,
+        document_type || 'certificat',
+        template_name || template.name || 'Template par défaut',
+        'not_printed'
       ]
     );
 
