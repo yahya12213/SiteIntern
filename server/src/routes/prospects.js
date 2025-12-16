@@ -292,7 +292,7 @@ router.post('/',
           nom, prenom, cin, segment_id, ville_id, assigned_to,
           statut_contact, date_injection, is_auto_assigned, created_by
         )
-        VALUES ($1, $2, $3, $4, $5, 'valide', $6, $7, $8, $9, $10, $11, 'nouveau', NOW(), $12, $13)
+        VALUES ($1, $2, $3, $4, $5, 'valide', $6, $7, $8, $9, $10, $11, 'non contacté', NOW(), $12, $13)
         RETURNING *
       `;
 
@@ -512,7 +512,7 @@ router.post('/import',
             id, phone_raw, phone_international, country_code, country, statut_validation_numero,
             segment_id, ville_id, statut_contact, date_injection, created_by
           )
-          VALUES ($1, $2, $3, $4, $5, 'valide', $6, $7, 'nouveau', NOW(), $8)
+          VALUES ($1, $2, $3, $4, $5, 'valide', $6, $7, 'non contacté', NOW(), $8)
         `, [
           prospectId,
           line.phone,
