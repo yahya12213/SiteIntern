@@ -624,15 +624,15 @@ export const SessionDetail: React.FC = () => {
                     {/* Légende des couleurs */}
                     <div className="flex items-center gap-4 mt-2 text-xs">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-3 h-3 rounded bg-green-100 border border-green-300"></span>
+                        <span className="w-3 h-3 rounded bg-green-200 border border-green-400"></span>
                         <span className="text-gray-600">Documents générés</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span>
+                        <span className="w-3 h-3 rounded bg-yellow-200 border border-yellow-400"></span>
                         <span className="text-gray-600">Documents non générés</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="w-3 h-3 rounded bg-red-100 border border-red-300"></span>
+                        <span className="w-3 h-3 rounded bg-red-200 border border-red-400"></span>
                         <span className="text-gray-600">Abandonné</span>
                       </div>
                     </div>
@@ -723,14 +723,14 @@ export const SessionDetail: React.FC = () => {
                           const getRowColorClass = () => {
                             // Rouge : étudiant abandonné
                             if (etudiant.student_status === 'abandonne') {
-                              return 'bg-red-50 hover:bg-red-100';
+                              return 'bg-red-200 hover:bg-red-300';
                             }
                             // Vert : documents générés
                             if (etudiant.has_documents) {
-                              return 'bg-green-50 hover:bg-green-100';
+                              return 'bg-green-200 hover:bg-green-300';
                             }
                             // Jaune : documents non générés (étudiant non abandonné)
-                            return 'bg-yellow-50 hover:bg-yellow-100';
+                            return 'bg-yellow-200 hover:bg-yellow-300';
                           };
 
                           return (
