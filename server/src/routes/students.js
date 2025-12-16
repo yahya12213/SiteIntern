@@ -142,13 +142,13 @@ router.get('/with-sessions',
         sf.titre as session_titre,
         sf.session_type,
         sf.statut as session_statut,
-        v.name as ville,
+        c.name as ville,
         cf.name as formation_titre,
         CASE WHEN se.id IS NOT NULL THEN true ELSE false END as has_session
       FROM students s
       LEFT JOIN session_etudiants se ON s.id = se.student_id
       LEFT JOIN sessions_formation sf ON se.session_id = sf.id
-      LEFT JOIN villes v ON sf.ville_id = v.id
+      LEFT JOIN cities c ON sf.ville_id = c.id
       LEFT JOIN corps_formation cf ON sf.corps_formation_id = cf.id
       ORDER BY
         CASE WHEN se.id IS NULL THEN 0 ELSE 1 END,
