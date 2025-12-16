@@ -1,6 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 
+// Interface pour les formations
+export interface FormationForAssignment {
+  id: string;
+  title: string;
+  description?: string;
+  price: number | string;
+  corps_formation_id?: string;
+  is_pack?: boolean;
+}
+
 export interface StudentWithSession {
   id: string;
   nom: string;
@@ -59,18 +69,32 @@ export function useStudentsListStats(students: StudentWithSession[] | undefined)
   };
 }
 
+// Hook pour récupérer les formations par corps_formation_id
+export function useFormationsByCorps(corpsFormationId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['formations', 'by-corps', corpsFormationId],
+    queryFn: async () => {
+      if (!corpsFormationId) return [];
+      return apiClient.get<FormationForAssignment[]>(`/cours?corps_id=${corpsFormationId}`);
+    },
+    enabled: !!corpsFormationId,
+  });
+}
+
 // Hook pour affecter un étudiant à une session
 export function useAssignStudentToSession() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ sessionId, studentId, montantTotal }: {
+    mutationFn: async ({ sessionId, studentId, formationId, montantTotal }: {
       sessionId: string;
       studentId: string;
+      formationId: string;
       montantTotal: number;
     }) => {
-      return apiClient.post(`/cours/sessions/${sessionId}/etudiants`, {
+      return apiClient.post(`/sessions-formation/${sessionId}/etudiants`, {
         student_id: studentId,
+        formation_id: formationId,
         montant_total: montantTotal,
       });
     },

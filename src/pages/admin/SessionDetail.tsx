@@ -1150,9 +1150,11 @@ export const SessionDetail: React.FC = () => {
       )}
 
       {/* Edit Student Modal */}
-      {showEditStudentModal && selectedStudent && (
+      {showEditStudentModal && selectedStudent && session && (
         <EditStudentModal
           student={selectedStudent}
+          sessionId={session.id}
+          corpsFormationId={session.corps_formation_id}
           onClose={() => {
             setShowEditStudentModal(false);
             setSelectedStudent(null);

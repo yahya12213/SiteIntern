@@ -1,12 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, User, AlertCircle, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { apiClient } from '@/lib/api/client';
 
+interface Formation {
+  id: string;
+  title: string;
+  price: number;
+  is_pack: boolean;
+}
+
+interface Session {
+  id: string;
+  titre: string;
+}
+
 interface EditStudentModalProps {
   student: {
-    id: string;
+    id: string; // session_etudiants.id
+    session_id: string;
     student_id: string;
     student_name?: string;
     student_first_name?: string;
@@ -19,13 +32,25 @@ interface EditStudentModalProps {
     student_birth_place?: string;
     student_address?: string;
     profile_image_url?: string;
+    // Formation info
+    formation_id?: string;
+    formation_title?: string;
+    formation_original_price?: number | string;
+    montant_paye?: number | string;
+    discount_percentage?: number | string;
+    numero_bon?: string;
+    statut_compte?: string;
   };
+  sessionId: string;
+  corpsFormationId?: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
 export const EditStudentModal: React.FC<EditStudentModalProps> = ({
   student,
+  sessionId,
+  corpsFormationId,
   onClose,
   onSuccess,
 }) => {
@@ -34,15 +59,24 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
   const prenom = student.student_last_name || student.student_name?.split(' ').slice(1).join(' ') || '';
 
   const [formData, setFormData] = useState({
+    // Personal info
     nom: nom,
     prenom: prenom,
     cin: student.student_cin || '',
     email: student.student_email || '',
     phone: student.student_phone || '',
     whatsapp: student.student_whatsapp || '',
+    // Administrative info
     date_naissance: student.student_birth_date ? student.student_birth_date.split('T')[0] : '',
     lieu_naissance: student.student_birth_place || '',
     adresse: student.student_address || '',
+    // Formation info
+    session_id: sessionId,
+    formation_id: student.formation_id || '',
+    numero_bon: student.numero_bon || '',
+    discount_percentage: String(student.discount_percentage || '0'),
+    avance: String(student.montant_paye || '0'),
+    statut_compte: student.statut_compte || 'actif',
   });
 
   const [profileImage, setProfileImage] = useState<File | null>(null);
@@ -51,6 +85,48 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Dropdown data
+  const [formations, setFormations] = useState<Formation[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loadingFormations, setLoadingFormations] = useState(false);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+
+  // Selected formation details
+  const selectedFormation = formations.find((f) => f.id === formData.formation_id);
+
+  // Load formations and sessions
+  useEffect(() => {
+    if (corpsFormationId) {
+      fetchFormations();
+      fetchSessions();
+    }
+  }, [corpsFormationId]);
+
+  const fetchFormations = async () => {
+    try {
+      setLoadingFormations(true);
+      const data = await apiClient.get<Formation[]>(`/cours?corps_id=${corpsFormationId}`);
+      setFormations(data);
+    } catch (error) {
+      console.error('Error fetching formations:', error);
+    } finally {
+      setLoadingFormations(false);
+    }
+  };
+
+  const fetchSessions = async () => {
+    try {
+      setLoadingSessions(true);
+      const response = await apiClient.get(`/sessions-formation?corps_formation_id=${corpsFormationId}`);
+      setSessions((response as any).sessions || []);
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      setSessions([]);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -67,13 +143,20 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
   const validate = () => {
     const newErrors: Record<string, string> = {};
 
+    // Personal info
     if (!formData.nom.trim()) newErrors.nom = 'Le nom est obligatoire';
     if (!formData.prenom.trim()) newErrors.prenom = 'Le prénom est obligatoire';
     if (!formData.cin.trim()) newErrors.cin = 'Le CIN est obligatoire';
     if (!formData.phone.trim()) newErrors.phone = 'Le téléphone est obligatoire';
+
+    // Administrative info
     if (!formData.date_naissance) newErrors.date_naissance = 'La date de naissance est obligatoire';
     if (!formData.lieu_naissance.trim()) newErrors.lieu_naissance = 'Le lieu de naissance est obligatoire';
     if (!formData.adresse.trim()) newErrors.adresse = "L'adresse est obligatoire";
+
+    // Formation info
+    if (!formData.formation_id) newErrors.formation = 'La formation est obligatoire';
+    if (!formData.numero_bon.trim()) newErrors.numero_bon = 'Le numéro de bon est obligatoire';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -89,24 +172,44 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      // Créer FormData pour supporter l'upload d'image
-      const updateData = new FormData();
-      updateData.append('nom', formData.nom.trim());
-      updateData.append('prenom', formData.prenom.trim());
-      updateData.append('cin', formData.cin.trim());
-      updateData.append('email', formData.email.trim());
-      updateData.append('phone', formData.phone.trim());
-      updateData.append('whatsapp', formData.whatsapp.trim());
-      updateData.append('date_naissance', formData.date_naissance);
-      updateData.append('lieu_naissance', formData.lieu_naissance.trim());
-      updateData.append('adresse', formData.adresse.trim());
+      // 1. Mettre à jour les données personnelles de l'étudiant
+      const studentData = new FormData();
+      studentData.append('nom', formData.nom.trim());
+      studentData.append('prenom', formData.prenom.trim());
+      studentData.append('cin', formData.cin.trim());
+      studentData.append('email', formData.email.trim());
+      studentData.append('phone', formData.phone.trim());
+      studentData.append('whatsapp', formData.whatsapp.trim());
+      studentData.append('date_naissance', formData.date_naissance);
+      studentData.append('lieu_naissance', formData.lieu_naissance.trim());
+      studentData.append('adresse', formData.adresse.trim());
+      studentData.append('statut_compte', formData.statut_compte);
 
       if (profileImage) {
-        updateData.append('profile_image', profileImage);
+        studentData.append('profile_image', profileImage);
       }
 
-      // Mettre à jour l'étudiant
-      await apiClient.put(`/students/${student.student_id}`, updateData);
+      await apiClient.put(`/students/${student.student_id}`, studentData);
+
+      // 2. Mettre à jour les données d'inscription (session_etudiants)
+      const formationPrice = selectedFormation?.price || parseFloat(String(student.formation_original_price)) || 0;
+      const discountPct = parseFloat(formData.discount_percentage) || 0;
+      const discountAmount = (formationPrice * discountPct) / 100;
+      const priceAfterDiscount = formationPrice - discountAmount;
+      const avance = parseFloat(formData.avance) || 0;
+
+      await apiClient.put(`/sessions-formation/${sessionId}/etudiants/${student.id}`, {
+        formation_id: formData.formation_id,
+        numero_bon: formData.numero_bon.trim(),
+        discount_percentage: discountPct,
+        montant_paye: avance,
+        statut_paiement:
+          avance >= priceAfterDiscount
+            ? 'paye'
+            : avance > 0
+            ? 'partiellement_paye'
+            : 'impaye',
+      });
 
       onSuccess();
       onClose();
@@ -118,11 +221,20 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
     }
   };
 
+  // Calculer le montant restant après remise
+  const formationPrice = selectedFormation?.price || parseFloat(String(student.formation_original_price)) || 0;
+  const discountPct = parseFloat(formData.discount_percentage) || 0;
+  const discountAmount = (formationPrice * discountPct) / 100;
+  const priceAfterDiscount = formationPrice - discountAmount;
+  const montantRestant = formData.avance
+    ? Math.max(0, priceAfterDiscount - parseFloat(formData.avance))
+    : priceAfterDiscount;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
+        <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white z-10">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-green-100 rounded-lg">
               <User className="h-5 w-5 text-green-600" />
@@ -149,42 +261,10 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
             </div>
           )}
 
-          {/* Photo de profil */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Image de profil
-            </label>
-            <div className="flex items-center gap-4">
-              {profileImagePreview && (
-                <img
-                  src={profileImagePreview}
-                  alt="Preview"
-                  className="h-20 w-20 rounded-full object-cover border-2 border-gray-200"
-                />
-              )}
-              <label className="cursor-pointer">
-                <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                  <Upload className="h-4 w-4" />
-                  <span className="text-sm">
-                    {profileImagePreview ? 'Changer la photo' : 'Choisir une photo'}
-                  </span>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          </div>
-
           {/* Section: Informations Personnelles */}
-          <div className="border-t pt-6">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Informations Personnelles</h3>
-
-            {/* Nom et Prénom */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations Personnelles</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nom <span className="text-red-500">*</span>
@@ -210,10 +290,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                 />
                 {errors.prenom && <p className="text-xs text-red-600 mt-1">{errors.prenom}</p>}
               </div>
-            </div>
 
-            {/* CIN et Email */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   CIN <span className="text-red-500">*</span>
@@ -236,10 +313,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                   placeholder="Email"
                 />
               </div>
-            </div>
 
-            {/* Téléphone et WhatsApp */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Téléphone <span className="text-red-500">*</span>
@@ -265,11 +339,9 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
           </div>
 
           {/* Section: Informations Administratives */}
-          <div className="border-t pt-6">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Informations Administratives</h3>
-
-            {/* Date et Lieu de naissance */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations Administratives</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Date de naissance <span className="text-red-500">*</span>
@@ -280,7 +352,9 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                   onChange={(e) => setFormData({ ...formData, date_naissance: e.target.value })}
                   className={errors.date_naissance ? 'border-red-300' : ''}
                 />
-                {errors.date_naissance && <p className="text-xs text-red-600 mt-1">{errors.date_naissance}</p>}
+                {errors.date_naissance && (
+                  <p className="text-xs text-red-600 mt-1">{errors.date_naissance}</p>
+                )}
               </div>
 
               <div>
@@ -293,22 +367,184 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                   placeholder="Lieu de naissance"
                   className={errors.lieu_naissance ? 'border-red-300' : ''}
                 />
-                {errors.lieu_naissance && <p className="text-xs text-red-600 mt-1">{errors.lieu_naissance}</p>}
+                {errors.lieu_naissance && (
+                  <p className="text-xs text-red-600 mt-1">{errors.lieu_naissance}</p>
+                )}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Adresse <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={formData.adresse}
+                  onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
+                  placeholder="Adresse"
+                  className={errors.adresse ? 'border-red-300' : ''}
+                />
+                {errors.adresse && <p className="text-xs text-red-600 mt-1">{errors.adresse}</p>}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Image de profil
+                </label>
+                <div className="flex items-center gap-4">
+                  {profileImagePreview && (
+                    <img
+                      src={profileImagePreview}
+                      alt="Preview"
+                      className="h-20 w-20 rounded-full object-cover border-2 border-gray-200"
+                    />
+                  )}
+                  <label className="cursor-pointer">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                      <Upload className="h-4 w-4" />
+                      <span className="text-sm">
+                        {profileImagePreview ? 'Changer la photo' : 'Choisir une photo'}
+                      </span>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Adresse */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Adresse <span className="text-red-500">*</span>
-              </label>
-              <Input
-                value={formData.adresse}
-                onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
-                placeholder="Adresse"
-                className={errors.adresse ? 'border-red-300' : ''}
-              />
-              {errors.adresse && <p className="text-xs text-red-600 mt-1">{errors.adresse}</p>}
+          {/* Section: Informations de Formation */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations de Formation</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Session
+                </label>
+                <select
+                  value={formData.session_id}
+                  disabled
+                  title="Session de formation"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                >
+                  {sessions.length > 0 ? (
+                    sessions.map((session) => (
+                      <option key={session.id} value={session.id}>
+                        {session.titre}
+                      </option>
+                    ))
+                  ) : (
+                    <option value={sessionId}>Session actuelle</option>
+                  )}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">La session ne peut pas être modifiée</p>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Formation <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.formation_id}
+                  onChange={(e) => setFormData({ ...formData, formation_id: e.target.value })}
+                  title="Formation"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.formation ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  disabled={loadingFormations}
+                >
+                  <option value="">Choisir une formation</option>
+                  {formations.map((formation) => (
+                    <option key={formation.id} value={formation.id}>
+                      {formation.title} ({formation.price} DH)
+                      {formation.is_pack && ' - Pack'}
+                    </option>
+                  ))}
+                </select>
+                {errors.formation && <p className="text-xs text-red-600 mt-1">{errors.formation}</p>}
+                {selectedFormation && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    Prix de la formation: {selectedFormation.price} DH
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Numéro de bon <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={formData.numero_bon}
+                  onChange={(e) => setFormData({ ...formData, numero_bon: e.target.value })}
+                  placeholder="Numéro de bon"
+                  className={errors.numero_bon ? 'border-red-300' : ''}
+                />
+                {errors.numero_bon && <p className="text-xs text-red-600 mt-1">{errors.numero_bon}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Remise (%)
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={formData.discount_percentage}
+                  onChange={(e) => setFormData({ ...formData, discount_percentage: e.target.value })}
+                  placeholder="0"
+                />
+                {selectedFormation && discountPct > 0 && (
+                  <p className="text-xs text-green-600 mt-1">
+                    Remise: {discountPct.toFixed(2)}% (-{discountAmount.toFixed(2)} DH)
+                  </p>
+                )}
+                {formationPrice > 0 && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    Prix après remise: {priceAfterDiscount.toFixed(2)} DH
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Avance payée (DH)
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.avance}
+                  onChange={(e) => setFormData({ ...formData, avance: e.target.value })}
+                  placeholder="Avance"
+                />
+                {formData.avance && formationPrice > 0 && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    Montant restant: {montantRestant.toFixed(2)} DH
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Statut de compte
+                </label>
+                <select
+                  value={formData.statut_compte}
+                  onChange={(e) => setFormData({ ...formData, statut_compte: e.target.value })}
+                  title="Statut de compte"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="actif">Actif</option>
+                  <option value="inactif">Inactif</option>
+                  <option value="suspendu">Suspendu</option>
+                  <option value="diplome">Diplômé</option>
+                </select>
+              </div>
             </div>
           </div>
 

@@ -58,6 +58,8 @@ export interface SessionEtudiant {
   discount_percentage?: number | string;
   discount_reason?: string;
   formation_original_price?: number | string;
+  numero_bon?: string;
+  statut_compte?: 'actif' | 'inactif' | 'suspendu' | 'diplome';
   date_inscription: string;
   created_at: string;
   updated_at: string;

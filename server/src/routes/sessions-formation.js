@@ -783,7 +783,7 @@ router.get('/:sessionId/etudiants/:studentId/available-documents',
 
 /**
  * PUT /api/sessions-formation/:sessionId/etudiants/:etudiantId
- * Modifier l'inscription d'un étudiant (paiement)
+ * Modifier l'inscription d'un étudiant (paiement, formation, numero_bon)
  * Protected: Requires training.sessions.edit_student permission
  */
 router.put('/:sessionId/etudiants/:etudiantId',
@@ -792,7 +792,7 @@ router.put('/:sessionId/etudiants/:etudiantId',
   async (req, res) => {
   try {
     const { sessionId, etudiantId } = req.params;
-    const { statut_paiement, montant_paye, discount_percentage, discount_reason } = req.body;
+    const { statut_paiement, montant_paye, discount_percentage, discount_reason, formation_id, numero_bon } = req.body;
 
     const now = new Date().toISOString();
 
@@ -867,8 +867,10 @@ router.put('/:sessionId/etudiants/:etudiantId',
         discount_amount = COALESCE($5, discount_amount),
         discount_reason = COALESCE($6, discount_reason),
         montant_total = COALESCE($7, montant_total),
-        updated_at = $8
-      WHERE session_id = $9 AND student_id = $10
+        formation_id = COALESCE($8, formation_id),
+        numero_bon = COALESCE($9, numero_bon),
+        updated_at = $10
+      WHERE session_id = $11 AND student_id = $12
       RETURNING *
     `;
 
@@ -880,6 +882,8 @@ router.put('/:sessionId/etudiants/:etudiantId',
       new_discount_amount,
       discount_reason,
       new_discount_percentage !== null ? montant_total : null,
+      formation_id || null,
+      numero_bon || null,
       now,
       sessionId,
       etudiantId
