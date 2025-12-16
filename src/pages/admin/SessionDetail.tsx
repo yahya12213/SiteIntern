@@ -617,9 +617,26 @@ export const SessionDetail: React.FC = () => {
             {activeTab === 'etudiants' && (
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Liste des étudiants ({session.etudiants?.length || 0})
-                  </h3>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Liste des étudiants ({session.etudiants?.length || 0})
+                    </h3>
+                    {/* Légende des couleurs */}
+                    <div className="flex items-center gap-4 mt-2 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-3 h-3 rounded bg-green-100 border border-green-300"></span>
+                        <span className="text-gray-600">Documents générés</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span>
+                        <span className="text-gray-600">Validé (sans documents)</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-3 h-3 rounded bg-red-100 border border-red-300"></span>
+                        <span className="text-gray-600">Abandonné</span>
+                      </div>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setShowAddStudentModal(true)}
@@ -701,8 +718,23 @@ export const SessionDetail: React.FC = () => {
                             .join('')
                             .toUpperCase() || '??';
 
+                          // Déterminer la couleur de la ligne selon le statut
+                          // Rouge: abandonné | Vert: documents générés | Jaune: validé sans documents
+                          const getRowColorClass = () => {
+                            if (etudiant.student_status === 'abandonne') {
+                              return 'bg-red-50 hover:bg-red-100';
+                            }
+                            if (etudiant.has_documents) {
+                              return 'bg-green-50 hover:bg-green-100';
+                            }
+                            if (etudiant.student_status === 'valide') {
+                              return 'bg-yellow-50 hover:bg-yellow-100';
+                            }
+                            return 'hover:bg-gray-50';
+                          };
+
                           return (
-                            <tr key={etudiant.id} className={`hover:bg-gray-50 ${etudiant.student_status === 'abandonne' ? 'bg-red-50' : ''}`}>
+                            <tr key={etudiant.id} className={getRowColorClass()}>
                               {/* Checkbox */}
                               <td className="px-4 py-3">
                                 <button

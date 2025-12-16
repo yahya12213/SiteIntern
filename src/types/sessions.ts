@@ -72,6 +72,9 @@ export interface SessionEtudiant {
   // Données de la formation (JOIN)
   formation_title?: string;
   formation_is_pack?: boolean;
+
+  // Info documents générés
+  has_documents?: boolean;
 }
 
 /**

@@ -154,7 +154,7 @@ router.get('/:id',
 
       const session = sessionResult.rows[0];
 
-    // Étudiants
+    // Étudiants (avec info sur les documents générés)
     const etudiantsQuery = `
       SELECT
         se.*,
@@ -164,7 +164,12 @@ router.get('/:id',
         s.cin as student_cin,
         s.profile_image_url as profile_image_url,
         f.title as formation_title,
-        f.is_pack as formation_is_pack
+        f.is_pack as formation_is_pack,
+        CASE WHEN EXISTS (
+          SELECT 1 FROM certificates c
+          WHERE c.student_id = se.student_id
+          AND c.session_id = se.session_id
+        ) THEN true ELSE false END as has_documents
       FROM session_etudiants se
       LEFT JOIN students s ON s.id = se.student_id
       LEFT JOIN formations f ON f.id = se.formation_id
