@@ -74,6 +74,15 @@ export const PERMISSIONS = {
       update: 'accounting.actions.update',
       delete: 'accounting.actions.delete',
     },
+    // Gestion des Professeurs
+    professors: {
+      view_page: 'accounting.professors.view_page',
+      create: 'accounting.professors.create',
+      update: 'accounting.professors.update',
+      delete: 'accounting.professors.delete',
+      assign_cities: 'accounting.professors.assign_cities',
+      view_assignments: 'accounting.professors.view_assignments',
+    },
   },
 
   // ==================== SYSTEM MODULE ====================
@@ -466,6 +475,14 @@ export function getPermissionLabel(code: string): string {
     'accounting.actions.create': 'Créer une action',
     'accounting.actions.update': 'Modifier une action',
     'accounting.actions.delete': 'Supprimer une action',
+
+    // Professeurs
+    'accounting.professors.view_page': 'Voir les professeurs',
+    'accounting.professors.create': 'Créer un professeur',
+    'accounting.professors.update': 'Modifier un professeur',
+    'accounting.professors.delete': 'Supprimer un professeur',
+    'accounting.professors.assign_cities': 'Assigner des villes',
+    'accounting.professors.view_assignments': 'Voir les affectations',
 
     // ==================== SYSTEM MODULE ====================
     'system.roles.view_page': 'Voir les rôles',

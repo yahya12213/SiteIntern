@@ -792,9 +792,59 @@ router.put('/:sessionId/etudiants/:etudiantId',
   async (req, res) => {
   try {
     const { sessionId, etudiantId } = req.params;
-    const { statut_paiement, montant_paye, discount_percentage, discount_reason, formation_id, numero_bon } = req.body;
+    const { statut_paiement, montant_paye, discount_percentage, discount_reason, formation_id, numero_bon, new_session_id } = req.body;
 
     const now = new Date().toISOString();
+
+    // Si transfert vers une autre session
+    if (new_session_id && new_session_id !== sessionId) {
+      // Vérifier que la nouvelle session existe
+      const newSessionCheck = await pool.query(
+        'SELECT id FROM sessions_formation WHERE id = $1',
+        [new_session_id]
+      );
+      if (newSessionCheck.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'La session de destination n\'existe pas'
+        });
+      }
+
+      // Vérifier que l'étudiant n'est pas déjà dans la nouvelle session
+      const existingCheck = await pool.query(
+        'SELECT id FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
+        [new_session_id, etudiantId]
+      );
+      if (existingCheck.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'L\'étudiant est déjà inscrit dans la session de destination'
+        });
+      }
+
+      // Transférer l'étudiant : mettre à jour la session_id
+      const transferResult = await pool.query(
+        `UPDATE session_etudiants
+         SET session_id = $1, updated_at = $2
+         WHERE session_id = $3 AND student_id = $4
+         RETURNING *`,
+        [new_session_id, now, sessionId, etudiantId]
+      );
+
+      if (transferResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Inscription not found'
+        });
+      }
+
+      return res.json({
+        success: true,
+        inscription: transferResult.rows[0],
+        message: 'Étudiant transféré vers la nouvelle session avec succès',
+        transferred: true
+      });
+    }
 
     // Récupérer les données actuelles incluant formation_original_price
     const currentResult = await pool.query(

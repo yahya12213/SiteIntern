@@ -116,7 +116,8 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
 
   const fetchSessions = async () => {
     try {
-      const response = await apiClient.get(`/sessions-formation?corps_formation_id=${corpsFormationId}`);
+      // Charger TOUTES les sessions (pour permettre le transfert entre sessions)
+      const response = await apiClient.get(`/sessions-formation`);
       setSessions((response as any).sessions || []);
     } catch (error) {
       console.error('Error fetching sessions:', error);
@@ -194,6 +195,9 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
       const priceAfterDiscount = formationPrice - discountAmount;
       const avance = parseFloat(formData.avance) || 0;
 
+      // Vérifier si l'étudiant est transféré vers une autre session
+      const isTransfer = formData.session_id !== sessionId;
+
       await apiClient.put(`/sessions-formation/${sessionId}/etudiants/${student.id}`, {
         formation_id: formData.formation_id,
         numero_bon: formData.numero_bon.trim(),
@@ -205,6 +209,8 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
             : avance > 0
             ? 'partiellement_paye'
             : 'impaye',
+        // Nouveau: session de destination pour le transfert
+        new_session_id: isTransfer ? formData.session_id : undefined,
       });
 
       onSuccess();
@@ -418,13 +424,13 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Session
+                  Session <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.session_id}
-                  disabled
+                  onChange={(e) => setFormData({ ...formData, session_id: e.target.value })}
                   title="Session de formation"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {sessions.length > 0 ? (
                     sessions.map((session) => (
@@ -436,7 +442,11 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                     <option value={sessionId}>Session actuelle</option>
                   )}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">La session ne peut pas être modifiée</p>
+                {formData.session_id !== sessionId && (
+                  <p className="text-xs text-orange-600 mt-1 font-medium">
+                    ⚠️ L'étudiant sera transféré vers cette nouvelle session
+                  </p>
+                )}
               </div>
 
               <div className="md:col-span-2">
