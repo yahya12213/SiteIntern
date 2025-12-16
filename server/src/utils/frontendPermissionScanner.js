@@ -155,8 +155,19 @@ function extractButtons(ast, filePath) {
         const openingElement = path.node.openingElement;
         const elementName = openingElement.name.name || openingElement.name.property?.name;
 
-        // Check for button elements or Button components
-        if (elementName === 'button' || elementName === 'Button') {
+        // Check for button elements or Button components (including ProtectedButton)
+        if (elementName === 'button' || elementName === 'Button' || elementName === 'ProtectedButton') {
+          // ProtectedButton is always protected
+          if (elementName === 'ProtectedButton') {
+            buttons.push({
+              file: relativePath,
+              line: openingElement.loc.start.line,
+              element: elementName,
+              handler: 'onClick',
+              hasProtection: true
+            });
+            return; // Skip further processing
+          }
           const onClickAttr = openingElement.attributes.find(
             attr => attr.name && ['onClick', 'onSubmit', 'onDelete'].includes(attr.name.name)
           );
@@ -172,7 +183,7 @@ function extractButtons(ast, filePath) {
             let checkDepth = 0;
 
             while (parentPath && checkDepth < 5) {
-              // Check for ConditionalExpression or LogicalExpression with hasPermission
+              // Check for ConditionalExpression or LogicalExpression with permission patterns
               if (parentPath.node.type === 'ConditionalExpression' ||
                   parentPath.node.type === 'LogicalExpression') {
                 const code = filePath ? fs.readFileSync(filePath, 'utf-8') : '';
@@ -181,7 +192,17 @@ function extractButtons(ast, filePath) {
                 const contextEnd = Math.min(lines.length, lineNumber + 1);
                 const context = lines.slice(contextStart, contextEnd).join('\n');
 
-                if (context.includes('hasPermission') || context.includes('usePermission')) {
+                // Multiple protection patterns to detect
+                const protectionPatterns = [
+                  /hasPermission/,                          // hasPermission('...')
+                  /usePermission/,                          // usePermission() nearby
+                  /\.(can[A-Z]\w*)\s*&&/,                   // accounting.canCreate &&
+                  /\b(can[A-Z]\w*)\s*&&/,                   // canCreate &&
+                  /\.(can[A-Z]\w*)\s*\?/,                   // accounting.canCreate ?
+                  /\b(can[A-Z]\w*)\s*\?/,                   // canCreate ?
+                ];
+
+                if (protectionPatterns.some(pattern => pattern.test(context))) {
                   hasProtection = true;
                   break;
                 }
