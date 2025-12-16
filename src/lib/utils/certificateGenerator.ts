@@ -199,7 +199,21 @@ export const generateCertificatePDF = async (certificate: Certificate, template?
   doc.text('RÉUSSITE', pageWidth - 35, pageHeight - 32, { align: 'center' });
 
   // ========== TÉLÉCHARGER LE PDF ==========
-  const filename = `certificat_${certificate.certificate_number}_${certificate.student_name?.replace(/\s+/g, '_') || 'etudiant'}.pdf`;
+  // Nomenclature: TYPE_SEGMENT_NOM PRENOM_CIN_SESSION
+  const docType = 'certificat';
+  const segment = (certificate.metadata?.session_segment || '')
+    .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+    .trim();
+  const studentName = (certificate.student_name || 'etudiant')
+    .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+    .trim();
+  const cin = (certificate.metadata?.cin || '')
+    .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+    .trim();
+  const sessionTitle = (certificate.metadata?.session_title || '')
+    .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+    .trim();
+  const filename = `${docType}_${segment}_${studentName}_${cin}_${sessionTitle}.pdf`;
   doc.save(filename);
 };
 

@@ -672,11 +672,37 @@ export class CertificateTemplateEngine {
 
   /**
    * Télécharger le PDF
+   * Nomenclature: TYPE_SEGMENT_NOM PRENOM_CIN_SESSION
+   * Exemple: ATT CAF PROLEAN_Prolean_amine barka_T768734_casablanca teste
    */
   download(): void {
-    const filename = `certificat_${this.certificate.certificate_number}_${
-      this.certificate.student_name?.replace(/\s+/g, '_') || 'etudiant'
-    }.pdf`;
+    // Nettoyer le nom du template (type de document)
+    const docType = (this.template.name || 'document')
+      .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+      .trim();
+
+    // Segment
+    const segment = (this.certificate.metadata?.session_segment || '')
+      .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+      .trim();
+
+    // Nom et prénom de l'étudiant
+    const studentName = (this.certificate.student_name || 'etudiant')
+      .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+      .trim();
+
+    // CIN
+    const cin = (this.certificate.metadata?.cin || '')
+      .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+      .trim();
+
+    // Session (titre)
+    const sessionTitle = (this.certificate.metadata?.session_title || '')
+      .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+      .trim();
+
+    // Construire le nom final : TYPE_SEGMENT_NOM PRENOM_CIN_SESSION
+    const filename = `${docType}_${segment}_${studentName}_${cin}_${sessionTitle}.pdf`;
     this.doc.save(filename);
   }
 

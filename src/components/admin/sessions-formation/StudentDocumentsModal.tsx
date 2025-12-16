@@ -100,15 +100,37 @@ export const StudentDocumentsModal: React.FC<StudentDocumentsModalProps> = ({
       // Convertir en Blob
       const pdfBlob = doc.output('blob');
 
-      // Construire le nom du fichier
-      const studentNameClean = (certificate.student_name || 'etudiant')
-        .replace(/\s+/g, '_')
-        .replace(/[^a-zA-Z0-9_]/g, '');
-      // Utiliser template.name car document_type n'est pas dans le type frontend
+      // Construire le nom du fichier selon la nomenclature :
+      // TYPE_SEGMENT_NOM PRENOM_CIN_SESSION
+      // Exemple: ATT CAF PROLEAN_Prolean_amine barka_T768734_casablanca teste
+
+      // Nettoyer le nom du template (type de document)
       const docType = (template.name || 'document')
-        .replace(/\s+/g, '_')
-        .replace(/[^a-zA-Z0-9_]/g, '');
-      const fileName = `${docType}_${studentNameClean}_${certificate.certificate_number}.pdf`;
+        .replace(/[^\w\s\u00C0-\u017F-]/g, '') // Garder lettres, chiffres, espaces, accents, tirets
+        .trim();
+
+      // Segment
+      const segment = (certificate.metadata?.session_segment || '')
+        .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+        .trim();
+
+      // Nom et prénom de l'étudiant
+      const studentName = (certificate.student_name || 'etudiant')
+        .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+        .trim();
+
+      // CIN
+      const cin = (certificate.metadata?.cin || '')
+        .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+        .trim();
+
+      // Session (titre)
+      const sessionTitle = (certificate.metadata?.session_title || '')
+        .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+        .trim();
+
+      // Construire le nom final : TYPE_SEGMENT_NOM PRENOM_CIN_SESSION
+      const fileName = `${docType}_${segment}_${studentName}_${cin}_${sessionTitle}.pdf`;
 
       return { blob: pdfBlob, fileName };
     } catch (error) {
