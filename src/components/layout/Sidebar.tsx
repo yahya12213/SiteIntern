@@ -77,8 +77,8 @@ export const Sidebar: React.FC = () => {
       ],
     },
     {
-      id: 'formation-en-ligne',
-      title: 'Formation en Ligne',
+      id: 'formation',
+      title: 'Formation',
       icon: GraduationCap,
       items: [
         { to: '/admin/formations-management', icon: BookOpen, label: 'Gestion des Formations', permission: PERMISSIONS.training.formations.view_page },

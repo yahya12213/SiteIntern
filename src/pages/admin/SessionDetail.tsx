@@ -629,11 +629,11 @@ export const SessionDetail: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span>
-                        <span className="text-gray-600">Validé (sans documents)</span>
+                        <span className="text-gray-600">Documents non générés</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="w-3 h-3 rounded bg-red-100 border border-red-300"></span>
-                        <span className="text-gray-600">Sans documents / Abandonné</span>
+                        <span className="text-gray-600">Abandonné</span>
                       </div>
                     </div>
                   </div>
@@ -719,19 +719,18 @@ export const SessionDetail: React.FC = () => {
                             .toUpperCase() || '??';
 
                           // Déterminer la couleur de la ligne selon le statut
-                          // Vert: documents générés | Jaune: validé sans documents | Rouge: abandonné OU sans documents
+                          // 🟢 Vert: documents générés | 🟡 Jaune: documents non générés | 🔴 Rouge: abandonné
                           const getRowColorClass = () => {
+                            // Rouge : étudiant abandonné
                             if (etudiant.student_status === 'abandonne') {
                               return 'bg-red-50 hover:bg-red-100';
                             }
+                            // Vert : documents générés
                             if (etudiant.has_documents) {
                               return 'bg-green-50 hover:bg-green-100';
                             }
-                            if (etudiant.student_status === 'valide') {
-                              return 'bg-yellow-50 hover:bg-yellow-100';
-                            }
-                            // Sans documents et non validé = rouge
-                            return 'bg-red-50 hover:bg-red-100';
+                            // Jaune : documents non générés (étudiant non abandonné)
+                            return 'bg-yellow-50 hover:bg-yellow-100';
                           };
 
                           return (
