@@ -303,9 +303,16 @@ export const StudentDocumentsModal: React.FC<StudentDocumentsModalProps> = ({
                   {documents.map((doc) => (
                     <tr key={doc.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">
-                        <Badge className={getDocumentTypeBadgeColor(doc.document_type)}>
-                          {getDocumentTypeLabel(doc.document_type)}
-                        </Badge>
+                        <div className="flex flex-col gap-1">
+                          {/* Nom réel du template */}
+                          <span className="font-medium text-gray-900">
+                            {doc.template_name || doc.template_display_name || getDocumentTypeLabel(doc.document_type)}
+                          </span>
+                          {/* Badge du type de document */}
+                          <Badge className={`${getDocumentTypeBadgeColor(doc.document_type)} text-xs w-fit`}>
+                            {getDocumentTypeLabel(doc.document_type)}
+                          </Badge>
+                        </div>
                       </td>
                       <td className="py-3 px-4">
                         <span className="font-mono text-sm">{doc.certificate_number}</span>
