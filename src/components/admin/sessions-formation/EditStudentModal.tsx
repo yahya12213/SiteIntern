@@ -9,9 +9,15 @@ interface EditStudentModalProps {
     id: string;
     student_id: string;
     student_name?: string;
+    student_first_name?: string;
+    student_last_name?: string;
     student_cin?: string;
     student_email?: string;
     student_phone?: string;
+    student_whatsapp?: string;
+    student_birth_date?: string;
+    student_birth_place?: string;
+    student_address?: string;
     profile_image_url?: string;
   };
   onClose: () => void;
@@ -23,15 +29,20 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  // Extraire nom et prénom du student_name
-  const [nom, prenom] = (student.student_name || '').split(' ');
+  // Extraire nom et prénom - utiliser les champs séparés si disponibles
+  const nom = student.student_first_name || student.student_name?.split(' ')[0] || '';
+  const prenom = student.student_last_name || student.student_name?.split(' ').slice(1).join(' ') || '';
 
   const [formData, setFormData] = useState({
-    nom: nom || '',
-    prenom: prenom || '',
+    nom: nom,
+    prenom: prenom,
     cin: student.student_cin || '',
     email: student.student_email || '',
     phone: student.student_phone || '',
+    whatsapp: student.student_whatsapp || '',
+    date_naissance: student.student_birth_date ? student.student_birth_date.split('T')[0] : '',
+    lieu_naissance: student.student_birth_place || '',
+    adresse: student.student_address || '',
   });
 
   const [profileImage, setProfileImage] = useState<File | null>(null);
@@ -60,6 +71,9 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
     if (!formData.prenom.trim()) newErrors.prenom = 'Le prénom est obligatoire';
     if (!formData.cin.trim()) newErrors.cin = 'Le CIN est obligatoire';
     if (!formData.phone.trim()) newErrors.phone = 'Le téléphone est obligatoire';
+    if (!formData.date_naissance) newErrors.date_naissance = 'La date de naissance est obligatoire';
+    if (!formData.lieu_naissance.trim()) newErrors.lieu_naissance = 'Le lieu de naissance est obligatoire';
+    if (!formData.adresse.trim()) newErrors.adresse = "L'adresse est obligatoire";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -82,6 +96,10 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
       updateData.append('cin', formData.cin.trim());
       updateData.append('email', formData.email.trim());
       updateData.append('phone', formData.phone.trim());
+      updateData.append('whatsapp', formData.whatsapp.trim());
+      updateData.append('date_naissance', formData.date_naissance);
+      updateData.append('lieu_naissance', formData.lieu_naissance.trim());
+      updateData.append('adresse', formData.adresse.trim());
 
       if (profileImage) {
         updateData.append('profile_image', profileImage);
@@ -134,7 +152,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
           {/* Photo de profil */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Photo de profil
+              Image de profil
             </label>
             <div className="flex items-center gap-4">
               {profileImagePreview && (
@@ -161,72 +179,137 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
             </div>
           </div>
 
-          {/* Nom et Prénom */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nom <span className="text-red-500">*</span>
-              </label>
-              <Input
-                value={formData.nom}
-                onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
-                placeholder="Nom"
-                className={errors.nom ? 'border-red-300' : ''}
-              />
-              {errors.nom && <p className="text-xs text-red-600 mt-1">{errors.nom}</p>}
+          {/* Section: Informations Personnelles */}
+          <div className="border-t pt-6">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Informations Personnelles</h3>
+
+            {/* Nom et Prénom */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nom <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={formData.nom}
+                  onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                  placeholder="Nom"
+                  className={errors.nom ? 'border-red-300' : ''}
+                />
+                {errors.nom && <p className="text-xs text-red-600 mt-1">{errors.nom}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Prénom <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={formData.prenom}
+                  onChange={(e) => setFormData({ ...formData, prenom: e.target.value })}
+                  placeholder="Prénom"
+                  className={errors.prenom ? 'border-red-300' : ''}
+                />
+                {errors.prenom && <p className="text-xs text-red-600 mt-1">{errors.prenom}</p>}
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Prénom <span className="text-red-500">*</span>
-              </label>
-              <Input
-                value={formData.prenom}
-                onChange={(e) => setFormData({ ...formData, prenom: e.target.value })}
-                placeholder="Prénom"
-                className={errors.prenom ? 'border-red-300' : ''}
-              />
-              {errors.prenom && <p className="text-xs text-red-600 mt-1">{errors.prenom}</p>}
+            {/* CIN et Email */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  CIN <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={formData.cin}
+                  onChange={(e) => setFormData({ ...formData, cin: e.target.value })}
+                  placeholder="CIN"
+                  className={errors.cin ? 'border-red-300' : ''}
+                />
+                {errors.cin && <p className="text-xs text-red-600 mt-1">{errors.cin}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <Input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="Email"
+                />
+              </div>
+            </div>
+
+            {/* Téléphone et WhatsApp */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Téléphone <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="Téléphone"
+                  className={errors.phone ? 'border-red-300' : ''}
+                />
+                {errors.phone && <p className="text-xs text-red-600 mt-1">{errors.phone}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp</label>
+                <Input
+                  value={formData.whatsapp}
+                  onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                  placeholder="WhatsApp"
+                />
+              </div>
             </div>
           </div>
 
-          {/* CIN */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              CIN <span className="text-red-500">*</span>
-            </label>
-            <Input
-              value={formData.cin}
-              onChange={(e) => setFormData({ ...formData, cin: e.target.value })}
-              placeholder="CIN"
-              className={errors.cin ? 'border-red-300' : ''}
-            />
-            {errors.cin && <p className="text-xs text-red-600 mt-1">{errors.cin}</p>}
-          </div>
+          {/* Section: Informations Administratives */}
+          <div className="border-t pt-6">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Informations Administratives</h3>
 
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-            <Input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="Email"
-            />
-          </div>
+            {/* Date et Lieu de naissance */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date de naissance <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="date"
+                  value={formData.date_naissance}
+                  onChange={(e) => setFormData({ ...formData, date_naissance: e.target.value })}
+                  className={errors.date_naissance ? 'border-red-300' : ''}
+                />
+                {errors.date_naissance && <p className="text-xs text-red-600 mt-1">{errors.date_naissance}</p>}
+              </div>
 
-          {/* Téléphone */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Téléphone <span className="text-red-500">*</span>
-            </label>
-            <Input
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="Téléphone"
-              className={errors.phone ? 'border-red-300' : ''}
-            />
-            {errors.phone && <p className="text-xs text-red-600 mt-1">{errors.phone}</p>}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lieu de naissance <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={formData.lieu_naissance}
+                  onChange={(e) => setFormData({ ...formData, lieu_naissance: e.target.value })}
+                  placeholder="Lieu de naissance"
+                  className={errors.lieu_naissance ? 'border-red-300' : ''}
+                />
+                {errors.lieu_naissance && <p className="text-xs text-red-600 mt-1">{errors.lieu_naissance}</p>}
+              </div>
+            </div>
+
+            {/* Adresse */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Adresse <span className="text-red-500">*</span>
+              </label>
+              <Input
+                value={formData.adresse}
+                onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
+                placeholder="Adresse"
+                className={errors.adresse ? 'border-red-300' : ''}
+              />
+              {errors.adresse && <p className="text-xs text-red-600 mt-1">{errors.adresse}</p>}
+            </div>
           </div>
 
           {/* Actions */}

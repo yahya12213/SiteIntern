@@ -64,9 +64,15 @@ export interface SessionEtudiant {
 
   // Données de l'étudiant (JOIN)
   student_name?: string;
+  student_first_name?: string;
+  student_last_name?: string;
   student_email?: string;
   student_phone?: string;
   student_cin?: string;
+  student_whatsapp?: string;
+  student_birth_date?: string;
+  student_birth_place?: string;
+  student_address?: string;
   profile_image_url?: string;
 
   // Données de la formation (JOIN)

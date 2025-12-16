@@ -98,7 +98,8 @@
       "Bash(xargs -I {} bash -c \"echo \"\"=== {} ===\"\" && grep -c \"\"requirePermission\\|checkPermission\"\" {}\")",
       "Bash(if not exist \"c:\\Users\\pc\\Desktop\\systeme de calcul\\server\\scripts\" mkdir \"c:\\Users\\pc\\Desktop\\systeme de calcul\\server\\scripts\")",
       "Bash(npm test:*)",
-      "Bash(if not exist \"c:\\Users\\pc\\Desktop\\systeme de calcul\\.github\\workflows\" mkdir \"c:\\Users\\pc\\Desktop\\systeme de calcul\\.github\\workflows\")"
+      "Bash(if not exist \"c:\\Users\\pc\\Desktop\\systeme de calcul\\.github\\workflows\" mkdir \"c:\\Users\\pc\\Desktop\\systeme de calcul\\.github\\workflows\")",
+      "Bash(if not exist \"c:\\Users\\pc\\Desktop\\systeme de calcul\\src\\components\\admin\\students\" mkdir \"c:\\Users\\pc\\Desktop\\systeme de calcul\\src\\components\\admin\\students\")"
     ],
     "deny": [],
     "ask": []
