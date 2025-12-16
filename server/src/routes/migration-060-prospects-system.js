@@ -392,7 +392,7 @@ router.post('/run', async (req, res) => {
           cleaned := SUBSTRING(cleaned FROM 2);  -- Enlever le +
 
           -- Essayer de matcher les codes de 1 à 3 chiffres (du plus long au plus court)
-          FOR i IN 3..1 LOOP
+          FOR i IN REVERSE 3..1 LOOP
             detected_code := SUBSTRING(cleaned FROM 1 FOR i);
 
             SELECT cpc.expected_national_length, cpc.country
@@ -415,7 +415,7 @@ router.post('/run', async (req, res) => {
         -- Cas B: Ne commence pas par "+"
         ELSE
           -- Essayer de détecter un code pays au début (1-3 chiffres)
-          FOR i IN 3..1 LOOP
+          FOR i IN REVERSE 3..1 LOOP
             detected_code := SUBSTRING(cleaned FROM 1 FOR i);
 
             SELECT cpc.expected_national_length, cpc.country
