@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, MapPin, Hash, Layers } from 'lucide-react';
 import { useCity, useCreateCity, useUpdateCity } from '@/hooks/useCities';
 import { useSegments } from '@/hooks/useSegments';
+import { usePermission } from '@/hooks/usePermission';
 
 interface CityFormModalProps {
   cityId: string | null;
@@ -21,6 +22,10 @@ export default function CityFormModal({ cityId, onClose }: CityFormModalProps) {
   const updateCity = useUpdateCity();
 
   const isEdit = !!cityId;
+
+  // Permissions
+  const { accounting } = usePermission();
+  const canSave = isEdit ? accounting.canUpdateCity : accounting.canCreateCity;
 
   useEffect(() => {
     if (city) {
@@ -158,17 +163,19 @@ export default function CityFormModal({ cityId, onClose }: CityFormModalProps) {
             >
               Annuler
             </button>
-            <button
-              type="submit"
-              disabled={createCity.isPending || updateCity.isPending}
-              className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {createCity.isPending || updateCity.isPending
-                ? 'Enregistrement...'
-                : isEdit
-                ? 'Mettre à jour'
-                : 'Créer'}
-            </button>
+            {canSave && (
+              <button
+                type="submit"
+                disabled={createCity.isPending || updateCity.isPending}
+                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {createCity.isPending || updateCity.isPending
+                  ? 'Enregistrement...'
+                  : isEdit
+                  ? 'Mettre à jour'
+                  : 'Créer'}
+              </button>
+            )}
           </div>
         </form>
       </div>

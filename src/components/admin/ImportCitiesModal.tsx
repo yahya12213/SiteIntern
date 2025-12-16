@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { X, Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useImportCities } from '@/hooks/useCities';
+import { usePermission } from '@/hooks/usePermission';
 
 // Type local pour les données d'import
 type ImportCityData = {
@@ -24,6 +25,10 @@ export default function ImportCitiesModal({ segmentId, segmentName, onClose }: I
     errors: Array<{ row: number; error: string; data: ImportCityData }>;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Permissions
+  const { accounting } = usePermission();
+  const canBulkImport = accounting.canBulkDeleteCity; // Using bulk_delete as proxy for bulk operations
 
   const importCities = useImportCities();
 
@@ -214,8 +219,9 @@ export default function ImportCitiesModal({ segmentId, segmentName, onClose }: I
             >
               {results ? 'Fermer' : 'Annuler'}
             </button>
-            {!results && (
+            {!results && canBulkImport && (
               <button
+                type="button"
                 onClick={handleImport}
                 disabled={!file || importing}
                 className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

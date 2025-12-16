@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Filter,
 } from 'lucide-react';
+import { usePermission } from '@/hooks/usePermission';
 
 interface Segment {
   id: string;
@@ -31,6 +32,12 @@ interface City {
 
 export const SessionsFormation: React.FC = () => {
   const navigate = useNavigate();
+
+  // Permissions
+  const { training } = usePermission();
+  const canCreateSession = training.canCreateSession;
+  const canUpdateSession = training.canUpdateSession;
+  const canDeleteSession = training.canDeleteSession;
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -137,18 +144,21 @@ export const SessionsFormation: React.FC = () => {
     <AppLayout title="Sessions de Formation" subtitle="Gérez les sessions de formation (classes)">
       <div className="space-y-6">
         {/* Header Actions */}
-        <div className="flex justify-end">
-          <button
-            onClick={() => {
-              setEditingSession(null);
-              setShowSessionModal(true);
-            }}
-            className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
-          >
-            <Plus className="h-5 w-5" />
-            Nouvelle Session
-          </button>
-        </div>
+        {canCreateSession && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingSession(null);
+                setShowSessionModal(true);
+              }}
+              className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
+            >
+              <Plus className="h-5 w-5" />
+              Nouvelle Session
+            </button>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -352,29 +362,36 @@ export const SessionsFormation: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
                           <button
+                            type="button"
                             onClick={() => navigate(`/admin/sessions-formation/${session.id}`)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Voir"
                           >
                             <Eye className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={() => {
-                              setEditingSession(session);
-                              setShowSessionModal(true);
-                            }}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                            title="Modifier"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirm(session.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {canUpdateSession && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingSession(session);
+                                setShowSessionModal(true);
+                              }}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Modifier"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                          )}
+                          {canDeleteSession && (
+                            <button
+                              type="button"
+                              onClick={() => setDeleteConfirm(session.id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -392,8 +409,9 @@ export const SessionsFormation: React.FC = () => {
                 ? 'Aucune session ne correspond aux filtres sélectionnés'
                 : 'Commencez par créer votre première session de formation'}
             </p>
-            {!filters.segment_id && !filters.ville_id && !filters.annee && (
+            {!filters.segment_id && !filters.ville_id && !filters.annee && canCreateSession && (
               <button
+                type="button"
                 onClick={() => {
                   setEditingSession(null);
                   setShowSessionModal(true);

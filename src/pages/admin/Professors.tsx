@@ -10,7 +10,7 @@ import ViewProfessorAssignmentsModal from '@/components/admin/ViewProfessorAssig
 
 export default function Professors() {
   const navigate = useNavigate();
-  const { training } = usePermission();
+  const { accounting } = usePermission();
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAssignCitiesOpen, setIsAssignCitiesOpen] = useState(false);
@@ -113,8 +113,9 @@ export default function Professors() {
           </div>
 
           {/* Bouton Ajouter */}
-          {training.canCreateProfessor && (
+          {accounting.canCreateProfessor && (
             <button
+              type="button"
               onClick={() => setIsFormOpen(true)}
               className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
             >
@@ -193,8 +194,9 @@ export default function Professors() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        {training.canAssignProfessorSegments && (
+                        {accounting.canAssignProfessorCities && (
                           <button
+                            type="button"
                             onClick={() => handleAssignSegments(professor)}
                             className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Affecter des segments"
@@ -202,8 +204,9 @@ export default function Professors() {
                             <Layers className="w-4 h-4" />
                           </button>
                         )}
-                        {training.canAssignProfessorCities && (
+                        {accounting.canAssignProfessorCities && (
                           <button
+                            type="button"
                             onClick={() => handleAssignCities(professor)}
                             className="text-green-600 hover:text-green-900 p-2 hover:bg-green-50 rounded-lg transition-colors"
                             title="Affecter des villes"
@@ -211,8 +214,9 @@ export default function Professors() {
                             <MapPin className="w-4 h-4" />
                           </button>
                         )}
-                        {training.canUpdateProfessor && (
+                        {accounting.canUpdateProfessor && (
                           <button
+                            type="button"
                             onClick={() => handleEdit(professor.id)}
                             className="text-indigo-600 hover:text-indigo-900 p-2 hover:bg-indigo-50 rounded-lg transition-colors"
                             title="Modifier"
@@ -220,8 +224,9 @@ export default function Professors() {
                             <Edit2 className="w-4 h-4" />
                           </button>
                         )}
-                        {training.canDeleteProfessor && (
+                        {accounting.canDeleteProfessor && (
                           <button
+                            type="button"
                             onClick={() => handleDelete(professor.id, professor.full_name)}
                             className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
                             title="Supprimer"

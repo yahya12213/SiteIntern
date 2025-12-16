@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, MapPin, Plus, Trash2, Search, AlertCircle } from 'lucide-react';
 import { useProfessorCities, useAssignCityToProfessor, useUnassignCityFromProfessor, useProfessorSegments } from '@/hooks/useProfessors';
 import { useCities } from '@/hooks/useCities';
+import { usePermission } from '@/hooks/usePermission';
 
 interface AssignCitiesModalProps {
   professorId: string;
@@ -13,6 +14,10 @@ export default function AssignCitiesModal({ professorId, professorName, onClose 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCityIds, setSelectedCityIds] = useState<string[]>([]);
   const [filterSegmentId, setFilterSegmentId] = useState<string>('all');
+
+  // Permissions
+  const { accounting } = usePermission();
+  const canAssignCities = accounting.canAssignProfessorCities;
 
   const { data: professorCities = [], isLoading: loadingProfessorCities } = useProfessorCities(professorId);
   const { data: professorSegments = [], isLoading: loadingProfessorSegments } = useProfessorSegments(professorId);
@@ -149,13 +154,16 @@ export default function AssignCitiesModal({ professorId, professorName, onClose 
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleUnassign(city.id, city.name)}
-                      className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Retirer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {canAssignCities && (
+                      <button
+                        type="button"
+                        onClick={() => handleUnassign(city.id, city.name)}
+                        className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Retirer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -168,8 +176,9 @@ export default function AssignCitiesModal({ professorId, professorName, onClose 
               <h3 className="font-semibold text-gray-900">
                 Ajouter des villes ({selectedCityIds.length} sélectionnée{selectedCityIds.length > 1 ? 's' : ''})
               </h3>
-              {filteredAvailableCities.length > 0 && (
+              {filteredAvailableCities.length > 0 && canAssignCities && (
                 <button
+                  type="button"
                   onClick={handleToggleAll}
                   className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                 >
@@ -239,8 +248,9 @@ export default function AssignCitiesModal({ professorId, professorName, onClose 
             )}
 
             {/* Bouton d'affectation */}
-            {filteredAvailableCities.length > 0 && (
+            {filteredAvailableCities.length > 0 && canAssignCities && (
               <button
+                type="button"
                 onClick={handleAssign}
                 disabled={selectedCityIds.length === 0 || assignCity.isPending}
                 className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"

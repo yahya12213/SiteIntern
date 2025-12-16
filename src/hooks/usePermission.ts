@@ -128,6 +128,14 @@ export function usePermission() {
     canSubmitDeclaration: can('accounting.declarations.submit'),
     canRejectDeclaration: can('accounting.declarations.reject'),
     canRequestModification: can('accounting.declarations.request_modification'),
+
+    // Professors
+    canViewProfessors: can('accounting.professors.view_page'),
+    canCreateProfessor: can('accounting.professors.create'),
+    canUpdateProfessor: can('accounting.professors.update'),
+    canDeleteProfessor: can('accounting.professors.delete'),
+    canAssignProfessorCities: can('accounting.professors.assign_cities'),
+    canViewProfessorAssignments: can('accounting.professors.view_assignments'),
   }), [can]);
 
   // HR module specific checks

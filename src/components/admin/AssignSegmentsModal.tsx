@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Layers, Plus, Trash2 } from 'lucide-react';
 import { useProfessorSegments, useAssignSegmentToProfessor, useUnassignSegmentFromProfessor } from '@/hooks/useProfessors';
 import { useSegments } from '@/hooks/useSegments';
+import { usePermission } from '@/hooks/usePermission';
 
 interface AssignSegmentsModalProps {
   professorId: string;
@@ -11,6 +12,10 @@ interface AssignSegmentsModalProps {
 
 export default function AssignSegmentsModal({ professorId, professorName, onClose }: AssignSegmentsModalProps) {
   const [selectedSegmentId, setSelectedSegmentId] = useState('');
+
+  // Permissions
+  const { accounting } = usePermission();
+  const canAssignCities = accounting.canAssignProfessorCities;
 
   const { data: professorSegments = [], isLoading: loadingProfessorSegments } = useProfessorSegments(professorId);
   const { data: allSegments = [], isLoading: loadingAllSegments } = useSegments();
@@ -100,13 +105,16 @@ export default function AssignSegmentsModal({ professorId, professorName, onClos
                       />
                       <span className="font-medium text-gray-900">{segment.name}</span>
                     </div>
-                    <button
-                      onClick={() => handleUnassign(segment.id, segment.name)}
-                      className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Retirer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {canAssignCities && (
+                      <button
+                        type="button"
+                        onClick={() => handleUnassign(segment.id, segment.name)}
+                        className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Retirer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -140,14 +148,17 @@ export default function AssignSegmentsModal({ professorId, professorName, onClos
                   ))
                 )}
               </select>
-              <button
-                onClick={handleAssign}
-                disabled={!selectedSegmentId || assignSegment.isPending}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <Plus className="w-5 h-5" />
-                Affecter
-              </button>
+              {canAssignCities && (
+                <button
+                  type="button"
+                  onClick={handleAssign}
+                  disabled={!selectedSegmentId || assignSegment.isPending}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  Affecter
+                </button>
+              )}
             </div>
 
             {availableSegments.length === 0 && allSegments.length > 0 && (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, User, Mail, Lock } from 'lucide-react';
 import { useProfessor, useCreateProfessor, useUpdateProfessor } from '@/hooks/useProfessors';
+import { usePermission } from '@/hooks/usePermission';
 
 interface ProfessorFormModalProps {
   professorId: string | null;
@@ -20,6 +21,10 @@ export default function ProfessorFormModal({ professorId, onClose }: ProfessorFo
   const updateProfessor = useUpdateProfessor();
 
   const isEdit = !!professorId;
+
+  // Permissions
+  const { accounting } = usePermission();
+  const canSave = isEdit ? accounting.canUpdateProfessor : accounting.canCreateProfessor;
 
   useEffect(() => {
     if (professor) {
@@ -208,17 +213,19 @@ export default function ProfessorFormModal({ professorId, onClose }: ProfessorFo
             >
               Annuler
             </button>
-            <button
-              type="submit"
-              disabled={createProfessor.isPending || updateProfessor.isPending}
-              className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {createProfessor.isPending || updateProfessor.isPending
-                ? 'Enregistrement...'
-                : isEdit
-                ? 'Mettre à jour'
-                : 'Créer'}
-            </button>
+            {canSave && (
+              <button
+                type="submit"
+                disabled={createProfessor.isPending || updateProfessor.isPending}
+                className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {createProfessor.isPending || updateProfessor.isPending
+                  ? 'Enregistrement...'
+                  : isEdit
+                  ? 'Mettre à jour'
+                  : 'Créer'}
+              </button>
+            )}
           </div>
         </form>
       </div>
