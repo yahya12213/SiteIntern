@@ -364,6 +364,7 @@ export default function Prospects() {
                   <TableHead>Nom & Prénom</TableHead>
                   <TableHead>Ville</TableHead>
                   <TableHead>Assigné à</TableHead>
+                  <TableHead>Ajouté par</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Décision</TableHead>
                   <TableHead>Actions</TableHead>
@@ -372,13 +373,13 @@ export default function Prospects() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={10} className="text-center py-8">
                       Chargement...
                     </TableCell>
                   </TableRow>
                 ) : prospects.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                       Aucun prospect trouvé
                     </TableCell>
                   </TableRow>
@@ -395,6 +396,7 @@ export default function Prospects() {
                       </TableCell>
                       <TableCell>{prospect.ville_name || '-'}</TableCell>
                       <TableCell className="text-sm">{prospect.assigned_to_name || '-'}</TableCell>
+                      <TableCell className="text-sm">{prospect.created_by_name || '-'}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{prospect.statut_contact}</Badge>
                       </TableCell>

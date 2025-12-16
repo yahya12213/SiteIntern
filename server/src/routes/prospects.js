@@ -97,11 +97,13 @@ router.get('/',
           p.*,
           s.name as segment_name,
           c.name as ville_name,
-          prof.full_name as assigned_to_name
+          prof.full_name as assigned_to_name,
+          creator.full_name as created_by_name
         FROM prospects p
         LEFT JOIN segments s ON s.id = p.segment_id
         LEFT JOIN cities c ON c.id = p.ville_id
         LEFT JOIN profiles prof ON prof.id = p.assigned_to
+        LEFT JOIN profiles creator ON creator.id = p.created_by
         WHERE 1=1
       `;
 

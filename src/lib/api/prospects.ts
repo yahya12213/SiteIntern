@@ -36,6 +36,7 @@ export interface Prospect {
   segment_name?: string;
   ville_name?: string;
   assigned_to_name?: string;
+  created_by_name?: string;
 }
 
 export interface ProspectStats {
