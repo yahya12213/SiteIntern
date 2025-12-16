@@ -90,7 +90,6 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
   const [formations, setFormations] = useState<Formation[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loadingFormations, setLoadingFormations] = useState(false);
-  const [loadingSessions, setLoadingSessions] = useState(false);
 
   // Selected formation details
   const selectedFormation = formations.find((f) => f.id === formData.formation_id);
@@ -117,14 +116,11 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
 
   const fetchSessions = async () => {
     try {
-      setLoadingSessions(true);
       const response = await apiClient.get(`/sessions-formation?corps_formation_id=${corpsFormationId}`);
       setSessions((response as any).sessions || []);
     } catch (error) {
       console.error('Error fetching sessions:', error);
       setSessions([]);
-    } finally {
-      setLoadingSessions(false);
     }
   };
 
