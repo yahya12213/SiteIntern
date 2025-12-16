@@ -85,7 +85,7 @@ export function SessionDocumentsDownloadModal({
   /**
    * Régénère un PDF côté frontend avec CertificateTemplateEngine
    */
-  const regeneratePdf = async (certificateId: string): Promise<{ blob: Blob; fileName: string } | null> => {
+  const regeneratePdf = async (certificateId: string): Promise<{ blob: Blob; fileName: string; folderName: string } | null> => {
     try {
       const response = await apiClient.get<{
         success: boolean;
@@ -107,13 +107,31 @@ export function SessionDocumentsDownloadModal({
       // Convertir en Blob
       const pdfBlob = doc.output('blob');
 
-      // Construire le nom du fichier
-      const studentName = (certificate.student_name || 'etudiant')
-        .replace(/\s+/g, '_')
-        .replace(/[^a-zA-Z0-9_]/g, '');
-      const fileName = `${studentName}_${certificate.certificate_number}.pdf`;
+      // Nom du dossier = nom du template (pour organiser par type de document)
+      const folderName = (template.name || 'Documents')
+        .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+        .trim();
 
-      return { blob: pdfBlob, fileName };
+      // Construire le nom du fichier selon la nomenclature :
+      // TYPE_SEGMENT_NOM PRENOM_CIN_SESSION
+      const docType = (template.name || 'document')
+        .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+        .trim();
+      const segment = (certificate.metadata?.session_segment || '')
+        .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+        .trim();
+      const studentName = (certificate.student_name || 'etudiant')
+        .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+        .trim();
+      const cin = (certificate.metadata?.cin || '')
+        .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+        .trim();
+      const sessionTitle = (certificate.metadata?.session_title || '')
+        .replace(/[^\w\s\u00C0-\u017F-]/g, '')
+        .trim();
+      const fileName = `${docType}_${segment}_${studentName}_${cin}_${sessionTitle}.pdf`;
+
+      return { blob: pdfBlob, fileName, folderName };
     } catch (error) {
       console.error('Error regenerating PDF:', error);
       return null;
@@ -148,7 +166,9 @@ export function SessionDocumentsDownloadModal({
       let successCount = 0;
       let errorCount = 0;
 
-      // 3. Régénérer chaque PDF et l'ajouter au ZIP
+      // 3. Régénérer chaque PDF et l'ajouter au ZIP dans un sous-dossier par template
+      const folders: Record<string, JSZip> = {};
+
       for (let i = 0; i < certificates.length; i++) {
         const cert = certificates[i];
         setDownloadProgress({ current: i + 1, total: certificates.length });
@@ -156,7 +176,11 @@ export function SessionDocumentsDownloadModal({
         try {
           const result = await regeneratePdf(cert.id);
           if (result) {
-            zip.file(result.fileName, result.blob);
+            // Créer le sous-dossier si nécessaire et y ajouter le fichier
+            if (!folders[result.folderName]) {
+              folders[result.folderName] = zip.folder(result.folderName) as JSZip;
+            }
+            folders[result.folderName].file(result.fileName, result.blob);
             successCount++;
           } else {
             console.error(`Failed to regenerate PDF for ${cert.certificate_number}`);
