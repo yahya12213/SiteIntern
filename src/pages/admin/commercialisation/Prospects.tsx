@@ -358,49 +358,47 @@ export default function Prospects() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Ajouté par</TableHead>
                   <TableHead>ID</TableHead>
                   <TableHead>Téléphone</TableHead>
-                  <TableHead>Pays</TableHead>
-                  <TableHead>Nom & Prénom</TableHead>
                   <TableHead>Ville</TableHead>
                   <TableHead>Assigné à</TableHead>
-                  <TableHead>Ajouté par</TableHead>
+                  <TableHead>Date d'insertion</TableHead>
                   <TableHead>Statut</TableHead>
-                  <TableHead>Décision</TableHead>
+                  <TableHead>Pays</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
+                    <TableCell colSpan={9} className="text-center py-8">
                       Chargement...
                     </TableCell>
                   </TableRow>
                 ) : prospects.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       Aucun prospect trouvé
                     </TableCell>
                   </TableRow>
                 ) : (
                   prospects.map((prospect) => (
                     <TableRow key={prospect.id}>
+                      <TableCell className="text-sm">{prospect.created_by_name || '-'}</TableCell>
                       <TableCell className="font-mono text-sm">{prospect.id.substring(9, 15)}</TableCell>
                       <TableCell className="font-mono">{prospect.phone_international}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{prospect.country}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {prospect.nom || prospect.prenom ? `${prospect.nom || ''} ${prospect.prenom || ''}`.trim() : '-'}
-                      </TableCell>
                       <TableCell>{prospect.ville_name || '-'}</TableCell>
                       <TableCell className="text-sm">{prospect.assigned_to_name || '-'}</TableCell>
-                      <TableCell className="text-sm">{prospect.created_by_name || '-'}</TableCell>
+                      <TableCell className="text-sm">
+                        {prospect.date_injection ? new Date(prospect.date_injection).toLocaleDateString('fr-FR') : '-'}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline">{prospect.statut_contact}</Badge>
                       </TableCell>
-                      <TableCell>{getDecisionBadge(prospect.decision_nettoyage)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{prospect.country}</Badge>
+                      </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           {commercialisation.canCallProspect &&
