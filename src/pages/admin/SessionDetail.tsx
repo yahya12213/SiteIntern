@@ -633,7 +633,7 @@ export const SessionDetail: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="w-3 h-3 rounded bg-red-100 border border-red-300"></span>
-                        <span className="text-gray-600">Abandonné</span>
+                        <span className="text-gray-600">Sans documents / Abandonné</span>
                       </div>
                     </div>
                   </div>
@@ -719,7 +719,7 @@ export const SessionDetail: React.FC = () => {
                             .toUpperCase() || '??';
 
                           // Déterminer la couleur de la ligne selon le statut
-                          // Rouge: abandonné | Vert: documents générés | Jaune: validé sans documents
+                          // Vert: documents générés | Jaune: validé sans documents | Rouge: abandonné OU sans documents
                           const getRowColorClass = () => {
                             if (etudiant.student_status === 'abandonne') {
                               return 'bg-red-50 hover:bg-red-100';
@@ -730,7 +730,8 @@ export const SessionDetail: React.FC = () => {
                             if (etudiant.student_status === 'valide') {
                               return 'bg-yellow-50 hover:bg-yellow-100';
                             }
-                            return 'hover:bg-gray-50';
+                            // Sans documents et non validé = rouge
+                            return 'bg-red-50 hover:bg-red-100';
                           };
 
                           return (
