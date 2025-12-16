@@ -23,7 +23,7 @@ import FormationEditor from './pages/admin/formations/FormationEditor';
 import FormationsManagement from './pages/admin/FormationsManagement';
 import { Analytics } from './pages/admin/Analytics';
 import { StudentReports } from './pages/admin/StudentReports';
-import { CertificatesManagement } from './pages/admin/CertificatesManagement';
+import { StudentsListPage } from './pages/admin/StudentsListPage';
 import { CertificateTemplates } from './pages/admin/CertificateTemplates';
 import { CertificateTemplateCanvasEditor } from './pages/admin/CertificateTemplateCanvasEditor';
 import { ForumModeration } from './pages/admin/ForumModeration';
@@ -336,10 +336,10 @@ const AppRoutes: React.FC = () => {
       />
 
       <Route
-        path="/admin/certificates"
+        path="/admin/students-list"
         element={
-          <ProtectedRoute requiredPermission={PERMISSIONS.training.certificates.view_page}>
-            <CertificatesManagement />
+          <ProtectedRoute requiredPermission={PERMISSIONS.training.students.view_page}>
+            <StudentsListPage />
           </ProtectedRoute>
         }
       />

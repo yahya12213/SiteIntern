@@ -114,6 +114,60 @@ router.post('/',
 });
 
 /**
+ * Get all students with their session information
+ * GET /api/students/with-sessions
+ * Protected: Requires authentication and students view permission
+ */
+router.get('/with-sessions',
+  authenticateToken,
+  requirePermission('training.students.view_page'),
+  async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        s.id,
+        s.nom,
+        s.prenom,
+        s.cin,
+        s.phone,
+        s.email,
+        s.statut_compte,
+        s.profile_image_url,
+        se.id as enrollment_id,
+        se.session_id,
+        se.statut_paiement,
+        se.montant_total,
+        se.montant_paye,
+        se.montant_du,
+        sf.titre as session_titre,
+        sf.session_type,
+        sf.statut as session_statut,
+        v.name as ville,
+        (
+          SELECT string_agg(f.title, ', ')
+          FROM session_formations ssf
+          JOIN formations f ON ssf.formation_id = f.id
+          WHERE ssf.session_id = sf.id
+        ) as formation_titre,
+        CASE WHEN se.id IS NOT NULL THEN true ELSE false END as has_session
+      FROM students s
+      LEFT JOIN session_etudiants se ON s.id = se.student_id
+      LEFT JOIN sessions_formation sf ON se.session_id = sf.id
+      LEFT JOIN villes v ON sf.ville_id = v.id
+      ORDER BY
+        CASE WHEN se.id IS NULL THEN 0 ELSE 1 END,
+        s.nom,
+        s.prenom
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching students with sessions:', error);
+    res.status(500).json({ error: 'Error fetching students with sessions', details: error.message });
+  }
+});
+
+/**
  * Get all students
  * GET /api/students
  * Protected: Requires authentication and students view permission
