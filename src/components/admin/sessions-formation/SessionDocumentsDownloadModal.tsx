@@ -52,6 +52,7 @@ export function SessionDocumentsDownloadModal({
   const [downloading, setDownloading] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number } | null>(null);
   const [totalDocuments, setTotalDocuments] = useState(0);
+  const [segmentName, setSegmentName] = useState<string>('');
 
   useEffect(() => {
     loadDocumentsSummary();
@@ -62,13 +63,14 @@ export function SessionDocumentsDownloadModal({
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.get<{ success: boolean; documents: DocumentSummary[]; total_documents: number; error?: string }>(
+      const response = await apiClient.get<{ success: boolean; documents: DocumentSummary[]; total_documents: number; segment_name?: string; session_title?: string; error?: string }>(
         `/sessions-formation/${sessionId}/documents-summary`
       );
 
       if (response.success) {
         setDocuments(response.documents);
         setTotalDocuments(response.total_documents || 0);
+        setSegmentName(response.segment_name || '');
       } else {
         setError(response.error || 'Erreur lors du chargement');
       }
@@ -174,8 +176,10 @@ export function SessionDocumentsDownloadModal({
       // 4. Générer et télécharger le ZIP
       const zipBlob = await zip.generateAsync({ type: 'blob' });
 
-      const cleanTitle = sessionTitle.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 50);
-      const fileName = `${documentType}_${cleanTitle}_${new Date().toISOString().split('T')[0]}.zip`;
+      // Format du nom: segment_session.zip (exemple: Prolean_casablanca teste.zip)
+      const cleanSegment = segmentName.replace(/[^\w\s\u00C0-\u017F-]/g, '').trim() || 'Session';
+      const cleanTitle = sessionTitle.replace(/[^\w\s\u00C0-\u017F-]/g, '').trim() || 'Documents';
+      const fileName = `${cleanSegment}_${cleanTitle}.zip`;
 
       const url = window.URL.createObjectURL(zipBlob);
       const link = document.createElement('a');

@@ -1750,6 +1750,16 @@ router.get('/:sessionId/documents-summary',
 
       console.log(`📊 Fetching documents summary for session: ${sessionId}`);
 
+      // Récupérer les infos de la session (segment inclus)
+      const sessionInfo = await pool.query(`
+        SELECT sf.titre, s.name as segment_name
+        FROM sessions_formation sf
+        LEFT JOIN segments s ON s.id = sf.segment_id
+        WHERE sf.id = $1
+      `, [sessionId]);
+
+      const session = sessionInfo.rows[0] || {};
+
       // Récupérer le résumé des documents par type
       const summary = await pool.query(`
         SELECT
@@ -1774,7 +1784,9 @@ router.get('/:sessionId/documents-summary',
       res.json({
         success: true,
         documents: summary.rows,
-        total_documents: totalDocuments
+        total_documents: totalDocuments,
+        session_title: session.titre || '',
+        segment_name: session.segment_name || ''
       });
 
     } catch (error) {
