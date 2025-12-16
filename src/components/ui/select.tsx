@@ -8,6 +8,8 @@ import React, { createContext, useContext, useState, useRef, useEffect } from 'r
 // Context pour partager l'état entre les composants
 interface SelectContextType {
   value: string;
+  selectedLabel: string;
+  setSelectedLabel: (label: string) => void;
   onValueChange: (value: string) => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
@@ -37,6 +39,7 @@ export const Select = ({
   disabled?: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedLabel, setSelectedLabel] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Fermer quand on clique en dehors
@@ -74,7 +77,7 @@ export const Select = ({
   }, [isOpen]);
 
   return (
-    <SelectContext.Provider value={{ value, onValueChange, isOpen, setIsOpen, disabled }}>
+    <SelectContext.Provider value={{ value, selectedLabel, setSelectedLabel, onValueChange, isOpen, setIsOpen, disabled }}>
       <div ref={containerRef} className={`relative ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
         {children}
       </div>
@@ -121,11 +124,13 @@ export const SelectTrigger = ({
 
 // Display value or placeholder
 export const SelectValue = ({ placeholder = 'Sélectionner...' }: { placeholder?: string }) => {
-  const { value } = useSelectContext();
+  const { value, selectedLabel } = useSelectContext();
 
-  // Note: La valeur affichée sera gérée par SelectItem via le context
-  // Ici on affiche juste le placeholder si pas de valeur
-  return <span className={!value ? 'text-gray-400' : ''}>{placeholder}</span>;
+  // Afficher le label sélectionné si disponible, sinon le placeholder
+  if (value && selectedLabel) {
+    return <span>{selectedLabel}</span>;
+  }
+  return <span className="text-gray-400">{placeholder}</span>;
 };
 
 // Content container (dropdown)
@@ -161,11 +166,14 @@ export const SelectItem = ({
   value: string;
   className?: string;
 }) => {
-  const { value, onValueChange, setIsOpen } = useSelectContext();
+  const { value, onValueChange, setIsOpen, setSelectedLabel } = useSelectContext();
   const isSelected = value === itemValue;
 
   const handleClick = () => {
     onValueChange(itemValue);
+    // Extraire le texte du children pour l'afficher dans SelectValue
+    const label = typeof children === 'string' ? children : '';
+    setSelectedLabel(label);
     setIsOpen(false);
   };
 
