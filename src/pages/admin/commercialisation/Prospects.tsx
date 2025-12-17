@@ -287,7 +287,6 @@ export default function Prospects() {
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
                 <SelectItem value="non contacté">Non contacté</SelectItem>
-                <SelectItem value="nouveau">Nouveau</SelectItem>
                 <SelectItem value="contacté avec rdv">Contacté avec RDV</SelectItem>
                 <SelectItem value="contacté sans rdv">Contacté sans RDV</SelectItem>
                 <SelectItem value="contacté sans reponse">Contacté sans réponse</SelectItem>
