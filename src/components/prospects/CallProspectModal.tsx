@@ -11,8 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Phone, Clock, Calendar } from 'lucide-react';
+import { Phone, Clock, Calendar, MapPin } from 'lucide-react';
 import { useProspect, useStartCall, useEndCall } from '@/hooks/useProspects';
+import { useCitiesBySegment } from '@/hooks/useCities';
 import { toast } from '@/hooks/use-toast';
 
 interface CallProspectModalProps {
@@ -41,11 +42,13 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
   const [callStartTime, setCallStartTime] = useState<Date | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [statutContact, setStatutContact] = useState<string>('');
+  const [selectedVilleId, setSelectedVilleId] = useState<string>('');
   const [dateRdv, setDateRdv] = useState<string>('');
   const [heureRdv, setHeureRdv] = useState<string>('');
   const [commentaire, setCommentaire] = useState<string>('');
 
   const { data: prospect, isLoading } = useProspect(prospectId || '');
+  const { data: segmentCities = [] } = useCitiesBySegment(prospect?.segment_id || '');
   const startCallMutation = useStartCall();
   const endCallMutation = useEndCall();
 
@@ -57,6 +60,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
       setCallStartTime(null);
       setElapsedSeconds(0);
       setStatutContact('');
+      setSelectedVilleId('');
       setDateRdv('');
       setHeureRdv('');
       setCommentaire('');
@@ -137,6 +141,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
     const endCallData = {
       call_id: callId,
       statut_contact: statutContact,
+      ville_id: selectedVilleId || undefined,
       date_rdv: STATUTS_AVEC_RDV.includes(statutContact)
         ? `${dateRdv} ${heureRdv}:00`
         : undefined,
@@ -193,7 +198,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
                 <p className="font-medium">{prospect.phone_international}</p>
               </div>
               <div>
-                <span className="text-sm text-gray-500">Ville:</span>
+                <span className="text-sm text-gray-500">Ville actuelle:</span>
                 <p className="font-medium">{prospect.ville_name || 'Sans ville'}</p>
               </div>
               <div>
@@ -202,9 +207,33 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
               </div>
               <div>
                 <span className="text-sm text-gray-500">Assignée à:</span>
-                <p className="font-medium">{prospect.assistante_name || 'Non assigné'}</p>
+                <p className="font-medium">{prospect.assigned_to_name || 'Non assigné'}</p>
               </div>
             </div>
+          </div>
+
+          {/* Sélection de la ville */}
+          <div className="space-y-2">
+            <Label htmlFor="ville" className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Assigner à une ville
+            </Label>
+            <Select value={selectedVilleId} onValueChange={setSelectedVilleId}>
+              <SelectTrigger id="ville">
+                <SelectValue placeholder="Garder la ville actuelle" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Garder la ville actuelle</SelectItem>
+                {segmentCities.map((city) => (
+                  <SelectItem key={city.id} value={city.id}>
+                    {city.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500">
+              Sélectionnez une ville pour réassigner ce prospect
+            </p>
           </div>
 
           {/* Résultat de l'appel */}
