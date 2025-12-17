@@ -632,13 +632,13 @@ router.post('/:id/end-call',
           prenom = COALESCE($2, prenom),
           cin = COALESCE($3, cin),
           statut_contact = $4,
-          ville_id = $5,
+          ville_id = COALESCE($5, ville_id),
           date_rdv = $6,
           rdv_centre_ville_id = $7,
           commentaire = COALESCE($8, commentaire),
           updated_at = NOW()
         WHERE id = $9
-      `, [nom, prenom, cin, statut_contact, ville_id, date_rdv, rdv_centre_ville_id, commentaire, id]);
+      `, [nom || null, prenom || null, cin || null, statut_contact, ville_id || null, date_rdv || null, rdv_centre_ville_id || null, commentaire || null, id]);
 
       // Vérifier si réaffectation nécessaire (si ville changée)
       let reassignment = null;
