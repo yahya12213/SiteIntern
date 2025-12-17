@@ -87,6 +87,15 @@ export function QuickAddProspectModal({ open, onClose }: QuickAddProspectModalPr
       return;
     }
 
+    if (!villeId) {
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: 'Veuillez sélectionner une ville',
+      });
+      return;
+    }
+
     if (!phoneInput || phoneValid === false) {
       toast({
         variant: 'destructive',
@@ -99,7 +108,7 @@ export function QuickAddProspectModal({ open, onClose }: QuickAddProspectModalPr
     // Préparer les données
     const prospectData = {
       segment_id: segmentId,
-      ville_id: villeId || null, // Si vide, l'auto-assignment choisira la ville
+      ville_id: villeId,
       phone: phoneInput, // Backend attend "phone", pas "phone_international"
       nom: nom || null,
       prenom: prenom || null,
@@ -156,20 +165,16 @@ export function QuickAddProspectModal({ open, onClose }: QuickAddProspectModalPr
 
           {/* Ville */}
           <div className="space-y-2">
-            <Label htmlFor="ville">
-              Ville
-              <span className="text-sm text-gray-500 ml-2">(optionnel - auto-assignation)</span>
-            </Label>
+            <Label htmlFor="ville">Ville *</Label>
             <Select
               value={villeId}
               onValueChange={setVilleId}
               disabled={!segmentId || citiesLoading}
             >
               <SelectTrigger id="ville">
-                <SelectValue placeholder="Sélectionnez une ville (ou laissez vide)" />
+                <SelectValue placeholder="Sélectionnez une ville" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Sans ville (auto-assignation)</SelectItem>
                 {cities?.map((city) => (
                   <SelectItem key={city.id} value={city.id}>
                     {city.name}
@@ -177,9 +182,9 @@ export function QuickAddProspectModal({ open, onClose }: QuickAddProspectModalPr
                 ))}
               </SelectContent>
             </Select>
-            {!villeId && segmentId && (
-              <p className="text-xs text-blue-600">
-                Le système assignera automatiquement le prospect à l'assistante avec le moins de charge
+            {!segmentId && (
+              <p className="text-xs text-gray-500">
+                Sélectionnez d'abord un segment pour voir les villes disponibles
               </p>
             )}
           </div>
@@ -262,7 +267,7 @@ export function QuickAddProspectModal({ open, onClose }: QuickAddProspectModalPr
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={createProspectMutation.isPending || !segmentId || phoneValid === false}
+            disabled={createProspectMutation.isPending || !segmentId || !villeId || phoneValid === false}
           >
             {createProspectMutation.isPending ? 'Ajout...' : 'Ajouter'}
           </Button>
