@@ -492,7 +492,7 @@ export default function Prospects() {
                       <TableCell className="font-mono">{prospect.phone_international}</TableCell>
                       <TableCell>{prospect.ville_name || '-'}</TableCell>
                       <TableCell className="text-sm">
-                        {prospect.assigned_to_name || (
+                        {prospect.assistantes_ville || (
                           <span className="text-orange-600 font-medium">À assigner</span>
                         )}
                       </TableCell>

@@ -146,6 +146,7 @@ import migrationVerifyGerantPermissionsRouter from './routes/migration-verify-ge
 import migrationAddCertificateUpdatePermissionRouter from './routes/migration-add-certificate-update-permission.js';
 import migrationCreateGerantTablesRouter from './routes/migration-create-gerant-tables.js';
 import migrationUpdateNouveauStatusRouter from './routes/migration-update-nouveau-status.js';
+import migrationResetProspectAssignmentRouter from './routes/migration-reset-prospect-assignment.js';
 
 const app = express();
 
@@ -343,6 +344,7 @@ app.use('/api/migration-fix-segments-and-sheets', ...adminOnly, migrationFixRout
 app.use('/api/migration-fix-impression-permissions', ...adminOnly, migrationFixImpressionRouter);
 app.use('/api/migration-fix-role-sync', ...adminOnly, migrationFixRoleSyncRouter);
 app.use('/api/migration-update-nouveau-status', ...adminOnly, migrationUpdateNouveauStatusRouter);
+app.use('/api/migration-reset-prospect-assignment', ...adminOnly, migrationResetProspectAssignmentRouter);
 
 // Health check
 app.get('/api/health', async (req, res) => {

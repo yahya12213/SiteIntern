@@ -99,7 +99,15 @@ router.get('/',
           c.name as ville_name,
           prof.full_name as assigned_to_name,
           creator.full_name as created_by_name,
-          COALESCE(calls.total_duration, 0) as total_call_duration
+          COALESCE(calls.total_duration, 0) as total_call_duration,
+          (
+            SELECT STRING_AGG(pr.full_name, ', ' ORDER BY pr.full_name)
+            FROM professor_cities pc2
+            JOIN profiles pr ON pr.id = pc2.professor_id
+            JOIN roles r ON pr.role_id = r.id
+            WHERE pc2.city_id = p.ville_id
+              AND r.name = 'assistante'
+          ) as assistantes_ville
         FROM prospects p
         LEFT JOIN segments s ON s.id = p.segment_id
         LEFT JOIN cities c ON c.id = p.ville_id

@@ -38,6 +38,7 @@ export interface Prospect {
   assigned_to_name?: string;
   created_by_name?: string;
   total_call_duration?: number;
+  assistantes_ville?: string;
 }
 
 export interface ProspectStats {
