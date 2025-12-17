@@ -24,7 +24,6 @@ interface CallProspectModalProps {
 // Statuts de contact disponibles
 const STATUTS_CONTACT = [
   { value: 'non contacté', label: 'Non contacté' },
-  { value: 'nouveau', label: 'Nouveau' },
   { value: 'contacté avec rdv', label: 'Contacté avec RDV' },
   { value: 'contacté sans rdv', label: 'Contacté sans RDV' },
   { value: 'contacté sans réponse', label: 'Contacté sans réponse' },
