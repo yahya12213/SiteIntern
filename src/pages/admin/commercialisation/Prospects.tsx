@@ -34,7 +34,11 @@ import {
   Upload,
   RefreshCw,
   Search,
+  CheckSquare,
+  Square,
+  X,
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useProspects, useDeleteProspect } from '@/hooks/useProspects';
 import { useSegments } from '@/hooks/useSegments';
 import { useCities } from '@/hooks/useCities';
@@ -66,6 +70,9 @@ export default function Prospects() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedProspectId, setSelectedProspectId] = useState<string | null>(null);
   const [showCallModal, setShowCallModal] = useState(false);
+
+  // Selection multiple
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const prospects = data?.prospects || [];
   const stats = data?.stats || {
@@ -104,6 +111,54 @@ export default function Prospects() {
     // TODO: Implement export
     alert('Export CSV en cours de développement');
   };
+
+  // Selection handlers
+  const handleSelectAll = () => {
+    if (selectedIds.size === prospects.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(prospects.map(p => p.id)));
+    }
+  };
+
+  const handleSelectOne = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedIds.size} prospect(s) ?`)) return;
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const id of selectedIds) {
+      try {
+        await deleteProspect.mutateAsync(id);
+        successCount++;
+      } catch (error) {
+        errorCount++;
+      }
+    }
+
+    alert(`${successCount} prospect(s) supprimé(s), ${errorCount} erreur(s)`);
+    setSelectedIds(new Set());
+    refetch();
+  };
+
+  const isAllSelected = prospects.length > 0 && selectedIds.size === prospects.length;
+  const isSomeSelected = selectedIds.size > 0 && selectedIds.size < prospects.length;
 
   // Render stats cards
   const renderStatsCards = () => (
@@ -352,12 +407,51 @@ export default function Prospects() {
         {/* Filters */}
         {renderFilters()}
 
+        {/* Selection Actions Bar */}
+        {selectedIds.size > 0 && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-blue-600" />
+              <span className="font-medium text-blue-800">
+                {selectedIds.size} prospect(s) sélectionné(s)
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {commercialisation.canDeleteProspect && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleBulkDelete}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Supprimer la sélection
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleClearSelection}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Annuler
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Table */}
         <Card>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={isAllSelected}
+                      indeterminate={isSomeSelected}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>Ajouté par</TableHead>
                   <TableHead>ID</TableHead>
                   <TableHead>Téléphone</TableHead>
@@ -372,19 +466,25 @@ export default function Prospects() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={10} className="text-center py-8">
                       Chargement...
                     </TableCell>
                   </TableRow>
                 ) : prospects.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                       Aucun prospect trouvé
                     </TableCell>
                   </TableRow>
                 ) : (
                   prospects.map((prospect) => (
-                    <TableRow key={prospect.id}>
+                    <TableRow key={prospect.id} className={selectedIds.has(prospect.id) ? 'bg-blue-50' : ''}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(prospect.id)}
+                          onCheckedChange={() => handleSelectOne(prospect.id)}
+                        />
+                      </TableCell>
                       <TableCell className="text-sm">{prospect.created_by_name || '-'}</TableCell>
                       <TableCell className="font-mono text-sm">{prospect.id.substring(9, 15)}</TableCell>
                       <TableCell className="font-mono">{prospect.phone_international}</TableCell>
