@@ -491,7 +491,11 @@ export default function Prospects() {
                       <TableCell className="font-mono text-sm">{prospect.id.substring(9, 15)}</TableCell>
                       <TableCell className="font-mono">{prospect.phone_international}</TableCell>
                       <TableCell>{prospect.ville_name || '-'}</TableCell>
-                      <TableCell className="text-sm">{prospect.assigned_to_name || '-'}</TableCell>
+                      <TableCell className="text-sm">
+                        {prospect.assigned_to_name || (
+                          <span className="text-orange-600 font-medium">À assigner</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-sm">
                         {prospect.date_injection ? new Date(prospect.date_injection).toLocaleDateString('fr-FR') : '-'}
                       </TableCell>
