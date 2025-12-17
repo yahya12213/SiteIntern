@@ -85,7 +85,7 @@ export function SessionDocumentsDownloadModal({
   /**
    * Régénère un PDF côté frontend avec CertificateTemplateEngine
    */
-  const regeneratePdf = async (certificateId: string): Promise<{ blob: Blob; fileName: string; folderName: string } | null> => {
+  const regeneratePdf = async (certificateId: string): Promise<{ blob: Blob; fileName: string; folderName: string; issuedAt: string } | null> => {
     try {
       const response = await apiClient.get<{
         success: boolean;
@@ -131,7 +131,10 @@ export function SessionDocumentsDownloadModal({
         .trim();
       const fileName = `${docType}_${segment}_${studentName}_${cin}_${sessionTitle}.pdf`;
 
-      return { blob: pdfBlob, fileName, folderName };
+      // Date d'émission pour organiser par "A Imprimer" vs "Deja Imprimes"
+      const issuedAt = certificate.issued_at || certificate.created_at || '';
+
+      return { blob: pdfBlob, fileName, folderName, issuedAt };
     } catch (error) {
       console.error('Error regenerating PDF:', error);
       return null;
@@ -165,8 +168,14 @@ export function SessionDocumentsDownloadModal({
       const zip = new JSZip();
       let successCount = 0;
       let errorCount = 0;
+      let todayCount = 0;
+      let olderCount = 0;
 
-      // 3. Régénérer chaque PDF et l'ajouter au ZIP dans un sous-dossier par template
+      // Date d'aujourd'hui pour comparer (format YYYY-MM-DD)
+      const today = new Date().toISOString().split('T')[0];
+
+      // 3. Régénérer chaque PDF et l'ajouter au ZIP organisé par date
+      // Structure: "A Imprimer/TemplateName/" ou "Deja Imprimes/TemplateName/"
       const folders: Record<string, JSZip> = {};
 
       for (let i = 0; i < certificates.length; i++) {
@@ -176,12 +185,23 @@ export function SessionDocumentsDownloadModal({
         try {
           const result = await regeneratePdf(cert.id);
           if (result) {
+            // Déterminer si le document est d'aujourd'hui ou plus ancien
+            const isToday = result.issuedAt.startsWith(today);
+            const rootFolder = isToday ? 'A Imprimer' : 'Deja Imprimes';
+            const fullPath = `${rootFolder}/${result.folderName}`;
+
             // Créer le sous-dossier si nécessaire et y ajouter le fichier
-            if (!folders[result.folderName]) {
-              folders[result.folderName] = zip.folder(result.folderName) as JSZip;
+            if (!folders[fullPath]) {
+              folders[fullPath] = zip.folder(fullPath) as JSZip;
             }
-            folders[result.folderName].file(result.fileName, result.blob);
+            folders[fullPath].file(result.fileName, result.blob);
             successCount++;
+
+            if (isToday) {
+              todayCount++;
+            } else {
+              olderCount++;
+            }
           } else {
             console.error(`Failed to regenerate PDF for ${cert.certificate_number}`);
             errorCount++;
@@ -214,9 +234,14 @@ export function SessionDocumentsDownloadModal({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
+      // Message de résumé
+      let message = `ZIP téléchargé avec ${successCount} document(s).\n`;
+      message += `📁 A Imprimer (aujourd'hui): ${todayCount} document(s)\n`;
+      message += `📁 Deja Imprimes (anciens): ${olderCount} document(s)`;
       if (errorCount > 0) {
-        alert(`ZIP téléchargé avec ${successCount} document(s). ${errorCount} document(s) n'ont pas pu être générés.`);
+        message += `\n⚠️ ${errorCount} document(s) n'ont pas pu être générés.`;
       }
+      alert(message);
 
     } catch (err: any) {
       console.error('Error downloading documents:', err);
