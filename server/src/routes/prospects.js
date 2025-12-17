@@ -98,12 +98,19 @@ router.get('/',
           s.name as segment_name,
           c.name as ville_name,
           prof.full_name as assigned_to_name,
-          creator.full_name as created_by_name
+          creator.full_name as created_by_name,
+          COALESCE(calls.total_duration, 0) as total_call_duration
         FROM prospects p
         LEFT JOIN segments s ON s.id = p.segment_id
         LEFT JOIN cities c ON c.id = p.ville_id
         LEFT JOIN profiles prof ON prof.id = p.assigned_to
         LEFT JOIN profiles creator ON creator.id = p.created_by
+        LEFT JOIN (
+          SELECT prospect_id, SUM(duration_seconds) as total_duration
+          FROM prospect_call_history
+          WHERE duration_seconds IS NOT NULL
+          GROUP BY prospect_id
+        ) calls ON calls.prospect_id = p.id
         WHERE 1=1
       `;
 

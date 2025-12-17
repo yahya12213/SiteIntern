@@ -37,6 +37,7 @@ export interface Prospect {
   ville_name?: string;
   assigned_to_name?: string;
   created_by_name?: string;
+  total_call_duration?: number;
 }
 
 export interface ProspectStats {

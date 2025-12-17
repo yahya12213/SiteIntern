@@ -460,19 +460,20 @@ export default function Prospects() {
                   <TableHead>Date d'insertion</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead>Pays</TableHead>
+                  <TableHead>Durée d'appel</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
+                    <TableCell colSpan={11} className="text-center py-8">
                       Chargement...
                     </TableCell>
                   </TableRow>
                 ) : prospects.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                       Aucun prospect trouvé
                     </TableCell>
                   </TableRow>
@@ -499,10 +500,15 @@ export default function Prospects() {
                       <TableCell>
                         <Badge variant="outline">{prospect.country}</Badge>
                       </TableCell>
+                      <TableCell className="text-sm">
+                        {prospect.total_call_duration && prospect.total_call_duration > 0
+                          ? `${Math.floor(prospect.total_call_duration / 60)}m ${prospect.total_call_duration % 60}s`
+                          : '-'}
+                      </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           {commercialisation.canCallProspect &&
-                            (prospect.statut_contact === 'non contacté' || prospect.statut_contact === 'nouveau') && (
+                            prospect.statut_contact !== 'inscrit' && (
                               <Button
                                 size="sm"
                                 onClick={() => handleCallProspect(prospect.id)}
