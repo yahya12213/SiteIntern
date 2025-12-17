@@ -175,7 +175,7 @@ router.get('/',
       let statsQuery = `
         SELECT
           COUNT(*) as total,
-          COUNT(*) FILTER (WHERE statut_contact IN ('non contacté', 'nouveau')) as non_contactes,
+          COUNT(*) FILTER (WHERE statut_contact = 'non contacté') as non_contactes,
           COUNT(*) FILTER (WHERE statut_contact = 'contacté avec rdv') as avec_rdv,
           COUNT(*) FILTER (WHERE statut_contact = 'contacté sans rdv') as sans_rdv,
           COUNT(*) FILTER (WHERE statut_contact = 'inscrit') as inscrits,

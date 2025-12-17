@@ -32,7 +32,7 @@ export async function autoAssignProspect() {
         SELECT COUNT(*) as count
         FROM prospects
         WHERE assigned_to = $1
-          AND statut_contact IN ('non contacté', 'nouveau', 'contacté sans reponse')
+          AND statut_contact IN ('non contacté', 'contacté sans reponse')
       `;
       const { rows } = await pool.query(countQuery, [assistante.id]);
       return {

@@ -115,7 +115,7 @@ export async function getCleaningStats() {
     SELECT
       decision_nettoyage,
       COUNT(*) as count,
-      COUNT(*) FILTER (WHERE statut_contact IN ('non contacté', 'nouveau')) as non_contactes,
+      COUNT(*) FILTER (WHERE statut_contact = 'non contacté') as non_contactes,
       COUNT(*) FILTER (WHERE date_rdv IS NOT NULL) as avec_rdv
     FROM prospects
     GROUP BY decision_nettoyage

@@ -17,7 +17,7 @@ export async function reinjectProspect(prospectId, userId) {
     SET
       date_injection = NOW(),
       date_rdv = NULL,
-      statut_contact = 'nouveau',
+      statut_contact = 'non contacté',
       decision_nettoyage = 'laisser',
       updated_at = NOW()
     WHERE id = $1
@@ -35,7 +35,7 @@ export async function reinjectProspect(prospectId, userId) {
   await pool.query(`
     INSERT INTO prospect_call_history
     (id, prospect_id, user_id, call_start, call_end, status_before, status_after, commentaire)
-    VALUES ($1, $2, $3, NOW(), NOW(), 'réinjection', 'nouveau', 'Prospect réinjecté')
+    VALUES ($1, $2, $3, NOW(), NOW(), 'réinjection', 'non contacté', 'Prospect réinjecté')
   `, [callId, prospectId, userId]);
 
   console.log(`🔄 Prospect ${prospectId} réinjecté par user ${userId}`);
