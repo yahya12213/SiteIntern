@@ -145,6 +145,7 @@ import migrationFixKhalidRoleRouter from './routes/migration-fix-khalid-role.js'
 import migrationVerifyGerantPermissionsRouter from './routes/migration-verify-gerant-permissions.js';
 import migrationAddCertificateUpdatePermissionRouter from './routes/migration-add-certificate-update-permission.js';
 import migrationCreateGerantTablesRouter from './routes/migration-create-gerant-tables.js';
+import migrationUpdateNouveauStatusRouter from './routes/migration-update-nouveau-status.js';
 
 const app = express();
 
@@ -341,6 +342,7 @@ app.use('/api/migration-create-gerant-tables', ...adminOnly, migrationCreateGera
 app.use('/api/migration-fix-segments-and-sheets', ...adminOnly, migrationFixRouter);
 app.use('/api/migration-fix-impression-permissions', ...adminOnly, migrationFixImpressionRouter);
 app.use('/api/migration-fix-role-sync', ...adminOnly, migrationFixRoleSyncRouter);
+app.use('/api/migration-update-nouveau-status', ...adminOnly, migrationUpdateNouveauStatusRouter);
 
 // Health check
 app.get('/api/health', async (req, res) => {
