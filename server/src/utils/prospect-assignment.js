@@ -99,6 +99,50 @@ export async function autoAssignProspect() {
 }
 
 /**
+ * Trouve l'assistante qui a la ville assignée avec la charge la plus faible
+ * @param {string} villeId - ID de la ville
+ * @returns {Promise<Object|null>} { assigned_to, assistante_name } ou null si aucune assistante
+ */
+export async function findAssistanteForVille(villeId) {
+  try {
+    // Trouver les assistantes qui ont cette ville assignée
+    const query = `
+      SELECT
+        p.id,
+        p.full_name,
+        (
+          SELECT COUNT(*)
+          FROM prospects
+          WHERE assigned_to = p.id
+            AND statut_contact IN ('non contacté', 'contacté sans reponse')
+        ) as workload
+      FROM profiles p
+      JOIN professor_cities pc ON pc.professor_id = p.id
+      WHERE pc.city_id = $1
+      ORDER BY workload ASC
+      LIMIT 1
+    `;
+
+    const { rows } = await pool.query(query, [villeId]);
+
+    if (rows.length === 0) {
+      console.log(`⚠️ Aucune assistante assignée à la ville ${villeId}`);
+      return null;
+    }
+
+    console.log(`🎯 Assistante trouvée pour la ville: ${rows[0].full_name} (${rows[0].workload} prospects)`);
+
+    return {
+      assigned_to: rows[0].id,
+      assistante_name: rows[0].full_name
+    };
+  } catch (error) {
+    console.error('Error in findAssistanteForVille:', error);
+    return null;
+  }
+}
+
+/**
  * Vérifie si une ville est dans les villes assignées d'un utilisateur
  * @param {string} userId - ID de l'utilisateur
  * @param {string} villeId - ID de la ville

@@ -8,7 +8,7 @@ import pool from '../config/database.js';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import { injectUserScope, buildScopeFilter, requireRecordScope } from '../middleware/requireScope.js';
 import { normalizePhoneInternational } from '../utils/phone-validator.js';
-import { autoAssignProspect, reassignIfOutOfScope } from '../utils/prospect-assignment.js';
+import { autoAssignProspect, reassignIfOutOfScope, findAssistanteForVille } from '../utils/prospect-assignment.js';
 import { handleDuplicateOrReinject, reinjectProspect } from '../utils/prospect-reinject.js';
 import { runCleaningBatch, deleteMarkedProspects, getProspectsToDelete, getCleaningStats } from '../utils/prospect-cleaner.js';
 
@@ -259,23 +259,22 @@ router.post('/',
         });
       }
 
-      // Affectation automatique si ville non spécifiée ou = "Sans Ville"
+      // Affectation automatique à l'assistante qui possède cette ville
+      // Admin et Gérant créent des prospects, l'assistante responsable de la ville est assignée
       let assigned_to = null;
       let finalVilleId = ville_id;
       let assignmentInfo = null;
 
-      if (!ville_id || ville_id === 'city-sans-ville') {
-        try {
-          const assignment = await autoAssignProspect();
+      // Toujours chercher l'assistante qui possède cette ville
+      if (ville_id) {
+        const assignment = await findAssistanteForVille(ville_id);
+        if (assignment) {
           assigned_to = assignment.assigned_to;
-          finalVilleId = assignment.ville_id;
           assignmentInfo = {
-            assistante_name: assignment.assistante_name,
-            ville_name: assignment.ville_name
+            assistante_name: assignment.assistante_name
           };
-        } catch (error) {
-          return res.status(500).json({ error: error.message });
         }
+        // Si aucune assistante n'a cette ville, assigned_to reste null (prospect non assigné)
       }
 
       // Validation SBAC
@@ -511,15 +510,19 @@ router.post('/import',
           continue;
         }
 
+        // Trouver l'assistante qui possède cette ville
+        const assignment = await findAssistanteForVille(villeId);
+        const assignedTo = assignment ? assignment.assigned_to : null;
+
         // Créer le prospect
         const prospectId = `prospect-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
         await pool.query(`
           INSERT INTO prospects (
             id, phone_raw, phone_international, country_code, country, statut_validation_numero,
-            segment_id, ville_id, statut_contact, date_injection, created_by
+            segment_id, ville_id, assigned_to, is_auto_assigned, statut_contact, date_injection, created_by
           )
-          VALUES ($1, $2, $3, $4, $5, 'valide', $6, $7, 'non contacté', NOW(), $8)
+          VALUES ($1, $2, $3, $4, $5, 'valide', $6, $7, $8, $9, 'non contacté', NOW(), $10)
         `, [
           prospectId,
           line.phone,
@@ -528,6 +531,8 @@ router.post('/import',
           phoneValidation.country,
           segment_id,
           villeId,
+          assignedTo,
+          !!assignedTo,
           req.user.id
         ]);
 
