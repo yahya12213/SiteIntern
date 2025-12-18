@@ -1,41 +1,124 @@
 /**
  * Prospect Reinject - Réinjection des prospects anciens
  * Permet de retravailler les prospects obsolètes sans créer de doublons
+ *
+ * RÈGLES DE RÉINJECTION:
+ * 1. Doublon = même phone_international + même segment_id
+ * 2. Si date_injection > 24h:
+ *    - Si statut = "contacté avec rdv" ET date_rdv dans le FUTUR → BLOQUER (doublon)
+ *    - Si statut = "contacté avec rdv" ET date_rdv dans le PASSÉ → RÉINJECTER
+ *    - Sinon → RÉINJECTER
+ * 3. Si date_injection <= 24h → BLOQUER (doublon)
+ * 4. Lors de la réinjection: APPEND ville/nom/prenom pour tracer l'historique
  */
 
 import pool from '../config/database.js';
 
 /**
- * Réinjecte un prospect existant (remise à zéro pour retraitement)
+ * Réinjecte un prospect existant avec historique
  * @param {string} prospectId - ID du prospect
  * @param {string} userId - ID de l'utilisateur effectuant la réinjection
+ * @param {Object} newData - Nouvelles données (ville_id, nom, prenom) à AJOUTER
  * @returns {Promise<Object>} Prospect réinjecté
  */
-export async function reinjectProspect(prospectId, userId) {
+export async function reinjectProspect(prospectId, userId, newData = {}) {
+  // D'abord récupérer les données actuelles pour l'historique
+  const { rows: currentRows } = await pool.query(
+    'SELECT ville_id, nom, prenom FROM prospects WHERE id = $1',
+    [prospectId]
+  );
+
+  if (currentRows.length === 0) {
+    throw new Error('Prospect non trouvé');
+  }
+
+  const current = currentRows[0];
+
+  // Préparer les champs avec historique (APPEND)
+  const updateFields = [
+    'date_injection = NOW()',
+    'date_rdv = NULL',
+    "statut_contact = 'non contacté'",
+    "decision_nettoyage = 'laisser'",
+    'updated_at = NOW()'
+  ];
+  const updateValues = [];
+  let paramIndex = 1;
+
+  // APPEND ville_id: format "ville1, ville2, ville3"
+  if (newData.ville_id && newData.ville_id !== current.ville_id) {
+    // Récupérer les noms des villes pour l'historique lisible
+    const villeHistoryQuery = `
+      SELECT
+        COALESCE(
+          (SELECT name FROM cities WHERE id = $1),
+          $1::text
+        ) as current_ville,
+        COALESCE(
+          (SELECT name FROM cities WHERE id = $2),
+          $2::text
+        ) as new_ville
+    `;
+    const { rows: villeRows } = await pool.query(villeHistoryQuery, [current.ville_id, newData.ville_id]);
+
+    // On garde la nouvelle ville_id mais on trace dans commentaire
+    updateFields.push(`ville_id = $${paramIndex++}`);
+    updateValues.push(newData.ville_id);
+
+    // Ajouter l'historique des villes dans un champ commentaire ou créer un historique
+    const villeHistory = villeRows[0];
+    console.log(`📍 Historique ville: ${villeHistory.current_ville} → ${villeHistory.new_ville}`);
+  }
+
+  // APPEND nom: format "Nom1, Nom2"
+  if (newData.nom) {
+    if (current.nom && current.nom !== newData.nom) {
+      // Vérifier si le nouveau nom n'est pas déjà dans l'historique
+      const existingNoms = current.nom.split(', ').map(n => n.trim().toLowerCase());
+      if (!existingNoms.includes(newData.nom.trim().toLowerCase())) {
+        updateFields.push(`nom = $${paramIndex++}`);
+        updateValues.push(`${current.nom}, ${newData.nom}`);
+        console.log(`👤 Historique nom: ${current.nom} → ${current.nom}, ${newData.nom}`);
+      }
+    } else if (!current.nom) {
+      updateFields.push(`nom = $${paramIndex++}`);
+      updateValues.push(newData.nom);
+    }
+  }
+
+  // APPEND prenom: format "Prenom1, Prenom2"
+  if (newData.prenom) {
+    if (current.prenom && current.prenom !== newData.prenom) {
+      // Vérifier si le nouveau prénom n'est pas déjà dans l'historique
+      const existingPrenoms = current.prenom.split(', ').map(p => p.trim().toLowerCase());
+      if (!existingPrenoms.includes(newData.prenom.trim().toLowerCase())) {
+        updateFields.push(`prenom = $${paramIndex++}`);
+        updateValues.push(`${current.prenom}, ${newData.prenom}`);
+        console.log(`👤 Historique prénom: ${current.prenom} → ${current.prenom}, ${newData.prenom}`);
+      }
+    } else if (!current.prenom) {
+      updateFields.push(`prenom = $${paramIndex++}`);
+      updateValues.push(newData.prenom);
+    }
+  }
+
+  // Exécuter la mise à jour
+  updateValues.push(prospectId);
   const query = `
     UPDATE prospects
-    SET
-      date_injection = NOW(),
-      date_rdv = NULL,
-      statut_contact = 'non contacté',
-      decision_nettoyage = 'laisser',
-      updated_at = NOW()
-    WHERE id = $1
+    SET ${updateFields.join(', ')}
+    WHERE id = $${paramIndex}
     RETURNING *
   `;
 
-  const { rows } = await pool.query(query, [prospectId]);
-
-  if (rows.length === 0) {
-    throw new Error('Prospect non trouvé');
-  }
+  const { rows } = await pool.query(query, updateValues);
 
   // Logger dans l'historique
   const callId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   await pool.query(`
     INSERT INTO prospect_call_history
     (id, prospect_id, user_id, call_start, call_end, status_before, status_after, commentaire)
-    VALUES ($1, $2, $3, NOW(), NOW(), 'réinjection', 'non contacté', 'Prospect réinjecté')
+    VALUES ($1, $2, $3, NOW(), NOW(), 'réinjection', 'non contacté', 'Prospect réinjecté automatiquement')
   `, [callId, prospectId, userId]);
 
   console.log(`🔄 Prospect ${prospectId} réinjecté par user ${userId}`);
@@ -44,53 +127,100 @@ export async function reinjectProspect(prospectId, userId) {
 }
 
 /**
- * Détermine si un prospect doit être réinjecté (au lieu de créer un doublon)
- * Un prospect peut être réinjecté s'il est dans un état "usé"
+ * Détermine si un prospect doit être réinjecté selon les nouvelles règles
+ *
+ * RÈGLES:
+ * 1. date_injection doit être > 24 heures
+ * 2. Si statut = "contacté avec rdv":
+ *    - date_rdv passée → RÉINJECTER
+ *    - date_rdv future → BLOQUER
+ * 3. Autres statuts + > 24h → RÉINJECTER
+ *
  * @param {Object} existingProspect - Prospect existant
- * @returns {boolean} true si le prospect doit être réinjecté
+ * @returns {{ canReinject: boolean, reason: string }} Résultat avec raison
  */
 export function shouldReinject(existingProspect) {
-  if (!existingProspect) return false;
+  if (!existingProspect) {
+    return { canReinject: false, reason: 'Prospect inexistant' };
+  }
 
-  // Statuts négatifs (prospect abandonné)
-  const statuts_negatifs = [
-    'contacté sans rdv',
-    'contacté sans reponse',
-    'contacté sans réponse',
-    'boîte vocale',
-    'boite vocale',
-    'à recontacter',
-    'a recontacter'
-  ];
+  const now = new Date();
+  const dateInjection = existingProspect.date_injection
+    ? new Date(existingProspect.date_injection)
+    : null;
 
-  const isNegativeStatus = statuts_negatifs.includes(
-    existingProspect.statut_contact?.toLowerCase()
-  );
+  // RÈGLE: Le prospect doit avoir été injecté il y a plus de 24 heures
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000; // 24h en ms
+  const isOlderThan24h = dateInjection &&
+    (now.getTime() - dateInjection.getTime()) > TWENTY_FOUR_HOURS;
 
-  // RDV ancien (dépassé de plus de 7 jours)
-  const rdvAncien = existingProspect.date_rdv &&
-    new Date(existingProspect.date_rdv) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  if (!isOlderThan24h) {
+    return {
+      canReinject: false,
+      reason: 'Prospect injecté il y a moins de 24 heures'
+    };
+  }
 
-  // Injection ancienne (plus de 3 jours sans activité)
-  const injectionAncienne = existingProspect.date_injection &&
-    new Date(existingProspect.date_injection) < new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+  // RÈGLE: Si statut = "contacté avec rdv", vérifier la date du RDV
+  const statutContact = existingProspect.statut_contact?.toLowerCase();
 
-  // Le prospect peut être réinjecté si au moins une condition est vraie
-  return isNegativeStatus || rdvAncien || injectionAncienne;
+  if (statutContact === 'contacté avec rdv') {
+    const dateRdv = existingProspect.date_rdv
+      ? new Date(existingProspect.date_rdv)
+      : null;
+
+    if (dateRdv) {
+      // Comparer avec aujourd'hui (début de journée pour être précis)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (dateRdv >= today) {
+        // RDV dans le futur ou aujourd'hui → BLOQUER
+        return {
+          canReinject: false,
+          reason: `RDV prévu le ${dateRdv.toLocaleDateString('fr-FR')} - ne peut pas être réinjecté`
+        };
+      } else {
+        // RDV dans le passé → RÉINJECTER
+        return {
+          canReinject: true,
+          reason: `RDV passé (${dateRdv.toLocaleDateString('fr-FR')}) - peut être réinjecté`
+        };
+      }
+    }
+
+    // Pas de date RDV mais statut "contacté avec rdv" → RÉINJECTER (incohérent)
+    return {
+      canReinject: true,
+      reason: 'Statut RDV sans date - peut être réinjecté'
+    };
+  }
+
+  // Autres statuts + > 24h → RÉINJECTER
+  return {
+    canReinject: true,
+    reason: `Ancien prospect (> 24h) avec statut "${statutContact || 'non défini'}" - peut être réinjecté`
+  };
 }
 
 /**
  * Gère la logique complète de doublon vs réinjection
- * RÈGLE: Un même numéro peut exister dans différents segments
- * Le doublon est vérifié par combinaison phone_international + segment_id
+ *
+ * RÈGLES:
+ * 1. Un même numéro peut exister dans différents segments
+ * 2. Doublon = phone_international + segment_id identiques
+ * 3. Si doublon existe:
+ *    - Vérifier si réinjection possible (shouldReinject)
+ *    - Si oui: réinjecter avec APPEND des données
+ *    - Si non: bloquer comme doublon
+ *
  * @param {string} phoneInternational - Numéro au format international
  * @param {string} userId - ID de l'utilisateur
- * @param {Object} prospectData - Données du nouveau prospect (doit contenir segment_id)
+ * @param {Object} prospectData - Données du nouveau prospect (segment_id, ville_id, nom, prenom)
  * @returns {Promise<Object>} { action: 'created'|'reinjected'|'duplicate', prospect, message }
  */
 export async function handleDuplicateOrReinject(phoneInternational, userId, prospectData) {
   // Vérifier si le prospect existe DANS LE MÊME SEGMENT
-  // Un même numéro peut exister dans différents segments
   const existingQuery = `
     SELECT * FROM prospects
     WHERE phone_international = $1
@@ -109,55 +239,28 @@ export async function handleDuplicateOrReinject(phoneInternational, userId, pros
 
   const existingProspect = existing[0];
 
-  // Vérifier si le prospect doit être réinjecté
-  if (shouldReinject(existingProspect)) {
-    // Réinjecter le prospect
-    const reinjected = await reinjectProspect(existingProspect.id, userId);
+  // Vérifier si le prospect peut être réinjecté
+  const reinjectResult = shouldReinject(existingProspect);
 
-    // Mettre à jour les données si fournies
-    if (prospectData.segment_id || prospectData.ville_id || prospectData.nom || prospectData.prenom) {
-      const updateFields = [];
-      const updateValues = [];
-      let paramIndex = 1;
-
-      if (prospectData.segment_id) {
-        updateFields.push(`segment_id = $${paramIndex++}`);
-        updateValues.push(prospectData.segment_id);
-      }
-      if (prospectData.ville_id) {
-        updateFields.push(`ville_id = $${paramIndex++}`);
-        updateValues.push(prospectData.ville_id);
-      }
-      if (prospectData.nom) {
-        updateFields.push(`nom = $${paramIndex++}`);
-        updateValues.push(prospectData.nom);
-      }
-      if (prospectData.prenom) {
-        updateFields.push(`prenom = $${paramIndex++}`);
-        updateValues.push(prospectData.prenom);
-      }
-
-      if (updateFields.length > 0) {
-        updateValues.push(existingProspect.id);
-        await pool.query(`
-          UPDATE prospects
-          SET ${updateFields.join(', ')}, updated_at = NOW()
-          WHERE id = $${paramIndex}
-        `, updateValues);
-      }
-    }
+  if (reinjectResult.canReinject) {
+    // Réinjecter le prospect avec APPEND des données
+    const reinjected = await reinjectProspect(existingProspect.id, userId, {
+      ville_id: prospectData.ville_id,
+      nom: prospectData.nom,
+      prenom: prospectData.prenom
+    });
 
     return {
       action: 'reinjected',
       prospect: reinjected,
-      message: 'Prospect réinjecté avec succès'
+      message: `Prospect réinjecté: ${reinjectResult.reason}`
     };
   }
 
-  // Le prospect existe dans ce segment et ne peut pas être réinjecté → Doublon strict
+  // Le prospect ne peut pas être réinjecté → Doublon strict
   return {
     action: 'duplicate',
     prospect: existingProspect,
-    message: 'Ce numéro existe déjà dans ce segment'
+    message: reinjectResult.reason
   };
 }
