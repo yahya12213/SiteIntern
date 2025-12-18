@@ -251,6 +251,12 @@ const MIGRATIONS: Migration[] = [
     name: 'DEBUG: Analyse Khalid Fathi',
     description: '🔍 Affiche le rôle, permissions et diagnostic complet pour l\'utilisateur khalid fathi',
     endpoint: '/migration-debug-khalid'
+  },
+  {
+    id: 'migration-add-historique-rdv',
+    name: 'Migration 087: Historique RDV Prospects',
+    description: '📅 Ajoute colonne historique_rdv à prospects pour tracer les anciens RDV lors des réinjections',
+    endpoint: '/migration-add-historique-rdv'
   }
 ];
 
