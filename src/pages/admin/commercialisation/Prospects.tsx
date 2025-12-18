@@ -37,6 +37,7 @@ import {
   CheckSquare,
   Square,
   X,
+  Calendar,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useProspects, useDeleteProspect } from '@/hooks/useProspects';
@@ -47,6 +48,68 @@ import type { ProspectFilters } from '@/lib/api/prospects';
 import { QuickAddProspectModal } from '@/components/prospects/QuickAddProspectModal';
 import { ImportProspectsModal } from '@/components/prospects/ImportProspectsModal';
 import { CallProspectModal } from '@/components/prospects/CallProspectModal';
+
+// Fonction pour déterminer le style du RDV selon la date
+const getRdvStyle = (dateRdv: string | null) => {
+  if (!dateRdv) return null;
+
+  const rdv = new Date(dateRdv);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const rdvDay = new Date(rdv.getFullYear(), rdv.getMonth(), rdv.getDate());
+
+  const diffMs = rdvDay.getTime() - today.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+  // Jour J (aujourd'hui)
+  if (diffDays === 0) {
+    return {
+      bg: 'bg-green-100',
+      text: 'text-green-800',
+      border: 'border-green-300',
+      label: "Aujourd'hui"
+    };
+  }
+
+  // Demain (< 48h)
+  if (diffDays > 0 && diffDays <= 2) {
+    return {
+      bg: 'bg-yellow-100',
+      text: 'text-yellow-800',
+      border: 'border-yellow-300',
+      label: diffDays === 1 ? 'Demain' : 'Dans 2 jours'
+    };
+  }
+
+  // RDV futur (> 48h)
+  if (diffDays > 2) {
+    return {
+      bg: 'bg-blue-50',
+      text: 'text-blue-700',
+      border: 'border-blue-200',
+      label: `Dans ${Math.ceil(diffDays)} jours`
+    };
+  }
+
+  // Expiré < 24h (hier)
+  if (diffDays >= -1 && diffDays < 0) {
+    return {
+      bg: 'bg-orange-100',
+      text: 'text-orange-800',
+      border: 'border-orange-300',
+      label: 'Expiré hier'
+    };
+  }
+
+  // Expiré > 24h
+  return {
+    bg: 'bg-red-100',
+    text: 'text-red-800',
+    border: 'border-red-300',
+    label: `Expiré (${Math.abs(Math.ceil(diffDays))}j)`
+  };
+};
 
 export default function Prospects() {
   const { commercialisation } = usePermission();
@@ -459,6 +522,7 @@ export default function Prospects() {
                   <TableHead>Assigné à</TableHead>
                   <TableHead>Date d'insertion</TableHead>
                   <TableHead>Statut</TableHead>
+                  <TableHead>RDV</TableHead>
                   <TableHead>Pays</TableHead>
                   <TableHead>Durée d'appel</TableHead>
                   <TableHead>Actions</TableHead>
@@ -467,13 +531,13 @@ export default function Prospects() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8">
+                    <TableCell colSpan={13} className="text-center py-8">
                       Chargement...
                     </TableCell>
                   </TableRow>
                 ) : prospects.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                       Aucun prospect trouvé
                     </TableCell>
                   </TableRow>
@@ -508,6 +572,36 @@ export default function Prospects() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{prospect.statut_contact}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {prospect.date_rdv ? (
+                          <div className="space-y-1">
+                            {(() => {
+                              const style = getRdvStyle(prospect.date_rdv);
+                              const rdvDate = new Date(prospect.date_rdv);
+                              return (
+                                <div className={`px-2 py-1 rounded border ${style?.bg} ${style?.text} ${style?.border}`}>
+                                  <div className="flex items-center gap-1 text-xs font-medium">
+                                    <Calendar className="h-3 w-3" />
+                                    {rdvDate.toLocaleDateString('fr-FR')}
+                                  </div>
+                                  <div className="text-xs">
+                                    {rdvDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                  <div className="text-xs font-semibold">{style?.label}</div>
+                                </div>
+                              );
+                            })()}
+                            {prospect.historique_rdv && (
+                              <div className="text-xs text-gray-500">
+                                <span className="font-medium">Précédents:</span>
+                                <span className="block">{prospect.historique_rdv}</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{prospect.country}</Badge>
