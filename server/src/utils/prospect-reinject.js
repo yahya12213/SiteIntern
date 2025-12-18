@@ -9,13 +9,13 @@
  *    - Si statut = "contacté avec rdv" ET date_rdv dans le PASSÉ → RÉINJECTER
  *    - Sinon → RÉINJECTER
  * 3. Si date_injection <= 24h → BLOQUER (doublon)
- * 4. Lors de la réinjection: APPEND ville/nom/prenom pour tracer l'historique
+ * 4. Lors de la réinjection: APPEND ville/nom/prenom/date_rdv pour tracer l'historique
  */
 
 import pool from '../config/database.js';
 
 /**
- * Réinjecte un prospect existant avec historique
+ * Réinjecte un prospect existant avec historique complet
  * @param {string} prospectId - ID du prospect
  * @param {string} userId - ID de l'utilisateur effectuant la réinjection
  * @param {Object} newData - Nouvelles données (ville_id, nom, prenom) à AJOUTER
@@ -24,7 +24,7 @@ import pool from '../config/database.js';
 export async function reinjectProspect(prospectId, userId, newData = {}) {
   // D'abord récupérer les données actuelles pour l'historique
   const { rows: currentRows } = await pool.query(
-    'SELECT ville_id, nom, prenom FROM prospects WHERE id = $1',
+    'SELECT ville_id, nom, prenom, date_rdv, historique_rdv FROM prospects WHERE id = $1',
     [prospectId]
   );
 
@@ -37,13 +37,38 @@ export async function reinjectProspect(prospectId, userId, newData = {}) {
   // Préparer les champs avec historique (APPEND)
   const updateFields = [
     'date_injection = NOW()',
-    'date_rdv = NULL',
     "statut_contact = 'non contacté'",
     "decision_nettoyage = 'laisser'",
     'updated_at = NOW()'
   ];
   const updateValues = [];
   let paramIndex = 1;
+
+  // HISTORIQUE RDV: Si date_rdv existe, l'ajouter à historique_rdv avant de la vider
+  if (current.date_rdv) {
+    const rdvDate = new Date(current.date_rdv);
+    const rdvFormatted = rdvDate.toLocaleDateString('fr-FR') + ' ' + rdvDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+    // Construire le nouvel historique
+    let newHistoriqueRdv;
+    if (current.historique_rdv) {
+      // Vérifier si cette date n'est pas déjà dans l'historique
+      if (!current.historique_rdv.includes(rdvFormatted)) {
+        newHistoriqueRdv = `${current.historique_rdv}, ${rdvFormatted}`;
+      } else {
+        newHistoriqueRdv = current.historique_rdv;
+      }
+    } else {
+      newHistoriqueRdv = rdvFormatted;
+    }
+
+    updateFields.push(`historique_rdv = $${paramIndex++}`);
+    updateValues.push(newHistoriqueRdv);
+    console.log(`📅 Historique RDV: ${newHistoriqueRdv}`);
+  }
+
+  // Maintenant on peut vider date_rdv
+  updateFields.push('date_rdv = NULL');
 
   // APPEND ville_id: format "ville1, ville2, ville3"
   if (newData.ville_id && newData.ville_id !== current.ville_id) {
@@ -113,7 +138,7 @@ export async function reinjectProspect(prospectId, userId, newData = {}) {
 
   const { rows } = await pool.query(query, updateValues);
 
-  // Logger dans l'historique
+  // Logger dans l'historique des appels
   const callId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   await pool.query(`
     INSERT INTO prospect_call_history
