@@ -148,6 +148,7 @@ import migrationCreateGerantTablesRouter from './routes/migration-create-gerant-
 import migrationUpdateNouveauStatusRouter from './routes/migration-update-nouveau-status.js';
 import migrationResetProspectAssignmentRouter from './routes/migration-reset-prospect-assignment.js';
 import migrationAddHistoriqueRdvRouter from './routes/migration-add-historique-rdv.js';
+import migrationAddHistoriqueVillesRouter from './routes/migration-add-historique-villes.js';
 
 const app = express();
 
@@ -347,6 +348,7 @@ app.use('/api/migration-fix-role-sync', ...adminOnly, migrationFixRoleSyncRouter
 app.use('/api/migration-update-nouveau-status', ...adminOnly, migrationUpdateNouveauStatusRouter);
 app.use('/api/migration-reset-prospect-assignment', ...adminOnly, migrationResetProspectAssignmentRouter);
 app.use('/api/migration-add-historique-rdv', ...adminOnly, migrationAddHistoriqueRdvRouter);
+app.use('/api/migration-add-historique-villes', ...adminOnly, migrationAddHistoriqueVillesRouter);
 
 // Health check
 app.get('/api/health', async (req, res) => {

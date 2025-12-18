@@ -200,6 +200,9 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
               <div>
                 <span className="text-sm text-gray-500">Ville actuelle:</span>
                 <p className="font-medium">{prospect.ville_name || 'Sans ville'}</p>
+                {prospect.historique_villes && (
+                  <p className="text-xs text-gray-500">(ex: {prospect.historique_villes})</p>
+                )}
               </div>
               <div>
                 <span className="text-sm text-gray-500">Segment:</span>
@@ -210,6 +213,12 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
                 <p className="font-medium">{prospect.assigned_to_name || 'Non assigné'}</p>
               </div>
             </div>
+            {prospect.historique_rdv && (
+              <div className="mt-2 pt-2 border-t">
+                <span className="text-sm text-gray-500">Historique RDV:</span>
+                <p className="text-xs text-orange-600">{prospect.historique_rdv}</p>
+              </div>
+            )}
           </div>
 
           {/* Sélection de la ville */}

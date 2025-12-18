@@ -24,7 +24,7 @@ import pool from '../config/database.js';
 export async function reinjectProspect(prospectId, userId, newData = {}) {
   // D'abord récupérer les données actuelles pour l'historique
   const { rows: currentRows } = await pool.query(
-    'SELECT ville_id, nom, prenom, date_rdv, historique_rdv FROM prospects WHERE id = $1',
+    'SELECT ville_id, nom, prenom, date_rdv, historique_rdv, historique_villes FROM prospects WHERE id = $1',
     [prospectId]
   );
 
@@ -70,7 +70,7 @@ export async function reinjectProspect(prospectId, userId, newData = {}) {
   // Maintenant on peut vider date_rdv
   updateFields.push('date_rdv = NULL');
 
-  // APPEND ville_id: format "ville1, ville2, ville3"
+  // HISTORIQUE VILLES: Stocker l'ancienne ville avant de mettre à jour
   if (newData.ville_id && newData.ville_id !== current.ville_id) {
     // Récupérer les noms des villes pour l'historique lisible
     const villeHistoryQuery = `
@@ -85,14 +85,29 @@ export async function reinjectProspect(prospectId, userId, newData = {}) {
         ) as new_ville
     `;
     const { rows: villeRows } = await pool.query(villeHistoryQuery, [current.ville_id, newData.ville_id]);
+    const villeHistory = villeRows[0];
 
-    // On garde la nouvelle ville_id mais on trace dans commentaire
+    // Construire le nouvel historique des villes
+    let newHistoriqueVilles;
+    if (current.historique_villes) {
+      // Vérifier si l'ancienne ville n'est pas déjà dans l'historique
+      if (!current.historique_villes.includes(villeHistory.current_ville)) {
+        newHistoriqueVilles = `${current.historique_villes}, ${villeHistory.current_ville}`;
+      } else {
+        newHistoriqueVilles = current.historique_villes;
+      }
+    } else {
+      // Première réinjection - stocker l'ancienne ville
+      newHistoriqueVilles = villeHistory.current_ville;
+    }
+
+    updateFields.push(`historique_villes = $${paramIndex++}`);
+    updateValues.push(newHistoriqueVilles);
+    console.log(`📍 Historique villes: ${newHistoriqueVilles} → nouvelle: ${villeHistory.new_ville}`);
+
+    // Mettre à jour la ville_id avec la nouvelle ville
     updateFields.push(`ville_id = $${paramIndex++}`);
     updateValues.push(newData.ville_id);
-
-    // Ajouter l'historique des villes dans un champ commentaire ou créer un historique
-    const villeHistory = villeRows[0];
-    console.log(`📍 Historique ville: ${villeHistory.current_ville} → ${villeHistory.new_ville}`);
   }
 
   // APPEND nom: format "Nom1, Nom2"

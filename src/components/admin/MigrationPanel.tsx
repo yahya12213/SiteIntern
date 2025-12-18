@@ -257,6 +257,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 087: Historique RDV Prospects',
     description: '📅 Ajoute colonne historique_rdv à prospects pour tracer les anciens RDV lors des réinjections',
     endpoint: '/migration-add-historique-rdv'
+  },
+  {
+    id: 'migration-add-historique-villes',
+    name: 'Migration 088: Historique Villes Prospects',
+    description: '📍 Ajoute colonne historique_villes à prospects pour tracer les anciennes villes lors des réinjections',
+    endpoint: '/migration-add-historique-villes'
   }
 ];
 

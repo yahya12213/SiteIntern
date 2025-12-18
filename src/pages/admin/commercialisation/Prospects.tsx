@@ -490,7 +490,14 @@ export default function Prospects() {
                       <TableCell className="text-sm">{prospect.created_by_name || '-'}</TableCell>
                       <TableCell className="font-mono text-sm">{prospect.id.substring(9, 15)}</TableCell>
                       <TableCell className="font-mono">{prospect.phone_international}</TableCell>
-                      <TableCell>{prospect.ville_name || '-'}</TableCell>
+                      <TableCell>
+                        {prospect.ville_name || '-'}
+                        {prospect.historique_villes && (
+                          <span className="text-xs text-gray-500 block">
+                            (ex: {prospect.historique_villes})
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-sm">
                         {prospect.assistantes_ville || (
                           <span className="text-orange-600 font-medium">À assigner</span>
