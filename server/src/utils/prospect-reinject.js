@@ -81,20 +81,25 @@ export function shouldReinject(existingProspect) {
 
 /**
  * Gère la logique complète de doublon vs réinjection
+ * RÈGLE: Un même numéro peut exister dans différents segments
+ * Le doublon est vérifié par combinaison phone_international + segment_id
  * @param {string} phoneInternational - Numéro au format international
  * @param {string} userId - ID de l'utilisateur
- * @param {Object} prospectData - Données du nouveau prospect
+ * @param {Object} prospectData - Données du nouveau prospect (doit contenir segment_id)
  * @returns {Promise<Object>} { action: 'created'|'reinjected'|'duplicate', prospect, message }
  */
 export async function handleDuplicateOrReinject(phoneInternational, userId, prospectData) {
-  // Vérifier si le prospect existe
+  // Vérifier si le prospect existe DANS LE MÊME SEGMENT
+  // Un même numéro peut exister dans différents segments
   const existingQuery = `
-    SELECT * FROM prospects WHERE phone_international = $1
+    SELECT * FROM prospects
+    WHERE phone_international = $1
+      AND segment_id = $2
   `;
-  const { rows: existing } = await pool.query(existingQuery, [phoneInternational]);
+  const { rows: existing } = await pool.query(existingQuery, [phoneInternational, prospectData.segment_id]);
 
   if (existing.length === 0) {
-    // Aucun doublon → Créer un nouveau prospect
+    // Aucun doublon dans ce segment → Créer un nouveau prospect
     return {
       action: 'created',
       prospect: null,
@@ -149,10 +154,10 @@ export async function handleDuplicateOrReinject(phoneInternational, userId, pros
     };
   }
 
-  // Le prospect existe et ne peut pas être réinjecté → Doublon strict
+  // Le prospect existe dans ce segment et ne peut pas être réinjecté → Doublon strict
   return {
     action: 'duplicate',
     prospect: existingProspect,
-    message: 'Ce numéro existe déjà'
+    message: 'Ce numéro existe déjà dans ce segment'
   };
 }
