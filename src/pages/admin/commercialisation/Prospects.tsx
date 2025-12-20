@@ -49,7 +49,7 @@ import type { ProspectFilters } from '@/lib/api/prospects';
 import { QuickAddProspectModal } from '@/components/prospects/QuickAddProspectModal';
 import { ImportProspectsModal } from '@/components/prospects/ImportProspectsModal';
 import { CallProspectModal } from '@/components/prospects/CallProspectModal';
-import { ProspectVisitsModal } from '@/components/prospects/ProspectVisitsModal';
+import { DeclareVisitModal } from '@/components/prospects/DeclareVisitModal';
 
 // Fonction pour déterminer le style du RDV selon la date
 const getRdvStyle = (dateRdv: string | null) => {
@@ -174,14 +174,18 @@ export default function Prospects() {
     setShowCallModal(true);
   };
 
-  const handleShowVisits = (prospect: any) => {
+  const handleDeclareVisit = (prospect: any) => {
     setSelectedProspectForVisits({
       id: prospect.id,
       phone_international: prospect.phone_international,
       nom: prospect.nom,
       prenom: prospect.prenom,
+      segment_id: prospect.segment_id,
+      segment_name: prospect.segment_name,
       ville_id: prospect.ville_id,
       ville_name: prospect.ville_name,
+      date_rdv: prospect.date_rdv,
+      statut_contact: prospect.statut_contact,
     });
     setShowVisitsModal(true);
   };
@@ -643,9 +647,9 @@ export default function Prospects() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleShowVisits(prospect)}
+                            onClick={() => handleDeclareVisit(prospect)}
                             className="border-purple-300 text-purple-700 hover:bg-purple-50"
-                            title="Voir les visites"
+                            title="Déclarer une visite"
                           >
                             <Footprints className="h-3 w-3" />
                           </Button>
@@ -700,11 +704,12 @@ export default function Prospects() {
         <QuickAddProspectModal open={showAddModal} onClose={() => setShowAddModal(false)} />
         <ImportProspectsModal open={showImportModal} onClose={() => setShowImportModal(false)} />
         <CallProspectModal open={showCallModal} onClose={() => setShowCallModal(false)} prospectId={selectedProspectId} />
-        <ProspectVisitsModal
+        <DeclareVisitModal
           open={showVisitsModal}
           onClose={() => {
             setShowVisitsModal(false);
             setSelectedProspectForVisits(null);
+            refetch(); // Refresh prospects list
           }}
           prospect={selectedProspectForVisits}
         />
