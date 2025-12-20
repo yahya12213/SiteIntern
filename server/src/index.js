@@ -149,6 +149,8 @@ import migrationUpdateNouveauStatusRouter from './routes/migration-update-nouvea
 import migrationResetProspectAssignmentRouter from './routes/migration-reset-prospect-assignment.js';
 import migrationAddHistoriqueRdvRouter from './routes/migration-add-historique-rdv.js';
 import migrationAddHistoriqueVillesRouter from './routes/migration-add-historique-villes.js';
+import migration087Router from './routes/migration-087-prospect-visits.js';
+import visitsRouter from './routes/visits.js';
 
 const app = express();
 
@@ -243,6 +245,7 @@ app.use('/api/hr/requests-validation', authenticateToken, hrRequestsValidationRo
 app.use('/api/hr/schedule-management', authenticateToken, hrScheduleManagementRouter);
 app.use('/api/hr/validation-workflows', authenticateToken, hrValidationWorkflowsRouter);
 app.use('/api/prospects', authenticateToken, prospectsRouter);
+app.use('/api/visits', authenticateToken, visitsRouter);
 app.use('/api/projects', authenticateToken, projectsRouter);
 app.use('/api/migration-projects', authenticateToken, migrationProjectsRouter);
 
@@ -349,6 +352,7 @@ app.use('/api/migration-update-nouveau-status', ...adminOnly, migrationUpdateNou
 app.use('/api/migration-reset-prospect-assignment', ...adminOnly, migrationResetProspectAssignmentRouter);
 app.use('/api/migration-add-historique-rdv', ...adminOnly, migrationAddHistoriqueRdvRouter);
 app.use('/api/migration-add-historique-villes', ...adminOnly, migrationAddHistoriqueVillesRouter);
+app.use('/api/migration-087', ...adminOnly, migration087Router);
 
 // Health check
 app.get('/api/health', async (req, res) => {

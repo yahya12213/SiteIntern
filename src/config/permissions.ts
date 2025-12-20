@@ -374,6 +374,16 @@ export const PERMISSIONS = {
       archive: 'commercialisation.contrats.archive',
       export: 'commercialisation.contrats.export',
     },
+    // Visites physiques
+    visits: {
+      view_page: 'commercialisation.visits.view_page',
+      create: 'commercialisation.visits.create',
+      update: 'commercialisation.visits.update',
+      delete: 'commercialisation.visits.delete',
+      export: 'commercialisation.visits.export',
+      view_analytics: 'commercialisation.visits.view_analytics',
+      view_all: 'commercialisation.visits.view_all',
+    },
   },
 } as const;
 
@@ -707,6 +717,15 @@ export function getPermissionLabel(code: string): string {
     'commercialisation.contrats.sign': 'Signer',
     'commercialisation.contrats.archive': 'Archiver',
     'commercialisation.contrats.export': 'Exporter',
+
+    // Visites
+    'commercialisation.visits.view_page': 'Voir les visites',
+    'commercialisation.visits.create': 'Enregistrer une visite',
+    'commercialisation.visits.update': 'Modifier une visite',
+    'commercialisation.visits.delete': 'Supprimer une visite',
+    'commercialisation.visits.export': 'Exporter les visites',
+    'commercialisation.visits.view_analytics': 'Voir les analytics',
+    'commercialisation.visits.view_all': 'Voir toutes les visites',
   };
 
   return labels[code] || code;

@@ -42,6 +42,7 @@ import ProjectsManagement from './pages/admin/ProjectsManagement';
 import CommercializationDashboard from './pages/admin/commercialisation/CommercializationDashboard';
 import Clients from './pages/admin/commercialisation/Clients';
 import Prospects from './pages/admin/commercialisation/Prospects';
+import Visits from './pages/admin/commercialisation/Visits';
 import ProspectsCleaningDashboard from './pages/admin/ProspectsCleaningDashboard';
 import Devis from './pages/admin/commercialisation/Devis';
 import Contrats from './pages/admin/commercialisation/Contrats';
@@ -469,6 +470,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.prospects.view_page}>
             <Prospects />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/commercialisation/visits"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.visits.view_page}>
+            <Visits />
           </ProtectedRoute>
         }
       />

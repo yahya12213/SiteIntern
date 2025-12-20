@@ -303,6 +303,17 @@ export function usePermission() {
     canSignContrat: can('commercialisation.contrats.sign'),
     canArchiveContrat: can('commercialisation.contrats.archive'),
     canExportContrat: can('commercialisation.contrats.export'),
+
+    // Visits (Visites physiques)
+    visits: {
+      view_page: can('commercialisation.visits.view_page'),
+      create: can('commercialisation.visits.create'),
+      update: can('commercialisation.visits.update'),
+      delete: can('commercialisation.visits.delete'),
+      export: can('commercialisation.visits.export'),
+      view_analytics: can('commercialisation.visits.view_analytics'),
+      view_all: can('commercialisation.visits.view_all'),
+    },
   }), [can]);
 
   // System module specific checks

@@ -29,6 +29,7 @@ import {
   User,
   CheckSquare,
   FolderKanban,
+  Footprints,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -109,6 +110,7 @@ export const Sidebar: React.FC = () => {
       items: [
         { to: '/admin/commercialisation/dashboard', icon: BarChart3, label: 'Tableau de bord', permission: PERMISSIONS.commercialisation.dashboard.view_page },
         { to: '/admin/commercialisation/prospects', icon: Target, label: 'Prospects', permission: PERMISSIONS.commercialisation.prospects.view_page },
+        { to: '/admin/commercialisation/visits', icon: Footprints, label: 'Visites', permission: PERMISSIONS.commercialisation.visits.view_page },
         { to: '/admin/commercialisation/prospects-cleaning', icon: Trash2, label: 'Nettoyage Prospects', permission: PERMISSIONS.commercialisation.prospects.clean },
       ],
     },
