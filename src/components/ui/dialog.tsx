@@ -1,9 +1,9 @@
 // @ts-nocheck
 /**
  * Dialog Component - Modal amélioré
- * Support pour différentes tailles et meilleure lisibilité
+ * Support pour différentes tailles, meilleure lisibilité et redimensionnement
  */
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 interface DialogProps {
   children: React.ReactNode;
@@ -57,18 +57,129 @@ export const Dialog = ({ children, open, onOpenChange }: DialogProps) => {
 interface DialogContentProps {
   children: React.ReactNode;
   className?: string;
+  resizable?: boolean;
 }
 
-export const DialogContent = ({ children, className = '' }: DialogContentProps) => {
+export const DialogContent = ({ children, className = '', resizable = false }: DialogContentProps) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 });
+
+  // Initialiser la taille au montage
+  useEffect(() => {
+    if (contentRef.current && resizable) {
+      const rect = contentRef.current.getBoundingClientRect();
+      setSize({ width: rect.width, height: rect.height });
+    }
+  }, [resizable]);
+
+  // Gestion du redimensionnement
+  const handleMouseDown = (e: React.MouseEvent, direction: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!contentRef.current) return;
+
+    const rect = contentRef.current.getBoundingClientRect();
+    resizeRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startWidth: rect.width,
+      startHeight: rect.height,
+    };
+    setIsResizing(true);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - resizeRef.current.startX;
+      const deltaY = moveEvent.clientY - resizeRef.current.startY;
+
+      let newWidth = resizeRef.current.startWidth;
+      let newHeight = resizeRef.current.startHeight;
+
+      if (direction.includes('e')) newWidth = Math.max(400, resizeRef.current.startWidth + deltaX);
+      if (direction.includes('w')) newWidth = Math.max(400, resizeRef.current.startWidth - deltaX);
+      if (direction.includes('s')) newHeight = Math.max(300, resizeRef.current.startHeight + deltaY);
+      if (direction.includes('n')) newHeight = Math.max(300, resizeRef.current.startHeight - deltaY);
+
+      // Limites max
+      newWidth = Math.min(newWidth, window.innerWidth * 0.95);
+      newHeight = Math.min(newHeight, window.innerHeight * 0.95);
+
+      setSize({ width: newWidth, height: newHeight });
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   // Si className contient max-w-*, on n'applique pas la largeur par défaut
   const hasCustomWidth = className.includes('max-w-') || className.includes('w-[');
   const baseClasses = hasCustomWidth
     ? 'p-6 max-w-[95vw] overflow-auto'
     : 'p-6 w-[500px] max-w-[95vw] max-h-[85vh] overflow-auto';
 
+  // Style dynamique pour le redimensionnement
+  const dynamicStyle = resizable && size.width > 0 ? {
+    width: `${size.width}px`,
+    height: `${size.height}px`,
+    maxWidth: '95vw',
+    maxHeight: '95vh',
+  } : {};
+
   return (
-    <div className={`${baseClasses} ${className}`}>
+    <div
+      ref={contentRef}
+      className={`${baseClasses} ${className} ${resizable ? 'relative' : ''}`}
+      style={dynamicStyle}
+    >
       {children}
+
+      {/* Poignées de redimensionnement */}
+      {resizable && (
+        <>
+          {/* Coin bas-droite */}
+          <div
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-gray-300 hover:bg-gray-400 rounded-tl"
+            onMouseDown={(e) => handleMouseDown(e, 'se')}
+            title="Redimensionner"
+          >
+            <svg className="w-4 h-4 text-gray-600" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M22 22H20V20H22V22ZM22 18H20V16H22V18ZM18 22H16V20H18V22ZM22 14H20V12H22V14ZM18 18H16V16H18V18ZM14 22H12V20H14V22Z" />
+            </svg>
+          </div>
+
+          {/* Bord droit */}
+          <div
+            className="absolute top-0 right-0 w-2 h-full cursor-e-resize hover:bg-blue-200/50"
+            onMouseDown={(e) => handleMouseDown(e, 'e')}
+          />
+
+          {/* Bord bas */}
+          <div
+            className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize hover:bg-blue-200/50"
+            onMouseDown={(e) => handleMouseDown(e, 's')}
+          />
+
+          {/* Bord gauche */}
+          <div
+            className="absolute top-0 left-0 w-2 h-full cursor-w-resize hover:bg-blue-200/50"
+            onMouseDown={(e) => handleMouseDown(e, 'w')}
+          />
+
+          {/* Coin bas-gauche */}
+          <div
+            className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize"
+            onMouseDown={(e) => handleMouseDown(e, 'sw')}
+          />
+        </>
+      )}
     </div>
   );
 };

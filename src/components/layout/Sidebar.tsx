@@ -109,11 +109,8 @@ export const Sidebar: React.FC = () => {
       icon: TrendingUp,
       items: [
         { to: '/admin/commercialisation/dashboard', icon: BarChart3, label: 'Tableau de bord', permission: PERMISSIONS.commercialisation.dashboard.view_page },
-        { to: '/admin/commercialisation/clients', icon: Users, label: 'Gestion des Clients', permission: PERMISSIONS.commercialisation.clients.view_page },
         { to: '/admin/commercialisation/prospects', icon: Target, label: 'Prospects', permission: PERMISSIONS.commercialisation.prospects.view_page },
         { to: '/admin/commercialisation/prospects-cleaning', icon: Trash2, label: 'Nettoyage Prospects', permission: PERMISSIONS.commercialisation.prospects.clean },
-        { to: '/admin/commercialisation/devis', icon: FileText, label: 'Devis', permission: PERMISSIONS.commercialisation.devis.view_page },
-        { to: '/admin/commercialisation/contrats', icon: FileCheck, label: 'Contrats', permission: PERMISSIONS.commercialisation.contrats.view_page },
       ],
     },
   ];
