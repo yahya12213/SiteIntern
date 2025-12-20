@@ -614,29 +614,122 @@ router.post('/:id/end-call',
         WHERE id = $4
       `, [duration, statut_contact, commentaire, call_id]);
 
-      // Récupérer le prospect actuel
+      // Récupérer le prospect actuel avec l'historique
       const { rows: currentProspect } = await pool.query(
-        'SELECT * FROM prospects WHERE id = $1',
+        'SELECT *, (SELECT name FROM cities WHERE id = prospects.ville_id) as current_ville_name FROM prospects WHERE id = $1',
         [id]
       );
 
       const prospect = currentProspect[0];
 
-      // Mettre à jour le prospect
+      // Préparer les champs à mettre à jour
+      const updateFields = [];
+      const updateValues = [];
+      let paramIndex = 1;
+
+      // Champs simples
+      if (nom) {
+        updateFields.push(`nom = $${paramIndex++}`);
+        updateValues.push(nom);
+      }
+      if (prenom) {
+        updateFields.push(`prenom = $${paramIndex++}`);
+        updateValues.push(prenom);
+      }
+      if (cin) {
+        updateFields.push(`cin = $${paramIndex++}`);
+        updateValues.push(cin);
+      }
+
+      // Statut contact
+      updateFields.push(`statut_contact = $${paramIndex++}`);
+      updateValues.push(statut_contact);
+
+      // HISTORIQUE VILLES: Si la ville change, sauvegarder l'ancienne dans l'historique
+      if (ville_id && ville_id !== prospect.ville_id) {
+        // Récupérer le nom de la nouvelle ville
+        const { rows: newVilleRows } = await pool.query(
+          'SELECT name FROM cities WHERE id = $1',
+          [ville_id]
+        );
+        const newVilleName = newVilleRows[0]?.name || ville_id;
+
+        // Construire le nouvel historique des villes
+        let newHistoriqueVilles;
+        if (prospect.historique_villes) {
+          // Vérifier si l'ancienne ville n'est pas déjà dans l'historique
+          if (prospect.current_ville_name && !prospect.historique_villes.includes(prospect.current_ville_name)) {
+            newHistoriqueVilles = `${prospect.historique_villes}, ${prospect.current_ville_name}`;
+          } else {
+            newHistoriqueVilles = prospect.historique_villes;
+          }
+        } else if (prospect.current_ville_name) {
+          // Première modification - stocker l'ancienne ville
+          newHistoriqueVilles = prospect.current_ville_name;
+        }
+
+        if (newHistoriqueVilles) {
+          updateFields.push(`historique_villes = $${paramIndex++}`);
+          updateValues.push(newHistoriqueVilles);
+          console.log(`📍 Appel - Historique villes: ${newHistoriqueVilles} → nouvelle: ${newVilleName}`);
+        }
+
+        updateFields.push(`ville_id = $${paramIndex++}`);
+        updateValues.push(ville_id);
+      }
+
+      // HISTORIQUE RDV: Si un nouveau RDV est défini et qu'il y avait un ancien RDV, sauvegarder l'ancien
+      if (date_rdv && prospect.date_rdv) {
+        const oldRdvDate = new Date(prospect.date_rdv);
+        const oldRdvFormatted = oldRdvDate.toLocaleDateString('fr-FR') + ' ' +
+          oldRdvDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+        // Construire le nouvel historique des RDV
+        let newHistoriqueRdv;
+        if (prospect.historique_rdv) {
+          // Vérifier si cet ancien RDV n'est pas déjà dans l'historique
+          if (!prospect.historique_rdv.includes(oldRdvFormatted)) {
+            newHistoriqueRdv = `${prospect.historique_rdv}, ${oldRdvFormatted}`;
+          } else {
+            newHistoriqueRdv = prospect.historique_rdv;
+          }
+        } else {
+          newHistoriqueRdv = oldRdvFormatted;
+        }
+
+        updateFields.push(`historique_rdv = $${paramIndex++}`);
+        updateValues.push(newHistoriqueRdv);
+        console.log(`📅 Appel - Historique RDV: ${newHistoriqueRdv}`);
+      }
+
+      // Date RDV (peut être null pour effacer)
+      updateFields.push(`date_rdv = $${paramIndex++}`);
+      updateValues.push(date_rdv || null);
+
+      // RDV centre ville
+      if (rdv_centre_ville_id !== undefined) {
+        updateFields.push(`rdv_centre_ville_id = $${paramIndex++}`);
+        updateValues.push(rdv_centre_ville_id || null);
+      }
+
+      // Commentaire
+      if (commentaire) {
+        updateFields.push(`commentaire = $${paramIndex++}`);
+        updateValues.push(commentaire);
+      }
+
+      // Updated at
+      updateFields.push('updated_at = NOW()');
+
+      // ID du prospect
+      updateValues.push(id);
+
+      // Exécuter la mise à jour
       await pool.query(`
         UPDATE prospects
-        SET
-          nom = COALESCE($1, nom),
-          prenom = COALESCE($2, prenom),
-          cin = COALESCE($3, cin),
-          statut_contact = $4,
-          ville_id = COALESCE($5, ville_id),
-          date_rdv = $6,
-          rdv_centre_ville_id = $7,
-          commentaire = COALESCE($8, commentaire),
-          updated_at = NOW()
-        WHERE id = $9
-      `, [nom || null, prenom || null, cin || null, statut_contact, ville_id || null, date_rdv || null, rdv_centre_ville_id || null, commentaire || null, id]);
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramIndex}
+      `, updateValues);
 
       // Vérifier si réaffectation nécessaire (si ville changée)
       let reassignment = null;
