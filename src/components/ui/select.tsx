@@ -126,9 +126,10 @@ export const SelectTrigger = ({
 export const SelectValue = ({ placeholder = 'Sélectionner...' }: { placeholder?: string }) => {
   const { value, selectedLabel } = useSelectContext();
 
-  // Afficher le label sélectionné si disponible, sinon le placeholder
-  if (value && selectedLabel) {
-    return <span>{selectedLabel}</span>;
+  // Afficher le label sélectionné si disponible
+  // Si value existe mais pas de label (cas initial), afficher la value comme fallback
+  if (value) {
+    return <span>{selectedLabel || value}</span>;
   }
   return <span className="text-gray-400">{placeholder}</span>;
 };

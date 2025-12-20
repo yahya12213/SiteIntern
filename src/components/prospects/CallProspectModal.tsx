@@ -260,7 +260,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" resizable>
+      <DialogContent className="w-[90vw] h-[90vh] max-w-6xl" resizable fitToScreen>
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -274,7 +274,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="flex-1 overflow-y-auto space-y-4 py-2">
           {/* Informations du prospect - Style amélioré */}
           <div className="bg-gray-50 p-5 rounded-lg space-y-4">
             {/* Ligne 1: Téléphone, Pays, Segment */}
@@ -474,7 +474,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="border-t pt-4">
           <Button variant="outline" onClick={onClose}>
             Annuler
           </Button>
