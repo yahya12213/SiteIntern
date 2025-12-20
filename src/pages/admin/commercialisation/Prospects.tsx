@@ -38,6 +38,7 @@ import {
   Square,
   X,
   Calendar,
+  Footprints,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useProspects, useDeleteProspect } from '@/hooks/useProspects';
@@ -48,6 +49,7 @@ import type { ProspectFilters } from '@/lib/api/prospects';
 import { QuickAddProspectModal } from '@/components/prospects/QuickAddProspectModal';
 import { ImportProspectsModal } from '@/components/prospects/ImportProspectsModal';
 import { CallProspectModal } from '@/components/prospects/CallProspectModal';
+import { ProspectVisitsModal } from '@/components/prospects/ProspectVisitsModal';
 
 // Fonction pour déterminer le style du RDV selon la date
 const getRdvStyle = (dateRdv: string | null) => {
@@ -133,6 +135,8 @@ export default function Prospects() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedProspectId, setSelectedProspectId] = useState<string | null>(null);
   const [showCallModal, setShowCallModal] = useState(false);
+  const [showVisitsModal, setShowVisitsModal] = useState(false);
+  const [selectedProspectForVisits, setSelectedProspectForVisits] = useState<any>(null);
 
   // Selection multiple
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -168,6 +172,18 @@ export default function Prospects() {
   const handleCallProspect = (id: string) => {
     setSelectedProspectId(id);
     setShowCallModal(true);
+  };
+
+  const handleShowVisits = (prospect: any) => {
+    setSelectedProspectForVisits({
+      id: prospect.id,
+      phone_international: prospect.phone_international,
+      nom: prospect.nom,
+      prenom: prospect.prenom,
+      ville_id: prospect.ville_id,
+      ville_name: prospect.ville_name,
+    });
+    setShowVisitsModal(true);
   };
 
   const handleExport = () => {
@@ -612,7 +628,7 @@ export default function Prospects() {
                           : '-'}
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1">
                           {commercialisation.canCallProspect &&
                             prospect.statut_contact !== 'inscrit' && (
                               <Button
@@ -624,6 +640,15 @@ export default function Prospects() {
                                 Appeler
                               </Button>
                             )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleShowVisits(prospect)}
+                            className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                            title="Voir les visites"
+                          >
+                            <Footprints className="h-3 w-3" />
+                          </Button>
                           {commercialisation.canDeleteProspect && (
                             <Button
                               size="sm"
@@ -675,6 +700,14 @@ export default function Prospects() {
         <QuickAddProspectModal open={showAddModal} onClose={() => setShowAddModal(false)} />
         <ImportProspectsModal open={showImportModal} onClose={() => setShowImportModal(false)} />
         <CallProspectModal open={showCallModal} onClose={() => setShowCallModal(false)} prospectId={selectedProspectId} />
+        <ProspectVisitsModal
+          open={showVisitsModal}
+          onClose={() => {
+            setShowVisitsModal(false);
+            setSelectedProspectForVisits(null);
+          }}
+          prospect={selectedProspectForVisits}
+        />
       </div>
     </AppLayout>
   );

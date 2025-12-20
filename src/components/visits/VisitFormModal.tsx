@@ -21,11 +21,14 @@ interface VisitFormModalProps {
   open: boolean;
   onClose: () => void;
   defaultCentreVilleId?: string;
+  defaultPhone?: string;
+  defaultNom?: string;
+  defaultPrenom?: string;
 }
 
-export function VisitFormModal({ open, onClose, defaultCentreVilleId }: VisitFormModalProps) {
+export function VisitFormModal({ open, onClose, defaultCentreVilleId, defaultPhone, defaultNom, defaultPrenom }: VisitFormModalProps) {
   const [centreVilleId, setCentreVilleId] = useState<string>(defaultCentreVilleId || '');
-  const [phoneInput, setPhoneInput] = useState<string>('');
+  const [phoneInput, setPhoneInput] = useState<string>(defaultPhone || '');
   const [nom, setNom] = useState<string>('');
   const [prenom, setPrenom] = useState<string>('');
   const [statut, setStatut] = useState<'inscrit' | 'non_inscrit' | ''>('');
@@ -38,20 +41,21 @@ export function VisitFormModal({ open, onClose, defaultCentreVilleId }: VisitFor
   const { data: rejectionReasons = [], isLoading: reasonsLoading } = useRejectionReasons();
   const createVisitMutation = useCreateVisit();
 
-  // Reset form when modal closes
+  // Reset form when modal opens/closes
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      // Pré-remplir avec les valeurs par défaut à l'ouverture
       setCentreVilleId(defaultCentreVilleId || '');
-      setPhoneInput('');
-      setNom('');
-      setPrenom('');
+      setPhoneInput(defaultPhone || '');
+      setNom(defaultNom || '');
+      setPrenom(defaultPrenom || '');
       setStatut('');
       setMotifNonInscription('');
       setCommentaire('');
-      setPhoneValid(null);
+      setPhoneValid(defaultPhone ? true : null);
       setPhoneError('');
     }
-  }, [open, defaultCentreVilleId]);
+  }, [open, defaultCentreVilleId, defaultPhone, defaultNom, defaultPrenom]);
 
   // Validation téléphone en temps réel
   useEffect(() => {
