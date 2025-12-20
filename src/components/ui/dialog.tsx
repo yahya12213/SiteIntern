@@ -59,11 +59,19 @@ interface DialogContentProps {
   className?: string;
 }
 
-export const DialogContent = ({ children, className = '' }: DialogContentProps) => (
-  <div className={`p-6 w-[500px] max-w-[95vw] max-h-[85vh] overflow-auto ${className}`}>
-    {children}
-  </div>
-);
+export const DialogContent = ({ children, className = '' }: DialogContentProps) => {
+  // Si className contient max-w-*, on n'applique pas la largeur par défaut
+  const hasCustomWidth = className.includes('max-w-') || className.includes('w-[');
+  const baseClasses = hasCustomWidth
+    ? 'p-6 max-w-[95vw] overflow-auto'
+    : 'p-6 w-[500px] max-w-[95vw] max-h-[85vh] overflow-auto';
+
+  return (
+    <div className={`${baseClasses} ${className}`}>
+      {children}
+    </div>
+  );
+};
 
 interface DialogHeaderProps {
   children: React.ReactNode;
