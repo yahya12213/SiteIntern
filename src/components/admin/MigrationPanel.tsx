@@ -263,6 +263,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 088: Historique Villes Prospects',
     description: '📍 Ajoute colonne historique_villes à prospects pour tracer les anciennes villes lors des réinjections',
     endpoint: '/migration-add-historique-villes'
+  },
+  {
+    id: 'migration-087',
+    name: 'Migration 087: Système Visites Physiques',
+    description: '👣 Gestion des visites physiques au centre - Table prospect_visits, motifs non-inscription, analytics par zone, permissions RBAC',
+    endpoint: '/migration-087'
   }
 ];
 
