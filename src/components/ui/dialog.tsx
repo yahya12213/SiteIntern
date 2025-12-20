@@ -144,9 +144,9 @@ export const DialogContent = ({ children, className = '', resizable = false }: D
       {/* Poignées de redimensionnement */}
       {resizable && (
         <>
-          {/* Coin bas-droite */}
+          {/* Coin bas-droite - avec icône visible */}
           <div
-            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-gray-300 hover:bg-gray-400 rounded-tl"
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-gray-300 hover:bg-gray-400 rounded-tl z-10"
             onMouseDown={(e) => handleMouseDown(e, 'se')}
             title="Redimensionner"
           >
@@ -155,28 +155,46 @@ export const DialogContent = ({ children, className = '', resizable = false }: D
             </svg>
           </div>
 
-          {/* Bord droit */}
+          {/* Coin haut-droite */}
           <div
-            className="absolute top-0 right-0 w-2 h-full cursor-e-resize hover:bg-blue-200/50"
-            onMouseDown={(e) => handleMouseDown(e, 'e')}
+            className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize z-10"
+            onMouseDown={(e) => handleMouseDown(e, 'ne')}
           />
 
-          {/* Bord bas */}
+          {/* Coin haut-gauche */}
           <div
-            className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize hover:bg-blue-200/50"
-            onMouseDown={(e) => handleMouseDown(e, 's')}
-          />
-
-          {/* Bord gauche */}
-          <div
-            className="absolute top-0 left-0 w-2 h-full cursor-w-resize hover:bg-blue-200/50"
-            onMouseDown={(e) => handleMouseDown(e, 'w')}
+            className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize z-10"
+            onMouseDown={(e) => handleMouseDown(e, 'nw')}
           />
 
           {/* Coin bas-gauche */}
           <div
-            className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize"
+            className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize z-10"
             onMouseDown={(e) => handleMouseDown(e, 'sw')}
+          />
+
+          {/* Bord droit */}
+          <div
+            className="absolute top-1 right-0 w-2 h-[calc(100%-8px)] cursor-e-resize hover:bg-blue-200/50"
+            onMouseDown={(e) => handleMouseDown(e, 'e')}
+          />
+
+          {/* Bord gauche */}
+          <div
+            className="absolute top-1 left-0 w-2 h-[calc(100%-8px)] cursor-w-resize hover:bg-blue-200/50"
+            onMouseDown={(e) => handleMouseDown(e, 'w')}
+          />
+
+          {/* Bord haut */}
+          <div
+            className="absolute top-0 left-1 w-[calc(100%-8px)] h-2 cursor-n-resize hover:bg-blue-200/50"
+            onMouseDown={(e) => handleMouseDown(e, 'n')}
+          />
+
+          {/* Bord bas */}
+          <div
+            className="absolute bottom-0 left-1 w-[calc(100%-8px)] h-2 cursor-s-resize hover:bg-blue-200/50"
+            onMouseDown={(e) => handleMouseDown(e, 's')}
           />
         </>
       )}
