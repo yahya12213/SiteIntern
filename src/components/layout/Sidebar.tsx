@@ -22,7 +22,6 @@ import {
   Clock,
   TrendingUp,
   Target,
-  FileCheck,
   Trash2,
   GitBranch,
   Calendar,
