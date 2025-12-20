@@ -260,7 +260,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -274,11 +274,11 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-6 py-4">
           {/* Informations du prospect - Style amélioré */}
-          <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+          <div className="bg-gray-50 p-5 rounded-lg space-y-4">
             {/* Ligne 1: Téléphone, Pays, Segment */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-6">
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-gray-400" />
                 <div>
@@ -303,7 +303,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
             </div>
 
             {/* Ligne 2: Ville, Assigné à */}
-            <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+            <div className="grid grid-cols-2 gap-6 pt-3 border-t">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-gray-400" />
                 <div>
@@ -328,7 +328,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
             </div>
 
             {/* Ligne 3: Statut et RDV */}
-            <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+            <div className="grid grid-cols-2 gap-6 pt-3 border-t">
               {/* Statut actuel */}
               <div>
                 <span className="text-xs text-gray-500 block mb-1">Statut actuel</span>
@@ -364,14 +364,14 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
 
             {/* Historique RDV */}
             {prospect.historique_rdv && (
-              <div className="pt-2 border-t">
+              <div className="pt-3 border-t">
                 <span className="text-xs text-gray-500 block mb-1">Historique des RDV précédents</span>
                 <p className="text-sm text-orange-600 bg-orange-50 px-2 py-1 rounded">{prospect.historique_rdv}</p>
               </div>
             )}
 
             {/* Date d'injection et durée d'appel */}
-            <div className="grid grid-cols-2 gap-4 pt-2 border-t text-sm">
+            <div className="grid grid-cols-2 gap-6 pt-3 border-t text-sm">
               <div>
                 <span className="text-xs text-gray-500">Date d'injection:</span>
                 <span className="ml-2 font-medium">
