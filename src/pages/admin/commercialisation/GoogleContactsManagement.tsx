@@ -73,6 +73,7 @@ export default function GoogleContactsManagement() {
   const [syncEnabled, setSyncEnabled] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSegment, setFilterSegment] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
 
   // Récupérer les stats Google de toutes les villes
   const { data: citiesStats, isLoading, refetch } = useQuery<CityGoogleStats[]>({
@@ -151,7 +152,10 @@ export default function GoogleContactsManagement() {
       city.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       city.segment_name?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSegment = filterSegment === 'all' || city.segment_name === filterSegment;
-    return matchesSearch && matchesSegment;
+    const matchesStatus = filterStatus === 'all' ||
+      (filterStatus === 'active' && city.google_sync_enabled) ||
+      (filterStatus === 'inactive' && !city.google_sync_enabled);
+    return matchesSearch && matchesSegment && matchesStatus;
   });
 
   // Obtenir les segments uniques
@@ -255,6 +259,17 @@ export default function GoogleContactsManagement() {
               {segments.map(seg => (
                 <option key={seg} value={seg}>{seg}</option>
               ))}
+            </select>
+
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              title="Filtrer par statut"
+              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="active">Actif</option>
+              <option value="inactive">Inactif</option>
             </select>
           </div>
 

@@ -42,7 +42,7 @@ export interface CreateDeclarationInput {
   end_date: string;
   form_data?: string;
   status?: DeclarationStatus;
-  session_name: string;
+  session_name?: string;
 }
 
 export interface UpdateDeclarationInput {

@@ -40,6 +40,7 @@ export interface CreateGerantDeclarationInput {
   city_id: string;
   start_date: string;
   end_date: string;
+  session_name?: string;
 }
 
 // Hook pour récupérer les segments du gérant
