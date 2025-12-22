@@ -101,13 +101,13 @@ export const SelectTrigger = ({
     <button
       type="button"
       id={id}
-      className={`w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-md bg-white text-left text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${className}`}
+      className={`w-full flex items-center justify-between px-4 py-2.5 h-11 border border-gray-200 rounded-xl bg-white text-left text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 ${isOpen ? 'ring-2 ring-blue-500/40 border-blue-400' : ''} ${className}`}
       onClick={() => !disabled && setIsOpen(!isOpen)}
       disabled={disabled}
     >
-      <span className="truncate">{children}</span>
+      <span className="truncate text-gray-900">{children}</span>
       <svg
-        className={`ml-2 h-4 w-4 shrink-0 opacity-50 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        className={`ml-2 h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 20 20"
         fill="currentColor"
@@ -148,9 +148,9 @@ export const SelectContent = ({
 
   return (
     <div
-      className={`absolute z-[100] min-w-[200px] w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto ${className}`}
+      className={`absolute z-[100] min-w-[200px] w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-soft-lg max-h-60 overflow-auto animate-scale-in ${className}`}
     >
-      <div className="py-1">
+      <div className="p-1">
         {children}
       </div>
     </div>
@@ -180,10 +180,10 @@ export const SelectItem = ({
 
   return (
     <div
-      className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+      className={`px-3 py-2.5 text-sm cursor-pointer transition-all duration-150 rounded-lg mx-1 ${
         isSelected
           ? 'bg-blue-50 text-blue-700 font-medium'
-          : 'hover:bg-gray-100 text-gray-900'
+          : 'hover:bg-gray-50 text-gray-700 hover:text-gray-900'
       } ${className}`}
       onClick={handleClick}
     >

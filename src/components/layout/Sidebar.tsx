@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { PERMISSIONS } from '@/config/permissions';
 import {
   ChevronDown,
-  ChevronUp,
   Home,
   Calculator,
   MapPin,
@@ -127,7 +126,7 @@ export const Sidebar: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:w-72 bg-white border-r border-gray-200 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto">
+    <aside className="hidden lg:flex lg:flex-col lg:w-72 bg-gradient-to-b from-white to-gray-50/50 border-r border-gray-100 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto shadow-soft">
       <nav className="flex-1 px-3 py-4 space-y-2">
         {filteredSections.map((section) => {
           const isExpanded = expandedSections.includes(section.id);
@@ -138,22 +137,22 @@ export const Sidebar: React.FC = () => {
               {/* Section Header */}
               <button
                 onClick={() => toggleSection(section.id)}
-                className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 rounded-lg transition-colors group"
+                className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-white hover:shadow-sm rounded-xl transition-all duration-200 group"
               >
                 <div className="flex items-center gap-3">
-                  <SectionIcon className="h-5 w-5 text-gray-600 group-hover:text-blue-600" />
-                  <span className="group-hover:text-blue-600">{section.title}</span>
+                  <div className="p-1.5 rounded-lg bg-gray-100 group-hover:bg-blue-100 transition-colors duration-200">
+                    <SectionIcon className="h-4 w-4 text-gray-600 group-hover:text-blue-600 transition-colors duration-200" />
+                  </div>
+                  <span className="group-hover:text-blue-600 transition-colors duration-200">{section.title}</span>
                 </div>
-                {isExpanded ? (
-                  <ChevronUp className="h-4 w-4 text-gray-400" />
-                ) : (
+                <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
                   <ChevronDown className="h-4 w-4 text-gray-400" />
-                )}
+                </div>
               </button>
 
               {/* Section Items */}
               {isExpanded && (
-                <div className="ml-3 space-y-0.5 border-l-2 border-gray-200 pl-3">
+                <div className="ml-3 space-y-0.5 border-l-2 border-gray-200/60 pl-3 animate-fade-in">
                   {section.items.map((item) => {
                     const ItemIcon = item.icon;
                     const active = isActive(item.to);
@@ -162,14 +161,14 @@ export const Sidebar: React.FC = () => {
                       <Link
                         key={item.to}
                         to={item.to}
-                        className={`flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-all ${
+                        className={`flex items-center gap-3 px-3 py-2 text-sm rounded-xl transition-all duration-200 ${
                           active
-                            ? 'bg-blue-50 text-blue-700 font-medium border-l-2 border-blue-600 -ml-[2px]'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium shadow-sm shadow-blue-500/25'
+                            : 'text-gray-600 hover:bg-white hover:shadow-sm hover:text-gray-900'
                         }`}
                       >
                         <ItemIcon
-                          className={`h-4 w-4 ${active ? 'text-blue-600' : 'text-gray-400'}`}
+                          className={`h-4 w-4 transition-colors duration-200 ${active ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}`}
                         />
                         <span>{item.label}</span>
                       </Link>
@@ -183,8 +182,8 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-gray-200">
-        <p className="text-xs text-gray-500 text-center">
+      <div className="px-6 py-4 border-t border-gray-100 bg-white/50">
+        <p className="text-xs text-gray-400 text-center font-medium">
           Comptabilité PL © 2025
         </p>
       </div>
