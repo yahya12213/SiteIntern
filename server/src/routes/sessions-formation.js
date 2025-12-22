@@ -388,7 +388,7 @@ router.post('/',
                 date_debut,
                 date_fin,
                 '{}',
-                'brouillon',
+                'a_declarer',
                 titre
               ]
             );
