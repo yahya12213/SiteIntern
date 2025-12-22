@@ -265,7 +265,7 @@ export function SessionDocumentsDownloadModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+      <div className="bg-white rounded-lg shadow-xl w-[95vw] sm:w-[550px] md:w-[600px] max-w-[95vw] mx-4">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-3">

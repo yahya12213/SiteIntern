@@ -395,7 +395,7 @@ export default function RequestsValidation() {
 
         {/* Modal Details */}
         <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="w-[95vw] sm:w-[650px] md:w-[750px] lg:w-[850px] max-w-[95vw]">
             <DialogHeader>
               <DialogTitle>Details de la demande</DialogTitle>
             </DialogHeader>

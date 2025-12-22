@@ -91,7 +91,7 @@ export default function ProfessorFormModal({ professorId, onClose }: ProfessorFo
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-[95vw] sm:w-[500px] md:w-[550px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
         {/* En-tête */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">

@@ -725,7 +725,7 @@ const DeclarationViewer: React.FC = () => {
       {/* Modal Refus */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-lg shadow-xl w-[95vw] sm:w-[450px] md:w-[500px] max-w-[95vw]">
             <div className="p-6">
               <h2 className="text-xl font-bold mb-4">Refuser la déclaration</h2>
               <p className="text-sm text-gray-600 mb-4">
@@ -765,7 +765,7 @@ const DeclarationViewer: React.FC = () => {
       {/* Modal Demande de modification */}
       {showModificationModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-lg shadow-xl w-[95vw] sm:w-[450px] md:w-[500px] max-w-[95vw]">
             <div className="p-6">
               <h2 className="text-xl font-bold mb-4">Demander une modification</h2>
               <p className="text-sm text-gray-600 mb-4">

@@ -396,7 +396,7 @@ export default function ValidationWorkflows() {
 
         {/* Create/Edit Modal */}
         <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="w-[95vw] sm:w-[500px] md:w-[550px] max-w-[95vw]">
             <DialogHeader>
               <DialogTitle>
                 {editingWorkflow ? 'Modifier la boucle' : 'Nouvelle boucle de validation'}
@@ -462,7 +462,7 @@ export default function ValidationWorkflows() {
 
         {/* Steps Management Modal */}
         <Dialog open={showStepsModal} onOpenChange={setShowStepsModal}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="w-[95vw] sm:w-[650px] md:w-[750px] lg:w-[850px] max-w-[95vw]">
             <DialogHeader>
               <DialogTitle>
                 Gérer les étapes - {selectedWorkflow?.nom}

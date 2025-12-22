@@ -32,7 +32,7 @@ export default function ViewActionsModal({ project, onClose }: ViewActionsModalP
 
   return (
     <Dialog open={!!project} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] sm:w-[650px] md:w-[750px] lg:w-[850px] max-w-[95vw] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Actions du projet: {project.name}</DialogTitle>
         </DialogHeader>

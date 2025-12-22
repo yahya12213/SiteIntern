@@ -148,7 +148,7 @@ export const SelectContent = ({
 
   return (
     <div
-      className={`absolute z-[100] w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto ${className}`}
+      className={`absolute z-[100] min-w-[200px] w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto ${className}`}
     >
       <div className="py-1">
         {children}

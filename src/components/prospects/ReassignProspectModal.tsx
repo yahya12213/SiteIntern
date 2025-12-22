@@ -98,7 +98,7 @@ export function ReassignProspectModal({ open, onClose, prospectId }: ReassignPro
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[95vw] sm:w-[500px] md:w-[550px] max-w-[95vw]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserCog className="h-5 w-5" />

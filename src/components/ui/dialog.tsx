@@ -150,15 +150,16 @@ export const DialogContent = ({ children, className = '', resizable = false, fit
     document.addEventListener('mouseup', handleMouseUp);
   }, [isResizingRef]);
 
-  // Classes de base
+  // Classes de base - Responsive: plus large sur desktop, adaptatif sur mobile
   const hasCustomWidth = className.includes('max-w-') || className.includes('w-[');
 
   // Mode fit-to-screen: utilise flexbox pour tout afficher sans scroll
+  // Largeurs responsives: 95% sur mobile, max-width adaptatif sur desktop
   const baseClasses = fitToScreen
-    ? 'p-4 flex flex-col'
+    ? 'p-4 sm:p-6 flex flex-col'
     : hasCustomWidth
-      ? 'p-6 max-w-[95vw]'
-      : 'p-6 w-[500px] max-w-[95vw] max-h-[85vh] overflow-auto';
+      ? 'p-4 sm:p-6 max-w-[95vw]'
+      : 'p-4 sm:p-6 w-[95vw] sm:w-[600px] md:w-[700px] max-w-[95vw] max-h-[85vh] overflow-auto';
 
   // Style dynamique pour le redimensionnement
   const dynamicStyle: React.CSSProperties = resizable && size.width > 0 ? {

@@ -1019,7 +1019,7 @@ function ActionFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[95vw] sm:w-[550px] md:w-[600px] max-w-[95vw]">
         <DialogHeader>
           <DialogTitle>{initialData ? 'Modifier l\'action' : 'Nouvelle action'}</DialogTitle>
         </DialogHeader>
@@ -1293,7 +1293,7 @@ function ProjectFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg" resizable>
+      <DialogContent className="w-[95vw] sm:w-[600px] md:w-[700px] max-w-[95vw]" resizable>
         <DialogHeader>
           <DialogTitle>{initialData ? 'Modifier le projet' : 'Nouveau projet'}</DialogTitle>
         </DialogHeader>
@@ -1527,7 +1527,7 @@ function ManageActionsModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[95vw] sm:w-[650px] md:w-[750px] lg:w-[850px] max-w-[95vw] max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Gérer les actions - {project.name}</DialogTitle>
           <DialogDescription>

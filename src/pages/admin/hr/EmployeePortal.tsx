@@ -503,7 +503,7 @@ export default function EmployeePortal() {
 
         {/* Modal nouvelle demande */}
         <Dialog open={showNewDemandeModal} onOpenChange={setShowNewDemandeModal}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="w-[95vw] sm:w-[500px] md:w-[550px] max-w-[95vw]">
             <DialogHeader>
               <DialogTitle>Nouvelle demande RH</DialogTitle>
             </DialogHeader>
