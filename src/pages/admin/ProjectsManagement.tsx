@@ -1092,11 +1092,11 @@ function ProjectFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg" resizable>
         <DialogHeader>
           <DialogTitle>{initialData ? 'Modifier le projet' : 'Nouveau projet'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1">
           <div className="space-y-2">
             <Label htmlFor="name">Nom du projet *</Label>
             <Input
