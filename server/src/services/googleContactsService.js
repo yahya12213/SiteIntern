@@ -100,11 +100,29 @@ class GoogleContactsService {
 
       const people = google.people({ version: 'v1', auth });
 
+      // Construire le nom du contact : Ville + ID_court + Segment + (Nom Prénom si disponible)
+      // Exemple: "Beni Mellal 176641 Prolean" ou "Beni Mellal 176641 Prolean ahmed benali"
+      const idShort = prospect.id.substring(9, 15); // Extraire une partie de l'ID (ex: 176641)
+      const villeName = prospect.ville_name || 'Inconnu';
+      const segmentName = prospect.segment_name || '';
+
+      // Construire le nom complet
+      let displayName = `${villeName} ${idShort} ${segmentName}`.trim();
+
+      // Ajouter nom et prénom si disponibles
+      const fullName = [prospect.prenom, prospect.nom].filter(Boolean).join(' ').trim();
+      if (fullName) {
+        displayName += ` ${fullName}`;
+      }
+
       // Construire les données du contact
       const contactData = {
         names: [{
-          givenName: prospect.prenom || '',
-          familyName: prospect.nom || ''
+          // Utiliser unstructuredName pour le nom complet affiché
+          unstructuredName: displayName,
+          // Garder aussi les champs structurés pour compatibilité
+          givenName: `${villeName} ${idShort}`,
+          familyName: segmentName + (fullName ? ` ${fullName}` : '')
         }],
         phoneNumbers: [{
           value: prospect.phone_international,
@@ -112,8 +130,8 @@ class GoogleContactsService {
         }],
         userDefined: [
           { key: 'prospect_id', value: prospect.id },
-          { key: 'ville', value: prospect.ville_name || '' },
-          { key: 'segment', value: prospect.segment_name || '' }
+          { key: 'ville', value: villeName },
+          { key: 'segment', value: segmentName }
         ]
       };
 
