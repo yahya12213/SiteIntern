@@ -384,6 +384,13 @@ export const PERMISSIONS = {
       view_analytics: 'commercialisation.visits.view_analytics',
       view_all: 'commercialisation.visits.view_all',
     },
+    // Google Contacts
+    google_contacts: {
+      view_page: 'commercialisation.google_contacts.view_page',
+      configure: 'commercialisation.google_contacts.configure',
+      sync: 'commercialisation.google_contacts.sync',
+      test: 'commercialisation.google_contacts.test',
+    },
   },
 } as const;
 
@@ -726,6 +733,12 @@ export function getPermissionLabel(code: string): string {
     'commercialisation.visits.export': 'Exporter les visites',
     'commercialisation.visits.view_analytics': 'Voir les analytics',
     'commercialisation.visits.view_all': 'Voir toutes les visites',
+
+    // Google Contacts
+    'commercialisation.google_contacts.view_page': 'Voir Gestion G-Contacte',
+    'commercialisation.google_contacts.configure': 'Configurer tokens Google',
+    'commercialisation.google_contacts.sync': 'Synchroniser contacts',
+    'commercialisation.google_contacts.test': 'Tester connexion Google',
   };
 
   return labels[code] || code;
