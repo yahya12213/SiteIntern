@@ -151,6 +151,7 @@ import migrationAddHistoriqueRdvRouter from './routes/migration-add-historique-r
 import migrationAddHistoriqueVillesRouter from './routes/migration-add-historique-villes.js';
 import migration087Router from './routes/migration-087-prospect-visits.js';
 import migration089Router from './routes/migration-089-google-contacts.js';
+import migration090Router from './routes/migration-090-declaration-session-name.js';
 import visitsRouter from './routes/visits.js';
 
 const app = express();
@@ -355,6 +356,7 @@ app.use('/api/migration-add-historique-rdv', ...adminOnly, migrationAddHistoriqu
 app.use('/api/migration-add-historique-villes', ...adminOnly, migrationAddHistoriqueVillesRouter);
 app.use('/api/migration-087', ...adminOnly, migration087Router);
 app.use('/api', ...adminOnly, migration089Router);
+app.use('/api', ...adminOnly, migration090Router);
 
 // Health check
 app.get('/api/health', async (req, res) => {

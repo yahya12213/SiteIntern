@@ -413,6 +413,11 @@ const DeclarationsManagement: React.FC = () => {
                             <h3 className="font-semibold text-gray-900">
                               {declaration.professor_name}
                             </h3>
+                            {declaration.session_name && (
+                              <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                                {declaration.session_name}
+                              </span>
+                            )}
                             <span
                               className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${config.color}`}
                             >
@@ -544,6 +549,11 @@ const DeclarationsManagement: React.FC = () => {
                 <div>
                   <span className="font-medium">Professeur:</span> {selectedDeclaration.professor_name}
                 </div>
+                {selectedDeclaration.session_name && (
+                  <div>
+                    <span className="font-medium">Session:</span> {selectedDeclaration.session_name}
+                  </div>
+                )}
                 <div>
                   <span className="font-medium">Segment:</span> {selectedDeclaration.segment_name}
                 </div>

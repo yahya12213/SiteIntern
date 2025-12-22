@@ -27,6 +27,7 @@ router.get('/',
 
       let query = `
         SELECT pd.*,
+               pd.session_name,
                p.full_name as professor_name,
                s.name as segment_name,
                c.name as city_name,
@@ -98,6 +99,7 @@ router.get('/:id',
 
       const result = await pool.query(`
         SELECT pd.*,
+               pd.session_name,
                p.full_name as professor_name,
                s.name as segment_name,
                c.name as city_name,
@@ -134,7 +136,7 @@ router.post('/',
   injectUserScope,
   async (req, res) => {
     try {
-      const { id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data, status } = req.body;
+      const { id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data, status, session_name } = req.body;
 
       // SCOPE VALIDATION: Vérifier que le segment et la ville sont dans le scope de l'utilisateur
       if (!req.userScope.isAdmin) {
@@ -171,9 +173,9 @@ router.post('/',
       const declarationStatus = status || 'brouillon';
 
       const result = await pool.query(
-        `INSERT INTO professor_declarations (id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-        [id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data || '{}', declarationStatus]
+        `INSERT INTO professor_declarations (id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data, status, session_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+        [id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data || '{}', declarationStatus, session_name || '']
       );
 
       res.status(201).json(result.rows[0]);
@@ -199,7 +201,7 @@ router.put('/:id',
   async (req, res) => {
     try {
       const { id } = req.params;
-      const { form_data, status, rejection_reason, segment_id, city_id, start_date, end_date } = req.body;
+      const { form_data, status, rejection_reason, segment_id, city_id, start_date, end_date, session_name } = req.body;
 
       // SCOPE VALIDATION: Si l'utilisateur modifie segment_id ou city_id, vérifier qu'ils sont dans son scope
       if (!req.userScope.isAdmin) {
@@ -238,6 +240,10 @@ router.put('/:id',
       if (end_date !== undefined) {
         updates.push(`end_date = $${paramCount++}`);
         params.push(end_date);
+      }
+      if (session_name !== undefined) {
+        updates.push(`session_name = $${paramCount++}`);
+        params.push(session_name);
       }
 
       // Champs standards

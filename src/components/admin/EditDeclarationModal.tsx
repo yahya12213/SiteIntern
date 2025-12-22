@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Edit3, Layers, MapPin, Calendar, Tag } from 'lucide-react';
+import { X, Edit3, Layers, MapPin, Calendar, Tag, FileText } from 'lucide-react';
 import { useUpdateDeclarationMetadata } from '@/hooks/useAdminDeclarations';
 import { useSegments } from '@/hooks/useSegments';
 import { useCities } from '@/hooks/useCities';
@@ -12,12 +12,14 @@ interface EditDeclarationModalProps {
 
 export default function EditDeclarationModal({ declaration, onClose }: EditDeclarationModalProps) {
   const [formData, setFormData] = useState<{
+    session_name: string;
     segment_id: string;
     city_id: string;
     start_date: string;
     end_date: string;
     status: DeclarationStatus;
   }>({
+    session_name: declaration.session_name || '',
     segment_id: declaration.segment_id,
     city_id: declaration.city_id,
     start_date: declaration.start_date.split('T')[0], // Format YYYY-MM-DD pour input type="date"
@@ -49,6 +51,10 @@ export default function EditDeclarationModal({ declaration, onClose }: EditDecla
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!formData.session_name.trim()) {
+      alert('Veuillez saisir le nom de la session');
+      return;
+    }
     if (!formData.segment_id || !formData.city_id || !formData.start_date || !formData.end_date) {
       alert('Veuillez remplir tous les champs obligatoires');
       return;
@@ -100,6 +106,24 @@ export default function EditDeclarationModal({ declaration, onClose }: EditDecla
 
         {/* Formulaire */}
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+          {/* Nom de la session - PREMIER CHAMP */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nom de la session *
+            </label>
+            <div className="relative">
+              <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                required
+                value={formData.session_name}
+                onChange={(e) => setFormData({ ...formData, session_name: e.target.value })}
+                placeholder="Ex: Session Janvier 2025"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
           {/* Segment */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

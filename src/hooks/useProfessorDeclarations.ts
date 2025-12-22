@@ -25,6 +25,7 @@ export interface CreateDeclarationInput {
   form_data?: Record<string, unknown>;
   professor_id?: string; // Pour créer une déclaration pour un autre professeur
   status?: DeclarationStatus; // Statut initial (ex: 'a_declarer' pour rôle impression)
+  session_name: string; // Nom de la session
 }
 
 export interface UpdateDeclarationInput {
@@ -84,6 +85,7 @@ export function useCreateDeclaration() {
         end_date: input.end_date,
         form_data: JSON.stringify(input.form_data || {}),
         status: input.status, // Permet de spécifier le statut initial
+        session_name: input.session_name,
       });
     },
     onSuccess: () => {

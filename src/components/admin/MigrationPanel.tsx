@@ -275,6 +275,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 089: Google Contacts Integration',
     description: '📱 Intégration Google Contacts - Sync automatique des prospects vers Google Contacts par ville (OAuth 2.0)',
     endpoint: '/migration-089'
+  },
+  {
+    id: 'migration-090',
+    name: 'Migration 090: Nom de session déclarations',
+    description: '📝 Ajoute le champ session_name aux déclarations professeur pour nommer chaque session',
+    endpoint: '/migration-090'
   }
 ];
 

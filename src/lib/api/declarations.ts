@@ -18,6 +18,7 @@ export interface Declaration {
   end_date: string;
   form_data: string;
   status: DeclarationStatus;
+  session_name: string;
   rejection_reason?: string;
   created_at: string;
   updated_at: string;
@@ -41,6 +42,7 @@ export interface CreateDeclarationInput {
   end_date: string;
   form_data?: string;
   status?: DeclarationStatus;
+  session_name: string;
 }
 
 export interface UpdateDeclarationInput {
@@ -52,6 +54,7 @@ export interface UpdateDeclarationInput {
   city_id?: string;
   start_date?: string;
   end_date?: string;
+  session_name?: string;
 }
 
 /**

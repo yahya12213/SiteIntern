@@ -58,6 +58,7 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
   const [filteredSheets, setFilteredSheets] = useState<any[]>([]);
   const [selectedSheet, setSelectedSheet] = useState('');
 
+  const [sessionName, setSessionName] = useState('');
   const [selectedSegment, setSelectedSegment] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -180,6 +181,10 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
     setError('');
 
     // Validations
+    if (!sessionName.trim()) {
+      setError('Veuillez saisir le nom de la session');
+      return;
+    }
     if (!selectedSegment || !selectedCity || !startDate || !endDate) {
       setError('Veuillez remplir tous les champs');
       return;
@@ -224,6 +229,7 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
         form_data: {},
         professor_id: isImpressionRole ? selectedProfessor : undefined,
         status: isImpressionRole ? 'a_declarer' : undefined, // Statut "à déclarer" pour rôle impression
+        session_name: sessionName.trim(),
       });
 
       // Vérifier la permission: seuls les utilisateurs avec la permission "fill" ou "update" peuvent remplir
@@ -262,6 +268,21 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
               <p className="text-gray-600">Chargement...</p>
             </div>
           )}
+
+          {/* Nom de la session - PREMIER CHAMP */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nom de la session <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={sessionName}
+              onChange={(e) => setSessionName(e.target.value)}
+              placeholder="Ex: Session Janvier 2025"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            />
+          </div>
 
           {/* Segment */}
           <div>
