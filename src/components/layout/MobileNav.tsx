@@ -112,17 +112,17 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
         <Menu className="h-6 w-6" />
       </Button>
 
-      {/* Overlay */}
+      {/* Overlay - Plus opaque pour masquer le contenu dessous */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
 
-      {/* Drawer */}
+      {/* Drawer - Fond blanc solide, pas transparent */}
       <div
-        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed top-0 left-0 h-full w-72 !bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out lg:hidden overflow-hidden ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
