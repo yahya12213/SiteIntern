@@ -13,6 +13,7 @@
  */
 
 import pool from '../config/database.js';
+import { googleContactsService } from '../services/googleContactsService.js';
 
 /**
  * Réinjecte un prospect existant avec historique complet
@@ -162,6 +163,27 @@ export async function reinjectProspect(prospectId, userId, newData = {}) {
   `, [callId, prospectId, userId]);
 
   console.log(`🔄 Prospect ${prospectId} réinjecté par user ${userId}`);
+
+  // 📱 Sync vers Google Contacts (async, non-bloquant)
+  // La ville peut avoir changé lors de la réinjection, on sync vers le nouveau compte Google
+  const reinjectedProspect = rows[0];
+  if (reinjectedProspect) {
+    const villeInfo = await pool.query(
+      'SELECT c.name as ville_name, s.name as segment_name FROM cities c LEFT JOIN segments s ON c.segment_id = s.id WHERE c.id = $1',
+      [reinjectedProspect.ville_id]
+    );
+
+    googleContactsService.syncProspect({
+      id: reinjectedProspect.id,
+      phone_international: reinjectedProspect.phone_international,
+      nom: reinjectedProspect.nom,
+      prenom: reinjectedProspect.prenom,
+      ville_id: reinjectedProspect.ville_id,
+      ville_name: villeInfo.rows[0]?.ville_name || '',
+      segment_name: villeInfo.rows[0]?.segment_name || '',
+      google_contact_id: reinjectedProspect.google_contact_id
+    }).catch(err => console.error('Google sync error (reinject):', err.message));
+  }
 
   return rows[0];
 }

@@ -11,6 +11,7 @@ import { normalizePhoneInternational } from '../utils/phone-validator.js';
 import { reassignIfOutOfScope } from '../utils/prospect-assignment.js';
 import { handleDuplicateOrReinject, reinjectProspect } from '../utils/prospect-reinject.js';
 import { runCleaningBatch, deleteMarkedProspects, getProspectsToDelete, getCleaningStats } from '../utils/prospect-cleaner.js';
+import { googleContactsService } from '../services/googleContactsService.js';
 
 const router = express.Router();
 
@@ -311,6 +312,20 @@ router.post('/',
         req.user.id
       ]);
 
+      // 📱 Sync vers Google Contacts (async, non-bloquant)
+      const villeName = await pool.query('SELECT name FROM cities WHERE id = $1', [finalVilleId]);
+      const segmentName = await pool.query('SELECT name FROM segments WHERE id = $1', [segment_id]);
+
+      googleContactsService.syncProspect({
+        id: prospectId,
+        phone_international,
+        nom: nom || null,
+        prenom: prenom || null,
+        ville_id: finalVilleId,
+        ville_name: villeName.rows[0]?.name || '',
+        segment_name: segmentName.rows[0]?.name || ''
+      }).catch(err => console.error('Google sync error:', err.message));
+
       res.status(201).json({
         message: 'Prospect créé avec succès',
         prospect: rows[0]
@@ -536,6 +551,18 @@ router.post('/import',
           villeId,
           req.user.id
         ]);
+
+        // 📱 Sync vers Google Contacts (async, non-bloquant)
+        const segmentInfo = await pool.query('SELECT name FROM segments WHERE id = $1', [segment_id]);
+        googleContactsService.syncProspect({
+          id: prospectId,
+          phone_international: phoneValidation.phone_international,
+          nom: line.nom || null,
+          prenom: line.prenom || null,
+          ville_id: villeId,
+          ville_name: line.ville || '',
+          segment_name: segmentInfo.rows[0]?.name || ''
+        }).catch(err => console.error('Google sync error (import):', err.message));
 
         result.status = 'created';
         created++;

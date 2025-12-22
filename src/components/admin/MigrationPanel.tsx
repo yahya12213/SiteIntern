@@ -269,6 +269,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 087: Système Visites Physiques',
     description: '👣 Gestion des visites physiques au centre - Table prospect_visits, motifs non-inscription, analytics par zone, permissions RBAC',
     endpoint: '/migration-087'
+  },
+  {
+    id: 'migration-089',
+    name: 'Migration 089: Google Contacts Integration',
+    description: '📱 Intégration Google Contacts - Sync automatique des prospects vers Google Contacts par ville (OAuth 2.0)',
+    endpoint: '/migration-089'
   }
 ];
 
