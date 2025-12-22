@@ -12,7 +12,43 @@ import { authenticateToken } from '../middleware/auth.js';
 
 const router = Router();
 
-router.post('/migration-089', authenticateToken, async (req, res) => {
+// Check migration status
+router.get('/migration-089/status', authenticateToken, async (req, res) => {
+  try {
+    // Check if columns exist
+    const checkCities = await pool.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'cities' AND column_name IN ('google_token', 'google_sync_enabled')
+    `);
+
+    const checkProspects = await pool.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'prospects' AND column_name IN ('google_contact_id', 'google_sync_status', 'google_last_sync', 'google_sync_error')
+    `);
+
+    const citiesColumnsCount = checkCities.rows.length;
+    const prospectsColumnsCount = checkProspects.rows.length;
+
+    const isApplied = citiesColumnsCount >= 2 && prospectsColumnsCount >= 4;
+
+    res.json({
+      applied: isApplied,
+      message: isApplied
+        ? 'Migration déjà appliquée'
+        : `Migration nécessaire (cities: ${citiesColumnsCount}/2, prospects: ${prospectsColumnsCount}/4)`,
+      details: {
+        citiesColumns: checkCities.rows.map(r => r.column_name),
+        prospectsColumns: checkProspects.rows.map(r => r.column_name)
+      }
+    });
+  } catch (error) {
+    console.error('Migration 089 status error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Run migration
+router.post('/migration-089/run', authenticateToken, async (req, res) => {
   const client = await pool.connect();
 
   try {
@@ -187,7 +223,7 @@ router.post('/migration-089', authenticateToken, async (req, res) => {
     res.json({
       success: true,
       message: 'Migration 089 Google Contacts exécutée avec succès',
-      results
+      details: results
     });
 
   } catch (error) {
