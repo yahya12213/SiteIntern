@@ -20,6 +20,7 @@ import {
   FolderKanban,
   ListTodo,
   Plus,
+  PlusCircle,
   Search,
   Filter,
   Edit,
@@ -659,16 +660,39 @@ function PlanActionTab({ canCreate, canUpdate, canDelete }: { canCreate: boolean
 // ==================== Projets Kanban Tab ====================
 
 function ProjetKanbanTab({ canCreate, canUpdate, canDelete }: { canCreate: boolean; canUpdate: boolean; canDelete: boolean }) {
+  const { hasPermission } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingProject, setEditingProject] = useState<any>(null);
   const [managingActionsProject, setManagingActionsProject] = useState<any>(null);
   const [viewingActionsProject, setViewingActionsProject] = useState<any>(null);
+  const [addingActionToProject, setAddingActionToProject] = useState<any>(null);
 
   const { data: projects = [], isLoading } = useProjects({ search: searchTerm || undefined });
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
+  const createAction = useCreateAction();
+
+  // Permission pour créer des actions
+  const canCreateAction = hasPermission(PERMISSIONS.accounting.actions.create);
+
+  // Handler pour créer une action liée à un projet
+  const handleCreateActionForProject = async (data: any) => {
+    try {
+      await createAction.mutateAsync({
+        ...data,
+        project_id: addingActionToProject.id,
+      });
+      toast({
+        title: 'Action créée',
+        description: `L'action a été créée et liée au projet "${addingActionToProject.name}"`
+      });
+      setAddingActionToProject(null);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erreur', description: error.message });
+    }
+  };
 
   const handleUpdateProjectColor = async (projectId: string, color: string) => {
     try {
@@ -871,6 +895,17 @@ function ProjetKanbanTab({ canCreate, canUpdate, canDelete }: { canCreate: boole
                         </Button>
                       </>
                     )}
+                    {canCreateAction && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAddingActionToProject(project)}
+                        className="text-green-600 border-green-300 hover:bg-green-50"
+                      >
+                        <PlusCircle className="h-4 w-4 mr-1" />
+                        Action
+                      </Button>
+                    )}
                     {canDelete && (
                       <Button variant="ghost" size="sm" onClick={() => handleDeleteProject(project.id)}>
                         <Trash2 className="h-4 w-4 text-red-500" />
@@ -917,6 +952,17 @@ function ProjetKanbanTab({ canCreate, canUpdate, canDelete }: { canCreate: boole
         project={viewingActionsProject}
         onClose={() => setViewingActionsProject(null)}
       />
+
+      {/* Add Action to Project Modal */}
+      {addingActionToProject && (
+        <ActionFormModal
+          open={!!addingActionToProject}
+          onClose={() => setAddingActionToProject(null)}
+          onSubmit={handleCreateActionForProject}
+          isLoading={createAction.isPending}
+          projectName={addingActionToProject.name}
+        />
+      )}
     </div>
   );
 }
@@ -929,12 +975,14 @@ function ActionFormModal({
   onSubmit,
   isLoading,
   initialData,
+  projectName,
 }: {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: any) => void;
   isLoading: boolean;
   initialData?: any;
+  projectName?: string;
 }) {
   const [formData, setFormData] = useState({
     description: initialData?.description || '',
@@ -1017,11 +1065,23 @@ function ActionFormModal({
     onSubmit(formData);
   };
 
+  // Déterminer le titre du modal
+  const modalTitle = initialData
+    ? 'Modifier l\'action'
+    : projectName
+      ? `Nouvelle action pour "${projectName}"`
+      : 'Nouvelle action';
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] sm:w-[550px] md:w-[600px] max-w-[95vw]">
         <DialogHeader>
-          <DialogTitle>{initialData ? 'Modifier l\'action' : 'Nouvelle action'}</DialogTitle>
+          <DialogTitle>{modalTitle}</DialogTitle>
+          {projectName && !initialData && (
+            <DialogDescription>
+              Cette action sera automatiquement liée au projet
+            </DialogDescription>
+          )}
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
