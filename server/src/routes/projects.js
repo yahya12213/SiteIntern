@@ -101,10 +101,17 @@ router.get('/:id', authenticateToken, requirePermission('accounting.projects.vie
   }
 });
 
+// Helper function to convert empty strings to null for FK fields
+const emptyToNull = (value) => (value === '' || value === undefined) ? null : value;
+
 // POST create project
 router.post('/', authenticateToken, requirePermission('accounting.projects.create'), async (req, res) => {
   try {
-    const { name, description, status, priority, start_date, end_date, budget, manager_id, segment_id, city_id, color } = req.body;
+    const { name, description, status, priority, start_date, end_date, budget, color } = req.body;
+    // Convert empty strings to null for FK fields
+    const manager_id = emptyToNull(req.body.manager_id);
+    const segment_id = emptyToNull(req.body.segment_id);
+    const city_id = emptyToNull(req.body.city_id);
     const userId = req.user.id;
 
     if (!name) {
@@ -131,7 +138,7 @@ router.post('/', authenticateToken, requirePermission('accounting.projects.creat
       INSERT INTO projects (id, name, description, status, priority, start_date, end_date, budget, manager_id, segment_id, city_id, color, created_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *
-    `, [id, name, description, status || 'planning', priority || 'normale', start_date, end_date, budget, manager_id, segment_id, city_id, color || '#3b82f6', userId]);
+    `, [id, name, description, status || 'planning', priority || 'normale', emptyToNull(start_date), emptyToNull(end_date), emptyToNull(budget), manager_id, segment_id, city_id, color || '#3b82f6', userId]);
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -153,7 +160,11 @@ router.post('/', authenticateToken, requirePermission('accounting.projects.creat
 router.put('/:id', authenticateToken, requirePermission('accounting.projects.update'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, status, priority, start_date, end_date, budget, manager_id, segment_id, city_id, color } = req.body;
+    const { name, description, status, priority, start_date, end_date, budget, color } = req.body;
+    // Convert empty strings to null for FK fields
+    const manager_id = emptyToNull(req.body.manager_id);
+    const segment_id = emptyToNull(req.body.segment_id);
+    const city_id = emptyToNull(req.body.city_id);
 
     // Validate color format if provided
     if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
@@ -162,9 +173,9 @@ router.put('/:id', authenticateToken, requirePermission('accounting.projects.upd
 
     // Only validate FK fields that are being updated (not undefined)
     const fkFields = {};
-    if (manager_id !== undefined) fkFields.manager_id = manager_id;
-    if (segment_id !== undefined) fkFields.segment_id = segment_id;
-    if (city_id !== undefined) fkFields.city_id = city_id;
+    if (req.body.manager_id !== undefined) fkFields.manager_id = manager_id;
+    if (req.body.segment_id !== undefined) fkFields.segment_id = segment_id;
+    if (req.body.city_id !== undefined) fkFields.city_id = city_id;
 
     // Validate foreign keys if any FK field is being updated
     if (Object.keys(fkFields).length > 0) {
@@ -193,7 +204,7 @@ router.put('/:id', authenticateToken, requirePermission('accounting.projects.upd
           updated_at = NOW()
       WHERE id = $12
       RETURNING *
-    `, [name, description, status, priority, start_date, end_date, budget, manager_id, segment_id, city_id, color, id]);
+    `, [name, description, status, priority, emptyToNull(start_date), emptyToNull(end_date), emptyToNull(budget), manager_id, segment_id, city_id, color, id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Projet non trouvé' });
