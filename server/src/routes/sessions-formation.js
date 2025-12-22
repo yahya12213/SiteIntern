@@ -339,10 +339,89 @@ router.post('/',
         newSession.archive_folder_error = true;
       }
 
+      // NOUVEAU : Créer automatiquement une déclaration pour les sessions présentielles
+      let autoDeclaration = null;
+      if (ville_id && segment_id) {
+        try {
+          // 1. Trouver le professeur assigné à cette ville ET ce segment
+          const professorQuery = `
+            SELECT p.id, p.first_name, p.last_name
+            FROM profiles p
+            INNER JOIN professor_cities pc ON pc.professor_id = p.id
+            INNER JOIN professor_segments ps ON ps.professor_id = p.id
+            WHERE pc.city_id = $1
+            AND ps.segment_id = $2
+            AND p.role = 'professeur'
+            LIMIT 1
+          `;
+          const professorResult = await pool.query(professorQuery, [ville_id, segment_id]);
+
+          // 2. Trouver la fiche de calcul assignée à ce segment ET cette ville (et publiée)
+          const sheetQuery = `
+            SELECT cs.id, cs.name
+            FROM calculation_sheets cs
+            INNER JOIN calculation_sheet_segments css ON css.sheet_id = cs.id
+            INNER JOIN calculation_sheet_cities csc ON csc.sheet_id = cs.id
+            WHERE css.segment_id = $1
+            AND csc.city_id = $2
+            AND cs.is_published = true
+            LIMIT 1
+          `;
+          const sheetResult = await pool.query(sheetQuery, [segment_id, ville_id]);
+
+          // 3. Si on a trouvé un professeur ET une fiche, créer la déclaration
+          if (professorResult.rows.length > 0 && sheetResult.rows.length > 0) {
+            const professor = professorResult.rows[0];
+            const sheet = sheetResult.rows[0];
+            const declarationId = nanoid();
+
+            await pool.query(
+              `INSERT INTO professor_declarations
+               (id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data, status, session_name)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+              [
+                declarationId,
+                professor.id,
+                sheet.id,
+                segment_id,
+                ville_id,
+                date_debut,
+                date_fin,
+                '{}',
+                'brouillon',
+                titre
+              ]
+            );
+
+            autoDeclaration = {
+              id: declarationId,
+              professor_name: `${professor.first_name} ${professor.last_name}`,
+              sheet_name: sheet.name
+            };
+
+            console.log(`✓ Déclaration auto-créée: Prof ${professor.first_name} ${professor.last_name}, Fiche: ${sheet.name}`);
+          } else {
+            // Log pourquoi la déclaration n'a pas été créée
+            if (professorResult.rows.length === 0) {
+              console.log(`⚠ Pas de professeur trouvé pour ville_id=${ville_id} et segment_id=${segment_id}`);
+            }
+            if (sheetResult.rows.length === 0) {
+              console.log(`⚠ Pas de fiche de calcul publiée trouvée pour segment_id=${segment_id} et ville_id=${ville_id}`);
+            }
+          }
+        } catch (declarationError) {
+          console.error('Erreur création déclaration auto:', declarationError);
+          // Non-bloquant : la session est créée même si la déclaration échoue
+        }
+      }
+
       res.status(201).json({
         success: true,
         session: newSession,
-        message: 'Session créée avec succès'
+        autoDeclaration: autoDeclaration,
+        message: autoDeclaration
+          ? `Session créée avec succès. Déclaration auto-créée pour ${autoDeclaration.professor_name}`
+          : 'Session créée avec succès'
       });
 
     } catch (error) {
