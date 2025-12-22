@@ -39,6 +39,9 @@ import {
   X,
   Calendar,
   Footprints,
+  Cloud,
+  CloudOff,
+  AlertCircle,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useProspects, useDeleteProspect } from '@/hooks/useProspects';
@@ -545,19 +548,20 @@ export default function Prospects() {
                   <TableHead>RDV</TableHead>
                   <TableHead>Pays</TableHead>
                   <TableHead>Durée d'appel</TableHead>
+                  <TableHead>Sync Google</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center py-8">
+                    <TableCell colSpan={14} className="text-center py-8">
                       Chargement...
                     </TableCell>
                   </TableRow>
                 ) : prospects.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
                       Aucun prospect trouvé
                     </TableCell>
                   </TableRow>
@@ -630,6 +634,24 @@ export default function Prospects() {
                         {prospect.total_call_duration && prospect.total_call_duration > 0
                           ? `${Math.floor(prospect.total_call_duration / 60)}m ${prospect.total_call_duration % 60}s`
                           : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {prospect.google_sync_status === 'synced' ? (
+                          <div className="flex items-center gap-1 text-green-600" title="Synchronisé avec Google Contacts">
+                            <Cloud className="h-4 w-4" />
+                            <span className="text-xs">Sync</span>
+                          </div>
+                        ) : prospect.google_sync_status === 'failed' ? (
+                          <div className="flex items-center gap-1 text-red-600" title={prospect.google_sync_error || 'Échec de synchronisation'}>
+                            <AlertCircle className="h-4 w-4" />
+                            <span className="text-xs">Échec</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 text-gray-400" title="En attente de synchronisation">
+                            <CloudOff className="h-4 w-4" />
+                            <span className="text-xs">En attente</span>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
