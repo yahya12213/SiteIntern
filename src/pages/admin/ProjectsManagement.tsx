@@ -40,6 +40,9 @@ import {
   Palette,
   Eye,
   ListChecks,
+  X,
+  CalendarRange,
+  RotateCcw,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { profilesApi, type Profile } from '@/lib/api/profiles';
@@ -176,8 +179,13 @@ export default function ProjectsManagement() {
 function PlanActionTab({ canCreate, canUpdate, canDelete }: { canCreate: boolean; canUpdate: boolean; canDelete: boolean }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [piloteFilter, setPiloteFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingAction, setEditingAction] = useState<any>(null);
+  const [showFilters, setShowFilters] = useState(false);
 
   const { data: actions = [], isLoading } = useActions({ search: searchTerm || undefined });
   const { data: stats } = useActionStats();
@@ -185,11 +193,104 @@ function PlanActionTab({ canCreate, canUpdate, canDelete }: { canCreate: boolean
   const updateAction = useUpdateAction();
   const deleteAction = useDeleteAction();
 
-  // Filter actions
-  const filteredActions = actions.filter(action => {
-    if (statusFilter !== 'all' && action.status !== statusFilter) return false;
-    return true;
+  // Charger les utilisateurs pour le filtre pilote
+  const { data: users = [] } = useQuery({
+    queryKey: ['users-for-pilote-filter'],
+    queryFn: () => profilesApi.getAll(),
   });
+
+  // Extraire la liste unique des pilotes depuis les actions
+  const pilotesFromActions = useMemo(() => {
+    const piloteMap = new Map();
+    actions.forEach(action => {
+      if (action.pilote_id && action.pilote_name) {
+        piloteMap.set(action.pilote_id, action.pilote_name);
+      }
+    });
+    return Array.from(piloteMap.entries()).map(([id, name]) => ({ id, name }));
+  }, [actions]);
+
+  // Fonction de réinitialisation des filtres
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setPiloteFilter('all');
+    setDateFilter('all');
+    setDateFrom('');
+    setDateTo('');
+  };
+
+  // Compter les filtres actifs
+  const activeFiltersCount = [
+    statusFilter !== 'all',
+    piloteFilter !== 'all',
+    dateFilter !== 'all',
+    dateFrom !== '',
+    dateTo !== '',
+  ].filter(Boolean).length;
+
+  // Filter actions
+  const filteredActions = useMemo(() => {
+    return actions.filter(action => {
+      // Filtre par statut
+      if (statusFilter !== 'all' && action.status !== statusFilter) return false;
+
+      // Filtre par pilote
+      if (piloteFilter !== 'all' && action.pilote_id !== piloteFilter) return false;
+
+      // Filtre par date (deadline)
+      if (dateFilter !== 'all') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const deadline = action.deadline ? new Date(action.deadline) : null;
+
+        switch (dateFilter) {
+          case 'overdue':
+            if (!deadline || deadline >= today || action.status === 'termine') return false;
+            break;
+          case 'today':
+            if (!deadline) return false;
+            const deadlineDate = new Date(deadline);
+            deadlineDate.setHours(0, 0, 0, 0);
+            if (deadlineDate.getTime() !== today.getTime()) return false;
+            break;
+          case 'this_week':
+            if (!deadline) return false;
+            const weekEnd = new Date(today);
+            weekEnd.setDate(today.getDate() + (7 - today.getDay()));
+            if (deadline < today || deadline > weekEnd) return false;
+            break;
+          case 'this_month':
+            if (!deadline) return false;
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            if (deadline < monthStart || deadline > monthEnd) return false;
+            break;
+          case 'no_deadline':
+            if (deadline) return false;
+            break;
+          case 'custom':
+            // Géré par dateFrom/dateTo
+            break;
+        }
+      }
+
+      // Filtre par plage de dates personnalisée
+      if (dateFrom) {
+        const fromDate = new Date(dateFrom);
+        const deadline = action.deadline ? new Date(action.deadline) : null;
+        if (!deadline || deadline < fromDate) return false;
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        const deadline = action.deadline ? new Date(action.deadline) : null;
+        if (!deadline || deadline > toDate) return false;
+      }
+
+      return true;
+    });
+  }, [actions, statusFilter, piloteFilter, dateFilter, dateFrom, dateTo]);
 
   const handleCreateAction = async (data: any) => {
     try {
@@ -306,9 +407,11 @@ function PlanActionTab({ canCreate, canUpdate, canDelete }: { canCreate: boolean
       {/* Filters and Actions */}
       <Card>
         <CardContent className="p-4">
+          {/* Ligne principale */}
           <div className="flex flex-wrap gap-4 items-center justify-between">
-            <div className="flex gap-4 flex-1">
-              <div className="relative flex-1 max-w-sm">
+            <div className="flex gap-3 flex-1 flex-wrap items-center">
+              {/* Recherche */}
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Rechercher une action..."
@@ -317,19 +420,76 @@ function PlanActionTab({ canCreate, canUpdate, canDelete }: { canCreate: boolean
                   className="pl-10"
                 />
               </div>
+
+              {/* Filtre Statut */}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <Filter className="h-4 w-4 mr-2" />
+                <SelectTrigger className="w-[160px]">
+                  <Circle className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Statut" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tous les statuts</SelectItem>
                   {ACTION_STATUS.map(s => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    <SelectItem key={s.value} value={s.value}>
+                      <span className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${s.value === 'a_faire' ? 'bg-gray-400' : s.value === 'en_cours' ? 'bg-yellow-500' : 'bg-green-500'}`}></span>
+                        {s.label}
+                      </span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Filtre Pilote */}
+              <Select value={piloteFilter} onValueChange={setPiloteFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <User className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Pilote" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les pilotes</SelectItem>
+                  {pilotesFromActions.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Filtre Date */}
+              <Select value={dateFilter} onValueChange={setDateFilter}>
+                <SelectTrigger className="w-[170px]">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Délai" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les dates</SelectItem>
+                  <SelectItem value="overdue">
+                    <span className="flex items-center gap-2 text-red-600">
+                      <AlertTriangle className="h-3 w-3" />
+                      En retard
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="today">Aujourd'hui</SelectItem>
+                  <SelectItem value="this_week">Cette semaine</SelectItem>
+                  <SelectItem value="this_month">Ce mois</SelectItem>
+                  <SelectItem value="no_deadline">Sans délai</SelectItem>
+                  <SelectItem value="custom">
+                    <span className="flex items-center gap-2">
+                      <CalendarRange className="h-3 w-3" />
+                      Personnalisé...
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Bouton afficher plus de filtres / reset */}
+              {activeFiltersCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={resetFilters} className="text-gray-500 hover:text-gray-700">
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Réinitialiser ({activeFiltersCount})
+                </Button>
+              )}
             </div>
+
             {canCreate && (
               <Button onClick={() => setShowCreateModal(true)}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -337,6 +497,47 @@ function PlanActionTab({ canCreate, canUpdate, canDelete }: { canCreate: boolean
               </Button>
             )}
           </div>
+
+          {/* Plage de dates personnalisée */}
+          {dateFilter === 'custom' && (
+            <div className="flex gap-4 items-center mt-4 pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-gray-600 whitespace-nowrap">Du:</Label>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-[160px]"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-gray-600 whitespace-nowrap">Au:</Label>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-[160px]"
+                />
+              </div>
+              {(dateFrom || dateTo) && (
+                <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Indicateur du nombre de résultats */}
+          {(activeFiltersCount > 0 || searchTerm) && (
+            <div className="mt-3 pt-3 border-t">
+              <p className="text-sm text-gray-500">
+                <span className="font-medium text-gray-700">{filteredActions.length}</span> action(s) trouvée(s)
+                {actions.length !== filteredActions.length && (
+                  <span> sur {actions.length} au total</span>
+                )}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -1368,6 +1569,7 @@ function ManageActionsModal({
                       checked={isSelected}
                       onChange={() => handleToggleAction(action.id)}
                       className="h-5 w-5"
+                      aria-label={`Sélectionner l'action: ${action.description}`}
                     />
                   </div>
                 </div>
