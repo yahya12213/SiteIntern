@@ -341,8 +341,12 @@ router.post('/',
 
       // NOUVEAU : Créer automatiquement une déclaration pour les sessions présentielles
       let autoDeclaration = null;
+      let debugInfo = { ville_id, segment_id, professorFound: false, sheetFound: false };
+
       if (ville_id && segment_id) {
         try {
+          console.log(`🔍 Recherche auto-déclaration pour ville_id=${ville_id}, segment_id=${segment_id}`);
+
           // 1. Trouver le professeur assigné à cette ville ET ce segment
           const professorQuery = `
             SELECT p.id, p.first_name, p.last_name
@@ -355,6 +359,10 @@ router.post('/',
             LIMIT 1
           `;
           const professorResult = await pool.query(professorQuery, [ville_id, segment_id]);
+          debugInfo.professorFound = professorResult.rows.length > 0;
+          if (professorResult.rows.length > 0) {
+            debugInfo.professorName = `${professorResult.rows[0].first_name} ${professorResult.rows[0].last_name}`;
+          }
 
           // 2. Trouver la fiche de calcul assignée à ce segment ET cette ville (et publiée)
           const sheetQuery = `
@@ -368,6 +376,12 @@ router.post('/',
             LIMIT 1
           `;
           const sheetResult = await pool.query(sheetQuery, [segment_id, ville_id]);
+          debugInfo.sheetFound = sheetResult.rows.length > 0;
+          if (sheetResult.rows.length > 0) {
+            debugInfo.sheetName = sheetResult.rows[0].name;
+          }
+
+          console.log(`🔍 Debug auto-déclaration:`, JSON.stringify(debugInfo));
 
           // 3. Si on a trouvé un professeur ET une fiche, créer la déclaration
           if (professorResult.rows.length > 0 && sheetResult.rows.length > 0) {
@@ -419,6 +433,7 @@ router.post('/',
         success: true,
         session: newSession,
         autoDeclaration: autoDeclaration,
+        debugInfo: debugInfo,
         message: autoDeclaration
           ? `Session créée avec succès. Déclaration auto-créée pour ${autoDeclaration.professor_name}`
           : 'Session créée avec succès'
