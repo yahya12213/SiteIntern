@@ -378,4 +378,49 @@ router.get('/google/stats',
   }
 );
 
+/**
+ * GET une ville par ID
+ * Protected: SBAC filtering only
+ * IMPORTANT: Cette route doit être APRÈS toutes les routes GET spécifiques
+ * (/by-segment/:segmentId, /google/stats) pour éviter qu'elle les intercepte
+ */
+router.get('/:id',
+  authenticateToken,
+  injectUserScope,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      let query = `
+        SELECT c.id, c.name, c.code, c.segment_id, c.created_at,
+               s.name as segment_name, s.color as segment_color
+        FROM cities c
+        LEFT JOIN segments s ON c.segment_id = s.id
+        WHERE c.id = $1
+      `;
+      const params = [id];
+
+      // SBAC: Apply scope filtering
+      const scopeFilter = buildScopeFilter(req, null, 'c.id');
+      if (scopeFilter.hasScope) {
+        query += ' AND (' + scopeFilter.conditions.map((condition, index) => {
+          return condition.replace(/\$(\d+)/g, (match, num) => `$${params.length + parseInt(num)}`);
+        }).join(' OR ') + ')';
+        params.push(...scopeFilter.params);
+      }
+
+      const result = await pool.query(query, params);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'City not found or access denied' });
+      }
+
+      res.json(result.rows[0]);
+    } catch (error) {
+      console.error('Error fetching city:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
 export default router;
