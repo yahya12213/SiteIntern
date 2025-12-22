@@ -357,6 +357,7 @@ router.get('/google/stats',
         SELECT
           c.id,
           c.name,
+          c.code,
           c.google_sync_enabled,
           s.name as segment_name,
           COUNT(p.id) as total_prospects,
@@ -366,7 +367,7 @@ router.get('/google/stats',
         FROM cities c
         LEFT JOIN segments s ON c.segment_id = s.id
         LEFT JOIN prospects p ON p.ville_id = c.id
-        GROUP BY c.id, c.name, c.google_sync_enabled, s.name
+        GROUP BY c.id, c.name, c.code, c.google_sync_enabled, s.name
         ORDER BY s.name, c.name
       `);
 

@@ -35,6 +35,7 @@ import {
 interface CityGoogleStats {
   id: string;
   name: string;
+  code: string;
   segment_name: string;
   google_sync_enabled: boolean;
   total_prospects: number;
@@ -147,6 +148,7 @@ export default function GoogleContactsManagement() {
   // Filtrer les villes
   const filteredCities = citiesStats?.filter(city => {
     const matchesSearch = city.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      city.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       city.segment_name?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSegment = filterSegment === 'all' || city.segment_name === filterSegment;
     return matchesSearch && matchesSegment;
@@ -273,6 +275,7 @@ export default function GoogleContactsManagement() {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Ville</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Code</th>
                   <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Segment</th>
                   <th className="text-center px-4 py-3 text-sm font-medium text-gray-600">Statut</th>
                   <th className="text-center px-4 py-3 text-sm font-medium text-gray-600">Total</th>
@@ -285,14 +288,14 @@ export default function GoogleContactsManagement() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-500">
+                    <td colSpan={9} className="text-center py-8 text-gray-500">
                       <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
                       Chargement...
                     </td>
                   </tr>
                 ) : filteredCities?.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-500">
+                    <td colSpan={9} className="text-center py-8 text-gray-500">
                       Aucune ville trouvée
                     </td>
                   </tr>
@@ -301,6 +304,9 @@ export default function GoogleContactsManagement() {
                     <tr key={city.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                       <td className="px-4 py-3">
                         <span className="font-medium text-gray-900">{city.name}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{city.code || city.id}</span>
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-sm text-gray-600">{city.segment_name || '-'}</span>
@@ -386,7 +392,7 @@ export default function GoogleContactsManagement() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
-              Configuration Google - {selectedCity?.name}
+              Configuration Google - {selectedCity?.name} <span className="text-sm font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded">({selectedCity?.code || selectedCity?.id})</span>
             </DialogTitle>
             <DialogDescription>
               Configurez le token Google OAuth pour synchroniser les prospects vers Google Contacts
