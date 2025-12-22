@@ -14,6 +14,11 @@ const API_URL = import.meta.env.MODE === 'production' ? '/api' : (import.meta.en
 const TOKEN_KEY = 'auth_token';
 const USER_KEY = 'current_user';
 const PERMISSIONS_KEY = 'user_permissions';
+const LAST_ACTIVITY_KEY = 'last_activity';
+const SESSION_TYPE_KEY = 'session_type'; // 'session' or 'persistent'
+
+// Session timeout in milliseconds (40 minutes)
+const SESSION_TIMEOUT_MS = 40 * 60 * 1000;
 
 export class ApiError extends Error {
   status?: number;
@@ -33,23 +38,54 @@ interface RequestOptions extends RequestInit {
 }
 
 /**
- * Auth token management
+ * Auth token management with session cookie support
  */
 export const tokenManager = {
   getToken: (): string | null => {
-    return localStorage.getItem(TOKEN_KEY);
+    // Check session timeout first
+    if (tokenManager.isSessionExpired()) {
+      tokenManager.clearAll();
+      window.dispatchEvent(new CustomEvent('auth:session-timeout'));
+      return null;
+    }
+    // Try sessionStorage first (session cookies), then localStorage (persistent)
+    return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
   },
 
-  setToken: (token: string): void => {
-    localStorage.setItem(TOKEN_KEY, token);
+  setToken: (token: string, persistent: boolean = false): void => {
+    // Clear both storages first
+    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+
+    if (persistent) {
+      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(SESSION_TYPE_KEY, 'persistent');
+      sessionStorage.setItem(SESSION_TYPE_KEY, 'persistent');
+    } else {
+      // Session cookie: expires when browser closes
+      sessionStorage.setItem(TOKEN_KEY, token);
+      sessionStorage.setItem(SESSION_TYPE_KEY, 'session');
+      localStorage.setItem(SESSION_TYPE_KEY, 'session');
+    }
+
+    // Update last activity timestamp
+    tokenManager.updateActivity();
   },
 
   removeToken: (): void => {
+    sessionStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_KEY);
   },
 
   getUser: (): any | null => {
-    const userStr = localStorage.getItem(USER_KEY);
+    // Check session timeout first
+    if (tokenManager.isSessionExpired()) {
+      tokenManager.clearAll();
+      window.dispatchEvent(new CustomEvent('auth:session-timeout'));
+      return null;
+    }
+
+    const userStr = sessionStorage.getItem(USER_KEY) || localStorage.getItem(USER_KEY);
     if (userStr) {
       try {
         return JSON.parse(userStr);
@@ -60,16 +96,21 @@ export const tokenManager = {
     return null;
   },
 
-  setUser: (user: any): void => {
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  setUser: (user: any, persistent: boolean = false): void => {
+    sessionStorage.removeItem(USER_KEY);
+    localStorage.removeItem(USER_KEY);
+
+    const storage = persistent ? localStorage : sessionStorage;
+    storage.setItem(USER_KEY, JSON.stringify(user));
   },
 
   removeUser: (): void => {
+    sessionStorage.removeItem(USER_KEY);
     localStorage.removeItem(USER_KEY);
   },
 
   getPermissions: (): string[] => {
-    const permsStr = localStorage.getItem(PERMISSIONS_KEY);
+    const permsStr = sessionStorage.getItem(PERMISSIONS_KEY) || localStorage.getItem(PERMISSIONS_KEY);
     if (permsStr) {
       try {
         return JSON.parse(permsStr);
@@ -80,18 +121,62 @@ export const tokenManager = {
     return [];
   },
 
-  setPermissions: (permissions: string[]): void => {
-    localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(permissions));
+  setPermissions: (permissions: string[], persistent: boolean = false): void => {
+    sessionStorage.removeItem(PERMISSIONS_KEY);
+    localStorage.removeItem(PERMISSIONS_KEY);
+
+    const storage = persistent ? localStorage : sessionStorage;
+    storage.setItem(PERMISSIONS_KEY, JSON.stringify(permissions));
   },
 
   removePermissions: (): void => {
+    sessionStorage.removeItem(PERMISSIONS_KEY);
     localStorage.removeItem(PERMISSIONS_KEY);
   },
 
+  // Activity tracking for session timeout
+  updateActivity: (): void => {
+    const now = Date.now().toString();
+    sessionStorage.setItem(LAST_ACTIVITY_KEY, now);
+    localStorage.setItem(LAST_ACTIVITY_KEY, now);
+  },
+
+  getLastActivity: (): number => {
+    const lastActivity = sessionStorage.getItem(LAST_ACTIVITY_KEY) || localStorage.getItem(LAST_ACTIVITY_KEY);
+    return lastActivity ? parseInt(lastActivity, 10) : 0;
+  },
+
+  isSessionExpired: (): boolean => {
+    const lastActivity = tokenManager.getLastActivity();
+    if (!lastActivity) return false;
+
+    const now = Date.now();
+    const elapsed = now - lastActivity;
+    return elapsed > SESSION_TIMEOUT_MS;
+  },
+
+  // Get remaining session time in milliseconds
+  getRemainingTime: (): number => {
+    const lastActivity = tokenManager.getLastActivity();
+    if (!lastActivity) return SESSION_TIMEOUT_MS;
+
+    const elapsed = Date.now() - lastActivity;
+    return Math.max(0, SESSION_TIMEOUT_MS - elapsed);
+  },
+
   clearAll: (): void => {
+    // Clear from both storages
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(PERMISSIONS_KEY);
+    sessionStorage.removeItem(LAST_ACTIVITY_KEY);
+    sessionStorage.removeItem(SESSION_TYPE_KEY);
+
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(PERMISSIONS_KEY);
+    localStorage.removeItem(LAST_ACTIVITY_KEY);
+    localStorage.removeItem(SESSION_TYPE_KEY);
   },
 
   hasPermission: (permission: string): boolean => {
@@ -108,6 +193,12 @@ export const tokenManager = {
 
   hasAllPermissions: (...perms: string[]): boolean => {
     return perms.every(p => tokenManager.hasPermission(p));
+  },
+
+  // Check if session is persistent (remember me)
+  isPersistent: (): boolean => {
+    const sessionType = localStorage.getItem(SESSION_TYPE_KEY) || sessionStorage.getItem(SESSION_TYPE_KEY);
+    return sessionType === 'persistent';
   },
 };
 

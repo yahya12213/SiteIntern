@@ -29,6 +29,7 @@ const carouselImages = [
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -53,7 +54,10 @@ const Login: React.FC = () => {
     setError('');
     setLoading(true);
 
-    const success = await login(username, password);
+    // Pass rememberMe to login function
+    // false = session cookie (expires when browser closes)
+    // true = persistent (survives browser restart, but still has 40min inactivity timeout)
+    const success = await login(username, password, rememberMe);
 
     if (success) {
       navigate('/dashboard');
@@ -241,6 +245,20 @@ const Login: React.FC = () => {
                       )}
                     </button>
                   </div>
+                </div>
+
+                {/* Remember Me checkbox */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="rememberMe"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                  />
+                  <label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer select-none">
+                    Se souvenir de moi
+                  </label>
                 </div>
 
                 {error && (

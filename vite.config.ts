@@ -9,6 +9,20 @@ export default defineConfig({
   build: {
     outDir: 'server/dist',
     emptyOutDir: true,
+    // Cache busting: Include content hash in filenames
+    // This forces browsers to download new files after each deployment
+    rollupOptions: {
+      output: {
+        // Include hash in JS chunk filenames
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+      },
+    },
+    // Generate source maps for debugging
+    sourcemap: false,
+    // Minify for production
+    minify: 'esbuild',
   },
   resolve: {
     alias: {

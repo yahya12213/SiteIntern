@@ -1,9 +1,11 @@
 /**
  * Hooks React Query - Gestion des prospects
+ * Includes realtime synchronization via broadcast
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { prospectsApi, type ProspectFilters, type CreateProspectInput, type UpdateProspectInput, type ImportLine, type EndCallData } from '../lib/api/prospects';
+import { useRealtime } from '@/contexts/RealtimeContext';
 
 // ============================================================
 // QUERY HOOKS
@@ -67,58 +69,70 @@ export const useProspectsToDelete = (limit = 100, offset = 0) => {
 
 /**
  * Hook pour créer un nouveau prospect
+ * Broadcasts to other clients for realtime sync
  */
 export const useCreateProspect = () => {
   const queryClient = useQueryClient();
+  const { broadcast } = useRealtime();
 
   return useMutation({
     mutationFn: (data: CreateProspectInput) => prospectsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['prospects'] });
+      broadcast('prospects'); // Notify other clients
     },
   });
 };
 
 /**
  * Hook pour mettre à jour un prospect
+ * Broadcasts to other clients for realtime sync
  */
 export const useUpdateProspect = () => {
   const queryClient = useQueryClient();
+  const { broadcast } = useRealtime();
 
   return useMutation({
     mutationFn: (data: UpdateProspectInput) => prospectsApi.update(data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['prospects'] });
       queryClient.invalidateQueries({ queryKey: ['prospects', variables.id] });
+      broadcast('prospects'); // Notify other clients
     },
   });
 };
 
 /**
  * Hook pour supprimer un prospect
+ * Broadcasts to other clients for realtime sync
  */
 export const useDeleteProspect = () => {
   const queryClient = useQueryClient();
+  const { broadcast } = useRealtime();
 
   return useMutation({
     mutationFn: (id: string) => prospectsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['prospects'] });
+      broadcast('prospects'); // Notify other clients
     },
   });
 };
 
 /**
  * Hook pour importer des prospects en masse
+ * Broadcasts to other clients for realtime sync
  */
 export const useImportProspects = () => {
   const queryClient = useQueryClient();
+  const { broadcast } = useRealtime();
 
   return useMutation({
     mutationFn: ({ segment_id, lines }: { segment_id: string; lines: ImportLine[] }) =>
       prospectsApi.importBatch(segment_id, lines),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['prospects'] });
+      broadcast('prospects'); // Notify other clients
     },
   });
 };
@@ -134,9 +148,11 @@ export const useStartCall = () => {
 
 /**
  * Hook pour terminer un appel
+ * Broadcasts to other clients for realtime sync
  */
 export const useEndCall = () => {
   const queryClient = useQueryClient();
+  const { broadcast } = useRealtime();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: EndCallData }) =>
@@ -144,30 +160,36 @@ export const useEndCall = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['prospects'] });
       queryClient.invalidateQueries({ queryKey: ['prospects', variables.id] });
+      broadcast('prospects'); // Notify other clients
     },
   });
 };
 
 /**
  * Hook pour réinjecter un prospect
+ * Broadcasts to other clients for realtime sync
  */
 export const useReinjectProspect = () => {
   const queryClient = useQueryClient();
+  const { broadcast } = useRealtime();
 
   return useMutation({
     mutationFn: (id: string) => prospectsApi.reinject(id),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['prospects'] });
       queryClient.invalidateQueries({ queryKey: ['prospects', id] });
+      broadcast('prospects'); // Notify other clients
     },
   });
 };
 
 /**
  * Hook pour lancer le nettoyage batch
+ * Broadcasts to other clients for realtime sync
  */
 export const useBatchClean = () => {
   const queryClient = useQueryClient();
+  const { broadcast } = useRealtime();
 
   return useMutation({
     mutationFn: (executeDeletion: boolean) => prospectsApi.batchClean(executeDeletion),
@@ -175,6 +197,7 @@ export const useBatchClean = () => {
       queryClient.invalidateQueries({ queryKey: ['prospects'] });
       queryClient.invalidateQueries({ queryKey: ['prospects', 'cleaning-stats'] });
       queryClient.invalidateQueries({ queryKey: ['prospects', 'to-delete'] });
+      broadcast('prospects'); // Notify other clients
     },
   });
 };

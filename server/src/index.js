@@ -419,13 +419,38 @@ app.use('/uploads', (req, res, next) => {
 
 app.use('/uploads', express.static(uploadsPath));
 
-app.use(express.static(distPath));
+// Serve static files with cache-control headers
+// CSS/JS assets have hash in filename, can be cached long-term
+// HTML files should not be cached (they reference the hashed assets)
+app.use(express.static(distPath, {
+  maxAge: '1y', // Cache assets for 1 year (they have hash in filename)
+  etag: true,
+  setHeaders: (res, filePath) => {
+    // HTML files should not be cached (they contain references to hashed assets)
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+    // Add service worker header to prevent caching issues
+    if (filePath.endsWith('sw.js') || filePath.endsWith('service-worker.js')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  }
+}));
 
 // The "catchall" handler: for any request that doesn't match API routes,
 // send back React's index.html file.
+// IMPORTANT: Set no-cache headers for index.html to ensure users always get the latest version
 app.get('*', (req, res) => {
   const indexPath = path.join(distPath, 'index.html');
   console.log('📄 Attempting to serve:', indexPath);
+
+  // Set no-cache headers for index.html
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
   res.sendFile(indexPath, (err) => {
     if (err) {
       console.error('❌ Error serving index.html:', err);
