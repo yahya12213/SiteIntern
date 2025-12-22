@@ -349,7 +349,7 @@ router.post('/',
 
           // 1. Trouver le professeur assigné à cette ville ET ce segment
           const professorQuery = `
-            SELECT p.id, p.first_name, p.last_name
+            SELECT p.id, p.full_name
             FROM profiles p
             INNER JOIN professor_cities pc ON pc.professor_id = p.id
             INNER JOIN professor_segments ps ON ps.professor_id = p.id
@@ -361,7 +361,7 @@ router.post('/',
           const professorResult = await pool.query(professorQuery, [ville_id, segment_id]);
           debugInfo.professorFound = professorResult.rows.length > 0;
           if (professorResult.rows.length > 0) {
-            debugInfo.professorName = `${professorResult.rows[0].first_name} ${professorResult.rows[0].last_name}`;
+            debugInfo.professorName = professorResult.rows[0].full_name;
           }
 
           // 2. Trouver la fiche de calcul assignée à ce segment ET cette ville (et publiée)
@@ -409,11 +409,11 @@ router.post('/',
 
             autoDeclaration = {
               id: declarationId,
-              professor_name: `${professor.first_name} ${professor.last_name}`,
+              professor_name: professor.full_name,
               sheet_name: sheet.name
             };
 
-            console.log(`✓ Déclaration auto-créée: Prof ${professor.first_name} ${professor.last_name}, Fiche: ${sheet.name}`);
+            console.log(`✓ Déclaration auto-créée: Prof ${professor.full_name}, Fiche: ${sheet.name}`);
           } else {
             // Log pourquoi la déclaration n'a pas été créée
             if (professorResult.rows.length === 0) {
