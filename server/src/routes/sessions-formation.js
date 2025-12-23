@@ -368,19 +368,19 @@ router.post('/',
 
           // 2. Trouver la fiche de calcul assignée à ce segment ET cette ville (et publiée)
           const sheetQuery = `
-            SELECT cs.id, cs.name
+            SELECT cs.id, cs.title
             FROM calculation_sheets cs
             INNER JOIN calculation_sheet_segments css ON css.sheet_id = cs.id
             INNER JOIN calculation_sheet_cities csc ON csc.sheet_id = cs.id
             WHERE css.segment_id = $1
             AND csc.city_id = $2
-            AND cs.is_published = true
+            AND cs.status = 'published'
             LIMIT 1
           `;
           const sheetResult = await pool.query(sheetQuery, [segment_id, ville_id]);
           debugInfo.sheetFound = sheetResult.rows.length > 0;
           if (sheetResult.rows.length > 0) {
-            debugInfo.sheetName = sheetResult.rows[0].name;
+            debugInfo.sheetName = sheetResult.rows[0].title;
           }
 
           console.log(`🔍 Debug auto-déclaration:`, JSON.stringify(debugInfo));
@@ -428,10 +428,10 @@ router.post('/',
               autoDeclaration = {
                 id: declarationId,
                 professor_name: professor.full_name,
-                sheet_name: sheet.name
+                sheet_name: sheet.title
               };
 
-              console.log(`✓ Déclaration auto-créée: Prof ${professor.full_name}, Fiche: ${sheet.name}`);
+              console.log(`✓ Déclaration auto-créée: Prof ${professor.full_name}, Fiche: ${sheet.title}`);
             } else {
               console.log(`⚠ Pas de fiche de calcul publiée trouvée pour segment_id=${segment_id} et ville_id=${ville_id}`);
             }
@@ -758,6 +758,7 @@ router.post('/:id/etudiants',
 router.put('/:sessionId/etudiants/bulk-status',
   authenticateToken,
   requirePermission('training.sessions.edit_student'),
+  injectUserScope,
   async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -788,6 +789,40 @@ router.put('/:sessionId/etudiants/bulk-status',
         success: false,
         error: 'Session not found'
       });
+    }
+
+    // RÈGLE MÉTIER: Si le statut est "abandonne" et l'utilisateur n'est PAS admin,
+    // vérifier qu'aucun étudiant n'a de documents générés
+    if (status === 'abandonne' && !req.userScope.isAdmin) {
+      const studentsWithDocs = await pool.query(
+        `SELECT DISTINCT se.student_id, s.nom, s.prenom
+         FROM session_etudiants se
+         JOIN students s ON s.id = se.student_id
+         WHERE se.session_id = $1
+         AND se.student_id = ANY($2)
+         AND EXISTS (
+           SELECT 1 FROM certificates c
+           WHERE c.student_id = se.student_id
+           AND c.session_id = se.session_id
+         )`,
+        [sessionId, student_ids]
+      );
+
+      if (studentsWithDocs.rows.length > 0) {
+        const studentNames = studentsWithDocs.rows
+          .map(s => `${s.nom} ${s.prenom}`)
+          .join(', ');
+
+        return res.status(403).json({
+          success: false,
+          error: `Impossible de mettre le statut "abandonné" pour les étudiants ayant des documents générés. Seul un administrateur peut effectuer cette action.`,
+          students_with_documents: studentsWithDocs.rows.map(s => ({
+            id: s.student_id,
+            name: `${s.nom} ${s.prenom}`
+          })),
+          code: 'HAS_DOCUMENTS'
+        });
+      }
     }
 
     // Mettre à jour le statut pour tous les étudiants sélectionnés
