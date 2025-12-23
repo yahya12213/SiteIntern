@@ -124,7 +124,14 @@ export const SessionDetail: React.FC = () => {
       refetch();
     } catch (error: any) {
       console.error('Error changing status:', error);
-      alert('Erreur lors du changement de statut: ' + error.message);
+      // Afficher un message d'erreur plus détaillé pour le cas des documents générés
+      if (error.response?.data?.code === 'HAS_DOCUMENTS') {
+        const studentsWithDocs = error.response.data.students_with_documents || [];
+        const names = studentsWithDocs.map((s: any) => s.name).join('\n- ');
+        alert(`⚠️ Impossible de mettre le statut "Abandonné"\n\nLes étudiants suivants ont des documents générés :\n- ${names}\n\nSeul un administrateur peut effectuer cette action.`);
+      } else {
+        alert('Erreur lors du changement de statut: ' + (error.response?.data?.error || error.message));
+      }
     } finally {
       setIsChangingStatus(false);
     }
