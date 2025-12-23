@@ -257,10 +257,17 @@ const Users: React.FC = () => {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="text-gray-600 mt-2">Chargement...</p>
               </div>
-            ) : !users || users.length === 0 ? (
+            ) : filteredUsers.length === 0 ? (
               <div className="text-center py-12">
                 <UsersIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Aucun utilisateur trouvé</p>
+                <p className="text-gray-500">
+                  {searchTerm ? 'Aucun utilisateur ne correspond à votre recherche' : 'Aucun utilisateur trouvé'}
+                </p>
+                {searchTerm && (
+                  <Button variant="link" onClick={() => setSearchTerm('')} className="mt-2">
+                    Effacer la recherche
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -285,7 +292,7 @@ const Users: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {users.map((user) => (
+                    {filteredUsers.map((user) => (
                       <tr key={user.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {user.full_name}
