@@ -854,25 +854,33 @@ const AssignCitiesModal: React.FC<{
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-2 max-h-96 overflow-y-auto mb-4">
-            {allCities?.map((city) => (
-              <label
-                key={city.id}
-                className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedCityIds.includes(city.id)}
-                  onChange={() => toggleCity(city.id)}
-                  className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <div className="flex-1">
-                  <span className="font-medium text-gray-900">{city.name}</span>
-                  <span className="text-xs text-gray-500 ml-2">
-                    ({getSegmentName(city.segment_id)})
-                  </span>
-                </div>
-              </label>
-            ))}
+            {allCities?.map((city) => {
+              const segmentName = getSegmentName(city.segment_id);
+              return (
+                <label
+                  key={city.id}
+                  className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCityIds.includes(city.id)}
+                    onChange={() => toggleCity(city.id)}
+                    className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <div className="flex-1 flex items-center justify-between">
+                    <div>
+                      <span className="font-medium text-gray-900">{city.name}</span>
+                      <span className="text-xs font-mono bg-gray-100 text-gray-600 ml-2 px-1.5 py-0.5 rounded">
+                        {city.code}
+                      </span>
+                    </div>
+                    <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                      {segmentName}
+                    </span>
+                  </div>
+                </label>
+              );
+            })}
           </div>
 
           <div className="flex justify-end gap-3">
