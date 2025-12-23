@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, MapPin, Calculator, Shield, User, Users as UsersIcon, Eye, EyeOff, Briefcase, FileCheck, ClipboardList, Clock } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Edit, Trash2, MapPin, Calculator, Shield, User, Users as UsersIcon, Eye, EyeOff, Briefcase, FileCheck, ClipboardList, Clock, Search, RotateCcw } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -24,6 +25,7 @@ const Users: React.FC = () => {
   const { user: currentUser, refreshUser } = useAuth();
   const { accounting } = usePermission();
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAssignSegmentsModalOpen, setIsAssignSegmentsModalOpen] = useState(false);
@@ -32,6 +34,27 @@ const Users: React.FC = () => {
   const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
 
   const { data: users, isLoading } = useUsers(roleFilter as any);
+
+  // Filtrer les utilisateurs par recherche
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+    if (!searchTerm.trim()) return users;
+
+    const search = searchTerm.toLowerCase().trim();
+    return users.filter(user =>
+      user.full_name?.toLowerCase().includes(search) ||
+      user.username?.toLowerCase().includes(search)
+    );
+  }, [users, searchTerm]);
+
+  // Réinitialiser les filtres
+  const resetFilters = () => {
+    setRoleFilter('all');
+    setSearchTerm('');
+  };
+
+  // Compter les filtres actifs
+  const hasActiveFilters = roleFilter !== 'all' || searchTerm.trim() !== '';
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const deleteUser = useDeleteUser();
@@ -155,39 +178,74 @@ const Users: React.FC = () => {
         {/* Filtres */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Filtrer par rôle</CardTitle>
+            <CardTitle>Filtres</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={roleFilter === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setRoleFilter('all')}
-              >
-                Tous ({stats.total})
-              </Button>
-              <Button
-                variant={roleFilter === 'admin' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setRoleFilter('admin')}
-              >
-                Administrateurs ({stats.admin})
-              </Button>
-              <Button
-                variant={roleFilter === 'professor' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setRoleFilter('professor')}
-              >
-                Professeurs ({stats.professor})
-              </Button>
-              <Button
-                variant={roleFilter === 'gerant' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setRoleFilter('gerant')}
-              >
-                Gérants ({stats.gerant})
-              </Button>
+          <CardContent className="space-y-4">
+            {/* Barre de recherche */}
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="relative flex-1 min-w-[250px] max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Rechercher par nom ou username..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={resetFilters} className="text-gray-500 hover:text-gray-700">
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Réinitialiser
+                </Button>
+              )}
             </div>
+
+            {/* Filtres par rôle */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Par rôle</label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={roleFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setRoleFilter('all')}
+                >
+                  Tous ({stats.total})
+                </Button>
+                <Button
+                  variant={roleFilter === 'admin' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setRoleFilter('admin')}
+                >
+                  Administrateurs ({stats.admin})
+                </Button>
+                <Button
+                  variant={roleFilter === 'professor' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setRoleFilter('professor')}
+                >
+                  Professeurs ({stats.professor})
+                </Button>
+                <Button
+                  variant={roleFilter === 'gerant' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setRoleFilter('gerant')}
+                >
+                  Gérants ({stats.gerant})
+                </Button>
+              </div>
+            </div>
+
+            {/* Indicateur de résultats */}
+            {hasActiveFilters && (
+              <div className="pt-2 border-t">
+                <p className="text-sm text-gray-500">
+                  <span className="font-medium text-gray-700">{filteredUsers.length}</span> utilisateur(s) trouvé(s)
+                  {users && filteredUsers.length !== users.length && (
+                    <span> sur {users.length} au total</span>
+                  )}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

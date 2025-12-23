@@ -49,7 +49,7 @@ interface NavItem {
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const { hasPermission } = useAuth();
-  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation-en-ligne', 'ressources-humaines', 'commercialisation']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation', 'ressources-humaines', 'commercialisation']);
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev =>
