@@ -12,6 +12,72 @@ const router = express.Router();
 // ============================================
 
 /**
+ * GET /api/sessions-formation/auto-assignment-preview
+ * Prévisualise l'auto-affectation (professeur et fiche de calcul)
+ * pour un segment et une ville donnés
+ */
+router.get('/auto-assignment-preview',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { segment_id, city_id } = req.query;
+
+      if (!segment_id || !city_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'segment_id et city_id sont requis'
+        });
+      }
+
+      // 1. Trouver le professeur assigné à cette ville ET ce segment
+      const professorQuery = `
+        SELECT p.id, p.full_name
+        FROM profiles p
+        INNER JOIN professor_cities pc ON pc.professor_id = p.id
+        INNER JOIN professor_segments ps ON ps.professor_id = p.id
+        WHERE pc.city_id = $1
+        AND ps.segment_id = $2
+        AND p.role = 'professor'
+        LIMIT 1
+      `;
+      const professorResult = await pool.query(professorQuery, [city_id, segment_id]);
+
+      // 2. Trouver la fiche de calcul assignée à ce segment ET cette ville (et publiée)
+      const sheetQuery = `
+        SELECT cs.id, cs.title
+        FROM calculation_sheets cs
+        INNER JOIN calculation_sheet_segments css ON css.sheet_id = cs.id
+        INNER JOIN calculation_sheet_cities csc ON csc.sheet_id = cs.id
+        WHERE css.segment_id = $1
+        AND csc.city_id = $2
+        AND cs.status = 'published'
+        LIMIT 1
+      `;
+      const sheetResult = await pool.query(sheetQuery, [segment_id, city_id]);
+
+      res.json({
+        success: true,
+        professor: professorResult.rows.length > 0 ? {
+          id: professorResult.rows[0].id,
+          full_name: professorResult.rows[0].full_name
+        } : null,
+        calculationSheet: sheetResult.rows.length > 0 ? {
+          id: sheetResult.rows[0].id,
+          title: sheetResult.rows[0].title
+        } : null
+      });
+
+    } catch (error) {
+      console.error('Error fetching auto-assignment preview:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+
+/**
  * GET /api/sessions-formation
  * Liste toutes les sessions de formation avec leurs statistiques
  * SCOPE: Filtre automatiquement par segment ET ville assignés à l'utilisateur
