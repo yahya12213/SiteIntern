@@ -45,9 +45,11 @@ router.get('/',
     // Admin voit tous les utilisateurs
     if (!scope || scope.isAdmin) {
       query = `
-        SELECT id, username, full_name, role, created_at
-        FROM profiles
-        ORDER BY full_name
+        SELECT p.id, p.username, p.full_name, p.role, p.role_id, p.created_at,
+               r.name as role_name
+        FROM profiles p
+        LEFT JOIN roles r ON p.role_id = r.id
+        ORDER BY p.full_name
       `;
     } else {
       // Non-admin: voit seulement les utilisateurs des mêmes segments/villes (SBAC)
@@ -56,17 +58,21 @@ router.get('/',
       if (segmentIds.length === 0 && cityIds.length === 0) {
         // User has no scope assigned - return only self
         query = `
-          SELECT id, username, full_name, role, created_at
-          FROM profiles
-          WHERE id = $1
-          ORDER BY full_name
+          SELECT p.id, p.username, p.full_name, p.role, p.role_id, p.created_at,
+                 r.name as role_name
+          FROM profiles p
+          LEFT JOIN roles r ON p.role_id = r.id
+          WHERE p.id = $1
+          ORDER BY p.full_name
         `;
         params = [req.user.id];
       } else {
         // Filter by shared segments/cities
         query = `
-          SELECT DISTINCT p.id, p.username, p.full_name, p.role, p.created_at
+          SELECT DISTINCT p.id, p.username, p.full_name, p.role, p.role_id, p.created_at,
+                 r.name as role_name
           FROM profiles p
+          LEFT JOIN roles r ON p.role_id = r.id
           LEFT JOIN professor_segments ps ON p.id = ps.professor_id
           LEFT JOIN professor_cities pc ON p.id = pc.professor_id
           WHERE

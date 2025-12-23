@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash2, MapPin, Calculator, Shield, User, Users as UsersIcon, Eye, EyeOff, Briefcase, FileCheck, ClipboardList, Clock, Search, RotateCcw } from 'lucide-react';
+import { Plus, Edit, Trash2, MapPin, Calculator, Shield, User, Users as UsersIcon, Eye, EyeOff, Briefcase, FileCheck, ClipboardList, Clock, Search, RotateCcw, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -116,12 +116,22 @@ const Users: React.FC = () => {
     );
   };
 
-  const stats = {
-    total: users?.length || 0,
-    admin: users?.filter(u => u.role === 'admin').length || 0,
-    professor: users?.filter(u => u.role === 'professor').length || 0,
-    gerant: users?.filter(u => u.role === 'gerant').length || 0,
-  };
+  // Calculer les stats dynamiquement basé sur tous les rôles disponibles
+  const stats = useMemo(() => {
+    const result: Record<string, number> = { total: users?.length || 0 };
+
+    // Ajouter le comptage pour chaque rôle disponible
+    availableRoles.forEach(role => {
+      const roleName = role.name.toLowerCase();
+      result[roleName] = users?.filter(u => {
+        // Priorité: role_name (from JOIN) > role (legacy) > role_id match
+        const userRoleName = (u as any).role_name?.toLowerCase() || u.role?.toLowerCase();
+        return userRoleName === roleName || (u as any).role_id === role.id;
+      }).length || 0;
+    });
+
+    return result;
+  }, [users, availableRoles]);
 
   return (
     <AppLayout
@@ -139,8 +149,8 @@ const Users: React.FC = () => {
           </div>
         )}
 
-        {/* Statistiques */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {/* Statistiques dynamiques */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
           <Card>
             <CardContent className="pt-6">
               <div className="text-center">
@@ -149,30 +159,24 @@ const Users: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-red-600">{stats.admin}</p>
-                <p className="text-sm text-gray-600">Administrateurs</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-blue-600">{stats.professor}</p>
-                <p className="text-sm text-gray-600">Professeurs</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-green-600">{stats.gerant}</p>
-                <p className="text-sm text-gray-600">Gérants</p>
-              </div>
-            </CardContent>
-          </Card>
+          {availableRoles.slice(0, 4).map((role, index) => {
+            const colors = ['text-red-600', 'text-blue-600', 'text-green-600', 'text-purple-600'];
+            const roleName = role.name.toLowerCase();
+            return (
+              <Card key={role.id}>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className={`text-2xl font-bold ${colors[index % colors.length]}`}>
+                      {stats[roleName] || 0}
+                    </p>
+                    <p className="text-sm text-gray-600 truncate" title={role.name}>
+                      {role.name}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Filtres */}
@@ -200,7 +204,7 @@ const Users: React.FC = () => {
               )}
             </div>
 
-            {/* Filtres par rôle */}
+            {/* Filtres par rôle - dynamique basé sur les rôles disponibles */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Par rôle</label>
               <div className="flex flex-wrap gap-2">
@@ -211,27 +215,21 @@ const Users: React.FC = () => {
                 >
                   Tous ({stats.total})
                 </Button>
-                <Button
-                  variant={roleFilter === 'admin' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setRoleFilter('admin')}
-                >
-                  Administrateurs ({stats.admin})
-                </Button>
-                <Button
-                  variant={roleFilter === 'professor' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setRoleFilter('professor')}
-                >
-                  Professeurs ({stats.professor})
-                </Button>
-                <Button
-                  variant={roleFilter === 'gerant' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setRoleFilter('gerant')}
-                >
-                  Gérants ({stats.gerant})
-                </Button>
+                {availableRoles.map(role => {
+                  const roleName = role.name.toLowerCase();
+                  const count = stats[roleName] || 0;
+                  return (
+                    <Button
+                      key={role.id}
+                      variant={roleFilter === roleName ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setRoleFilter(roleName)}
+                      title={role.description || role.name}
+                    >
+                      {role.name} ({count})
+                    </Button>
+                  );
+                })}
               </div>
             </div>
 
@@ -875,12 +873,38 @@ const AssignCitiesModal: React.FC<{
   const assignCities = useAssignCities();
 
   const [selectedCityIds, setSelectedCityIds] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [segmentFilter, setSegmentFilter] = useState<string>('');
 
   React.useEffect(() => {
     if (userCities) {
       setSelectedCityIds(userCities.map(c => c.id));
     }
   }, [userCities]);
+
+  // Filtrer les villes par segment et recherche
+  const filteredCities = React.useMemo(() => {
+    if (!allCities) return [];
+
+    return allCities.filter(city => {
+      // Filtre par segment
+      if (segmentFilter && city.segment_id !== segmentFilter) {
+        return false;
+      }
+
+      // Filtre par recherche (nom ou code)
+      if (searchTerm.trim()) {
+        const search = searchTerm.toLowerCase().trim();
+        const cityName = city.name?.toLowerCase() || '';
+        const cityCode = city.code?.toLowerCase() || '';
+        if (!cityName.includes(search) && !cityCode.includes(search)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [allCities, segmentFilter, searchTerm]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -910,42 +934,116 @@ const AssignCitiesModal: React.FC<{
     return allSegments?.find(s => s.id === segmentId)?.name || '';
   };
 
+  // Compter les villes sélectionnées
+  const selectedCount = selectedCityIds.length;
+  const hasActiveFilters = searchTerm.trim() || segmentFilter;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
         <h2 className="text-xl font-bold text-gray-900 mb-4">
           Assigner des villes à {user.full_name}
         </h2>
 
         <form onSubmit={handleSubmit}>
-          <div className="space-y-2 max-h-96 overflow-y-auto mb-4">
-            {allCities?.map((city) => {
-              const segmentName = getSegmentName(city.segment_id);
-              return (
-                <label
-                  key={city.id}
-                  className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+          {/* Filtres */}
+          <div className="space-y-3 mb-4">
+            {/* Recherche */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher une ville par nom ou code..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            {/* Filtre par segment */}
+            <div className="flex items-center gap-3">
+              <select
+                value={segmentFilter}
+                onChange={(e) => setSegmentFilter(e.target.value)}
+                aria-label="Filtrer par segment"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Tous les segments</option>
+                {allSegments?.map((segment) => (
+                  <option key={segment.id} value={segment.id}>
+                    {segment.name}
+                  </option>
+                ))}
+              </select>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSegmentFilter('');
+                  }}
+                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedCityIds.includes(city.id)}
-                    onChange={() => toggleCity(city.id)}
-                    className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <div className="flex-1 flex items-center justify-between">
-                    <div>
-                      <span className="font-medium text-gray-900">{city.name}</span>
-                      <span className="text-xs font-mono bg-gray-100 text-gray-600 ml-2 px-1.5 py-0.5 rounded">
-                        {city.code}
+                  <X className="h-4 w-4" />
+                  Réinitialiser
+                </button>
+              )}
+            </div>
+
+            {/* Compteur de résultats */}
+            <div className="flex items-center justify-between text-sm text-gray-500">
+              <span>
+                {filteredCities.length} ville{filteredCities.length > 1 ? 's' : ''} affichée{filteredCities.length > 1 ? 's' : ''}
+                {hasActiveFilters && ` sur ${allCities?.length || 0}`}
+              </span>
+              <span className="font-medium text-blue-600">
+                {selectedCount} sélectionnée{selectedCount > 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+
+          {/* Liste des villes */}
+          <div className="space-y-2 max-h-72 overflow-y-auto mb-4 border border-gray-200 rounded-lg p-2">
+            {filteredCities.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <MapPin className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                <p>Aucune ville trouvée</p>
+              </div>
+            ) : (
+              filteredCities.map((city) => {
+                const segmentName = getSegmentName(city.segment_id);
+                const isSelected = selectedCityIds.includes(city.id);
+                return (
+                  <label
+                    key={city.id}
+                    className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'border-blue-300 bg-blue-50 hover:bg-blue-100'
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleCity(city.id)}
+                      className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <div className="flex-1 flex items-center justify-between">
+                      <div>
+                        <span className="font-medium text-gray-900">{city.name}</span>
+                        <span className="text-xs font-mono bg-gray-100 text-gray-600 ml-2 px-1.5 py-0.5 rounded">
+                          {city.code}
+                        </span>
+                      </div>
+                      <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                        {segmentName}
                       </span>
                     </div>
-                    <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                      {segmentName}
-                    </span>
-                  </div>
-                </label>
-              );
-            })}
+                  </label>
+                );
+              })
+            )}
           </div>
 
           <div className="flex justify-end gap-3">
@@ -953,7 +1051,7 @@ const AssignCitiesModal: React.FC<{
               Annuler
             </Button>
             <Button type="submit" disabled={assignCities.isPending}>
-              {assignCities.isPending ? 'Assignation...' : 'Assigner'}
+              {assignCities.isPending ? 'Assignation...' : `Assigner (${selectedCount})`}
             </Button>
           </div>
         </form>

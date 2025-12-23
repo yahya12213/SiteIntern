@@ -11,6 +11,8 @@ export interface User {
   password: string;
   full_name: string;
   role: string; // Dynamic role from database (admin, gerant, professor, assistante, comptable, superviseur, etc.)
+  role_id?: string; // UUID reference to roles table
+  role_name?: string; // Role name from JOIN with roles table
   created_at: string;
 }
 
@@ -68,7 +70,15 @@ export function useUsers(roleFilter?: string) {
       if (!roleFilter || roleFilter === 'all') {
         return profiles as User[];
       }
-      return profiles.filter(p => p.role === roleFilter) as User[];
+      // Filtrer par role_name (from JOIN) ou role (legacy field), case insensitive
+      return profiles.filter(p => {
+        const user = p as User;
+        const filterLower = roleFilter.toLowerCase();
+        return (
+          user.role_name?.toLowerCase() === filterLower ||
+          user.role?.toLowerCase() === filterLower
+        );
+      }) as User[];
     },
   });
 }
