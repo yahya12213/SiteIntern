@@ -573,21 +573,45 @@ router.delete('/:id',
     try {
       const { id } = req.params;
 
-      const result = await pool.query(
-        'DELETE FROM sessions_formation WHERE id = $1 RETURNING *',
+      // 1. Récupérer les infos de la session avant suppression
+      const sessionInfo = await pool.query(
+        'SELECT titre, segment_id, ville_id FROM sessions_formation WHERE id = $1',
         [id]
       );
 
-      if (result.rows.length === 0) {
+      if (sessionInfo.rows.length === 0) {
         return res.status(404).json({
           success: false,
           error: 'Session not found'
         });
       }
 
+      const session = sessionInfo.rows[0];
+
+      // 2. Supprimer les déclarations associées à cette session (par session_name)
+      const deletedDeclarations = await pool.query(
+        `DELETE FROM professor_declarations
+         WHERE session_name = $1
+         AND segment_id = $2
+         AND city_id = $3
+         RETURNING id, professor_id`,
+        [session.titre, session.segment_id, session.ville_id]
+      );
+
+      if (deletedDeclarations.rowCount > 0) {
+        console.log(`🗑️ ${deletedDeclarations.rowCount} déclaration(s) supprimée(s) pour la session "${session.titre}"`);
+      }
+
+      // 3. Supprimer la session
+      const result = await pool.query(
+        'DELETE FROM sessions_formation WHERE id = $1 RETURNING *',
+        [id]
+      );
+
       res.json({
         success: true,
-        message: 'Session supprimée avec succès'
+        message: 'Session supprimée avec succès',
+        declarations_deleted: deletedDeclarations.rowCount
       });
 
     } catch (error) {
