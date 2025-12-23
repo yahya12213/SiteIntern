@@ -355,7 +355,7 @@ router.post('/',
             INNER JOIN professor_segments ps ON ps.professor_id = p.id
             WHERE pc.city_id = $1
             AND ps.segment_id = $2
-            AND p.role = 'professeur'
+            AND p.role = 'professor'
             LIMIT 1
           `;
           const professorResult = await pool.query(professorQuery, [ville_id, segment_id]);
