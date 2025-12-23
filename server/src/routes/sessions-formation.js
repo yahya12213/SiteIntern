@@ -383,45 +383,55 @@ router.post('/',
 
           console.log(`🔍 Debug auto-déclaration:`, JSON.stringify(debugInfo));
 
-          // 3. Si on a trouvé un professeur ET une fiche, créer la déclaration
-          if (professorResult.rows.length > 0 && sheetResult.rows.length > 0) {
+          // 3. Si on a trouvé un professeur, l'affecter à la session
+          if (professorResult.rows.length > 0) {
             const professor = professorResult.rows[0];
-            const sheet = sheetResult.rows[0];
-            const declarationId = nanoid();
 
+            // Affecter le professeur à la session (table session_professeurs)
+            const sessionProfId = nanoid();
             await pool.query(
-              `INSERT INTO professor_declarations
-               (id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data, status, session_name)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-              [
-                declarationId,
-                professor.id,
-                sheet.id,
-                segment_id,
-                ville_id,
-                date_debut,
-                date_fin,
-                '{}',
-                'a_declarer',
-                titre
-              ]
+              `INSERT INTO session_professeurs (id, session_id, professeur_id, date_affectation, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, $5, $6)`,
+              [sessionProfId, newSession.id, professor.id, now, now, now]
             );
+            console.log(`✓ Professeur ${professor.full_name} affecté à la session`);
+            debugInfo.professorAssigned = true;
 
-            autoDeclaration = {
-              id: declarationId,
-              professor_name: professor.full_name,
-              sheet_name: sheet.name
-            };
+            // 4. Si on a aussi une fiche de calcul, créer la déclaration
+            if (sheetResult.rows.length > 0) {
+              const sheet = sheetResult.rows[0];
+              const declarationId = nanoid();
 
-            console.log(`✓ Déclaration auto-créée: Prof ${professor.full_name}, Fiche: ${sheet.name}`);
-          } else {
-            // Log pourquoi la déclaration n'a pas été créée
-            if (professorResult.rows.length === 0) {
-              console.log(`⚠ Pas de professeur trouvé pour ville_id=${ville_id} et segment_id=${segment_id}`);
-            }
-            if (sheetResult.rows.length === 0) {
+              await pool.query(
+                `INSERT INTO professor_declarations
+                 (id, professor_id, calculation_sheet_id, segment_id, city_id, start_date, end_date, form_data, status, session_name)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                [
+                  declarationId,
+                  professor.id,
+                  sheet.id,
+                  segment_id,
+                  ville_id,
+                  date_debut,
+                  date_fin,
+                  '{}',
+                  'a_declarer',
+                  titre
+                ]
+              );
+
+              autoDeclaration = {
+                id: declarationId,
+                professor_name: professor.full_name,
+                sheet_name: sheet.name
+              };
+
+              console.log(`✓ Déclaration auto-créée: Prof ${professor.full_name}, Fiche: ${sheet.name}`);
+            } else {
               console.log(`⚠ Pas de fiche de calcul publiée trouvée pour segment_id=${segment_id} et ville_id=${ville_id}`);
             }
+          } else {
+            console.log(`⚠ Pas de professeur trouvé pour ville_id=${ville_id} et segment_id=${segment_id}`);
           }
         } catch (declarationError) {
           console.error('Erreur création déclaration auto:', declarationError);
