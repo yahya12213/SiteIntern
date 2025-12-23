@@ -343,9 +343,11 @@ router.post('/',
       let autoDeclaration = null;
       let debugInfo = { ville_id, segment_id, professorFound: false, sheetFound: false };
 
+      console.log(`📋 Session créée: ville_id=${ville_id}, segment_id=${segment_id}, session_id=${newSession.id}`);
+
       if (ville_id && segment_id) {
         try {
-          console.log(`🔍 Recherche auto-déclaration pour ville_id=${ville_id}, segment_id=${segment_id}`);
+          console.log(`🔍 Recherche auto-affectation pour ville_id=${ville_id}, segment_id=${segment_id}`);
 
           // 1. Trouver le professeur assigné à cette ville ET ce segment
           const professorQuery = `
@@ -389,13 +391,16 @@ router.post('/',
 
             // Affecter le professeur à la session (table session_professeurs)
             const sessionProfId = nanoid();
-            await pool.query(
+            console.log(`📝 Insertion session_professeurs: id=${sessionProfId}, session_id=${newSession.id}, professeur_id=${professor.id}`);
+            const insertResult = await pool.query(
               `INSERT INTO session_professeurs (id, session_id, professeur_id, date_affectation, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, $5, $6)`,
+               VALUES ($1, $2, $3, $4, $5, $6)
+               RETURNING *`,
               [sessionProfId, newSession.id, professor.id, now, now, now]
             );
-            console.log(`✓ Professeur ${professor.full_name} affecté à la session`);
+            console.log(`✓ Professeur ${professor.full_name} affecté à la session (rows: ${insertResult.rowCount})`);
             debugInfo.professorAssigned = true;
+            debugInfo.insertedRow = insertResult.rows[0];
 
             // 4. Si on a aussi une fiche de calcul, créer la déclaration
             if (sheetResult.rows.length > 0) {
