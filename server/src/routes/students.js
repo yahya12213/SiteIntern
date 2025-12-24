@@ -3,6 +3,7 @@ import pool from '../config/database.js';
 import { nanoid } from 'nanoid';
 import { uploadProfileImage } from '../middleware/upload.js';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { injectUserScope, buildScopeFilter } from '../middleware/requireScope.js';
 
 const router = express.Router();
 
@@ -117,12 +118,27 @@ router.post('/',
  * Get all students with their session information
  * GET /api/students/with-sessions
  * Protected: Requires authentication and students view permission
+ * SCOPE: Filtre les étudiants par les sessions dans les villes/segments de l'utilisateur
  */
 router.get('/with-sessions',
   authenticateToken,
   requirePermission('training.students.view_page'),
+  injectUserScope,
   async (req, res) => {
   try {
+    // Build SBAC scope filter for session's segment and city
+    const scopeFilter = buildScopeFilter(req, 'sf.segment_id', 'sf.ville_id');
+
+    let whereClause = '';
+    let params = [];
+
+    if (scopeFilter.hasScope) {
+      // User has scope restrictions - only show students in sessions within their scope
+      whereClause = `WHERE (${scopeFilter.conditions.join(' OR ')})`;
+      params = scopeFilter.params;
+    }
+    // If no scope (admin), show all students
+
     const result = await pool.query(`
       SELECT
         s.id,
@@ -150,11 +166,12 @@ router.get('/with-sessions',
       LEFT JOIN sessions_formation sf ON se.session_id = sf.id
       LEFT JOIN cities c ON sf.ville_id = c.id
       LEFT JOIN corps_formation cf ON sf.corps_formation_id = cf.id
+      ${whereClause}
       ORDER BY
         CASE WHEN se.id IS NULL THEN 0 ELSE 1 END,
         s.nom,
         s.prenom
-    `);
+    `, params);
 
     res.json(result.rows);
   } catch (error) {

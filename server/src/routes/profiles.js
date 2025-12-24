@@ -535,11 +535,16 @@ router.put('/:id',
         fieldsToUpdate.push(`role = $${paramIndex++}`);
         values.push(role);
 
-        // Synchroniser role_id avec role (texte)
-        const roleIdResult = await client.query('SELECT id FROM roles WHERE name = $1', [role]);
+        // Synchroniser role_id avec role (texte) - recherche insensible à la casse
+        const roleIdResult = await client.query(
+          'SELECT id FROM roles WHERE LOWER(name) = LOWER($1)',
+          [role]
+        );
         if (roleIdResult.rows.length > 0) {
           fieldsToUpdate.push(`role_id = $${paramIndex++}`);
           values.push(roleIdResult.rows[0].id);
+        } else {
+          console.warn(`⚠️ Rôle "${role}" non trouvé dans la table roles - role_id non mis à jour`);
         }
       }
       if (password !== undefined) {
