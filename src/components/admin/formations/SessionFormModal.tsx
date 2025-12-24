@@ -113,7 +113,7 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
         date_fin: formData.end_date,
         session_type: formData.session_type,
         segment_id: formData.segment_id,
-        ville_id: formData.session_type === 'presentielle' ? formData.city_id : undefined,
+        ville_id: formData.city_id || undefined, // Ville envoyée pour les deux types de session
         meeting_platform: formData.session_type === 'en_ligne' ? formData.meeting_platform || undefined : undefined,
         meeting_link: formData.session_type === 'en_ligne' ? formData.meeting_link || undefined : undefined,
         nombre_places: formData.max_capacity ? parseInt(formData.max_capacity) : 0,
