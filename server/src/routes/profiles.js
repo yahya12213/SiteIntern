@@ -397,14 +397,28 @@ router.post('/',
 
     const profile = profileResult.rows[0];
 
-    // Assigner le rôle RBAC (user_roles)
-    const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', [role]);
+    // Assigner le rôle RBAC - recherche insensible à la casse
+    const roleResult = await client.query(
+      'SELECT id FROM roles WHERE LOWER(name) = LOWER($1)',
+      [role]
+    );
     if (roleResult.rows.length > 0) {
+      const roleId = roleResult.rows[0].id;
+
+      // Mettre à jour role_id dans profiles
+      await client.query(
+        'UPDATE profiles SET role_id = $1 WHERE id = $2',
+        [roleId, id]
+      );
+
+      // Assigner dans user_roles (si cette table est utilisée)
       await client.query(`
         INSERT INTO user_roles (user_id, role_id)
         VALUES ($1, $2)
         ON CONFLICT (user_id, role_id) DO NOTHING
-      `, [id, roleResult.rows[0].id]);
+      `, [id, roleId]);
+    } else {
+      console.warn(`⚠️ Rôle "${role}" non trouvé dans la table roles lors de la création de l'utilisateur ${username}`);
     }
 
     // Créer l'employé si demandé

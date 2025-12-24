@@ -281,6 +281,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 090: Nom de session déclarations',
     description: '📝 Ajoute le champ session_name aux déclarations professeur pour nommer chaque session',
     endpoint: '/migration-090'
+  },
+  {
+    id: 'migration-091',
+    name: 'Migration 091: Sync Role IDs',
+    description: '🔧 FIX CRITIQUE: Synchronise role_id pour tous les utilisateurs (corrige le comptage utilisateurs dans Rôles & Permissions)',
+    endpoint: '/migration-091-sync-role-ids'
   }
 ];
 
