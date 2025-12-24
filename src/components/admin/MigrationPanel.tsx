@@ -287,12 +287,6 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 091: Sync Role IDs',
     description: '🔧 FIX CRITIQUE: Synchronise role_id pour tous les utilisateurs (corrige le comptage utilisateurs dans Rôles & Permissions)',
     endpoint: '/migration-091-sync-role-ids'
-  },
-  {
-    id: 'migration-092',
-    name: 'Migration 092: Template Folders Permissions',
-    description: '📁 Ajoute les permissions template_folders.create/update/delete au rôle gérant (gestion dossiers certificats)',
-    endpoint: '/migration-092-template-folders-permissions'
   }
 ];
 

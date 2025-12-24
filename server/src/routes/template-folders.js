@@ -177,11 +177,11 @@ router.get('/:id',
 /**
  * POST /api/template-folders
  * Create new folder
- * Protected: Requires training.template_folders.create permission
+ * Protected: Requires training.certificate_templates.create_folder permission
  */
 router.post('/',
   authenticateToken,
-  requirePermission('training.template_folders.create'),
+  requirePermission('training.certificate_templates.create_folder'),
   async (req, res) => {
   try {
     const { name, parent_id } = req.body;
@@ -234,11 +234,11 @@ router.post('/',
 /**
  * PUT /api/template-folders/:id
  * Update folder (rename)
- * Protected: Requires training.template_folders.update permission
+ * Protected: Requires training.certificate_templates.rename_folder permission
  */
 router.put('/:id',
   authenticateToken,
-  requirePermission('training.template_folders.update'),
+  requirePermission('training.certificate_templates.rename_folder'),
   async (req, res) => {
   try {
     const { id } = req.params;
@@ -291,11 +291,11 @@ router.put('/:id',
 /**
  * DELETE /api/template-folders/:id
  * Delete folder (only if empty - no templates and no subfolders)
- * Protected: Requires training.template_folders.delete permission
+ * Protected: Requires training.certificate_templates.delete_folder permission
  */
 router.delete('/:id',
   authenticateToken,
-  requirePermission('training.template_folders.delete'),
+  requirePermission('training.certificate_templates.delete_folder'),
   async (req, res) => {
   try {
     const { id } = req.params;
@@ -364,11 +364,11 @@ router.delete('/:id',
 /**
  * POST /api/template-folders/:id/move
  * Move folder to new parent (change hierarchy)
- * Protected: Requires training.template_folders.update permission
+ * Protected: Requires training.certificate_templates.rename_folder permission
  */
 router.post('/:id/move',
   authenticateToken,
-  requirePermission('training.template_folders.update'),
+  requirePermission('training.certificate_templates.rename_folder'),
   async (req, res) => {
   try {
     const { id } = req.params;
