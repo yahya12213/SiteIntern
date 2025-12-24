@@ -10,10 +10,11 @@ const router = express.Router();
 // ============================================
 
 // GET /api/cours - Liste formations filtrées par corps_id (query param)
-// Permissions: view_page (admin), course.view (students)
+// Permissions: view_page (admin), course.view (students), add_student (session staff)
 router.get('/', requirePermission(
   'training.formations.view_page',
-  'training.student.course.view'
+  'training.student.course.view',
+  'training.sessions.add_student'
 ), async (req, res) => {
   try {
     const { corps_id } = req.query;
@@ -43,10 +44,11 @@ router.get('/', requirePermission(
 });
 
 // GET /api/cours/formations - Liste toutes les formations
-// Permissions: view_page (admin), course.view (students)
+// Permissions: view_page (admin), course.view (students), add_student (session staff)
 router.get('/formations', requirePermission(
   'training.formations.view_page',
-  'training.student.course.view'
+  'training.student.course.view',
+  'training.sessions.add_student'
 ), async (req, res) => {
   try {
     const query = `
