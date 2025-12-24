@@ -153,6 +153,7 @@ import migration087Router from './routes/migration-087-prospect-visits.js';
 import migration089Router from './routes/migration-089-google-contacts.js';
 import migration090Router from './routes/migration-090-declaration-session-name.js';
 import migration091Router from './routes/migration-091-sync-role-ids.js';
+import migration092Router from './routes/migration-092-template-folders-permissions.js';
 import visitsRouter from './routes/visits.js';
 
 const app = express();
@@ -359,6 +360,7 @@ app.use('/api/migration-087', ...adminOnly, migration087Router);
 app.use('/api', ...adminOnly, migration089Router);
 app.use('/api', ...adminOnly, migration090Router);
 app.use('/api/migration-091-sync-role-ids', ...adminOnly, migration091Router);
+app.use('/api/migration-092-template-folders-permissions', ...adminOnly, migration092Router);
 
 // Health check
 app.get('/api/health', async (req, res) => {
