@@ -287,6 +287,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 091: Sync Role IDs',
     description: '🔧 FIX CRITIQUE: Synchronise role_id pour tous les utilisateurs (corrige le comptage utilisateurs dans Rôles & Permissions)',
     endpoint: '/migration-091-sync-role-ids'
+  },
+  {
+    id: 'migration-093',
+    name: 'Migration 093: Fix Badge Document Type',
+    description: '🔧 FIX BADGE: Ajoute "badge" comme type de document valide dans formation_templates (corrige la génération des badges)',
+    endpoint: '/migration-093-fix-formation-templates-badge'
   }
 ];
 
