@@ -1057,7 +1057,7 @@ router.post('/:id/templates',
       return res.status(400).json({ error: 'template_ids doit être un tableau non vide' });
     }
 
-    if (!['certificat', 'attestation', 'diplome', 'autre'].includes(document_type)) {
+    if (!['certificat', 'attestation', 'badge', 'diplome', 'autre'].includes(document_type)) {
       return res.status(400).json({ error: 'document_type invalide' });
     }
 
@@ -1085,6 +1085,26 @@ router.post('/:id/templates',
       const is_default = isFirstTemplate && i === 0; // Le premier template du premier batch est default
 
       try {
+        // Récupérer le nom du template pour détecter automatiquement le type
+        const templateInfo = await pool.query(
+          'SELECT name FROM certificate_templates WHERE id = $1',
+          [template_id]
+        );
+
+        let finalDocumentType = document_type;
+        if (templateInfo.rows.length > 0) {
+          const templateName = templateInfo.rows[0].name.toUpperCase();
+          // Détection automatique du type basée sur le nom
+          if (templateName.includes('BADGE')) {
+            finalDocumentType = 'badge';
+          } else if (templateName.includes('ATTESTATION')) {
+            finalDocumentType = 'attestation';
+          } else if (templateName.includes('DIPLOME') || templateName.includes('DIPLÔME')) {
+            finalDocumentType = 'diplome';
+          }
+          // Sinon, garder le document_type par défaut (certificat)
+        }
+
         const insertQuery = `
           INSERT INTO formation_templates (id, formation_id, template_id, document_type, is_default)
           VALUES ($1, $2, $3, $4, $5)
@@ -1097,7 +1117,7 @@ router.post('/:id/templates',
           nanoid(),
           formation_id,
           template_id,
-          document_type,
+          finalDocumentType,
           is_default
         ]);
 
