@@ -410,7 +410,6 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
   // Check if we have multiple elements selected
   const hasMultipleSelection = selectedIds.length > 1;
-  const multiSelectedElements = selectedIds.map(id => elements.find(el => el.id === id)).filter(Boolean) as TemplateElement[];
 
   return (
     <div className="h-full flex flex-col bg-gray-100">
