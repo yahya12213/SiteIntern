@@ -419,96 +419,94 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     <div className="h-full flex flex-col bg-gray-100">
       {/* Fixed Toolbar - above canvas, always visible when element is selected */}
       <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2 min-h-[52px] flex-shrink-0">
-        {/* Multi-selection toolbar */}
+        {/* Multi-selection toolbar - PowerPoint style */}
         {hasMultipleSelection ? (
           <>
-            <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
-              <span className="text-sm font-medium text-green-700">
-                {selectedIds.length} éléments sélectionnés
+            <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
+              <span className="text-sm font-medium text-blue-700">
+                {selectedIds.length} éléments
               </span>
             </div>
 
             <div className="w-px h-6 bg-gray-300" />
 
-            {/* Multi-element alignment tools */}
+            {/* Align to canvas - like PowerPoint */}
             <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500 mr-1">Aligner entre eux:</span>
-              <div className="flex items-center gap-0.5 bg-green-50 rounded-lg p-0.5 border border-green-200">
+              <span className="text-xs text-gray-500 mr-1">Aligner:</span>
+              {/* Horizontal alignment */}
+              <div className="flex items-center gap-0.5 bg-blue-50 rounded-lg p-0.5 border border-blue-200">
                 <button
                   onClick={() => onAlignMultipleElements?.('left')}
-                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
-                  title="Aligner les bords gauches"
+                  className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
+                  title="Aligner à gauche"
                 >
                   <AlignStartHorizontal className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => onAlignMultipleElements?.('center')}
-                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
+                  className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
                   title="Centrer horizontalement"
                 >
                   <AlignCenterHorizontal className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => onAlignMultipleElements?.('right')}
-                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
-                  title="Aligner les bords droits"
+                  className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
+                  title="Aligner à droite"
                 >
                   <AlignEndHorizontal className="h-4 w-4" />
                 </button>
               </div>
-              <div className="flex items-center gap-0.5 bg-green-50 rounded-lg p-0.5 ml-1 border border-green-200">
+              {/* Vertical alignment */}
+              <div className="flex items-center gap-0.5 bg-blue-50 rounded-lg p-0.5 ml-1 border border-blue-200">
                 <button
                   onClick={() => onAlignMultipleElements?.('top')}
-                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
-                  title="Aligner les bords supérieurs"
+                  className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
+                  title="Aligner en haut"
                 >
                   <AlignStartVertical className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => onAlignMultipleElements?.('middle')}
-                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
+                  className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
                   title="Centrer verticalement"
                 >
                   <AlignCenterVertical className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => onAlignMultipleElements?.('bottom')}
-                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
-                  title="Aligner les bords inférieurs"
+                  className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
+                  title="Aligner en bas"
                 >
                   <AlignEndVertical className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
-            {/* Distribution tools - show when 2+ elements selected */}
-            {selectedIds.length >= 2 && (
-              <>
-                <div className="w-px h-6 bg-gray-300" />
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-gray-500 mr-1">Distribuer:</span>
-                  <div className="flex items-center gap-0.5 bg-purple-50 rounded-lg p-0.5 border border-purple-200">
-                    <button
-                      onClick={() => onDistributeElements?.('horizontal')}
-                      className="p-1.5 rounded hover:bg-purple-200 text-purple-700"
-                      title="Distribuer horizontalement (espacer également)"
-                    >
-                      <AlignHorizontalSpaceAround className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => onDistributeElements?.('vertical')}
-                      className="p-1.5 rounded hover:bg-purple-200 text-purple-700"
-                      title="Distribuer verticalement (espacer également)"
-                    >
-                      <AlignVerticalSpaceAround className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
+            {/* Distribution tools - like PowerPoint */}
+            <div className="w-px h-6 bg-gray-300" />
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-gray-500 mr-1">Distribuer:</span>
+              <div className="flex items-center gap-0.5 bg-green-50 rounded-lg p-0.5 border border-green-200">
+                <button
+                  onClick={() => onDistributeElements?.('horizontal')}
+                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
+                  title="Distribuer horizontalement"
+                >
+                  <AlignHorizontalSpaceAround className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => onDistributeElements?.('vertical')}
+                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
+                  title="Distribuer verticalement"
+                >
+                  <AlignVerticalSpaceAround className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
 
             <div className="ml-auto text-xs text-gray-400">
-              Maintenez Ctrl et cliquez pour sélectionner plusieurs éléments
+              Ctrl+clic pour sélectionner
             </div>
           </>
         ) : selectedElement ? (

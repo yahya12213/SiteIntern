@@ -529,7 +529,8 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
     );
   };
 
-  // Align multiple selected elements relative to each other
+  // Align multiple selected elements - PowerPoint style
+  // Aligns all selected elements to the same position (not relative to each other)
   const handleAlignMultipleElements = (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
     if (selectedIds.length < 2) return;
 
@@ -540,17 +541,22 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
 
     if (selectedElements.length < 2) return;
 
-    // Use the first selected element as the reference
-    const referenceElement = selectedElements[0];
-    const refX = Number(referenceElement.x) || 0;
-    const refY = Number(referenceElement.y) || 0;
-    const refWidth = Number(referenceElement.width) || 100;
-    const refHeight = Number(referenceElement.height) || 30;
+    // Calculate the bounding box of all selected elements
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    selectedElements.forEach(el => {
+      const x = Number(el.x) || 0;
+      const y = Number(el.y) || 0;
+      const w = Number(el.width) || 100;
+      const h = Number(el.height) || 30;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x + w);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y + h);
+    });
 
     setElements(prevElements =>
       prevElements.map(el => {
         if (!selectedIds.includes(el.id)) return el;
-        if (el.id === referenceElement.id) return el; // Don't move reference element
 
         const elWidth = Number(el.width) || 100;
         const elHeight = Number(el.height) || 30;
@@ -562,28 +568,28 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
 
         switch (alignment) {
           case 'left':
-            // Align left edges to reference element's left edge
-            newX = refX;
+            // Align all left edges to the leftmost position
+            newX = minX;
             break;
           case 'center':
-            // Align centers horizontally to reference element's center
-            newX = refX + (refWidth / 2) - (elWidth / 2);
+            // Align all centers to the center of bounding box
+            newX = minX + (maxX - minX) / 2 - elWidth / 2;
             break;
           case 'right':
-            // Align right edges to reference element's right edge
-            newX = refX + refWidth - elWidth;
+            // Align all right edges to the rightmost position
+            newX = maxX - elWidth;
             break;
           case 'top':
-            // Align top edges to reference element's top edge
-            newY = refY;
+            // Align all top edges to the topmost position
+            newY = minY;
             break;
           case 'middle':
-            // Align centers vertically to reference element's center
-            newY = refY + (refHeight / 2) - (elHeight / 2);
+            // Align all centers to the middle of bounding box
+            newY = minY + (maxY - minY) / 2 - elHeight / 2;
             break;
           case 'bottom':
-            // Align bottom edges to reference element's bottom edge
-            newY = refY + refHeight - elHeight;
+            // Align all bottom edges to the bottommost position
+            newY = maxY - elHeight;
             break;
         }
 
@@ -592,56 +598,90 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
     );
   };
 
-  // Distribute multiple selected elements evenly
+  // Distribute multiple selected elements - PowerPoint style
+  // Spaces elements evenly between the first and last element positions
   const handleDistributeElements = (direction: 'horizontal' | 'vertical') => {
-    if (selectedIds.length < 2) return; // Need at least 2 elements to distribute
+    if (selectedIds.length < 2) return;
 
-    // Get all selected elements with their positions
+    // Get all selected elements
     const selectedElements = selectedIds
       .map(id => elements.find(el => el.id === id))
       .filter(Boolean) as TemplateElement[];
 
     if (selectedElements.length < 2) return;
 
-    // Sort elements by position (X for horizontal, Y for vertical)
-    const sortedElements = [...selectedElements].sort((a, b) => {
-      if (direction === 'horizontal') {
-        return (Number(a.x) || 0) - (Number(b.x) || 0);
-      } else {
-        return (Number(a.y) || 0) - (Number(b.y) || 0);
-      }
-    });
-
-    // Get first element position
-    const firstEl = sortedElements[0];
-
     if (direction === 'horizontal') {
-      const firstX = Number(firstEl.x) || 0;
-      // Calculate average width + gap for spacing
-      const avgWidth = sortedElements.reduce((sum, el) => sum + (Number(el.width) || 100), 0) / sortedElements.length;
-      const gap = 20; // 20px gap between elements
-      const spacing = avgWidth + gap;
+      // Sort by X position (left to right)
+      const sortedElements = [...selectedElements].sort((a, b) =>
+        (Number(a.x) || 0) - (Number(b.x) || 0)
+      );
 
+      // Calculate total width of all elements
+      const totalElementsWidth = sortedElements.reduce((sum, el) => sum + (Number(el.width) || 100), 0);
+
+      // Get the span from first element's left edge to last element's right edge
+      const firstX = Number(sortedElements[0].x) || 0;
+      const lastEl = sortedElements[sortedElements.length - 1];
+      const lastX = (Number(lastEl.x) || 0) + (Number(lastEl.width) || 100);
+      const totalSpan = lastX - firstX;
+
+      // Calculate the gap between elements
+      const totalGap = totalSpan - totalElementsWidth;
+      const gapBetween = totalGap / (sortedElements.length - 1);
+
+      // Position each element
+      let currentX = firstX;
       setElements(prevElements =>
         prevElements.map(el => {
           const sortedIndex = sortedElements.findIndex(se => se.id === el.id);
-          if (sortedIndex === -1) return el; // Non-selected elements stay in place
-          const newX = firstX + (spacing * sortedIndex);
+          if (sortedIndex === -1) return el;
+
+          // First element stays in place
+          if (sortedIndex === 0) return el;
+
+          // Calculate new X position
+          let newX = firstX;
+          for (let i = 0; i < sortedIndex; i++) {
+            newX += (Number(sortedElements[i].width) || 100) + gapBetween;
+          }
+
           return { ...el, x: newX };
         })
       );
     } else {
-      const firstY = Number(firstEl.y) || 0;
-      // Calculate average height + gap for spacing
-      const avgHeight = sortedElements.reduce((sum, el) => sum + (Number(el.height) || 30), 0) / sortedElements.length;
-      const gap = 15; // 15px gap between elements
-      const spacing = avgHeight + gap;
+      // Sort by Y position (top to bottom)
+      const sortedElements = [...selectedElements].sort((a, b) =>
+        (Number(a.y) || 0) - (Number(b.y) || 0)
+      );
 
+      // Calculate total height of all elements
+      const totalElementsHeight = sortedElements.reduce((sum, el) => sum + (Number(el.height) || 30), 0);
+
+      // Get the span from first element's top edge to last element's bottom edge
+      const firstY = Number(sortedElements[0].y) || 0;
+      const lastEl = sortedElements[sortedElements.length - 1];
+      const lastY = (Number(lastEl.y) || 0) + (Number(lastEl.height) || 30);
+      const totalSpan = lastY - firstY;
+
+      // Calculate the gap between elements
+      const totalGap = totalSpan - totalElementsHeight;
+      const gapBetween = totalGap / (sortedElements.length - 1);
+
+      // Position each element
       setElements(prevElements =>
         prevElements.map(el => {
           const sortedIndex = sortedElements.findIndex(se => se.id === el.id);
-          if (sortedIndex === -1) return el; // Non-selected elements stay in place
-          const newY = firstY + (spacing * sortedIndex);
+          if (sortedIndex === -1) return el;
+
+          // First element stays in place
+          if (sortedIndex === 0) return el;
+
+          // Calculate new Y position
+          let newY = firstY;
+          for (let i = 0; i < sortedIndex; i++) {
+            newY += (Number(sortedElements[i].height) || 30) + gapBetween;
+          }
+
           return { ...el, y: newY };
         })
       );
