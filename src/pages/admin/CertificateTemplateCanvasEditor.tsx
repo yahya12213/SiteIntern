@@ -630,7 +630,6 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
       const gapBetween = totalGap / (sortedElements.length - 1);
 
       // Position each element
-      let currentX = firstX;
       setElements(prevElements =>
         prevElements.map(el => {
           const sortedIndex = sortedElements.findIndex(se => se.id === el.id);
