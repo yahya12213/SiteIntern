@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermission } from '@/hooks/usePermission';
@@ -44,8 +44,13 @@ import { DuplicateToFolderModal } from '@/components/admin/templates/DuplicateTo
 import { MoveToFolderModal } from '@/components/admin/templates/MoveToFolderModal';
 import type { TemplateFolder } from '@/types/certificateTemplate';
 
+interface LocationState {
+  folderId?: string | null;
+}
+
 export const CertificateTemplates: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { hasPermission } = useAuth();
   const { training } = usePermission();
   const { data: templates, isLoading, error } = useCertificateTemplates();
@@ -79,6 +84,16 @@ export const CertificateTemplates: React.FC = () => {
   const [selectedTemplates, setSelectedTemplates] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [showBulkMoveModal, setShowBulkMoveModal] = useState(false);
+
+  // Set folder from navigation state (when returning from canvas editor)
+  useEffect(() => {
+    const state = location.state as LocationState | null;
+    if (state?.folderId !== undefined) {
+      setSelectedFolderId(state.folderId);
+      // Clear the state to avoid re-applying it on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Filter templates by selected folder
   const filteredTemplates = useMemo(() => {

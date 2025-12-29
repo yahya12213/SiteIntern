@@ -4,6 +4,12 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  AlignStartVertical,
+  AlignCenterVertical,
+  AlignEndVertical,
+  AlignStartHorizontal,
+  AlignCenterHorizontal,
+  AlignEndHorizontal,
   Minus,
   Plus,
   Copy,
@@ -18,16 +24,19 @@ import { FONT_FAMILIES } from '@/types/certificateTemplate';
 interface CanvasEditorProps {
   elements: TemplateElement[];
   selectedId: string | null;
+  selectedIds: string[]; // Multi-selection support
   backgroundImage: string | null;
   canvasSize: { width: number; height: number };
   showGrid: boolean;
   onElementMove: (id: string, x: number, y: number) => void;
   onElementResize: (id: string, w: number, h: number) => void;
-  onElementSelect: (id: string | null) => void;
+  onElementSelect: (id: string | null, addToSelection?: boolean) => void;
   onElementDrop: (type: string, x: number, y: number, data: any) => void;
   onElementUpdate?: (element: TemplateElement) => void;
   onElementDuplicate?: (element: TemplateElement) => void;
   onElementDelete?: (elementId: string) => void;
+  onAlignElements?: (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => void;
+  onAlignMultipleElements?: (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => void;
 }
 
 interface DraggingState {
@@ -49,6 +58,7 @@ interface ResizingState {
 export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   elements,
   selectedId,
+  selectedIds,
   backgroundImage,
   canvasSize,
   showGrid,
@@ -59,6 +69,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   onElementUpdate,
   onElementDuplicate,
   onElementDelete,
+  onAlignElements,
+  onAlignMultipleElements,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<DraggingState | null>(null);
@@ -69,7 +81,9 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   const handleMouseDown = (e: React.MouseEvent, element: TemplateElement) => {
     e.stopPropagation();
 
-    onElementSelect(element.id);
+    // Support multi-selection with Ctrl/Cmd key
+    const addToSelection = e.ctrlKey || e.metaKey;
+    onElementSelect(element.id, addToSelection);
 
     if ((e.target as HTMLElement).classList.contains('resize-handle')) {
       return; // Ne pas déplacer si on clique sur le handle de resize
@@ -182,16 +196,22 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   // Render d'un élément selon son type
   const renderElement = (element: TemplateElement) => {
     const isSelected = element.id === selectedId;
+    const isInMultiSelection = selectedIds.includes(element.id);
+    const isHighlighted = isSelected || isInMultiSelection;
     const x = typeof element.x === 'number' ? element.x : 0;
     const y = typeof element.y === 'number' ? element.y : 0;
+
+    // Different border colors: blue for primary selection, green for multi-selection
+    const borderColor = isSelected ? '#3B82F6' : isInMultiSelection ? '#10B981' : 'rgba(0,0,0,0.2)';
+    const borderStyle = isHighlighted ? 'solid' : 'dashed';
 
     const baseStyle: React.CSSProperties = {
       position: 'absolute',
       left: `${x}px`,
       top: `${y}px`,
       cursor: dragging?.id === element.id ? 'grabbing' : 'grab',
-      border: isSelected ? '2px solid #3B82F6' : '1px dashed rgba(0,0,0,0.2)',
-      boxShadow: isSelected ? '0 0 0 1px rgba(59, 130, 246, 0.3)' : 'none',
+      border: `2px ${borderStyle} ${borderColor}`,
+      boxShadow: isHighlighted ? `0 0 0 1px ${isSelected ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.3)'}` : 'none',
     };
 
     // Texte
@@ -222,145 +242,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
           >
             {element.content || 'Texte vide'}
           </div>
-          {/* Quick action toolbar for text elements */}
-          {isSelected && (
-            <div
-              style={{
-                position: 'absolute',
-                left: `${x}px`,
-                top: `${y - 44}px`,
-                zIndex: 1001,
-              }}
-              className="flex items-center gap-1 bg-white rounded-lg shadow-lg border border-gray-200 p-1.5"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              {/* Text alignment */}
-              <button
-                onClick={() => onElementUpdate?.({ ...element, align: 'left' })}
-                className={`p-1.5 rounded hover:bg-gray-100 ${element.align === 'left' || !element.align ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
-                title="Aligner à gauche"
-              >
-                <AlignLeft className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => onElementUpdate?.({ ...element, align: 'center' })}
-                className={`p-1.5 rounded hover:bg-gray-100 ${element.align === 'center' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
-                title="Centrer"
-              >
-                <AlignCenter className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => onElementUpdate?.({ ...element, align: 'right' })}
-                className={`p-1.5 rounded hover:bg-gray-100 ${element.align === 'right' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
-                title="Aligner à droite"
-              >
-                <AlignRight className="h-4 w-4" />
-              </button>
-
-              <div className="w-px h-5 bg-gray-300 mx-1" />
-
-              {/* Font family selector */}
-              <select
-                value={element.fontFamily || 'helvetica'}
-                onChange={(e) => onElementUpdate?.({ ...element, fontFamily: e.target.value })}
-                className="text-xs bg-white border border-gray-300 rounded px-1 py-1 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                title="Police"
-              >
-                {FONT_FAMILIES.map((font) => (
-                  <option key={font} value={font}>
-                    {font.charAt(0).toUpperCase() + font.slice(1)}
-                  </option>
-                ))}
-              </select>
-
-              <div className="w-px h-5 bg-gray-300 mx-1" />
-
-              {/* Font style */}
-              <button
-                onClick={() => {
-                  const currentStyle = element.fontStyle || 'normal';
-                  const isBold = currentStyle.includes('bold');
-                  const isItalic = currentStyle.includes('italic');
-                  const newStyle: 'bold' | 'normal' | 'italic' | 'bolditalic' = isBold
-                    ? isItalic ? 'italic' : 'normal'
-                    : isItalic ? 'bolditalic' : 'bold';
-                  onElementUpdate?.({ ...element, fontStyle: newStyle });
-                }}
-                className={`p-1.5 rounded hover:bg-gray-100 ${element.fontStyle?.includes('bold') ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
-                title="Gras"
-              >
-                <Bold className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => {
-                  const currentStyle = element.fontStyle || 'normal';
-                  const isBold = currentStyle.includes('bold');
-                  const isItalic = currentStyle.includes('italic');
-                  const newStyle: 'bold' | 'normal' | 'italic' | 'bolditalic' = isItalic
-                    ? isBold ? 'bold' : 'normal'
-                    : isBold ? 'bolditalic' : 'italic';
-                  onElementUpdate?.({ ...element, fontStyle: newStyle });
-                }}
-                className={`p-1.5 rounded hover:bg-gray-100 ${element.fontStyle?.includes('italic') ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
-                title="Italique"
-              >
-                <Italic className="h-4 w-4" />
-              </button>
-
-              <div className="w-px h-5 bg-gray-300 mx-1" />
-
-              {/* Font size controls */}
-              <button
-                onClick={() => onElementUpdate?.({ ...element, fontSize: Math.max(8, (element.fontSize || 12) - 2) })}
-                className="p-1.5 rounded hover:bg-gray-100 text-gray-600"
-                title="Réduire la taille"
-              >
-                <Minus className="h-4 w-4" />
-              </button>
-              <span className="text-xs font-medium text-gray-700 min-w-[32px] text-center">
-                {element.fontSize || 12}px
-              </span>
-              <button
-                onClick={() => onElementUpdate?.({ ...element, fontSize: Math.min(200, (element.fontSize || 12) + 2) })}
-                className="p-1.5 rounded hover:bg-gray-100 text-gray-600"
-                title="Augmenter la taille"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-
-              <div className="w-px h-5 bg-gray-300 mx-1" />
-
-              {/* Text color picker */}
-              <div className="relative flex items-center" title="Couleur du texte">
-                <Palette className="h-4 w-4 text-gray-600 mr-1" />
-                <input
-                  type="color"
-                  value={element.color || '#000000'}
-                  onChange={(e) => onElementUpdate?.({ ...element, color: e.target.value })}
-                  className="w-6 h-6 rounded border border-gray-300 cursor-pointer"
-                  style={{ padding: 0 }}
-                />
-              </div>
-
-              <div className="w-px h-5 bg-gray-300 mx-1" />
-
-              {/* Duplicate and delete */}
-              <button
-                onClick={() => onElementDuplicate?.(element)}
-                className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
-                title="Dupliquer"
-              >
-                <Copy className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => onElementDelete?.(element.id)}
-                className="p-1.5 rounded hover:bg-red-100 text-red-600"
-                title="Supprimer"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          )}
+          {/* Quick action toolbar for text elements - positioned outside canvas to not obscure other elements */}
           {isSelected && (
             <div
               className="resize-handle"
@@ -400,34 +282,6 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             }}
             onMouseDown={(e) => handleMouseDown(e, element)}
           />
-          {/* Quick action toolbar for shapes */}
-          {isSelected && (
-            <div
-              style={{
-                position: 'absolute',
-                left: `${x}px`,
-                top: `${y - 44}px`,
-                zIndex: 1001,
-              }}
-              className="flex items-center gap-1 bg-white rounded-lg shadow-lg border border-gray-200 p-1.5"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={() => onElementDuplicate?.(element)}
-                className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
-                title="Dupliquer"
-              >
-                <Copy className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => onElementDelete?.(element.id)}
-                className="p-1.5 rounded hover:bg-red-100 text-red-600"
-                title="Supprimer"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          )}
           {isSelected && (
             <div
               className="resize-handle"
@@ -467,34 +321,6 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             }}
             onMouseDown={(e) => handleMouseDown(e, element)}
           />
-          {/* Quick action toolbar for circle */}
-          {isSelected && (
-            <div
-              style={{
-                position: 'absolute',
-                left: `${x}px`,
-                top: `${y - 44}px`,
-                zIndex: 1001,
-              }}
-              className="flex items-center gap-1 bg-white rounded-lg shadow-lg border border-gray-200 p-1.5"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={() => onElementDuplicate?.(element)}
-                className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
-                title="Dupliquer"
-              >
-                <Copy className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => onElementDelete?.(element.id)}
-                className="p-1.5 rounded hover:bg-red-100 text-red-600"
-                title="Supprimer"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          )}
         </div>
       );
     }
@@ -526,34 +352,6 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             }}
             onMouseDown={(e) => handleMouseDown(e, element)}
           />
-          {/* Quick action toolbar for line */}
-          {isSelected && (
-            <div
-              style={{
-                position: 'absolute',
-                left: `${x1}px`,
-                top: `${Math.min(y1, y2) - 44}px`,
-                zIndex: 1001,
-              }}
-              className="flex items-center gap-1 bg-white rounded-lg shadow-lg border border-gray-200 p-1.5"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={() => onElementDuplicate?.(element)}
-                className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
-                title="Dupliquer"
-              >
-                <Copy className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => onElementDelete?.(element.id)}
-                className="p-1.5 rounded hover:bg-red-100 text-red-600"
-                title="Supprimer"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          )}
         </div>
       );
     }
@@ -582,34 +380,6 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
               {element.source ? element.source.substring(0, 20) + '...' : 'Image'}
             </span>
           </div>
-          {/* Quick action toolbar for image */}
-          {isSelected && (
-            <div
-              style={{
-                position: 'absolute',
-                left: `${x}px`,
-                top: `${y - 44}px`,
-                zIndex: 1001,
-              }}
-              className="flex items-center gap-1 bg-white rounded-lg shadow-lg border border-gray-200 p-1.5"
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={() => onElementDuplicate?.(element)}
-                className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
-                title="Dupliquer"
-              >
-                <Copy className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => onElementDelete?.(element.id)}
-                className="p-1.5 rounded hover:bg-red-100 text-red-600"
-                title="Supprimer"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          )}
           {isSelected && (
             <div
               className="resize-handle"
@@ -635,8 +405,291 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     return null;
   };
 
+  // Get the selected element for the toolbar
+  const selectedElement = selectedId ? elements.find(el => el.id === selectedId) : null;
+
+  // Check if we have multiple elements selected
+  const hasMultipleSelection = selectedIds.length > 1;
+  const multiSelectedElements = selectedIds.map(id => elements.find(el => el.id === id)).filter(Boolean) as TemplateElement[];
+
   return (
     <div className="h-full flex flex-col bg-gray-100">
+      {/* Fixed Toolbar - above canvas, always visible when element is selected */}
+      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2 min-h-[52px] flex-shrink-0">
+        {/* Multi-selection toolbar */}
+        {hasMultipleSelection ? (
+          <>
+            <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
+              <span className="text-sm font-medium text-green-700">
+                {selectedIds.length} éléments sélectionnés
+              </span>
+            </div>
+
+            <div className="w-px h-6 bg-gray-300" />
+
+            {/* Multi-element alignment tools */}
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-gray-500 mr-1">Aligner entre eux:</span>
+              <div className="flex items-center gap-0.5 bg-green-50 rounded-lg p-0.5 border border-green-200">
+                <button
+                  onClick={() => onAlignMultipleElements?.('left')}
+                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
+                  title="Aligner les bords gauches"
+                >
+                  <AlignStartHorizontal className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => onAlignMultipleElements?.('center')}
+                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
+                  title="Centrer horizontalement"
+                >
+                  <AlignCenterHorizontal className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => onAlignMultipleElements?.('right')}
+                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
+                  title="Aligner les bords droits"
+                >
+                  <AlignEndHorizontal className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex items-center gap-0.5 bg-green-50 rounded-lg p-0.5 ml-1 border border-green-200">
+                <button
+                  onClick={() => onAlignMultipleElements?.('top')}
+                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
+                  title="Aligner les bords supérieurs"
+                >
+                  <AlignStartVertical className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => onAlignMultipleElements?.('middle')}
+                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
+                  title="Centrer verticalement"
+                >
+                  <AlignCenterVertical className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => onAlignMultipleElements?.('bottom')}
+                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
+                  title="Aligner les bords inférieurs"
+                >
+                  <AlignEndVertical className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="ml-auto text-xs text-gray-400">
+              Maintenez Ctrl et cliquez pour sélectionner plusieurs éléments
+            </div>
+          </>
+        ) : selectedElement ? (
+          <>
+            {/* Text formatting tools - only for text elements */}
+            {selectedElement.type === 'text' && (
+              <>
+                {/* Text alignment */}
+                <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5">
+                  <button
+                    onClick={() => onElementUpdate?.({ ...selectedElement, align: 'left' })}
+                    className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.align === 'left' || !selectedElement.align ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                    title="Aligner à gauche"
+                  >
+                    <AlignLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => onElementUpdate?.({ ...selectedElement, align: 'center' })}
+                    className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.align === 'center' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                    title="Centrer le texte"
+                  >
+                    <AlignCenter className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => onElementUpdate?.({ ...selectedElement, align: 'right' })}
+                    className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.align === 'right' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                    title="Aligner à droite"
+                  >
+                    <AlignRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="w-px h-6 bg-gray-300" />
+
+                {/* Font family */}
+                <select
+                  value={selectedElement.fontFamily || 'helvetica'}
+                  onChange={(e) => onElementUpdate?.({ ...selectedElement, fontFamily: e.target.value })}
+                  className="text-xs bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  title="Police"
+                >
+                  {FONT_FAMILIES.map((font) => (
+                    <option key={font} value={font}>
+                      {font.charAt(0).toUpperCase() + font.slice(1)}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="w-px h-6 bg-gray-300" />
+
+                {/* Font style */}
+                <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5">
+                  <button
+                    onClick={() => {
+                      const currentStyle = selectedElement.fontStyle || 'normal';
+                      const isBold = currentStyle.includes('bold');
+                      const isItalic = currentStyle.includes('italic');
+                      const newStyle: 'bold' | 'normal' | 'italic' | 'bolditalic' = isBold
+                        ? isItalic ? 'italic' : 'normal'
+                        : isItalic ? 'bolditalic' : 'bold';
+                      onElementUpdate?.({ ...selectedElement, fontStyle: newStyle });
+                    }}
+                    className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.fontStyle?.includes('bold') ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                    title="Gras"
+                  >
+                    <Bold className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      const currentStyle = selectedElement.fontStyle || 'normal';
+                      const isBold = currentStyle.includes('bold');
+                      const isItalic = currentStyle.includes('italic');
+                      const newStyle: 'bold' | 'normal' | 'italic' | 'bolditalic' = isItalic
+                        ? isBold ? 'bold' : 'normal'
+                        : isBold ? 'bolditalic' : 'italic';
+                      onElementUpdate?.({ ...selectedElement, fontStyle: newStyle });
+                    }}
+                    className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.fontStyle?.includes('italic') ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                    title="Italique"
+                  >
+                    <Italic className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="w-px h-6 bg-gray-300" />
+
+                {/* Font size */}
+                <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-1 py-0.5">
+                  <button
+                    onClick={() => onElementUpdate?.({ ...selectedElement, fontSize: Math.max(8, (selectedElement.fontSize || 12) - 2) })}
+                    className="p-1 rounded hover:bg-gray-200 text-gray-600"
+                    title="Réduire la taille"
+                  >
+                    <Minus className="h-3 w-3" />
+                  </button>
+                  <span className="text-xs font-medium text-gray-700 min-w-[36px] text-center">
+                    {selectedElement.fontSize || 12}px
+                  </span>
+                  <button
+                    onClick={() => onElementUpdate?.({ ...selectedElement, fontSize: Math.min(200, (selectedElement.fontSize || 12) + 2) })}
+                    className="p-1 rounded hover:bg-gray-200 text-gray-600"
+                    title="Augmenter la taille"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+
+                <div className="w-px h-6 bg-gray-300" />
+
+                {/* Color */}
+                <div className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2 py-1">
+                  <Palette className="h-4 w-4 text-gray-500" />
+                  <input
+                    type="color"
+                    title="Couleur du texte"
+                    value={selectedElement.color || '#000000'}
+                    onChange={(e) => onElementUpdate?.({ ...selectedElement, color: e.target.value })}
+                    className="w-6 h-6 rounded border border-gray-300 cursor-pointer p-0"
+                  />
+                </div>
+
+                <div className="w-px h-6 bg-gray-300" />
+              </>
+            )}
+
+            {/* Canvas alignment tools - for ALL element types */}
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-gray-500 mr-1">Aligner sur canvas:</span>
+              <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5">
+                <button
+                  onClick={() => onAlignElements?.('left')}
+                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+                  title="Aligner à gauche du canvas"
+                >
+                  <AlignStartHorizontal className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => onAlignElements?.('center')}
+                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+                  title="Centrer horizontalement"
+                >
+                  <AlignCenterHorizontal className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => onAlignElements?.('right')}
+                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+                  title="Aligner à droite du canvas"
+                >
+                  <AlignEndHorizontal className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5 ml-1">
+                <button
+                  onClick={() => onAlignElements?.('top')}
+                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+                  title="Aligner en haut du canvas"
+                >
+                  <AlignStartVertical className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => onAlignElements?.('middle')}
+                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+                  title="Centrer verticalement"
+                >
+                  <AlignCenterVertical className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => onAlignElements?.('bottom')}
+                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+                  title="Aligner en bas du canvas"
+                >
+                  <AlignEndVertical className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="w-px h-6 bg-gray-300" />
+
+            {/* Duplicate and Delete */}
+            <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5">
+              <button
+                onClick={() => onElementDuplicate?.(selectedElement)}
+                className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
+                title="Dupliquer"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => onElementDelete?.(selectedElement.id)}
+                className="p-1.5 rounded hover:bg-red-100 text-red-600"
+                title="Supprimer"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Position info */}
+            <div className="ml-auto text-xs text-gray-400">
+              X: {Math.round(Number(selectedElement.x) || 0)} | Y: {Math.round(Number(selectedElement.y) || 0)}
+              {selectedElement.width && ` | W: ${Math.round(Number(selectedElement.width))}`}
+              {selectedElement.height && ` | H: ${Math.round(Number(selectedElement.height))}`}
+            </div>
+          </>
+        ) : (
+          <div className="text-sm text-gray-400 italic">
+            Sélectionnez un élément pour voir les options d'édition et d'alignement
+          </div>
+        )}
+      </div>
+
       {/* Canvas */}
       <div className="flex-1 overflow-auto p-8 flex items-center justify-center">
         <div
