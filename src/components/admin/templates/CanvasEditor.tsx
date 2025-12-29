@@ -4,12 +4,12 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  AlignStartVertical,
-  AlignCenterVertical,
-  AlignEndVertical,
-  AlignStartHorizontal,
-  AlignCenterHorizontal,
-  AlignEndHorizontal,
+  AlignHorizontalJustifyStart,
+  AlignHorizontalJustifyCenter,
+  AlignHorizontalJustifyEnd,
+  AlignVerticalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
   Minus,
   Plus,
   Copy,
@@ -17,8 +17,8 @@ import {
   Bold,
   Italic,
   Palette,
-  AlignHorizontalSpaceAround,
-  AlignVerticalSpaceAround
+  AlignHorizontalSpaceBetween,
+  AlignVerticalSpaceBetween
 } from 'lucide-react';
 import type { TemplateElement } from '@/types/certificateTemplate';
 import { FONT_FAMILIES } from '@/types/certificateTemplate';
@@ -433,52 +433,52 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             {/* Align to canvas - like PowerPoint */}
             <div className="flex items-center gap-1">
               <span className="text-xs text-gray-500 mr-1">Aligner:</span>
-              {/* Horizontal alignment */}
+              {/* Horizontal alignment - aligns elements left/center/right */}
               <div className="flex items-center gap-0.5 bg-blue-50 rounded-lg p-0.5 border border-blue-200">
                 <button
                   onClick={() => onAlignMultipleElements?.('left')}
                   className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
                   title="Aligner à gauche"
                 >
-                  <AlignStartHorizontal className="h-4 w-4" />
+                  <AlignHorizontalJustifyStart className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => onAlignMultipleElements?.('center')}
                   className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
                   title="Centrer horizontalement"
                 >
-                  <AlignCenterHorizontal className="h-4 w-4" />
+                  <AlignHorizontalJustifyCenter className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => onAlignMultipleElements?.('right')}
                   className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
                   title="Aligner à droite"
                 >
-                  <AlignEndHorizontal className="h-4 w-4" />
+                  <AlignHorizontalJustifyEnd className="h-4 w-4" />
                 </button>
               </div>
-              {/* Vertical alignment */}
+              {/* Vertical alignment - aligns elements top/middle/bottom */}
               <div className="flex items-center gap-0.5 bg-blue-50 rounded-lg p-0.5 ml-1 border border-blue-200">
                 <button
                   onClick={() => onAlignMultipleElements?.('top')}
                   className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
                   title="Aligner en haut"
                 >
-                  <AlignStartVertical className="h-4 w-4" />
+                  <AlignVerticalJustifyStart className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => onAlignMultipleElements?.('middle')}
                   className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
                   title="Centrer verticalement"
                 >
-                  <AlignCenterVertical className="h-4 w-4" />
+                  <AlignVerticalJustifyCenter className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => onAlignMultipleElements?.('bottom')}
                   className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
                   title="Aligner en bas"
                 >
-                  <AlignEndVertical className="h-4 w-4" />
+                  <AlignVerticalJustifyEnd className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -493,14 +493,14 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   className="p-1.5 rounded hover:bg-green-200 text-green-700"
                   title="Distribuer horizontalement"
                 >
-                  <AlignHorizontalSpaceAround className="h-4 w-4" />
+                  <AlignHorizontalSpaceBetween className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => onDistributeElements?.('vertical')}
                   className="p-1.5 rounded hover:bg-green-200 text-green-700"
                   title="Distribuer verticalement"
                 >
-                  <AlignVerticalSpaceAround className="h-4 w-4" />
+                  <AlignVerticalSpaceBetween className="h-4 w-4" />
                 </button>
               </div>
             </div>
