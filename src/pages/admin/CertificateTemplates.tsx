@@ -84,8 +84,8 @@ export const CertificateTemplates: React.FC = () => {
   const filteredTemplates = useMemo(() => {
     if (!templates) return [];
     if (!selectedFolderId) {
-      // At root: show ALL templates (global view for organization)
-      return templates;
+      // At root: show only templates without a folder (orphan templates)
+      return templates.filter((t) => !t.folder_id);
     }
     return templates.filter((t) => t.folder_id === selectedFolderId);
   }, [templates, selectedFolderId]);
