@@ -16,7 +16,9 @@ import {
   Trash2,
   Bold,
   Italic,
-  Palette
+  Palette,
+  AlignHorizontalSpaceAround,
+  AlignVerticalSpaceAround
 } from 'lucide-react';
 import type { TemplateElement } from '@/types/certificateTemplate';
 import { FONT_FAMILIES } from '@/types/certificateTemplate';
@@ -37,6 +39,7 @@ interface CanvasEditorProps {
   onElementDelete?: (elementId: string) => void;
   onAlignElements?: (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => void;
   onAlignMultipleElements?: (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => void;
+  onDistributeElements?: (direction: 'horizontal' | 'vertical') => void;
 }
 
 interface DraggingState {
@@ -71,6 +74,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   onElementDelete,
   onAlignElements,
   onAlignMultipleElements,
+  onDistributeElements,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<DraggingState | null>(null);
@@ -476,6 +480,32 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Distribution tools - only show when 3+ elements selected */}
+            {selectedIds.length >= 3 && (
+              <>
+                <div className="w-px h-6 bg-gray-300" />
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-gray-500 mr-1">Distribuer:</span>
+                  <div className="flex items-center gap-0.5 bg-purple-50 rounded-lg p-0.5 border border-purple-200">
+                    <button
+                      onClick={() => onDistributeElements?.('horizontal')}
+                      className="p-1.5 rounded hover:bg-purple-200 text-purple-700"
+                      title="Distribuer horizontalement (espacer également)"
+                    >
+                      <AlignHorizontalSpaceAround className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => onDistributeElements?.('vertical')}
+                      className="p-1.5 rounded hover:bg-purple-200 text-purple-700"
+                      title="Distribuer verticalement (espacer également)"
+                    >
+                      <AlignVerticalSpaceAround className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="ml-auto text-xs text-gray-400">
               Maintenez Ctrl et cliquez pour sélectionner plusieurs éléments

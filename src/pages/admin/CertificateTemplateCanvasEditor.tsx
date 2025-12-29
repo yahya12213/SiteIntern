@@ -592,6 +592,65 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
     );
   };
 
+  // Distribute multiple selected elements evenly
+  const handleDistributeElements = (direction: 'horizontal' | 'vertical') => {
+    if (selectedIds.length < 3) return; // Need at least 3 elements to distribute
+
+    // Get all selected elements with their positions
+    const selectedElements = selectedIds
+      .map(id => elements.find(el => el.id === id))
+      .filter(Boolean) as TemplateElement[];
+
+    if (selectedElements.length < 3) return;
+
+    // Sort elements by position (X for horizontal, Y for vertical)
+    const sortedElements = [...selectedElements].sort((a, b) => {
+      if (direction === 'horizontal') {
+        return (Number(a.x) || 0) - (Number(b.x) || 0);
+      } else {
+        return (Number(a.y) || 0) - (Number(b.y) || 0);
+      }
+    });
+
+    // Get first and last element positions
+    const firstEl = sortedElements[0];
+    const lastEl = sortedElements[sortedElements.length - 1];
+
+    if (direction === 'horizontal') {
+      const firstX = Number(firstEl.x) || 0;
+      const lastX = Number(lastEl.x) || 0;
+      const totalSpan = lastX - firstX;
+      const spacing = totalSpan / (sortedElements.length - 1);
+
+      setElements(prevElements =>
+        prevElements.map(el => {
+          const sortedIndex = sortedElements.findIndex(se => se.id === el.id);
+          if (sortedIndex === -1 || sortedIndex === 0 || sortedIndex === sortedElements.length - 1) {
+            return el; // Don't move first, last, or non-selected elements
+          }
+          const newX = firstX + (spacing * sortedIndex);
+          return { ...el, x: newX };
+        })
+      );
+    } else {
+      const firstY = Number(firstEl.y) || 0;
+      const lastY = Number(lastEl.y) || 0;
+      const totalSpan = lastY - firstY;
+      const spacing = totalSpan / (sortedElements.length - 1);
+
+      setElements(prevElements =>
+        prevElements.map(el => {
+          const sortedIndex = sortedElements.findIndex(se => se.id === el.id);
+          if (sortedIndex === -1 || sortedIndex === 0 || sortedIndex === sortedElements.length - 1) {
+            return el; // Don't move first, last, or non-selected elements
+          }
+          const newY = firstY + (spacing * sortedIndex);
+          return { ...el, y: newY };
+        })
+      );
+    }
+  };
+
   // Handle element selection with multi-select support
   const handleElementSelect = (id: string | null, addToSelection?: boolean) => {
     if (id === null) {
@@ -907,6 +966,7 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
               onElementDelete={handleCanvasDelete}
               onAlignElements={handleAlignElement}
               onAlignMultipleElements={handleAlignMultipleElements}
+              onDistributeElements={handleDistributeElements}
             />
           </div>
         </div>
