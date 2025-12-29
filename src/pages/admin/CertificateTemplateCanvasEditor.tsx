@@ -69,6 +69,7 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
   const [template, setTemplate] = useState<CertificateTemplate | null>(null);
   const [elements, setElements] = useState<TemplateElement[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]); // Multi-selection support
   const [nextElementId, setNextElementId] = useState(1);
   const [showGrid, setShowGrid] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -322,7 +323,7 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
         await updateTemplate.mutateAsync({ id: template.id, data: updateData });
       }
 
-      navigate('/admin/certificate-templates');
+      navigate('/admin/certificate-templates', { state: { folderId: template.folder_id || null } });
     } catch (error: any) {
       console.error('Error saving template:', error);
       alert('Erreur lors de la sauvegarde: ' + (error.message || 'Erreur inconnue'));
@@ -334,7 +335,7 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
   // Annuler
   const handleCancel = () => {
     if (confirm('Annuler les modifications ?')) {
-      navigate('/admin/certificate-templates');
+      navigate('/admin/certificate-templates', { state: { folderId: template?.folder_id || null } });
     }
   };
 
@@ -483,6 +484,148 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
     setSelectedId(null);
   };
 
+  // Align selected element on canvas
+  const handleAlignElement = (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
+    if (!selectedId) return;
+
+    const element = elements.find(el => el.id === selectedId);
+    if (!element) return;
+
+    const elementWidth = Number(element.width) || 100;
+    const elementHeight = Number(element.height) || 30;
+    const currentX = Number(element.x) || 0;
+    const currentY = Number(element.y) || 0;
+
+    let newX = currentX;
+    let newY = currentY;
+
+    switch (alignment) {
+      case 'left':
+        newX = 10; // Small margin
+        break;
+      case 'center':
+        newX = (canvasSize.width - elementWidth) / 2;
+        break;
+      case 'right':
+        newX = canvasSize.width - elementWidth - 10; // Small margin
+        break;
+      case 'top':
+        newY = 10; // Small margin
+        break;
+      case 'middle':
+        newY = (canvasSize.height - elementHeight) / 2;
+        break;
+      case 'bottom':
+        newY = canvasSize.height - elementHeight - 10; // Small margin
+        break;
+    }
+
+    setElements(
+      elements.map(el =>
+        el.id === selectedId
+          ? { ...el, x: newX, y: newY }
+          : el
+      )
+    );
+  };
+
+  // Align multiple selected elements relative to each other
+  const handleAlignMultipleElements = (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
+    if (selectedIds.length < 2) return;
+
+    // Get all selected elements
+    const selectedElements = selectedIds
+      .map(id => elements.find(el => el.id === id))
+      .filter(Boolean) as TemplateElement[];
+
+    if (selectedElements.length < 2) return;
+
+    // Use the first selected element as the reference
+    const referenceElement = selectedElements[0];
+    const refX = Number(referenceElement.x) || 0;
+    const refY = Number(referenceElement.y) || 0;
+    const refWidth = Number(referenceElement.width) || 100;
+    const refHeight = Number(referenceElement.height) || 30;
+
+    setElements(prevElements =>
+      prevElements.map(el => {
+        if (!selectedIds.includes(el.id)) return el;
+        if (el.id === referenceElement.id) return el; // Don't move reference element
+
+        const elWidth = Number(el.width) || 100;
+        const elHeight = Number(el.height) || 30;
+        const elX = Number(el.x) || 0;
+        const elY = Number(el.y) || 0;
+
+        let newX = elX;
+        let newY = elY;
+
+        switch (alignment) {
+          case 'left':
+            // Align left edges to reference element's left edge
+            newX = refX;
+            break;
+          case 'center':
+            // Align centers horizontally to reference element's center
+            newX = refX + (refWidth / 2) - (elWidth / 2);
+            break;
+          case 'right':
+            // Align right edges to reference element's right edge
+            newX = refX + refWidth - elWidth;
+            break;
+          case 'top':
+            // Align top edges to reference element's top edge
+            newY = refY;
+            break;
+          case 'middle':
+            // Align centers vertically to reference element's center
+            newY = refY + (refHeight / 2) - (elHeight / 2);
+            break;
+          case 'bottom':
+            // Align bottom edges to reference element's bottom edge
+            newY = refY + refHeight - elHeight;
+            break;
+        }
+
+        return { ...el, x: newX, y: newY };
+      })
+    );
+  };
+
+  // Handle element selection with multi-select support
+  const handleElementSelect = (id: string | null, addToSelection?: boolean) => {
+    if (id === null) {
+      // Clicking on empty canvas - clear all selections
+      setSelectedId(null);
+      setSelectedIds([]);
+    } else if (addToSelection) {
+      // Ctrl+click - toggle selection in multi-select
+      if (selectedIds.includes(id)) {
+        // Remove from selection
+        const newSelectedIds = selectedIds.filter(sid => sid !== id);
+        setSelectedIds(newSelectedIds);
+        // If we're removing the primary selected, update it
+        if (selectedId === id) {
+          setSelectedId(newSelectedIds.length > 0 ? newSelectedIds[0] : null);
+        }
+      } else {
+        // Add to selection
+        setSelectedIds([...selectedIds, id]);
+        if (!selectedId) {
+          setSelectedId(id);
+        }
+      }
+    } else {
+      // Normal click - single selection
+      setSelectedId(id);
+      setSelectedIds([id]);
+    }
+
+    if (id !== null) {
+      setActiveTab('elements');
+    }
+  };
+
   // Gérer drag start depuis palette
   const handlePaletteDragStart = (type: string, data: any) => {
     const dragData = { type, ...data };
@@ -569,7 +712,7 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/admin/certificate-templates')}
+                onClick={() => navigate('/admin/certificate-templates', { state: { folderId: template.folder_id || null } })}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 title="Retour"
               >
@@ -745,28 +888,26 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
           {/* Canvas */}
           <div className="flex-1">
             <CanvasEditor
-            elements={elements}
-            selectedId={selectedId}
-            backgroundImage={pages[currentPageIndex]?.background_image_url || template.background_image_url || null}
-            canvasSize={canvasSize}
-            showGrid={showGrid && !template.background_image_url}
-            onElementMove={handleElementMove}
-            onElementResize={handleElementResize}
-            onElementSelect={(id) => {
-              setSelectedId(id);
-              if (id !== null) {
-                setActiveTab('elements');
-              }
-            }}
-            onElementDrop={(type, x, y) => {
-              const data = (window as any).__dragData || {};
-              handleElementDrop(type, x, y, data);
-              delete (window as any).__dragData;
-            }}
-            onElementUpdate={handleElementChange}
-            onElementDuplicate={handleCanvasDuplicate}
-            onElementDelete={handleCanvasDelete}
-          />
+              elements={elements}
+              selectedId={selectedId}
+              selectedIds={selectedIds}
+              backgroundImage={pages[currentPageIndex]?.background_image_url || template.background_image_url || null}
+              canvasSize={canvasSize}
+              showGrid={showGrid && !template.background_image_url}
+              onElementMove={handleElementMove}
+              onElementResize={handleElementResize}
+              onElementSelect={handleElementSelect}
+              onElementDrop={(type, x, y) => {
+                const data = (window as any).__dragData || {};
+                handleElementDrop(type, x, y, data);
+                delete (window as any).__dragData;
+              }}
+              onElementUpdate={handleElementChange}
+              onElementDuplicate={handleCanvasDuplicate}
+              onElementDelete={handleCanvasDelete}
+              onAlignElements={handleAlignElement}
+              onAlignMultipleElements={handleAlignMultipleElements}
+            />
           </div>
         </div>
 
@@ -821,6 +962,7 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
               <BackgroundImageManager
                 template={templateForBackgroundManager}
                 onUpdate={handlePageBackgroundUpdate}
+                pageId={pages[currentPageIndex]?.id}
               />
             )}
             {activeTab === 'fonts' && (

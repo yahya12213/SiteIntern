@@ -198,3 +198,44 @@ export const deleteFile = (filePath) => {
     return false;
   }
 };
+
+/**
+ * Copie un fichier d'arrière-plan avec un nouveau nom unique
+ * Utilisé lors de la duplication de templates pour éviter le partage de fichiers
+ * @param {string} sourceUrl - URL relative du fichier source (ex: /uploads/backgrounds/background-123.jpg)
+ * @returns {Promise<string|null>} - Nouvelle URL du fichier copié ou null si erreur
+ */
+export const copyBackgroundFile = async (sourceUrl) => {
+  try {
+    if (!sourceUrl) return null;
+
+    // Extraire le nom du fichier depuis l'URL
+    const fileName = path.basename(sourceUrl);
+    const sourcePath = path.join(backgroundsDir, fileName);
+
+    // Vérifier que le fichier source existe
+    if (!fs.existsSync(sourcePath)) {
+      console.warn(`⚠ Source file not found for copy: ${sourcePath}`);
+      return null;
+    }
+
+    // Générer un nouveau nom unique
+    const ext = path.extname(fileName);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const newFileName = `background-${uniqueSuffix}${ext}`;
+    const destPath = path.join(backgroundsDir, newFileName);
+
+    // Copier le fichier
+    fs.copyFileSync(sourcePath, destPath);
+    console.log(`✓ Background file copied: ${fileName} → ${newFileName}`);
+
+    // Retourner la nouvelle URL relative
+    return `/uploads/backgrounds/${newFileName}`;
+  } catch (error) {
+    console.error('Error copying background file:', error);
+    return null;
+  }
+};
+
+// Exporter le chemin des backgrounds pour les autres modules
+export const getBackgroundsDir = () => backgroundsDir;

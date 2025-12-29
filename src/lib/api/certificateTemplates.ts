@@ -121,30 +121,39 @@ export const certificateTemplatesApi = {
   },
 
   /**
-   * Upload image d'arrière-plan pour un template
-   * Note: Pour les nouveaux templates (id='new'), retourne seulement background_url
+   * Upload image d'arrière-plan pour un template ou une page spécifique
+   * @param id - ID du template
+   * @param file - Fichier image
+   * @param pageId - (optionnel) ID de la page pour upload par page (multi-pages)
    */
-  uploadBackground: async (id: string, file: File): Promise<{ success: boolean; template?: CertificateTemplate; background_url?: string; message: string }> => {
+  uploadBackground: async (id: string, file: File, pageId?: string): Promise<{ success: boolean; template?: CertificateTemplate; background_url?: string; pageId?: string | null; message: string }> => {
     const formData = new FormData();
     formData.append('background', file);
+    if (pageId) {
+      formData.append('pageId', pageId);
+    }
 
     return await apiClient.post(`/certificate-templates/${id}/upload-background`, formData);
   },
 
   /**
-   * Définir une URL d'arrière-plan pour un template
-   * Note: Pour les nouveaux templates (id='new'), retourne seulement background_url
+   * Définir une URL d'arrière-plan pour un template ou une page spécifique
+   * @param id - ID du template
+   * @param url - URL de l'image
+   * @param pageId - (optionnel) ID de la page pour URL par page (multi-pages)
    */
-  setBackgroundUrl: async (id: string, url: string): Promise<{ success: boolean; template?: CertificateTemplate; background_url?: string; message: string }> => {
-    return apiClient.post(`/certificate-templates/${id}/background-url`, { url });
+  setBackgroundUrl: async (id: string, url: string, pageId?: string): Promise<{ success: boolean; template?: CertificateTemplate; background_url?: string; pageId?: string | null; message: string }> => {
+    return apiClient.post(`/certificate-templates/${id}/background-url`, { url, pageId });
   },
 
   /**
-   * Supprimer l'arrière-plan d'un template
-   * Note: Pour les nouveaux templates (id='new'), template est optionnel
+   * Supprimer l'arrière-plan d'un template ou d'une page spécifique
+   * @param id - ID du template
+   * @param pageId - (optionnel) ID de la page pour suppression par page (multi-pages)
    */
-  deleteBackground: async (id: string): Promise<{ success: boolean; template?: CertificateTemplate; message: string }> => {
-    return apiClient.delete(`/certificate-templates/${id}/background`);
+  deleteBackground: async (id: string, pageId?: string): Promise<{ success: boolean; template?: CertificateTemplate; pageId?: string | null; message: string }> => {
+    const queryParam = pageId ? `?pageId=${encodeURIComponent(pageId)}` : '';
+    return apiClient.delete(`/certificate-templates/${id}/background${queryParam}`);
   },
 
   /**

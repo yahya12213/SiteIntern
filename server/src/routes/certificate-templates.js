@@ -3,7 +3,7 @@ import pool from '../config/database.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { uploadBackground, uploadFont, deleteFile } from '../middleware/upload.js';
+import { uploadBackground, uploadFont, deleteFile, copyBackgroundFile } from '../middleware/upload.js';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -557,7 +557,7 @@ router.delete('/:id',
 
 /**
  * POST /api/certificate-templates/:id/duplicate
- * Dupliquer un template existant
+ * Dupliquer un template existant avec copie des fichiers d'arrière-plan
  * Protected: Requires training.certificate_templates.create permission
  */
 router.post('/:id/duplicate',
@@ -585,6 +585,34 @@ router.post('/:id/duplicate',
     // Créer une copie avec un nouveau nom et le même dossier
     const newName = `${sourceTemplate.name} (Copie)`;
 
+    // 1. Copier le fichier d'arrière-plan du template (niveau BDD) si c'est un upload
+    let newBackgroundUrl = sourceTemplate.background_image_url;
+    if (sourceTemplate.background_image_url && sourceTemplate.background_image_type === 'upload') {
+      const copiedUrl = await copyBackgroundFile(sourceTemplate.background_image_url);
+      if (copiedUrl) {
+        newBackgroundUrl = copiedUrl;
+        console.log(`✓ Template background copied: ${sourceTemplate.background_image_url} → ${newBackgroundUrl}`);
+      }
+    }
+
+    // 2. Copier les arrière-plans des pages dans template_config
+    let newTemplateConfig = sourceTemplate.template_config;
+    if (newTemplateConfig && newTemplateConfig.pages && Array.isArray(newTemplateConfig.pages)) {
+      // Cloner le config pour ne pas modifier l'original
+      newTemplateConfig = JSON.parse(JSON.stringify(newTemplateConfig));
+
+      for (let i = 0; i < newTemplateConfig.pages.length; i++) {
+        const page = newTemplateConfig.pages[i];
+        if (page.background_image_url && page.background_image_type === 'upload') {
+          const copiedPageUrl = await copyBackgroundFile(page.background_image_url);
+          if (copiedPageUrl) {
+            newTemplateConfig.pages[i].background_image_url = copiedPageUrl;
+            console.log(`✓ Page ${page.name} background copied: ${page.background_image_url} → ${copiedPageUrl}`);
+          }
+        }
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO certificate_templates (name, description, template_config, folder_id, background_image_url, background_image_type, preview_image_url)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -592,9 +620,9 @@ router.post('/:id/duplicate',
       [
         newName,
         sourceTemplate.description,
-        sourceTemplate.template_config,
+        newTemplateConfig,
         sourceTemplate.folder_id,
-        sourceTemplate.background_image_url,
+        newBackgroundUrl,
         sourceTemplate.background_image_type,
         sourceTemplate.preview_image_url,
       ]
@@ -616,7 +644,7 @@ router.post('/:id/duplicate',
 
 /**
  * POST /api/certificate-templates/:id/duplicate-to-folder
- * Dupliquer un template vers un autre dossier
+ * Dupliquer un template vers un autre dossier avec copie des fichiers d'arrière-plan
  * Protected: Requires training.certificate_templates.create permission
  */
 router.post('/:id/duplicate-to-folder',
@@ -649,6 +677,34 @@ router.post('/:id/duplicate-to-folder',
 
     const sourceTemplate = source.rows[0];
 
+    // 1. Copier le fichier d'arrière-plan du template (niveau BDD) si c'est un upload
+    let newBackgroundUrl = sourceTemplate.background_image_url;
+    if (sourceTemplate.background_image_url && sourceTemplate.background_image_type === 'upload') {
+      const copiedUrl = await copyBackgroundFile(sourceTemplate.background_image_url);
+      if (copiedUrl) {
+        newBackgroundUrl = copiedUrl;
+        console.log(`✓ Template background copied: ${sourceTemplate.background_image_url} → ${newBackgroundUrl}`);
+      }
+    }
+
+    // 2. Copier les arrière-plans des pages dans template_config
+    let newTemplateConfig = sourceTemplate.template_config;
+    if (newTemplateConfig && newTemplateConfig.pages && Array.isArray(newTemplateConfig.pages)) {
+      // Cloner le config pour ne pas modifier l'original
+      newTemplateConfig = JSON.parse(JSON.stringify(newTemplateConfig));
+
+      for (let i = 0; i < newTemplateConfig.pages.length; i++) {
+        const page = newTemplateConfig.pages[i];
+        if (page.background_image_url && page.background_image_type === 'upload') {
+          const copiedPageUrl = await copyBackgroundFile(page.background_image_url);
+          if (copiedPageUrl) {
+            newTemplateConfig.pages[i].background_image_url = copiedPageUrl;
+            console.log(`✓ Page ${page.name} background copied: ${page.background_image_url} → ${copiedPageUrl}`);
+          }
+        }
+      }
+    }
+
     // Créer une copie avec le nouveau folder_id
     const result = await pool.query(
       `INSERT INTO certificate_templates
@@ -658,9 +714,9 @@ router.post('/:id/duplicate-to-folder',
       [
         sourceTemplate.name + ' - Copie',
         sourceTemplate.description,
-        sourceTemplate.template_config,
+        newTemplateConfig,
         targetFolderId,
-        sourceTemplate.background_image_url,
+        newBackgroundUrl,
         sourceTemplate.background_image_type,
         sourceTemplate.preview_image_url,
       ]
@@ -952,6 +1008,7 @@ router.post('/:id/upload-background',
   console.log('🔧 Route handler started');
   try {
     const { id } = req.params;
+    const pageId = req.body?.pageId || req.query?.pageId; // Accepter pageId depuis body ou query
 
     if (!req.file) {
       return res.status(400).json({
@@ -960,19 +1017,22 @@ router.post('/:id/upload-background',
       });
     }
 
+    // Construire l'URL du fichier
+    const fileUrl = `/uploads/backgrounds/${req.file.filename}`;
+
     // Handle new templates (not yet saved to database)
     if (id === 'new') {
-      const fileUrl = `/uploads/backgrounds/${req.file.filename}`;
       return res.json({
         success: true,
         background_url: fileUrl,
+        pageId: pageId || null,
         message: 'Background image uploaded successfully (template not saved yet)',
       });
     }
 
     // Vérifier que le template existe
     const existing = await pool.query(
-      'SELECT background_image_url, background_image_type FROM certificate_templates WHERE id = $1',
+      'SELECT id, background_image_url, background_image_type, template_config FROM certificate_templates WHERE id = $1',
       [id]
     );
 
@@ -985,32 +1045,77 @@ router.post('/:id/upload-background',
       });
     }
 
-    // Supprimer l'ancien fichier s'il existe et s'il est de type 'upload'
     const oldTemplate = existing.rows[0];
-    if (oldTemplate.background_image_url && oldTemplate.background_image_type === 'upload') {
-      const oldFilePath = path.join(__dirname, '../../', oldTemplate.background_image_url);
-      deleteFile(oldFilePath);
+    let result;
+
+    // Si pageId est fourni, sauvegarder dans template_config.pages[].background_image_url
+    if (pageId) {
+      console.log(`📄 Uploading background for page: ${pageId}`);
+
+      let templateConfig = oldTemplate.template_config || {};
+
+      // S'assurer que pages existe
+      if (!templateConfig.pages || !Array.isArray(templateConfig.pages)) {
+        templateConfig.pages = [];
+      }
+
+      // Trouver la page correspondante
+      const pageIndex = templateConfig.pages.findIndex(p => p.id === pageId);
+
+      if (pageIndex === -1) {
+        // Page non trouvée, supprimer le fichier uploadé
+        deleteFile(req.file.path);
+        return res.status(404).json({
+          success: false,
+          error: `Page with id '${pageId}' not found in template`,
+        });
+      }
+
+      // NOTE: On ne supprime plus automatiquement l'ancien fichier car il peut être partagé
+      // entre plusieurs templates (via duplication). Le nettoyage des fichiers orphelins
+      // doit être fait manuellement ou via un job de nettoyage.
+
+      // Mettre à jour l'arrière-plan de la page
+      templateConfig.pages[pageIndex].background_image_url = fileUrl;
+      templateConfig.pages[pageIndex].background_image_type = 'upload';
+
+      // Sauvegarder le template_config mis à jour
+      result = await pool.query(
+        `UPDATE certificate_templates
+         SET template_config = $1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING *`,
+        [templateConfig, id]
+      );
+
+      console.log(`✓ Page ${pageId} background updated to: ${fileUrl}`);
+    } else {
+      // Comportement original: sauvegarder au niveau du template
+      // NOTE: On ne supprime plus automatiquement l'ancien fichier car il peut être partagé
+      // entre plusieurs templates (via duplication). Le nettoyage des fichiers orphelins
+      // doit être fait manuellement ou via un job de nettoyage.
+
+      // Mettre à jour le template
+      result = await pool.query(
+        `UPDATE certificate_templates
+         SET background_image_url = $1,
+             background_image_type = 'upload',
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING *`,
+        [fileUrl, id]
+      );
     }
-
-    // Construire l'URL du fichier
-    const fileUrl = `/uploads/backgrounds/${req.file.filename}`;
-
-    // Mettre à jour le template
-    const result = await pool.query(
-      `UPDATE certificate_templates
-       SET background_image_url = $1,
-           background_image_type = 'upload',
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2
-       RETURNING *`,
-      [fileUrl, id]
-    );
 
     res.json({
       success: true,
       template: result.rows[0],
       background_url: fileUrl,
-      message: 'Background image uploaded successfully',
+      pageId: pageId || null,
+      message: pageId
+        ? `Background image uploaded for page ${pageId}`
+        : 'Background image uploaded successfully',
     });
   } catch (error) {
     console.error('Error uploading background image:');
@@ -1059,7 +1164,7 @@ router.post('/:id/upload-background',
 
 /**
  * POST /api/certificate-templates/:id/background-url
- * Définir une URL d'arrière-plan pour un template
+ * Définir une URL d'arrière-plan pour un template ou une page spécifique
  * Protected: Requires training.certificate_templates.update permission
  */
 router.post('/:id/background-url',
@@ -1068,7 +1173,7 @@ router.post('/:id/background-url',
   async (req, res) => {
   try {
     const { id } = req.params;
-    const { url } = req.body;
+    const { url, pageId } = req.body;
 
     if (!url) {
       return res.status(400).json({
@@ -1079,7 +1184,7 @@ router.post('/:id/background-url',
 
     // Vérifier que le template existe
     const existing = await pool.query(
-      'SELECT background_image_url, background_image_type FROM certificate_templates WHERE id = $1',
+      'SELECT id, background_image_url, background_image_type, template_config FROM certificate_templates WHERE id = $1',
       [id]
     );
 
@@ -1090,28 +1195,65 @@ router.post('/:id/background-url',
       });
     }
 
-    // Supprimer l'ancien fichier s'il existe et s'il est de type 'upload'
     const oldTemplate = existing.rows[0];
-    if (oldTemplate.background_image_url && oldTemplate.background_image_type === 'upload') {
-      const oldFilePath = path.join(__dirname, '../../', oldTemplate.background_image_url);
-      deleteFile(oldFilePath);
-    }
+    let result;
 
-    // Mettre à jour le template
-    const result = await pool.query(
-      `UPDATE certificate_templates
-       SET background_image_url = $1,
-           background_image_type = 'url',
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2
-       RETURNING *`,
-      [url, id]
-    );
+    // Si pageId est fourni, sauvegarder dans template_config.pages[]
+    if (pageId) {
+      let templateConfig = oldTemplate.template_config || {};
+
+      if (!templateConfig.pages || !Array.isArray(templateConfig.pages)) {
+        return res.status(404).json({
+          success: false,
+          error: 'No pages found in template',
+        });
+      }
+
+      const pageIndex = templateConfig.pages.findIndex(p => p.id === pageId);
+      if (pageIndex === -1) {
+        return res.status(404).json({
+          success: false,
+          error: `Page with id '${pageId}' not found`,
+        });
+      }
+
+      // NOTE: On ne supprime plus automatiquement l'ancien fichier car il peut être partagé
+      // entre plusieurs templates. Le nettoyage des fichiers orphelins doit être fait manuellement.
+
+      // Mettre à jour l'arrière-plan de la page
+      templateConfig.pages[pageIndex].background_image_url = url;
+      templateConfig.pages[pageIndex].background_image_type = 'url';
+
+      result = await pool.query(
+        `UPDATE certificate_templates
+         SET template_config = $1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING *`,
+        [templateConfig, id]
+      );
+    } else {
+      // Comportement original: niveau template
+      // NOTE: On ne supprime plus automatiquement l'ancien fichier car il peut être partagé
+      // entre plusieurs templates. Le nettoyage des fichiers orphelins doit être fait manuellement.
+
+      // Mettre à jour le template
+      result = await pool.query(
+        `UPDATE certificate_templates
+         SET background_image_url = $1,
+             background_image_type = 'url',
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING *`,
+        [url, id]
+      );
+    }
 
     res.json({
       success: true,
       template: result.rows[0],
-      message: 'Background URL set successfully',
+      pageId: pageId || null,
+      message: pageId ? `Background URL set for page ${pageId}` : 'Background URL set successfully',
     });
   } catch (error) {
     console.error('Error setting background URL:', error);
@@ -1124,8 +1266,9 @@ router.post('/:id/background-url',
 
 /**
  * DELETE /api/certificate-templates/:id/background
- * Supprimer l'arrière-plan d'un template
+ * Supprimer l'arrière-plan d'un template ou d'une page spécifique
  * Protected: Requires training.certificate_templates.delete permission
+ * Query params: pageId (optional) - si fourni, supprime l'arrière-plan de cette page uniquement
  */
 router.delete('/:id/background',
   authenticateToken,
@@ -1133,10 +1276,11 @@ router.delete('/:id/background',
   async (req, res) => {
   try {
     const { id } = req.params;
+    const { pageId } = req.query;
 
     // Récupérer le template
     const existing = await pool.query(
-      'SELECT background_image_url, background_image_type FROM certificate_templates WHERE id = $1',
+      'SELECT id, background_image_url, background_image_type, template_config FROM certificate_templates WHERE id = $1',
       [id]
     );
 
@@ -1148,28 +1292,101 @@ router.delete('/:id/background',
     }
 
     const template = existing.rows[0];
+    let result;
 
-    // Supprimer le fichier si c'est un upload
-    if (template.background_image_url && template.background_image_type === 'upload') {
-      const filePath = path.join(__dirname, '../../', template.background_image_url);
-      deleteFile(filePath);
+    // Si pageId est fourni, supprimer uniquement l'arrière-plan de cette page
+    if (pageId) {
+      let templateConfig = template.template_config || {};
+
+      if (!templateConfig.pages || !Array.isArray(templateConfig.pages)) {
+        return res.status(404).json({
+          success: false,
+          error: 'No pages found in template',
+        });
+      }
+
+      const pageIndex = templateConfig.pages.findIndex(p => p.id === pageId);
+      if (pageIndex === -1) {
+        return res.status(404).json({
+          success: false,
+          error: `Page with id '${pageId}' not found`,
+        });
+      }
+
+      // Récupérer l'URL de l'arrière-plan de cette page
+      const pageBackground = templateConfig.pages[pageIndex].background_image_url;
+      const pageBackgroundType = templateConfig.pages[pageIndex].background_image_type;
+
+      // Effacer l'arrière-plan de la page
+      templateConfig.pages[pageIndex].background_image_url = null;
+      templateConfig.pages[pageIndex].background_image_type = null;
+
+      result = await pool.query(
+        `UPDATE certificate_templates
+         SET template_config = $1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING *`,
+        [templateConfig, id]
+      );
+
+      // Supprimer le fichier seulement s'il n'est utilisé par aucun autre template
+      if (pageBackground && pageBackgroundType === 'upload') {
+        const usageCheck = await pool.query(
+          `SELECT COUNT(*) as count FROM certificate_templates
+           WHERE (background_image_url = $1
+                  OR template_config::text LIKE $2)
+             AND id != $3`,
+          [pageBackground, `%${pageBackground}%`, id]
+        );
+        if (parseInt(usageCheck.rows[0].count) === 0) {
+          const filePath = path.join(__dirname, '../../', pageBackground);
+          deleteFile(filePath);
+          console.log(`🗑️ Deleted orphan background file: ${pageBackground}`);
+        } else {
+          console.log(`⚠️ Background file still in use by other templates: ${pageBackground}`);
+        }
+      }
+    } else {
+      // Comportement original: supprimer l'arrière-plan du template
+      const bgUrl = template.background_image_url;
+      const bgType = template.background_image_type;
+
+      // Mettre à jour le template
+      result = await pool.query(
+        `UPDATE certificate_templates
+         SET background_image_url = NULL,
+             background_image_type = NULL,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1
+         RETURNING *`,
+        [id]
+      );
+
+      // Supprimer le fichier seulement s'il n'est utilisé par aucun autre template
+      if (bgUrl && bgType === 'upload') {
+        const usageCheck = await pool.query(
+          `SELECT COUNT(*) as count FROM certificate_templates
+           WHERE (background_image_url = $1
+                  OR template_config::text LIKE $2)
+             AND id != $3`,
+          [bgUrl, `%${bgUrl}%`, id]
+        );
+        if (parseInt(usageCheck.rows[0].count) === 0) {
+          const filePath = path.join(__dirname, '../../', bgUrl);
+          deleteFile(filePath);
+          console.log(`🗑️ Deleted orphan background file: ${bgUrl}`);
+        } else {
+          console.log(`⚠️ Background file still in use by other templates: ${bgUrl}`);
+        }
+      }
     }
-
-    // Mettre à jour le template
-    const result = await pool.query(
-      `UPDATE certificate_templates
-       SET background_image_url = NULL,
-           background_image_type = NULL,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1
-       RETURNING *`,
-      [id]
-    );
 
     res.json({
       success: true,
       template: result.rows[0],
-      message: 'Background removed successfully',
+      pageId: pageId || null,
+      message: pageId ? `Background removed from page ${pageId}` : 'Background removed successfully',
     });
   } catch (error) {
     console.error('Error removing background:', error);

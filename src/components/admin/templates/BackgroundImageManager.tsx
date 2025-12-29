@@ -7,11 +7,13 @@ import { getRecommendedImageDimensions } from '@/lib/utils/canvasDimensions';
 interface BackgroundImageManagerProps {
   template: CertificateTemplate;
   onUpdate: (template: CertificateTemplate) => void;
+  pageId?: string; // ID de la page actuelle pour support multi-pages
 }
 
 export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
   template,
   onUpdate,
+  pageId,
 }) => {
   const [activeTab, setActiveTab] = useState<'upload' | 'url'>('upload');
   const [url, setUrl] = useState('');
@@ -48,7 +50,8 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     setError(null);
 
     try {
-      const result = await certificateTemplatesApi.uploadBackground(template.id, file);
+      // Passer pageId à l'API si fourni (support multi-pages)
+      const result = await certificateTemplatesApi.uploadBackground(template.id, file, pageId);
 
       // IMPORTANT: Ne pas utiliser result.template car il écrase les modifications locales
       // On utilise uniquement l'URL retournée pour mettre à jour la page actuelle
@@ -82,7 +85,8 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     setError(null);
 
     try {
-      const result = await certificateTemplatesApi.setBackgroundUrl(template.id, url.trim());
+      // Passer pageId à l'API si fourni (support multi-pages)
+      const result = await certificateTemplatesApi.setBackgroundUrl(template.id, url.trim(), pageId);
 
       // IMPORTANT: Ne pas utiliser result.template car il écrase les modifications locales
       const backgroundUrl = result.background_url || result.template?.background_image_url || url.trim();
@@ -108,7 +112,8 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     setError(null);
 
     try {
-      await certificateTemplatesApi.deleteBackground(template.id);
+      // Passer pageId à l'API si fourni (support multi-pages)
+      await certificateTemplatesApi.deleteBackground(template.id, pageId);
 
       // IMPORTANT: Ne pas utiliser result.template car il écrase les modifications locales
       // Supprimer uniquement le background_image_url de la page actuelle
@@ -160,7 +165,8 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     setError(null);
 
     try {
-      const result = await certificateTemplatesApi.uploadBackground(template.id, file);
+      // Passer pageId à l'API si fourni (support multi-pages)
+      const result = await certificateTemplatesApi.uploadBackground(template.id, file, pageId);
 
       // IMPORTANT: Ne pas utiliser result.template car il écrase les modifications locales
       const backgroundUrl = result.background_url || result.template?.background_image_url;
