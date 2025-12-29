@@ -50,15 +50,15 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     try {
       const result = await certificateTemplatesApi.uploadBackground(template.id, file);
 
-      // Handle response difference for new vs existing templates
-      if (result.template) {
-        // Existing template - backend returned full template object
-        onUpdate(result.template);
-      } else if (result.background_url) {
-        // New template (id='new') - manually update background_url field
+      // IMPORTANT: Ne pas utiliser result.template car il écrase les modifications locales
+      // On utilise uniquement l'URL retournée pour mettre à jour la page actuelle
+      const backgroundUrl = result.background_url || result.template?.background_image_url;
+
+      if (backgroundUrl) {
+        // Mettre à jour uniquement le background_image_url, sans écraser le reste du template
         onUpdate({
           ...template,
-          background_image_url: result.background_url,
+          background_image_url: backgroundUrl,
           background_image_type: 'upload',
         });
       }
@@ -84,18 +84,15 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     try {
       const result = await certificateTemplatesApi.setBackgroundUrl(template.id, url.trim());
 
-      // Handle response difference for new vs existing templates
-      if (result.template) {
-        // Existing template - backend returned full template object
-        onUpdate(result.template);
-      } else if (result.background_url) {
-        // New template (id='new') - manually update background_url field
-        onUpdate({
-          ...template,
-          background_image_url: result.background_url,
-          background_image_type: 'url',
-        });
-      }
+      // IMPORTANT: Ne pas utiliser result.template car il écrase les modifications locales
+      const backgroundUrl = result.background_url || result.template?.background_image_url || url.trim();
+
+      // Mettre à jour uniquement le background_image_url
+      onUpdate({
+        ...template,
+        background_image_url: backgroundUrl,
+        background_image_type: 'url',
+      });
       setUrl('');
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la définition de l\'URL');
@@ -111,20 +108,15 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     setError(null);
 
     try {
-      const result = await certificateTemplatesApi.deleteBackground(template.id);
+      await certificateTemplatesApi.deleteBackground(template.id);
 
-      // Handle response difference for new vs existing templates
-      if (result.template) {
-        // Existing template - backend returned full template object
-        onUpdate(result.template);
-      } else {
-        // New template (id='new') - manually clear background fields
-        onUpdate({
-          ...template,
-          background_image_url: undefined,
-          background_image_type: undefined,
-        });
-      }
+      // IMPORTANT: Ne pas utiliser result.template car il écrase les modifications locales
+      // Supprimer uniquement le background_image_url de la page actuelle
+      onUpdate({
+        ...template,
+        background_image_url: undefined,
+        background_image_type: undefined,
+      });
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la suppression de l\'arrière-plan');
     } finally {
@@ -170,15 +162,13 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     try {
       const result = await certificateTemplatesApi.uploadBackground(template.id, file);
 
-      // Handle response difference for new vs existing templates
-      if (result.template) {
-        // Existing template - backend returned full template object
-        onUpdate(result.template);
-      } else if (result.background_url) {
-        // New template (id='new') - manually update background_url field
+      // IMPORTANT: Ne pas utiliser result.template car il écrase les modifications locales
+      const backgroundUrl = result.background_url || result.template?.background_image_url;
+
+      if (backgroundUrl) {
         onUpdate({
           ...template,
-          background_image_url: result.background_url,
+          background_image_url: backgroundUrl,
           background_image_type: 'upload',
         });
       }

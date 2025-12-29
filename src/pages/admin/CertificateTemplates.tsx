@@ -9,6 +9,7 @@ import {
   useDeleteTemplate,
   useDuplicateTemplate,
   useDuplicateToFolder,
+  useMoveTemplate,
   useUpdateTemplate,
 } from '@/hooks/useCertificateTemplates';
 import {
@@ -25,6 +26,7 @@ import {
   Palette,
   Folder,
   FolderPlus,
+  FolderInput,
   Edit2,
   FolderOpen,
   ChevronRight,
@@ -36,6 +38,7 @@ import { CanvasConfigModal, type CanvasConfig } from '@/components/admin/templat
 import { RenameTemplateModal } from '@/components/admin/templates/RenameTemplateModal';
 import { RenameFolderModal } from '@/components/admin/templates/RenameFolderModal';
 import { DuplicateToFolderModal } from '@/components/admin/templates/DuplicateToFolderModal';
+import { MoveToFolderModal } from '@/components/admin/templates/MoveToFolderModal';
 import type { TemplateFolder } from '@/types/certificateTemplate';
 
 export const CertificateTemplates: React.FC = () => {
@@ -47,6 +50,7 @@ export const CertificateTemplates: React.FC = () => {
   const deleteMutation = useDeleteTemplate();
   const duplicateMutation = useDuplicateTemplate();
   const duplicateToFolderMutation = useDuplicateToFolder();
+  const moveTemplateMutation = useMoveTemplate();
   const updateTemplateMutation = useUpdateTemplate();
   const createFolderMutation = useCreateFolder();
   const updateFolderMutation = useUpdateFolder();
@@ -64,6 +68,8 @@ export const CertificateTemplates: React.FC = () => {
   const [renamingFolder, setRenamingFolder] = useState<{ id: string; name: string } | null>(null);
   const [showDuplicateToFolderModal, setShowDuplicateToFolderModal] = useState(false);
   const [duplicatingTemplate, setDuplicatingTemplate] = useState<{ id: string; name: string; folderId: string } | null>(null);
+  const [showMoveToFolderModal, setShowMoveToFolderModal] = useState(false);
+  const [movingTemplate, setMovingTemplate] = useState<{ id: string; name: string; folderId: string } | null>(null);
   const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null);
 
   // Filter templates by selected folder
@@ -200,6 +206,26 @@ export const CertificateTemplates: React.FC = () => {
       setDuplicatingTemplate(null);
     } catch (error: any) {
       alert('Erreur: ' + (error.message || 'Impossible de dupliquer ce template'));
+    }
+  };
+
+  const handleMoveToFolderClick = (id: string, name: string, folderId: string) => {
+    setMovingTemplate({ id, name, folderId });
+    setShowMoveToFolderModal(true);
+  };
+
+  const handleMoveToFolderSubmit = async (targetFolderId: string) => {
+    if (!movingTemplate) return;
+
+    try {
+      await moveTemplateMutation.mutateAsync({
+        id: movingTemplate.id,
+        targetFolderId,
+      });
+      setShowMoveToFolderModal(false);
+      setMovingTemplate(null);
+    } catch (error: any) {
+      alert('Erreur: ' + (error.message || 'Impossible de déplacer ce template'));
     }
   };
 
@@ -631,6 +657,18 @@ export const CertificateTemplates: React.FC = () => {
                                     </button>
                                   )}
 
+                                  {hasPermission(PERMISSIONS.training.certificate_templates.organize) && (
+                                    <button
+                                      onClick={() => handleMoveToFolderClick(template.id, template.name, template.folder_id)}
+                                      disabled={moveTemplateMutation.isPending}
+                                      className="px-3 py-1.5 bg-orange-50 text-orange-700 rounded border border-orange-300 hover:bg-orange-100 transition-colors text-xs font-medium flex items-center gap-1 disabled:opacity-50"
+                                      title="Déplacer vers un autre dossier"
+                                    >
+                                      <FolderInput className="h-3.5 w-3.5" />
+                                      Déplacer
+                                    </button>
+                                  )}
+
                                   {training.canDeleteTemplate && (
                                     <button
                                       onClick={() => setShowDeleteConfirm(template.id)}
@@ -741,6 +779,22 @@ export const CertificateTemplates: React.FC = () => {
             currentFolderId={duplicatingTemplate.folderId}
             templateName={duplicatingTemplate.name}
             isLoading={duplicateToFolderMutation.isPending}
+          />
+        )}
+
+        {/* Move To Folder Modal */}
+        {movingTemplate && (
+          <MoveToFolderModal
+            isOpen={showMoveToFolderModal}
+            onClose={() => {
+              setShowMoveToFolderModal(false);
+              setMovingTemplate(null);
+            }}
+            onSubmit={handleMoveToFolderSubmit}
+            folders={flattenedFolders}
+            currentFolderId={movingTemplate.folderId}
+            templateName={movingTemplate.name}
+            isLoading={moveTemplateMutation.isPending}
           />
         )}
       </div>

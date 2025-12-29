@@ -157,8 +157,18 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
     }
   }, [existingTemplate, isNewTemplate, folderId, configName, configFormat, configOrientation, configMargins, configCustomWidth, configCustomHeight]);
 
+  // Référence pour éviter la synchronisation lors du changement de page
+  const isChangingPageRef = React.useRef(false);
+  const previousPageIndexRef = React.useRef(currentPageIndex);
+
   // Synchroniser les éléments avec la page actuelle quand on modifie les éléments
+  // MAIS PAS pendant un changement de page (pour éviter la race condition)
   useEffect(() => {
+    // Ne pas synchroniser si on est en train de changer de page
+    if (isChangingPageRef.current) {
+      return;
+    }
+
     if (pages.length > 0 && currentPageIndex < pages.length) {
       setPages(prevPages => {
         const newPages = [...prevPages];
@@ -174,22 +184,79 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
   // Charger les éléments de la page actuelle quand on change de page
   useEffect(() => {
     if (pages.length > 0 && currentPageIndex < pages.length) {
-      setElements(pages[currentPageIndex].elements);
-      setSelectedId(null); // Désélectionner l'élément lors du changement de page
+      // Vérifier si l'index de page a réellement changé
+      if (previousPageIndexRef.current !== currentPageIndex) {
+        // Marquer qu'on change de page pour éviter la synchronisation inverse
+        isChangingPageRef.current = true;
+
+        // Charger les éléments de la nouvelle page
+        setElements(pages[currentPageIndex].elements);
+        setSelectedId(null);
+
+        // Mettre à jour la référence
+        previousPageIndexRef.current = currentPageIndex;
+
+        // Réactiver la synchronisation après un court délai
+        setTimeout(() => {
+          isChangingPageRef.current = false;
+        }, 50);
+      }
     }
-  }, [currentPageIndex, pages.length]);
+  }, [currentPageIndex, pages]);
 
   // Gestion des pages
   const handleAddPage = () => {
     const pageName = pages.length === 1 ? 'Verso' : `Page ${pages.length + 1}`;
     const newPage = createNewPage(pageName);
-    setPages([...pages, newPage]);
-    setCurrentPageIndex(pages.length); // Passer à la nouvelle page
+
+    // D'abord sauvegarder les éléments de la page actuelle dans pages
+    const updatedPages = [...pages];
+    updatedPages[currentPageIndex] = {
+      ...updatedPages[currentPageIndex],
+      elements: elements,
+    };
+
+    // Ajouter la nouvelle page vide
+    updatedPages.push(newPage);
+
+    // Marquer qu'on change de page
+    isChangingPageRef.current = true;
+
+    // Mettre à jour les pages et changer de page
+    setPages(updatedPages);
+    setElements([]); // La nouvelle page est vide
+    setCurrentPageIndex(updatedPages.length - 1);
+    previousPageIndexRef.current = updatedPages.length - 1;
+
+    // Réactiver la synchronisation
+    setTimeout(() => {
+      isChangingPageRef.current = false;
+    }, 50);
   };
 
   const handlePageSelect = (index: number) => {
-    if (index >= 0 && index < pages.length) {
+    if (index >= 0 && index < pages.length && index !== currentPageIndex) {
+      // D'abord sauvegarder les éléments de la page actuelle
+      const updatedPages = [...pages];
+      updatedPages[currentPageIndex] = {
+        ...updatedPages[currentPageIndex],
+        elements: elements,
+      };
+
+      // Marquer qu'on change de page
+      isChangingPageRef.current = true;
+
+      // Mettre à jour les pages et charger les éléments de la nouvelle page
+      setPages(updatedPages);
+      setElements(updatedPages[index].elements);
       setCurrentPageIndex(index);
+      setSelectedId(null);
+      previousPageIndexRef.current = index;
+
+      // Réactiver la synchronisation
+      setTimeout(() => {
+        isChangingPageRef.current = false;
+      }, 50);
     }
   };
 
@@ -229,13 +296,21 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
 
     setIsSaving(true);
     try {
+      // IMPORTANT: Synchroniser les éléments de la page actuelle avant de sauvegarder
+      // Car les éléments en cours d'édition sont dans `elements`, pas encore dans `pages`
+      const finalPages = [...pages];
+      finalPages[currentPageIndex] = {
+        ...finalPages[currentPageIndex],
+        elements: elements,
+      };
+
       // Sauvegarder le template avec le nouveau format multi-pages
       const updatedTemplate = {
         ...template,
         template_config: {
           ...template.template_config,
-          pages: pages, // Nouveau format avec pages
-          elements: pages[0]?.elements || [], // Garder elements pour rétrocompatibilité
+          pages: finalPages, // Utiliser finalPages avec les éléments synchronisés
+          elements: finalPages[0]?.elements || [], // Garder elements pour rétrocompatibilité
         },
       };
 

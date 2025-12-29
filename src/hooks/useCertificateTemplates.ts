@@ -112,6 +112,22 @@ export const useDuplicateToFolder = () => {
 };
 
 /**
+ * Hook pour déplacer un template vers un autre dossier
+ */
+export const useMoveTemplate = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, targetFolderId }: { id: string; targetFolderId: string }) =>
+      certificateTemplatesApi.update(id, { folder_id: targetFolderId }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: templateKeys.all });
+      queryClient.invalidateQueries({ queryKey: templateKeys.detail(variables.id) });
+    },
+  });
+};
+
+/**
  * Hook pour créer les templates par défaut (seed)
  */
 export const useSeedDefaultTemplates = () => {
