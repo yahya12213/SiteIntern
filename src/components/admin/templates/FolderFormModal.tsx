@@ -48,9 +48,8 @@ export const FolderFormModal: React.FC<FolderFormModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   // Build hierarchical folder list with levels for indentation
+  // IMPORTANT: This useMemo must be called BEFORE any conditional return
   const hierarchicalFolders = useMemo((): FolderWithLevel[] => {
     // Build a map of parent_id -> children
     const childrenMap = new Map<string | null, TemplateFolder[]>();
@@ -92,6 +91,8 @@ export const FolderFormModal: React.FC<FolderFormModalProps> = ({
 
     return result;
   }, [folders, mode, folder]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
