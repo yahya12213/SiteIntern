@@ -31,6 +31,9 @@ import {
   FolderOpen,
   ChevronRight,
   AlertCircle,
+  CheckSquare,
+  Square,
+  X,
 } from 'lucide-react';
 import { FolderFormModal } from '@/components/admin/templates/FolderFormModal';
 import { Breadcrumb } from '@/components/admin/templates/Breadcrumb';
@@ -71,6 +74,11 @@ export const CertificateTemplates: React.FC = () => {
   const [showMoveToFolderModal, setShowMoveToFolderModal] = useState(false);
   const [movingTemplate, setMovingTemplate] = useState<{ id: string; name: string; folderId: string } | null>(null);
   const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null);
+
+  // Multi-selection state
+  const [selectedTemplates, setSelectedTemplates] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showBulkMoveModal, setShowBulkMoveModal] = useState(false);
 
   // Filter templates by selected folder
   const filteredTemplates = useMemo(() => {
@@ -226,6 +234,66 @@ export const CertificateTemplates: React.FC = () => {
       setMovingTemplate(null);
     } catch (error: any) {
       alert('Erreur: ' + (error.message || 'Impossible de déplacer ce template'));
+    }
+  };
+
+  // Multi-selection handlers
+  const handleSelectTemplate = (templateId: string) => {
+    setSelectedTemplates(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(templateId)) {
+        newSet.delete(templateId);
+      } else {
+        newSet.add(templateId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedTemplates.size === filteredTemplates.length) {
+      // Deselect all
+      setSelectedTemplates(new Set());
+    } else {
+      // Select all filtered templates
+      setSelectedTemplates(new Set(filteredTemplates.map(t => t.id)));
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedTemplates(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTemplates.size === 0) return;
+
+    try {
+      // Delete all selected templates
+      for (const templateId of selectedTemplates) {
+        await deleteMutation.mutateAsync(templateId);
+      }
+      setSelectedTemplates(new Set());
+      setShowBulkDeleteConfirm(false);
+    } catch (error: any) {
+      alert('Erreur: ' + (error.message || 'Impossible de supprimer certains templates'));
+    }
+  };
+
+  const handleBulkMoveSubmit = async (targetFolderId: string) => {
+    if (selectedTemplates.size === 0) return;
+
+    try {
+      // Move all selected templates
+      for (const templateId of selectedTemplates) {
+        await moveTemplateMutation.mutateAsync({
+          id: templateId,
+          targetFolderId,
+        });
+      }
+      setSelectedTemplates(new Set());
+      setShowBulkMoveModal(false);
+    } catch (error: any) {
+      alert('Erreur: ' + (error.message || 'Impossible de déplacer certains templates'));
     }
   };
 
@@ -534,14 +602,67 @@ export const CertificateTemplates: React.FC = () => {
                 {/* Templates Section - Liste/Tableau */}
                 {filteredTemplates.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                      <Award className="h-4 w-4" />
-                      Templates ({filteredTemplates.length})
-                    </h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <Award className="h-4 w-4" />
+                        Templates ({filteredTemplates.length})
+                      </h3>
+
+                      {/* Bulk Actions Bar */}
+                      {selectedTemplates.size > 0 && (
+                        <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                          <span className="text-sm font-medium text-blue-700">
+                            {selectedTemplates.size} sélectionné{selectedTemplates.size > 1 ? 's' : ''}
+                          </span>
+                          <div className="h-4 w-px bg-blue-300" />
+                          {hasPermission(PERMISSIONS.training.certificate_templates.organize) && (
+                            <button
+                              onClick={() => setShowBulkMoveModal(true)}
+                              disabled={moveTemplateMutation.isPending}
+                              className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-medium hover:bg-orange-200 transition-colors flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <FolderInput className="h-3 w-3" />
+                              Déplacer
+                            </button>
+                          )}
+                          {training.canDeleteTemplate && (
+                            <button
+                              onClick={() => setShowBulkDeleteConfirm(true)}
+                              disabled={deleteMutation.isPending}
+                              className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200 transition-colors flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              Supprimer
+                            </button>
+                          )}
+                          <button
+                            onClick={handleClearSelection}
+                            className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
+                            title="Annuler la sélection"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                       <table className="w-full">
                         <thead className="bg-gray-50 border-b border-gray-200">
                           <tr>
+                            <th className="px-3 py-3 text-left w-10">
+                              <button
+                                onClick={handleSelectAll}
+                                className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                title={selectedTemplates.size === filteredTemplates.length ? "Désélectionner tout" : "Sélectionner tout"}
+                              >
+                                {selectedTemplates.size === filteredTemplates.length && filteredTemplates.length > 0 ? (
+                                  <CheckSquare className="h-4 w-4 text-blue-600" />
+                                ) : (
+                                  <Square className="h-4 w-4 text-gray-400" />
+                                )}
+                              </button>
+                            </th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Nom
                             </th>
@@ -560,8 +681,21 @@ export const CertificateTemplates: React.FC = () => {
                           {filteredTemplates.map((template) => (
                             <tr
                               key={template.id}
-                              className="hover:bg-blue-50 transition-colors"
+                              className={`hover:bg-blue-50 transition-colors ${selectedTemplates.has(template.id) ? 'bg-blue-50' : ''}`}
                             >
+                              {/* Checkbox */}
+                              <td className="px-3 py-3">
+                                <button
+                                  onClick={() => handleSelectTemplate(template.id)}
+                                  className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                >
+                                  {selectedTemplates.has(template.id) ? (
+                                    <CheckSquare className="h-4 w-4 text-blue-600" />
+                                  ) : (
+                                    <Square className="h-4 w-4 text-gray-400" />
+                                  )}
+                                </button>
+                              </td>
                               {/* Nom et Description */}
                               <td className="px-4 py-3">
                                 <div>
@@ -796,6 +930,51 @@ export const CertificateTemplates: React.FC = () => {
             templateName={movingTemplate.name}
             isLoading={moveTemplateMutation.isPending}
           />
+        )}
+
+        {/* Bulk Move Modal */}
+        {showBulkMoveModal && selectedTemplates.size > 0 && (
+          <MoveToFolderModal
+            isOpen={showBulkMoveModal}
+            onClose={() => setShowBulkMoveModal(false)}
+            onSubmit={handleBulkMoveSubmit}
+            folders={flattenedFolders}
+            currentFolderId={selectedFolderId || ''}
+            templateName={`${selectedTemplates.size} template${selectedTemplates.size > 1 ? 's' : ''}`}
+            isLoading={moveTemplateMutation.isPending}
+          />
+        )}
+
+        {/* Bulk Delete Confirmation */}
+        {showBulkDeleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md mx-4">
+              <h4 className="font-bold text-gray-900 text-lg mb-2">Confirmer la suppression multiple</h4>
+              <p className="text-sm text-gray-600 mb-4">
+                Êtes-vous sûr de vouloir supprimer <strong>{selectedTemplates.size} template{selectedTemplates.size > 1 ? 's' : ''}</strong> ?
+              </p>
+              <p className="text-xs text-red-600 mb-6">
+                Cette action est irréversible.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkDeleteConfirm(false)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-sm font-medium"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={deleteMutation.isPending}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  {deleteMutation.isPending ? 'Suppression...' : `Supprimer ${selectedTemplates.size} template${selectedTemplates.size > 1 ? 's' : ''}`}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </AppLayout>
