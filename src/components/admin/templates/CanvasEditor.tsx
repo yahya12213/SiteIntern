@@ -18,7 +18,10 @@ import {
   Italic,
   Palette,
   AlignHorizontalSpaceBetween,
-  AlignVerticalSpaceBetween
+  AlignVerticalSpaceBetween,
+  ZoomIn,
+  ZoomOut,
+  Maximize2
 } from 'lucide-react';
 import type { TemplateElement } from '@/types/certificateTemplate';
 import { FONT_FAMILIES } from '@/types/certificateTemplate';
@@ -80,6 +83,33 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
   const [dragging, setDragging] = useState<DraggingState | null>(null);
   const [resizing, setResizing] = useState<ResizingState | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [zoom, setZoom] = useState(1);
+
+  // Calculate initial zoom based on canvas size - auto-zoom for small formats
+  useEffect(() => {
+    // For small formats like badges, auto-zoom to make them easier to work with
+    if (canvasSize.width < 400 || canvasSize.height < 400) {
+      // Calculate zoom to make the canvas at least 500px wide
+      const targetWidth = 500;
+      const calculatedZoom = Math.min(2.5, Math.max(1, targetWidth / canvasSize.width));
+      setZoom(calculatedZoom);
+    } else {
+      setZoom(1);
+    }
+  }, [canvasSize.width, canvasSize.height]);
+
+  const handleZoomIn = () => setZoom(prev => Math.min(3, prev + 0.25));
+  const handleZoomOut = () => setZoom(prev => Math.max(0.25, prev - 0.25));
+  const handleZoomReset = () => setZoom(1);
+  const handleZoomFit = () => {
+    // Fit to a reasonable working size
+    if (canvasSize.width < 400 || canvasSize.height < 400) {
+      const targetWidth = 500;
+      setZoom(Math.min(2.5, targetWidth / canvasSize.width));
+    } else {
+      setZoom(1);
+    }
+  };
 
   // Gérer le déplacement d'un élément existant
   const handleMouseDown = (e: React.MouseEvent, element: TemplateElement) => {
@@ -141,8 +171,9 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     if (!canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    // Adjust for zoom - convert screen coordinates to canvas coordinates
+    const x = (e.clientX - rect.left) / zoom;
+    const y = (e.clientY - rect.top) / zoom;
 
     try {
       const jsonData = e.dataTransfer.getData('application/json');
@@ -165,15 +196,17 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       if (dragging && canvasRef.current) {
         const rect = canvasRef.current.getBoundingClientRect();
-        const newX = Math.max(0, Math.min(canvasSize.width, e.clientX - rect.left));
-        const newY = Math.max(0, Math.min(canvasSize.height, e.clientY - rect.top));
+        // Adjust for zoom - convert screen coordinates to canvas coordinates
+        const newX = Math.max(0, Math.min(canvasSize.width, (e.clientX - rect.left) / zoom));
+        const newY = Math.max(0, Math.min(canvasSize.height, (e.clientY - rect.top) / zoom));
 
         onElementMove(dragging.id, newX, newY);
       }
 
       if (resizing) {
-        const deltaX = e.clientX - resizing.startX;
-        const deltaY = e.clientY - resizing.startY;
+        // Adjust deltas for zoom
+        const deltaX = (e.clientX - resizing.startX) / zoom;
+        const deltaY = (e.clientY - resizing.startY) / zoom;
 
         const newW = Math.max(10, resizing.startW + deltaX);
         const newH = Math.max(10, resizing.startH + deltaY);
@@ -195,7 +228,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [dragging, resizing, canvasSize, onElementMove, onElementResize]);
+  }, [dragging, resizing, canvasSize, zoom, onElementMove, onElementResize]);
 
   // Render d'un élément selon son type
   const renderElement = (element: TemplateElement) => {
@@ -715,6 +748,48 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             Sélectionnez un élément pour voir les options d'édition et d'alignement
           </div>
         )}
+
+        {/* Zoom Controls - always visible */}
+        <div className="ml-auto flex items-center gap-1 bg-gray-100 rounded-lg p-1 border border-gray-200">
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 disabled:opacity-50"
+            title="Zoom arrière"
+            disabled={zoom <= 0.25}
+          >
+            <ZoomOut className="h-4 w-4" />
+          </button>
+          <span className="text-xs font-medium text-gray-600 min-w-[45px] text-center">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 disabled:opacity-50"
+            title="Zoom avant"
+            disabled={zoom >= 3}
+          >
+            <ZoomIn className="h-4 w-4" />
+          </button>
+          <div className="w-px h-4 bg-gray-300 mx-1" />
+          <button
+            type="button"
+            onClick={handleZoomReset}
+            className="px-2 py-1 rounded hover:bg-gray-200 text-xs text-gray-600"
+            title="Réinitialiser zoom (100%)"
+          >
+            100%
+          </button>
+          <button
+            type="button"
+            onClick={handleZoomFit}
+            className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+            title="Ajuster à la taille de travail"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Canvas */}
@@ -726,6 +801,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             height: `${canvasSize.height}px`,
             position: 'relative',
             backgroundColor: '#ffffff',
+            transform: `scale(${zoom})`,
+            transformOrigin: 'top center',
             backgroundImage: backgroundImage
               ? `url(${backgroundImage})`
               : showGrid
