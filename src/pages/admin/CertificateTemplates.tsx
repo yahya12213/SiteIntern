@@ -84,8 +84,8 @@ export const CertificateTemplates: React.FC = () => {
   const filteredTemplates = useMemo(() => {
     if (!templates) return [];
     if (!selectedFolderId) {
-      // At root: show only templates without a folder (orphan templates)
-      return templates.filter((t) => !t.folder_id);
+      // At root: show ALL templates (global view for organization)
+      return templates;
     }
     return templates.filter((t) => t.folder_id === selectedFolderId);
   }, [templates, selectedFolderId]);
@@ -475,7 +475,7 @@ export const CertificateTemplates: React.FC = () => {
           <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
             <div className="text-sm text-green-600 font-medium">Dossier Actuel</div>
             <div className="text-lg font-bold text-green-900 mt-1 truncate">
-              {selectedFolder ? selectedFolder.name : 'Racine'} ({filteredTemplates.length} templates)
+              {selectedFolder ? selectedFolder.name : 'Tous'} ({filteredTemplates.length} templates)
             </div>
           </div>
         </div>
