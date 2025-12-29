@@ -481,8 +481,8 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
               </div>
             </div>
 
-            {/* Distribution tools - only show when 3+ elements selected */}
-            {selectedIds.length >= 3 && (
+            {/* Distribution tools - show when 2+ elements selected */}
+            {selectedIds.length >= 2 && (
               <>
                 <div className="w-px h-6 bg-gray-300" />
                 <div className="flex items-center gap-1">
