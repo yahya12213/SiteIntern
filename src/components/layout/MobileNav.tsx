@@ -180,14 +180,14 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
         />
       )}
 
-      {/* Drawer - Fond blanc solide, pas transparent */}
+      {/* Drawer - Fond blanc solide, flex container pour le scroll */}
       <div
-        className={`fixed top-0 left-0 h-full w-72 !bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out lg:hidden overflow-hidden ${
+        className={`fixed top-0 left-0 h-full w-72 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out lg:hidden flex flex-col ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex-shrink-0 flex items-center justify-between p-4 border-b bg-white">
           <h2 className="text-lg font-semibold text-gray-800">Menu</h2>
           <Button
             variant="ghost"
@@ -200,13 +200,13 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
         </div>
 
         {/* User Info */}
-        <div className="p-4 bg-gray-50 border-b">
+        <div className="flex-shrink-0 p-4 bg-gray-50 border-b">
           <p className="text-sm font-medium text-gray-800">{user?.full_name || user?.username}</p>
           <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="flex flex-col p-2 space-y-2 overflow-y-auto flex-1">
+        {/* Navigation Links - Scrollable area */}
+        <nav className="flex-1 overflow-y-auto p-2 space-y-2 pb-20">
           {/* Admin sections with collapsible groups */}
           {sections.map((section) => {
             const isExpanded = expandedSections.includes(section.id);
