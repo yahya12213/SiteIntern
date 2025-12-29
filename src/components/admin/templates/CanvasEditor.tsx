@@ -718,7 +718,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
       </div>
 
       {/* Canvas */}
-      <div className="flex-1 overflow-auto p-8 flex items-center justify-center">
+      <div className="flex-1 overflow-auto p-4 flex justify-center">
         <div
           ref={canvasRef}
           style={{
