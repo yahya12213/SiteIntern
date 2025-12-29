@@ -15,7 +15,6 @@ interface FolderFormModalProps {
 interface FolderWithLevel {
   folder: TemplateFolder;
   level: number;
-  path: string; // Full path for display
 }
 
 export const FolderFormModal: React.FC<FolderFormModalProps> = ({
@@ -67,14 +66,12 @@ export const FolderFormModal: React.FC<FolderFormModalProps> = ({
     // Recursively build the hierarchical list
     const result: FolderWithLevel[] = [];
 
-    const addFolderWithChildren = (parentId: string | null, level: number, pathPrefix: string) => {
+    const addFolderWithChildren = (parentId: string | null, level: number) => {
       const children = childrenMap.get(parentId) || [];
       // Sort alphabetically
       children.sort((a, b) => a.name.localeCompare(b.name));
 
       children.forEach(child => {
-        const currentPath = pathPrefix ? `${pathPrefix} / ${child.name}` : child.name;
-
         // Filter out current folder and its descendants when editing
         if (mode === 'edit' && folder && child.id === folder.id) {
           return; // Skip this folder and all its children
@@ -83,16 +80,15 @@ export const FolderFormModal: React.FC<FolderFormModalProps> = ({
         result.push({
           folder: child,
           level,
-          path: currentPath,
         });
 
         // Recursively add children
-        addFolderWithChildren(child.id, level + 1, currentPath);
+        addFolderWithChildren(child.id, level + 1);
       });
     };
 
     // Start from root level (parent_id = null)
-    addFolderWithChildren(null, 0, '');
+    addFolderWithChildren(null, 0);
 
     return result;
   }, [folders, mode, folder]);
@@ -151,7 +147,7 @@ export const FolderFormModal: React.FC<FolderFormModalProps> = ({
                 disabled={isLoading}
               >
                 <option value="">📁 Racine (aucun parent)</option>
-                {hierarchicalFolders.map(({ folder: f, level, path }) => (
+                {hierarchicalFolders.map(({ folder: f, level }) => (
                   <option key={f.id} value={f.id}>
                     {'│  '.repeat(level)}├─ 📁 {f.name}
                   </option>
