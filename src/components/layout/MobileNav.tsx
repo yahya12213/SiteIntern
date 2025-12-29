@@ -186,8 +186,8 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{
-          height: '100vh',
           height: '100dvh',
+          minHeight: '100vh',
           backgroundColor: '#ffffff',
         }}
       >
