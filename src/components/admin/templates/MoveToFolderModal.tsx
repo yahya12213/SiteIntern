@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, FolderInput, Folder } from 'lucide-react';
 import type { TemplateFolder } from '@/types/certificateTemplate';
 
@@ -10,6 +10,11 @@ interface MoveToFolderModalProps {
   currentFolderId: string;
   templateName: string;
   isLoading?: boolean;
+}
+
+interface FolderWithLevel {
+  folder: TemplateFolder;
+  level: number;
 }
 
 /**
@@ -53,6 +58,51 @@ export const MoveToFolderModal: React.FC<MoveToFolderModalProps> = ({
 
   // Trouver le nom du dossier actuel
   const currentFolder = folders.find(f => f.id === currentFolderId);
+
+  // Build hierarchical folder list with levels for indentation
+  const hierarchicalFolders = useMemo((): FolderWithLevel[] => {
+    // Build a map of parent_id -> children
+    const childrenMap = new Map<string | null, TemplateFolder[]>();
+
+    folders.forEach(f => {
+      const parentKey = f.parent_id || null;
+      if (!childrenMap.has(parentKey)) {
+        childrenMap.set(parentKey, []);
+      }
+      childrenMap.get(parentKey)!.push(f);
+    });
+
+    // Recursively build the hierarchical list
+    const result: FolderWithLevel[] = [];
+
+    const addFolderWithChildren = (parentId: string | null, level: number) => {
+      const children = childrenMap.get(parentId) || [];
+      // Sort alphabetically
+      children.sort((a, b) => a.name.localeCompare(b.name));
+
+      children.forEach(child => {
+        // Skip current folder
+        if (child.id === currentFolderId) {
+          // Still add its children but at the same level
+          addFolderWithChildren(child.id, level);
+          return;
+        }
+
+        result.push({
+          folder: child,
+          level,
+        });
+
+        // Recursively add children
+        addFolderWithChildren(child.id, level + 1);
+      });
+    };
+
+    // Start from root level (parent_id = null)
+    addFolderWithChildren(null, 0);
+
+    return result;
+  }, [folders, currentFolderId]);
 
   if (!isOpen) return null;
 
@@ -122,13 +172,11 @@ export const MoveToFolderModal: React.FC<MoveToFolderModalProps> = ({
               disabled={isLoading}
             >
               <option value="">Sélectionnez un dossier</option>
-              {folders
-                .filter(folder => folder.id !== currentFolderId)
-                .map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.name}
-                  </option>
-                ))}
+              {hierarchicalFolders.map(({ folder, level }) => (
+                <option key={folder.id} value={folder.id}>
+                  {'│  '.repeat(level)}├─ 📁 {folder.name}
+                </option>
+              ))}
             </select>
             <p className="text-xs text-gray-500 mt-1.5">
               Le template sera déplacé vers ce dossier (pas de copie)

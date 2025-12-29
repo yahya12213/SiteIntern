@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Folder } from 'lucide-react';
 import type { TemplateFolder } from '@/types/certificateTemplate';
 
@@ -10,6 +10,12 @@ interface FolderFormModalProps {
   folders: TemplateFolder[]; // Liste de tous les dossiers (pour sélecteur de parent)
   isLoading?: boolean;
   mode: 'create' | 'edit';
+}
+
+interface FolderWithLevel {
+  folder: TemplateFolder;
+  level: number;
+  path: string; // Full path for display
 }
 
 export const FolderFormModal: React.FC<FolderFormModalProps> = ({
@@ -45,14 +51,51 @@ export const FolderFormModal: React.FC<FolderFormModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Filter out current folder and its children when editing (to prevent circular references)
-  const availableParents = folders.filter((f) => {
-    if (mode === 'edit' && folder) {
-      return f.id !== folder.id; // Can't be parent of itself
-      // TODO: Also filter out children of current folder
-    }
-    return true;
-  });
+  // Build hierarchical folder list with levels for indentation
+  const hierarchicalFolders = useMemo((): FolderWithLevel[] => {
+    // Build a map of parent_id -> children
+    const childrenMap = new Map<string | null, TemplateFolder[]>();
+
+    folders.forEach(f => {
+      const parentKey = f.parent_id || null;
+      if (!childrenMap.has(parentKey)) {
+        childrenMap.set(parentKey, []);
+      }
+      childrenMap.get(parentKey)!.push(f);
+    });
+
+    // Recursively build the hierarchical list
+    const result: FolderWithLevel[] = [];
+
+    const addFolderWithChildren = (parentId: string | null, level: number, pathPrefix: string) => {
+      const children = childrenMap.get(parentId) || [];
+      // Sort alphabetically
+      children.sort((a, b) => a.name.localeCompare(b.name));
+
+      children.forEach(child => {
+        const currentPath = pathPrefix ? `${pathPrefix} / ${child.name}` : child.name;
+
+        // Filter out current folder and its descendants when editing
+        if (mode === 'edit' && folder && child.id === folder.id) {
+          return; // Skip this folder and all its children
+        }
+
+        result.push({
+          folder: child,
+          level,
+          path: currentPath,
+        });
+
+        // Recursively add children
+        addFolderWithChildren(child.id, level + 1, currentPath);
+      });
+    };
+
+    // Start from root level (parent_id = null)
+    addFolderWithChildren(null, 0, '');
+
+    return result;
+  }, [folders, mode, folder]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -108,9 +151,9 @@ export const FolderFormModal: React.FC<FolderFormModalProps> = ({
                 disabled={isLoading}
               >
                 <option value="">📁 Racine (aucun parent)</option>
-                {availableParents.map((f) => (
+                {hierarchicalFolders.map(({ folder: f, level, path }) => (
                   <option key={f.id} value={f.id}>
-                    📁 {f.name}
+                    {'│  '.repeat(level)}├─ 📁 {f.name}
                   </option>
                 ))}
               </select>

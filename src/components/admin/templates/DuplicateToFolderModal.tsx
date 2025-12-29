@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { X, Copy, Folder } from 'lucide-react';
 import type { TemplateFolder } from '@/types/certificateTemplate';
 
@@ -10,6 +10,11 @@ interface DuplicateToFolderModalProps {
   currentFolderId: string;
   templateName: string;
   isLoading?: boolean;
+}
+
+interface FolderWithLevel {
+  folder: TemplateFolder;
+  level: number;
 }
 
 /**
@@ -54,6 +59,51 @@ export const DuplicateToFolderModal: React.FC<DuplicateToFolderModalProps> = ({
   // Trouver le nom du dossier actuel
   const currentFolder = folders.find(f => f.id === currentFolderId);
 
+  // Build hierarchical folder list with levels for indentation
+  const hierarchicalFolders = useMemo((): FolderWithLevel[] => {
+    // Build a map of parent_id -> children
+    const childrenMap = new Map<string | null, TemplateFolder[]>();
+
+    folders.forEach(f => {
+      const parentKey = f.parent_id || null;
+      if (!childrenMap.has(parentKey)) {
+        childrenMap.set(parentKey, []);
+      }
+      childrenMap.get(parentKey)!.push(f);
+    });
+
+    // Recursively build the hierarchical list
+    const result: FolderWithLevel[] = [];
+
+    const addFolderWithChildren = (parentId: string | null, level: number) => {
+      const children = childrenMap.get(parentId) || [];
+      // Sort alphabetically
+      children.sort((a, b) => a.name.localeCompare(b.name));
+
+      children.forEach(child => {
+        // Skip current folder
+        if (child.id === currentFolderId) {
+          // Still add its children but at the same level
+          addFolderWithChildren(child.id, level);
+          return;
+        }
+
+        result.push({
+          folder: child,
+          level,
+        });
+
+        // Recursively add children
+        addFolderWithChildren(child.id, level + 1);
+      });
+    };
+
+    // Start from root level (parent_id = null)
+    addFolderWithChildren(null, 0);
+
+    return result;
+  }, [folders, currentFolderId]);
+
   if (!isOpen) return null;
 
   return (
@@ -72,6 +122,8 @@ export const DuplicateToFolderModal: React.FC<DuplicateToFolderModalProps> = ({
             disabled={isLoading}
             className="p-2 hover:bg-blue-200 rounded-lg transition-colors disabled:opacity-50"
             type="button"
+            title="Fermer"
+            aria-label="Fermer"
           >
             <X className="h-5 w-5 text-gray-600" />
           </button>
@@ -109,10 +161,11 @@ export const DuplicateToFolderModal: React.FC<DuplicateToFolderModalProps> = ({
 
           {/* Target Folder Selection */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label htmlFor="target-folder-select" className="block text-sm font-semibold text-gray-700 mb-2">
               Dossier de destination <span className="text-red-500">*</span>
             </label>
             <select
+              id="target-folder-select"
               value={selectedFolderId}
               onChange={(e) => {
                 setSelectedFolderId(e.target.value);
@@ -120,15 +173,14 @@ export const DuplicateToFolderModal: React.FC<DuplicateToFolderModalProps> = ({
               }}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               disabled={isLoading}
+              title="Sélectionnez le dossier de destination"
             >
               <option value="">Sélectionnez un dossier</option>
-              {folders
-                .filter(folder => folder.id !== currentFolderId)
-                .map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.name}
-                  </option>
-                ))}
+              {hierarchicalFolders.map(({ folder, level }) => (
+                <option key={folder.id} value={folder.id}>
+                  {'│  '.repeat(level)}├─ 📁 {folder.name}
+                </option>
+              ))}
             </select>
             <p className="text-xs text-gray-500 mt-1.5">
               Le template sera dupliqué avec le suffixe " - Copie"
