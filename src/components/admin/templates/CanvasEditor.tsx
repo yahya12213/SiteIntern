@@ -641,21 +641,21 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
                   title="Aligner à gauche du canvas"
                 >
-                  <AlignStartHorizontal className="h-4 w-4" />
+                  <AlignHorizontalJustifyStart className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => onAlignElements?.('center')}
                   className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
                   title="Centrer horizontalement"
                 >
-                  <AlignCenterHorizontal className="h-4 w-4" />
+                  <AlignHorizontalJustifyCenter className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => onAlignElements?.('right')}
                   className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
                   title="Aligner à droite du canvas"
                 >
-                  <AlignEndHorizontal className="h-4 w-4" />
+                  <AlignHorizontalJustifyEnd className="h-4 w-4" />
                 </button>
               </div>
               <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5 ml-1">
@@ -664,21 +664,21 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
                   title="Aligner en haut du canvas"
                 >
-                  <AlignStartVertical className="h-4 w-4" />
+                  <AlignVerticalJustifyStart className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => onAlignElements?.('middle')}
                   className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
                   title="Centrer verticalement"
                 >
-                  <AlignCenterVertical className="h-4 w-4" />
+                  <AlignVerticalJustifyCenter className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => onAlignElements?.('bottom')}
                   className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
                   title="Aligner en bas du canvas"
                 >
-                  <AlignEndVertical className="h-4 w-4" />
+                  <AlignVerticalJustifyEnd className="h-4 w-4" />
                 </button>
               </div>
             </div>
