@@ -1,6 +1,40 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Users, MapPin, FileSpreadsheet, Calculator, LogOut, ClipboardCheck, List, ChevronDown, ChevronUp, GraduationCap, BookOpen, CalendarCheck, BarChart3, FileText, Award, Palette, MessageSquare, TrendingUp, Target, FileCheck } from 'lucide-react';
+import { PERMISSIONS } from '@/config/permissions';
+import {
+  Menu,
+  X,
+  Home,
+  Users,
+  MapPin,
+  FileSpreadsheet,
+  Calculator,
+  LogOut,
+  ClipboardCheck,
+  List,
+  ChevronDown,
+  ChevronUp,
+  GraduationCap,
+  BookOpen,
+  CalendarCheck,
+  BarChart3,
+  FileText,
+  Palette,
+  MessageSquare,
+  TrendingUp,
+  Target,
+  Shield,
+  Briefcase,
+  Clock,
+  Wallet,
+  User,
+  CheckSquare,
+  FolderKanban,
+  Cloud,
+  GitBranch,
+  Calendar,
+  Trash2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -19,12 +53,13 @@ interface NavItem {
   to: string;
   icon: React.ElementType;
   label: string;
+  permission?: string;
 }
 
 export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation-en-ligne', 'commercialisation']);
-  const { user, isAdmin, isGerant, logout } = useAuth();
+  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation', 'ressources-humaines', 'commercialisation']);
+  const { user, isAdmin, isGerant, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -42,32 +77,48 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
     );
   };
 
-  const adminSections: NavSection[] = [
+  // Sections synchronisées avec Sidebar.tsx
+  const allSections: NavSection[] = [
     {
       id: 'gestion-comptable',
       title: 'Gestion Comptable',
       icon: Calculator,
       items: [
-        { to: '/dashboard', icon: Home, label: 'Tableau de bord' },
-        { to: '/admin/segments', icon: Calculator, label: 'Segments' },
-        { to: '/admin/cities', icon: MapPin, label: 'Villes' },
-        { to: '/admin/users', icon: Users, label: 'Utilisateurs' },
-        { to: '/admin/calculation-sheets', icon: FileSpreadsheet, label: 'Fiches de calcul' },
-        { to: '/admin/declarations', icon: ClipboardCheck, label: 'Gérer déclarations' },
+        { to: '/dashboard', icon: Home, label: 'Tableau de bord', permission: PERMISSIONS.accounting.dashboard.view_page },
+        { to: '/admin/segments', icon: Calculator, label: 'Segments', permission: PERMISSIONS.accounting.segments.view_page },
+        { to: '/admin/cities', icon: MapPin, label: 'Villes', permission: PERMISSIONS.accounting.cities.view_page },
+        { to: '/admin/users', icon: Users, label: 'Utilisateurs', permission: PERMISSIONS.accounting.users.view_page },
+        { to: '/admin/roles', icon: Shield, label: 'Rôles & Permissions', permission: PERMISSIONS.system.roles.view_page },
+        { to: '/admin/calculation-sheets', icon: FileSpreadsheet, label: 'Fiches de calcul', permission: PERMISSIONS.accounting.calculation_sheets.view_page },
+        { to: '/admin/declarations', icon: ClipboardCheck, label: 'Gérer déclarations', permission: PERMISSIONS.accounting.declarations.view_page },
+        { to: '/admin/projects', icon: FolderKanban, label: 'Gestion de Projet', permission: PERMISSIONS.accounting.projects.view_page },
       ],
     },
     {
-      id: 'formation-en-ligne',
-      title: 'Formation en Ligne',
+      id: 'formation',
+      title: 'Formation',
       icon: GraduationCap,
       items: [
-        { to: '/admin/formations-management', icon: BookOpen, label: 'Gestion des Formations' },
-        { to: '/admin/sessions-formation', icon: CalendarCheck, label: 'Sessions de Formation' },
-        { to: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
-        { to: '/admin/student-reports', icon: FileText, label: 'Rapports Étudiants' },
-        { to: '/admin/certificates', icon: Award, label: 'Certificats' },
-        { to: '/admin/certificate-templates', icon: Palette, label: 'Templates de Certificats' },
-        { to: '/admin/forums', icon: MessageSquare, label: 'Forums' },
+        { to: '/admin/formations-management', icon: BookOpen, label: 'Gestion des Formations', permission: PERMISSIONS.training.formations.view_page },
+        { to: '/admin/sessions-formation', icon: CalendarCheck, label: 'Sessions de Formation', permission: PERMISSIONS.training.sessions.view_page },
+        { to: '/admin/analytics', icon: BarChart3, label: 'Analytics', permission: PERMISSIONS.training.analytics.view_page },
+        { to: '/admin/student-reports', icon: FileText, label: 'Rapports Étudiants', permission: PERMISSIONS.training.student_reports.view_page },
+        { to: '/admin/students-list', icon: Users, label: 'Liste des Étudiants', permission: PERMISSIONS.training.students.view_page },
+        { to: '/admin/certificate-templates', icon: Palette, label: 'Templates de Certificats', permission: PERMISSIONS.training.certificate_templates.view_page },
+        { to: '/admin/forums', icon: MessageSquare, label: 'Forums', permission: PERMISSIONS.training.forums.view_page },
+      ],
+    },
+    {
+      id: 'ressources-humaines',
+      title: 'Ressources Humaines',
+      icon: Briefcase,
+      items: [
+        { to: '/admin/hr/validation-workflows', icon: GitBranch, label: 'Boucles de Validation', permission: PERMISSIONS.hr.validation_workflows.view_page },
+        { to: '/admin/hr/schedules', icon: Calendar, label: 'Gestion des Horaires', permission: PERMISSIONS.hr.schedules.view_page },
+        { to: '/admin/hr/payroll', icon: Wallet, label: 'Gestion de Paie', permission: PERMISSIONS.hr.payroll.view_page },
+        { to: '/admin/hr/employee-portal', icon: Clock, label: 'Gestion Pointage', permission: PERMISSIONS.hr.employee_portal.view_page },
+        { to: '/admin/hr/employees', icon: User, label: 'Dossier Employé', permission: PERMISSIONS.hr.employees.view_page },
+        { to: '/admin/hr/requests-validation', icon: CheckSquare, label: 'Validation des Demandes', permission: PERMISSIONS.hr.requests_validation.view_page },
       ],
     },
     {
@@ -75,11 +126,10 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
       title: 'Commercialisation',
       icon: TrendingUp,
       items: [
-        { to: '/admin/commercialisation/dashboard', icon: BarChart3, label: 'Tableau de bord' },
-        { to: '/admin/commercialisation/clients', icon: Users, label: 'Gestion des Clients' },
-        { to: '/admin/commercialisation/prospects', icon: Target, label: 'Prospects' },
-        { to: '/admin/commercialisation/devis', icon: FileText, label: 'Devis' },
-        { to: '/admin/commercialisation/contrats', icon: FileCheck, label: 'Contrats' },
+        { to: '/admin/commercialisation/dashboard', icon: BarChart3, label: 'Tableau de bord', permission: PERMISSIONS.commercialisation.dashboard.view_page },
+        { to: '/admin/commercialisation/prospects', icon: Target, label: 'Prospects', permission: PERMISSIONS.commercialisation.prospects.view_page },
+        { to: '/admin/commercialisation/prospects-cleaning', icon: Trash2, label: 'Nettoyage Prospects', permission: PERMISSIONS.commercialisation.prospects.clean },
+        { to: '/admin/commercialisation/google-contacts', icon: Cloud, label: 'Gestion G-Contacte', permission: PERMISSIONS.commercialisation.google_contacts?.view_page },
       ],
     },
   ];
@@ -94,7 +144,17 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
     { to: '/gerant/view-declarations', icon: ClipboardCheck, label: 'Voir déclarations' },
   ];
 
-  const sections = isAdmin ? adminSections : [];
+  // Filter sections based on user permissions (same logic as Sidebar)
+  const filteredSections = allSections
+    .map(section => ({
+      ...section,
+      items: section.items.filter(item =>
+        !item.permission || hasPermission(item.permission)
+      ),
+    }))
+    .filter(section => section.items.length > 0);
+
+  const sections = filteredSections;
   const flatLinks = isAdmin ? [] : isGerant ? gerantLinks : professorLinks;
 
   const isActive = (path: string) => location.pathname === path;
