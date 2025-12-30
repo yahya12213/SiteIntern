@@ -1007,11 +1007,11 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
           </div>
         </div>
 
-        {/* Colonne droite - Propriétés */}
-        <div className="w-80 flex-shrink-0">
-          <div className="h-full flex flex-col">
+        {/* Colonne droite - Propriétés (largeur fixe, ne change jamais) */}
+        <div className="w-80 flex-shrink-0 flex-grow-0 overflow-hidden border-l border-gray-200">
+          <div className="h-full flex flex-col overflow-hidden">
             {/* Tabs */}
-            <div className="flex border-b border-gray-200 bg-white">
+            <div className="flex border-b border-gray-200 bg-white flex-shrink-0">
               <button
                 onClick={() => setActiveTab('elements')}
                 className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
@@ -1044,26 +1044,28 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
               </button>
             </div>
 
-            {/* Content */}
-            {activeTab === 'elements' && (
-              <ElementPropertiesPanel
-                element={selectedElement}
-                customFonts={[]}
-                onChange={handleElementChange}
-                onDelete={handleElementDelete}
-                onDuplicate={handleElementDuplicate}
-              />
-            )}
-            {activeTab === 'background' && templateForBackgroundManager && (
-              <BackgroundImageManager
-                template={templateForBackgroundManager}
-                onUpdate={handlePageBackgroundUpdate}
-                pageId={pages[currentPageIndex]?.id}
-              />
-            )}
-            {activeTab === 'fonts' && (
-              <CustomFontManager />
-            )}
+            {/* Content - avec scroll interne pour ne pas affecter le canvas */}
+            <div className="flex-1 overflow-auto">
+              {activeTab === 'elements' && (
+                <ElementPropertiesPanel
+                  element={selectedElement}
+                  customFonts={[]}
+                  onChange={handleElementChange}
+                  onDelete={handleElementDelete}
+                  onDuplicate={handleElementDuplicate}
+                />
+              )}
+              {activeTab === 'background' && templateForBackgroundManager && (
+                <BackgroundImageManager
+                  template={templateForBackgroundManager}
+                  onUpdate={handlePageBackgroundUpdate}
+                  pageId={pages[currentPageIndex]?.id}
+                />
+              )}
+              {activeTab === 'fonts' && (
+                <CustomFontManager />
+              )}
+            </div>
           </div>
         </div>
       </div>
