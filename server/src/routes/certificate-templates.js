@@ -1060,15 +1060,26 @@ router.post('/:id/upload-background',
       }
 
       // Trouver la page correspondante
-      const pageIndex = templateConfig.pages.findIndex(p => p.id === pageId);
+      let pageIndex = templateConfig.pages.findIndex(p => p.id === pageId);
 
+      // Si la page n'existe pas, la créer automatiquement
+      // Cela arrive quand on ajoute une nouvelle page côté frontend et qu'on upload un background avant de sauvegarder
       if (pageIndex === -1) {
-        // Page non trouvée, supprimer le fichier uploadé
-        deleteFile(req.file.path);
-        return res.status(404).json({
-          success: false,
-          error: `Page with id '${pageId}' not found in template`,
+        console.log(`📄 Page ${pageId} not found, creating it automatically`);
+        const pageName = templateConfig.pages.length === 0 ? 'Recto' :
+                         templateConfig.pages.length === 1 ? 'Verso' :
+                         `Page ${templateConfig.pages.length + 1}`;
+
+        templateConfig.pages.push({
+          id: pageId,
+          name: pageName,
+          elements: [],
+          background_image_url: null,
+          background_image_type: null,
         });
+
+        pageIndex = templateConfig.pages.length - 1;
+        console.log(`✓ Created page "${pageName}" with id ${pageId}`);
       }
 
       // NOTE: On ne supprime plus automatiquement l'ancien fichier car il peut être partagé
@@ -1203,18 +1214,28 @@ router.post('/:id/background-url',
       let templateConfig = oldTemplate.template_config || {};
 
       if (!templateConfig.pages || !Array.isArray(templateConfig.pages)) {
-        return res.status(404).json({
-          success: false,
-          error: 'No pages found in template',
-        });
+        templateConfig.pages = [];
       }
 
-      const pageIndex = templateConfig.pages.findIndex(p => p.id === pageId);
+      let pageIndex = templateConfig.pages.findIndex(p => p.id === pageId);
+
+      // Si la page n'existe pas, la créer automatiquement
       if (pageIndex === -1) {
-        return res.status(404).json({
-          success: false,
-          error: `Page with id '${pageId}' not found`,
+        console.log(`📄 Page ${pageId} not found, creating it automatically`);
+        const pageName = templateConfig.pages.length === 0 ? 'Recto' :
+                         templateConfig.pages.length === 1 ? 'Verso' :
+                         `Page ${templateConfig.pages.length + 1}`;
+
+        templateConfig.pages.push({
+          id: pageId,
+          name: pageName,
+          elements: [],
+          background_image_url: null,
+          background_image_type: null,
         });
+
+        pageIndex = templateConfig.pages.length - 1;
+        console.log(`✓ Created page "${pageName}" with id ${pageId}`);
       }
 
       // NOTE: On ne supprime plus automatiquement l'ancien fichier car il peut être partagé
