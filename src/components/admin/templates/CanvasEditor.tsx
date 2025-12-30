@@ -255,6 +255,14 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
     if (element.type === 'text') {
       const width = typeof element.width === 'number' ? element.width : 150;
       const height = typeof element.height === 'number' ? element.height : 30;
+      const fontSize = element.fontSize || 12;
+      // Calculer une hauteur minimum basée sur la taille de police + padding
+      const minHeight = Math.max(fontSize * 1.5 + 8, 20);
+      // Utiliser la hauteur stockée ou la hauteur minimum
+      const actualHeight = Math.max(height, minHeight);
+
+      // Déterminer l'alignement horizontal CSS
+      const textAlign = element.align === 'center' ? 'center' : element.align === 'right' ? 'right' : 'left';
 
       return (
         <div key={element.id}>
@@ -262,31 +270,41 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
             style={{
               ...baseStyle,
               width: `${width}px`,
-              height: `${height}px`,
-              padding: '4px 8px',
-              fontSize: `${element.fontSize || 12}px`,
-              fontFamily: element.fontFamily || 'helvetica',
-              fontWeight: element.fontStyle?.includes('bold') ? 'bold' : 'normal',
-              fontStyle: element.fontStyle?.includes('italic') ? 'italic' : 'normal',
-              color: element.color || '#000000',
-              textAlign: (element.align as any) || 'left',
-              whiteSpace: 'normal',
-              wordWrap: 'break-word',
-              overflow: 'hidden',
+              height: `${actualHeight}px`,
+              // Utiliser CSS Grid pour un centrage vertical parfait
+              display: 'grid',
+              placeItems: 'center',
               backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
+              boxSizing: 'border-box',
             }}
             onMouseDown={(e) => handleMouseDown(e, element)}
           >
-            {element.content || 'Texte vide'}
+            <span
+              style={{
+                width: '100%',
+                padding: '0 8px',
+                fontSize: `${fontSize}px`,
+                fontFamily: element.fontFamily || 'helvetica',
+                fontWeight: element.fontStyle?.includes('bold') ? 'bold' : 'normal',
+                fontStyle: element.fontStyle?.includes('italic') ? 'italic' : 'normal',
+                color: element.color || '#000000',
+                textAlign: textAlign,
+                whiteSpace: 'normal',
+                wordWrap: 'break-word',
+                lineHeight: 1.2,
+              }}
+            >
+              {element.content || 'Texte vide'}
+            </span>
           </div>
-          {/* Quick action toolbar for text elements - positioned outside canvas to not obscure other elements */}
+          {/* Resize handle - positionné en bas à droite de l'élément texte */}
           {isSelected && (
             <div
               className="resize-handle"
               style={{
                 position: 'absolute',
                 left: `${x + width - 8}px`,
-                top: `${y + height - 8}px`,
+                top: `${y + actualHeight - 8}px`,
                 width: '16px',
                 height: '16px',
                 backgroundColor: '#3B82F6',
