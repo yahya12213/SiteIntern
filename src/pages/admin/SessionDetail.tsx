@@ -258,7 +258,8 @@ export const SessionDetail: React.FC = () => {
               completion_date: new Date().toISOString(),
               grade: null,
               document_type: template.document_type || 'certificat',
-              template_name: template.template_name
+              template_name: template.template_name,
+              replace_existing: true // Permet de régénérer les documents existants
             };
 
             const response = await apiClient.post('/certificates/generate', requestData) as { success: boolean; error?: string };

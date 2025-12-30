@@ -468,345 +468,350 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-gray-100">
-      {/* Fixed Toolbar - above canvas, always visible when element is selected */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2 min-h-[52px] flex-shrink-0">
-        {/* Multi-selection toolbar - PowerPoint style */}
-        {hasMultipleSelection ? (
-          <>
-            <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
-              <span className="text-sm font-medium text-blue-700">
-                {selectedIds.length} éléments
-              </span>
-            </div>
-
-            <div className="w-px h-6 bg-gray-300" />
-
-            {/* Align to canvas - like PowerPoint */}
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500 mr-1">Aligner:</span>
-              {/* Horizontal alignment - aligns elements left/center/right */}
-              <div className="flex items-center gap-0.5 bg-blue-50 rounded-lg p-0.5 border border-blue-200">
-                <button
-                  onClick={() => onAlignMultipleElements?.('left')}
-                  className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
-                  title="Aligner à gauche"
-                >
-                  <AlignHorizontalJustifyStart className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => onAlignMultipleElements?.('center')}
-                  className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
-                  title="Centrer horizontalement"
-                >
-                  <AlignHorizontalJustifyCenter className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => onAlignMultipleElements?.('right')}
-                  className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
-                  title="Aligner à droite"
-                >
-                  <AlignHorizontalJustifyEnd className="h-4 w-4" />
-                </button>
+      {/* Fixed Toolbar - Stable layout with two fixed zones */}
+      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center h-[52px] flex-shrink-0">
+        {/* Left zone - contextual tools (takes remaining space, hidden overflow) */}
+        <div className="flex-1 flex items-center gap-2 overflow-hidden min-w-0">
+          {/* Multi-selection toolbar - PowerPoint style */}
+          {hasMultipleSelection ? (
+            <>
+              <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200 flex-shrink-0">
+                <span className="text-sm font-medium text-blue-700">
+                  {selectedIds.length} éléments
+                </span>
               </div>
-              {/* Vertical alignment - aligns elements top/middle/bottom */}
-              <div className="flex items-center gap-0.5 bg-blue-50 rounded-lg p-0.5 ml-1 border border-blue-200">
-                <button
-                  onClick={() => onAlignMultipleElements?.('top')}
-                  className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
-                  title="Aligner en haut"
-                >
-                  <AlignVerticalJustifyStart className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => onAlignMultipleElements?.('middle')}
-                  className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
-                  title="Centrer verticalement"
-                >
-                  <AlignVerticalJustifyCenter className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => onAlignMultipleElements?.('bottom')}
-                  className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
-                  title="Aligner en bas"
-                >
-                  <AlignVerticalJustifyEnd className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
 
-            {/* Distribution tools - like PowerPoint */}
-            <div className="w-px h-6 bg-gray-300" />
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500 mr-1">Distribuer:</span>
-              <div className="flex items-center gap-0.5 bg-green-50 rounded-lg p-0.5 border border-green-200">
-                <button
-                  onClick={() => onDistributeElements?.('horizontal')}
-                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
-                  title="Distribuer horizontalement"
-                >
-                  <AlignHorizontalSpaceBetween className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => onDistributeElements?.('vertical')}
-                  className="p-1.5 rounded hover:bg-green-200 text-green-700"
-                  title="Distribuer verticalement"
-                >
-                  <AlignVerticalSpaceBetween className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+              <div className="w-px h-6 bg-gray-300 flex-shrink-0" />
 
-            <div className="ml-auto text-xs text-gray-400">
-              Ctrl+clic pour sélectionner
-            </div>
-          </>
-        ) : selectedElement ? (
-          <>
-            {/* Text formatting tools - only for text elements */}
-            {selectedElement.type === 'text' && (
-              <>
-                {/* Text alignment */}
-                <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5">
+              {/* Align to canvas - like PowerPoint */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <span className="text-xs text-gray-500 mr-1">Aligner:</span>
+                {/* Horizontal alignment - aligns elements left/center/right */}
+                <div className="flex items-center gap-0.5 bg-blue-50 rounded-lg p-0.5 border border-blue-200">
                   <button
-                    onClick={() => onElementUpdate?.({ ...selectedElement, align: 'left' })}
-                    className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.align === 'left' || !selectedElement.align ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                    onClick={() => onAlignMultipleElements?.('left')}
+                    className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
                     title="Aligner à gauche"
                   >
-                    <AlignLeft className="h-4 w-4" />
+                    <AlignHorizontalJustifyStart className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => onElementUpdate?.({ ...selectedElement, align: 'center' })}
-                    className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.align === 'center' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
-                    title="Centrer le texte"
+                    onClick={() => onAlignMultipleElements?.('center')}
+                    className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
+                    title="Centrer horizontalement"
                   >
-                    <AlignCenter className="h-4 w-4" />
+                    <AlignHorizontalJustifyCenter className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => onElementUpdate?.({ ...selectedElement, align: 'right' })}
-                    className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.align === 'right' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                    onClick={() => onAlignMultipleElements?.('right')}
+                    className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
                     title="Aligner à droite"
                   >
-                    <AlignRight className="h-4 w-4" />
+                    <AlignHorizontalJustifyEnd className="h-4 w-4" />
                   </button>
                 </div>
+                {/* Vertical alignment - aligns elements top/middle/bottom */}
+                <div className="flex items-center gap-0.5 bg-blue-50 rounded-lg p-0.5 ml-1 border border-blue-200">
+                  <button
+                    onClick={() => onAlignMultipleElements?.('top')}
+                    className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
+                    title="Aligner en haut"
+                  >
+                    <AlignVerticalJustifyStart className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => onAlignMultipleElements?.('middle')}
+                    className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
+                    title="Centrer verticalement"
+                  >
+                    <AlignVerticalJustifyCenter className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => onAlignMultipleElements?.('bottom')}
+                    className="p-1.5 rounded hover:bg-blue-200 text-blue-700"
+                    title="Aligner en bas"
+                  >
+                    <AlignVerticalJustifyEnd className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
 
-                <div className="w-px h-6 bg-gray-300" />
+              {/* Distribution tools - like PowerPoint */}
+              <div className="w-px h-6 bg-gray-300 flex-shrink-0" />
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <span className="text-xs text-gray-500 mr-1">Distribuer:</span>
+                <div className="flex items-center gap-0.5 bg-green-50 rounded-lg p-0.5 border border-green-200">
+                  <button
+                    onClick={() => onDistributeElements?.('horizontal')}
+                    className="p-1.5 rounded hover:bg-green-200 text-green-700"
+                    title="Distribuer horizontalement"
+                  >
+                    <AlignHorizontalSpaceBetween className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => onDistributeElements?.('vertical')}
+                    className="p-1.5 rounded hover:bg-green-200 text-green-700"
+                    title="Distribuer verticalement"
+                  >
+                    <AlignVerticalSpaceBetween className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
 
-                {/* Font family */}
-                <select
-                  value={selectedElement.fontFamily || 'helvetica'}
-                  onChange={(e) => onElementUpdate?.({ ...selectedElement, fontFamily: e.target.value })}
-                  className="text-xs bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  title="Police"
-                >
-                  {FONT_FAMILIES.map((font) => (
-                    <option key={font} value={font}>
-                      {font.charAt(0).toUpperCase() + font.slice(1)}
-                    </option>
-                  ))}
-                </select>
+              <span className="text-xs text-gray-400 ml-auto flex-shrink-0">
+                Ctrl+clic pour sélectionner
+              </span>
+            </>
+          ) : selectedElement ? (
+            <>
+              {/* Text formatting tools - only for text elements */}
+              {selectedElement.type === 'text' && (
+                <>
+                  {/* Text alignment */}
+                  <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5 flex-shrink-0">
+                    <button
+                      onClick={() => onElementUpdate?.({ ...selectedElement, align: 'left' })}
+                      className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.align === 'left' || !selectedElement.align ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                      title="Aligner à gauche"
+                    >
+                      <AlignLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => onElementUpdate?.({ ...selectedElement, align: 'center' })}
+                      className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.align === 'center' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                      title="Centrer le texte"
+                    >
+                      <AlignCenter className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => onElementUpdate?.({ ...selectedElement, align: 'right' })}
+                      className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.align === 'right' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                      title="Aligner à droite"
+                    >
+                      <AlignRight className="h-4 w-4" />
+                    </button>
+                  </div>
 
-                <div className="w-px h-6 bg-gray-300" />
+                  <div className="w-px h-6 bg-gray-300 flex-shrink-0" />
 
-                {/* Font style */}
+                  {/* Font family */}
+                  <select
+                    value={selectedElement.fontFamily || 'helvetica'}
+                    onChange={(e) => onElementUpdate?.({ ...selectedElement, fontFamily: e.target.value })}
+                    className="text-xs bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 flex-shrink-0 w-[100px]"
+                    title="Police"
+                  >
+                    {FONT_FAMILIES.map((font) => (
+                      <option key={font} value={font}>
+                        {font.charAt(0).toUpperCase() + font.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="w-px h-6 bg-gray-300 flex-shrink-0" />
+
+                  {/* Font style */}
+                  <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5 flex-shrink-0">
+                    <button
+                      onClick={() => {
+                        const currentStyle = selectedElement.fontStyle || 'normal';
+                        const isBold = currentStyle.includes('bold');
+                        const isItalic = currentStyle.includes('italic');
+                        const newStyle: 'bold' | 'normal' | 'italic' | 'bolditalic' = isBold
+                          ? isItalic ? 'italic' : 'normal'
+                          : isItalic ? 'bolditalic' : 'bold';
+                        onElementUpdate?.({ ...selectedElement, fontStyle: newStyle });
+                      }}
+                      className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.fontStyle?.includes('bold') ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                      title="Gras"
+                    >
+                      <Bold className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        const currentStyle = selectedElement.fontStyle || 'normal';
+                        const isBold = currentStyle.includes('bold');
+                        const isItalic = currentStyle.includes('italic');
+                        const newStyle: 'bold' | 'normal' | 'italic' | 'bolditalic' = isItalic
+                          ? isBold ? 'bold' : 'normal'
+                          : isBold ? 'bolditalic' : 'italic';
+                        onElementUpdate?.({ ...selectedElement, fontStyle: newStyle });
+                      }}
+                      className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.fontStyle?.includes('italic') ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+                      title="Italique"
+                    >
+                      <Italic className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="w-px h-6 bg-gray-300 flex-shrink-0" />
+
+                  {/* Font size */}
+                  <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-1 py-0.5 flex-shrink-0">
+                    <button
+                      onClick={() => onElementUpdate?.({ ...selectedElement, fontSize: Math.max(8, (selectedElement.fontSize || 12) - 2) })}
+                      className="p-1 rounded hover:bg-gray-200 text-gray-600"
+                      title="Réduire la taille"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <span className="text-xs font-medium text-gray-700 w-[36px] text-center">
+                      {selectedElement.fontSize || 12}px
+                    </span>
+                    <button
+                      onClick={() => onElementUpdate?.({ ...selectedElement, fontSize: Math.min(200, (selectedElement.fontSize || 12) + 2) })}
+                      className="p-1 rounded hover:bg-gray-200 text-gray-600"
+                      title="Augmenter la taille"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+
+                  <div className="w-px h-6 bg-gray-300 flex-shrink-0" />
+
+                  {/* Color */}
+                  <div className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2 py-1 flex-shrink-0">
+                    <Palette className="h-4 w-4 text-gray-500" />
+                    <input
+                      type="color"
+                      title="Couleur du texte"
+                      value={selectedElement.color || '#000000'}
+                      onChange={(e) => onElementUpdate?.({ ...selectedElement, color: e.target.value })}
+                      className="w-6 h-6 rounded border border-gray-300 cursor-pointer p-0"
+                    />
+                  </div>
+
+                  <div className="w-px h-6 bg-gray-300 flex-shrink-0" />
+                </>
+              )}
+
+              {/* Canvas alignment tools - for ALL element types */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <span className="text-xs text-gray-500 mr-1 hidden lg:inline">Aligner:</span>
                 <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5">
                   <button
-                    onClick={() => {
-                      const currentStyle = selectedElement.fontStyle || 'normal';
-                      const isBold = currentStyle.includes('bold');
-                      const isItalic = currentStyle.includes('italic');
-                      const newStyle: 'bold' | 'normal' | 'italic' | 'bolditalic' = isBold
-                        ? isItalic ? 'italic' : 'normal'
-                        : isItalic ? 'bolditalic' : 'bold';
-                      onElementUpdate?.({ ...selectedElement, fontStyle: newStyle });
-                    }}
-                    className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.fontStyle?.includes('bold') ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
-                    title="Gras"
+                    onClick={() => onAlignElements?.('left')}
+                    className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+                    title="Aligner à gauche du canvas"
                   >
-                    <Bold className="h-4 w-4" />
+                    <AlignHorizontalJustifyStart className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => {
-                      const currentStyle = selectedElement.fontStyle || 'normal';
-                      const isBold = currentStyle.includes('bold');
-                      const isItalic = currentStyle.includes('italic');
-                      const newStyle: 'bold' | 'normal' | 'italic' | 'bolditalic' = isItalic
-                        ? isBold ? 'bold' : 'normal'
-                        : isBold ? 'bolditalic' : 'italic';
-                      onElementUpdate?.({ ...selectedElement, fontStyle: newStyle });
-                    }}
-                    className={`p-1.5 rounded hover:bg-gray-200 ${selectedElement.fontStyle?.includes('italic') ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
-                    title="Italique"
+                    onClick={() => onAlignElements?.('center')}
+                    className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+                    title="Centrer horizontalement"
                   >
-                    <Italic className="h-4 w-4" />
+                    <AlignHorizontalJustifyCenter className="h-4 w-4" />
                   </button>
-                </div>
-
-                <div className="w-px h-6 bg-gray-300" />
-
-                {/* Font size */}
-                <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-1 py-0.5">
                   <button
-                    onClick={() => onElementUpdate?.({ ...selectedElement, fontSize: Math.max(8, (selectedElement.fontSize || 12) - 2) })}
-                    className="p-1 rounded hover:bg-gray-200 text-gray-600"
-                    title="Réduire la taille"
+                    onClick={() => onAlignElements?.('right')}
+                    className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+                    title="Aligner à droite du canvas"
                   >
-                    <Minus className="h-3 w-3" />
+                    <AlignHorizontalJustifyEnd className="h-4 w-4" />
                   </button>
-                  <span className="text-xs font-medium text-gray-700 min-w-[36px] text-center">
-                    {selectedElement.fontSize || 12}px
-                  </span>
+                </div>
+                <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5 ml-1">
                   <button
-                    onClick={() => onElementUpdate?.({ ...selectedElement, fontSize: Math.min(200, (selectedElement.fontSize || 12) + 2) })}
-                    className="p-1 rounded hover:bg-gray-200 text-gray-600"
-                    title="Augmenter la taille"
+                    onClick={() => onAlignElements?.('top')}
+                    className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+                    title="Aligner en haut du canvas"
                   >
-                    <Plus className="h-3 w-3" />
+                    <AlignVerticalJustifyStart className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => onAlignElements?.('middle')}
+                    className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+                    title="Centrer verticalement"
+                  >
+                    <AlignVerticalJustifyCenter className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => onAlignElements?.('bottom')}
+                    className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+                    title="Aligner en bas du canvas"
+                  >
+                    <AlignVerticalJustifyEnd className="h-4 w-4" />
                   </button>
                 </div>
+              </div>
 
-                <div className="w-px h-6 bg-gray-300" />
+              <div className="w-px h-6 bg-gray-300 flex-shrink-0" />
 
-                {/* Color */}
-                <div className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2 py-1">
-                  <Palette className="h-4 w-4 text-gray-500" />
-                  <input
-                    type="color"
-                    title="Couleur du texte"
-                    value={selectedElement.color || '#000000'}
-                    onChange={(e) => onElementUpdate?.({ ...selectedElement, color: e.target.value })}
-                    className="w-6 h-6 rounded border border-gray-300 cursor-pointer p-0"
-                  />
-                </div>
-
-                <div className="w-px h-6 bg-gray-300" />
-              </>
-            )}
-
-            {/* Canvas alignment tools - for ALL element types */}
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500 mr-1">Aligner sur canvas:</span>
-              <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5">
+              {/* Duplicate and Delete */}
+              <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5 flex-shrink-0">
                 <button
-                  onClick={() => onAlignElements?.('left')}
-                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
-                  title="Aligner à gauche du canvas"
+                  onClick={() => onElementDuplicate?.(selectedElement)}
+                  className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
+                  title="Dupliquer"
                 >
-                  <AlignHorizontalJustifyStart className="h-4 w-4" />
+                  <Copy className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => onAlignElements?.('center')}
-                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
-                  title="Centrer horizontalement"
+                  onClick={() => onElementDelete?.(selectedElement.id)}
+                  className="p-1.5 rounded hover:bg-red-100 text-red-600"
+                  title="Supprimer"
                 >
-                  <AlignHorizontalJustifyCenter className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => onAlignElements?.('right')}
-                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
-                  title="Aligner à droite du canvas"
-                >
-                  <AlignHorizontalJustifyEnd className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
-              <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5 ml-1">
-                <button
-                  onClick={() => onAlignElements?.('top')}
-                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
-                  title="Aligner en haut du canvas"
-                >
-                  <AlignVerticalJustifyStart className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => onAlignElements?.('middle')}
-                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
-                  title="Centrer verticalement"
-                >
-                  <AlignVerticalJustifyCenter className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => onAlignElements?.('bottom')}
-                  className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
-                  title="Aligner en bas du canvas"
-                >
-                  <AlignVerticalJustifyEnd className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
 
-            <div className="w-px h-6 bg-gray-300" />
+              {/* Position info - hidden on small screens */}
+              <span className="text-xs text-gray-400 ml-auto flex-shrink-0 hidden xl:inline">
+                X: {Math.round(Number(selectedElement.x) || 0)} | Y: {Math.round(Number(selectedElement.y) || 0)}
+                {selectedElement.width && ` | W: ${Math.round(Number(selectedElement.width))}`}
+                {selectedElement.height && ` | H: ${Math.round(Number(selectedElement.height))}`}
+              </span>
+            </>
+          ) : (
+            <span className="text-sm text-gray-400 italic">
+              Sélectionnez un élément pour voir les options d'édition
+            </span>
+          )}
+        </div>
 
-            {/* Duplicate and Delete */}
-            <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5">
-              <button
-                onClick={() => onElementDuplicate?.(selectedElement)}
-                className="p-1.5 rounded hover:bg-blue-100 text-blue-600"
-                title="Dupliquer"
-              >
-                <Copy className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => onElementDelete?.(selectedElement.id)}
-                className="p-1.5 rounded hover:bg-red-100 text-red-600"
-                title="Supprimer"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Position info */}
-            <div className="ml-auto text-xs text-gray-400">
-              X: {Math.round(Number(selectedElement.x) || 0)} | Y: {Math.round(Number(selectedElement.y) || 0)}
-              {selectedElement.width && ` | W: ${Math.round(Number(selectedElement.width))}`}
-              {selectedElement.height && ` | H: ${Math.round(Number(selectedElement.height))}`}
-            </div>
-          </>
-        ) : (
-          <div className="text-sm text-gray-400 italic">
-            Sélectionnez un élément pour voir les options d'édition et d'alignement
+        {/* Right zone - Zoom Controls (fixed width, never changes) */}
+        <div className="flex-shrink-0 ml-3 pl-3 border-l border-gray-200">
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              className="p-1.5 rounded hover:bg-gray-200 text-gray-600 disabled:opacity-50"
+              title="Zoom arrière"
+              disabled={zoom <= 0.25}
+            >
+              <ZoomOut className="h-4 w-4" />
+            </button>
+            <span className="text-xs font-medium text-gray-600 w-[40px] text-center">
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              className="p-1.5 rounded hover:bg-gray-200 text-gray-600 disabled:opacity-50"
+              title="Zoom avant"
+              disabled={zoom >= 3}
+            >
+              <ZoomIn className="h-4 w-4" />
+            </button>
+            <div className="w-px h-4 bg-gray-300 mx-1" />
+            <button
+              type="button"
+              onClick={handleZoomReset}
+              className="px-2 py-1 rounded hover:bg-gray-200 text-xs text-gray-600"
+              title="Réinitialiser zoom (100%)"
+            >
+              100%
+            </button>
+            <button
+              type="button"
+              onClick={handleZoomFit}
+              className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+              title="Ajuster à la taille de travail"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </button>
           </div>
-        )}
-
-        {/* Zoom Controls - always visible */}
-        <div className="ml-auto flex items-center gap-1 bg-gray-100 rounded-lg p-1 border border-gray-200">
-          <button
-            type="button"
-            onClick={handleZoomOut}
-            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 disabled:opacity-50"
-            title="Zoom arrière"
-            disabled={zoom <= 0.25}
-          >
-            <ZoomOut className="h-4 w-4" />
-          </button>
-          <span className="text-xs font-medium text-gray-600 min-w-[45px] text-center">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            type="button"
-            onClick={handleZoomIn}
-            className="p-1.5 rounded hover:bg-gray-200 text-gray-600 disabled:opacity-50"
-            title="Zoom avant"
-            disabled={zoom >= 3}
-          >
-            <ZoomIn className="h-4 w-4" />
-          </button>
-          <div className="w-px h-4 bg-gray-300 mx-1" />
-          <button
-            type="button"
-            onClick={handleZoomReset}
-            className="px-2 py-1 rounded hover:bg-gray-200 text-xs text-gray-600"
-            title="Réinitialiser zoom (100%)"
-          >
-            100%
-          </button>
-          <button
-            type="button"
-            onClick={handleZoomFit}
-            className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
-            title="Ajuster à la taille de travail"
-          >
-            <Maximize2 className="h-4 w-4" />
-          </button>
         </div>
       </div>
 

@@ -34,7 +34,7 @@ router.post('/generate',
   let createdFolders = [];
 
   try {
-    let { student_id, formation_id, session_id, completion_date, grade, metadata, template_id, document_type, template_name } = req.body;
+    let { student_id, formation_id, session_id, completion_date, grade, metadata, template_id, document_type, template_name, replace_existing } = req.body;
 
     // Validation des champs requis
     if (!student_id || !formation_id || !completion_date) {
@@ -92,12 +92,18 @@ router.post('/generate',
     }
 
     if (existingCert.rows.length > 0) {
-      console.log(`⚠️ Certificate already exists for student ${student_id}, formation ${formation_id}, session ${session_id || 'NULL'}, template_id ${template_id || 'N/A'}`);
-      return res.status(409).json({
-        success: false,
-        error: `Ce document existe déjà pour cet étudiant dans cette session`,
-        certificate_id: existingCert.rows[0].id,
-      });
+      if (replace_existing) {
+        // Supprimer l'ancien certificat pour le remplacer
+        console.log(`🔄 Replacing existing certificate ${existingCert.rows[0].id} for student ${student_id}, template_id ${template_id || 'N/A'}`);
+        await client.query('DELETE FROM certificates WHERE id = $1', [existingCert.rows[0].id]);
+      } else {
+        console.log(`⚠️ Certificate already exists for student ${student_id}, formation ${formation_id}, session ${session_id || 'NULL'}, template_id ${template_id || 'N/A'}`);
+        return res.status(409).json({
+          success: false,
+          error: `Ce document existe déjà pour cet étudiant dans cette session`,
+          certificate_id: existingCert.rows[0].id,
+        });
+      }
     }
 
     // Récupérer les informations de l'étudiant
