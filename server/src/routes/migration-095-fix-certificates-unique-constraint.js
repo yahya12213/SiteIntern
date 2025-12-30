@@ -8,7 +8,10 @@
  * This allows multiple different templates (even with same document_type) for the same student.
  */
 
+import express from 'express';
 import pool from '../config/database.js';
+
+const router = express.Router();
 
 export async function runMigration() {
   const client = await pool.connect();
@@ -103,8 +106,8 @@ export async function runMigration() {
   }
 }
 
-// Route handler for manual execution
-export default async function handler(req, res) {
+// Express routes for manual execution
+router.post('/', async (req, res) => {
   try {
     const result = await runMigration();
     res.json(result);
@@ -114,4 +117,18 @@ export default async function handler(req, res) {
       error: error.message
     });
   }
-}
+});
+
+router.get('/', async (req, res) => {
+  try {
+    const result = await runMigration();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+export default router;
