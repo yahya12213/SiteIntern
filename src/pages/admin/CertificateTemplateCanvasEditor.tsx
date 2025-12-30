@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Save, X, Grid3x3, Eye, Plus, FileText } from 'lucide-react';
+import { ArrowLeft, Save, X, Grid3x3, Eye, Plus, FileText, Undo2, Redo2 } from 'lucide-react';
 import { useCertificateTemplate, useUpdateTemplate, useCreateTemplate } from '@/hooks/useCertificateTemplates';
 import type { CertificateTemplate, TemplateElement, TemplatePage } from '@/types/certificateTemplate';
 import { getTemplatePages, createNewPage, generatePageId } from '@/types/certificateTemplate';
@@ -79,6 +79,12 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
   // États pour le support multi-pages (recto-verso)
   const [pages, setPages] = useState<TemplatePage[]>([]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+
+  // États pour l'historique Undo/Redo
+  const [history, setHistory] = useState<TemplateElement[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const isUndoRedoRef = useRef(false);
+  const MAX_HISTORY = 50; // Limite de l'historique
 
   // Calculer les dimensions du canvas dynamiquement en fonction du format et de l'orientation
   const canvasSize = useMemo(() => {
@@ -290,6 +296,124 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
       }
     }
   };
+
+  // ============================================
+  // Système d'historique Undo/Redo
+  // ============================================
+
+  // Sauvegarder l'état dans l'historique
+  const saveToHistory = useCallback((newElements: TemplateElement[]) => {
+    // Ne pas sauvegarder si c'est une opération undo/redo
+    if (isUndoRedoRef.current) return;
+
+    setHistory(prev => {
+      // Supprimer les états "futurs" si on est au milieu de l'historique
+      const newHistory = prev.slice(0, historyIndex + 1);
+
+      // Ajouter le nouvel état
+      newHistory.push(JSON.parse(JSON.stringify(newElements)));
+
+      // Limiter la taille de l'historique
+      if (newHistory.length > MAX_HISTORY) {
+        newHistory.shift();
+        return newHistory;
+      }
+
+      return newHistory;
+    });
+
+    setHistoryIndex(prev => Math.min(prev + 1, MAX_HISTORY - 1));
+  }, [historyIndex, MAX_HISTORY]);
+
+  // Initialiser l'historique quand les éléments sont chargés
+  useEffect(() => {
+    if (elements.length > 0 && history.length === 0 && !isUndoRedoRef.current) {
+      setHistory([JSON.parse(JSON.stringify(elements))]);
+      setHistoryIndex(0);
+    }
+  }, [elements, history.length]);
+
+  // Réinitialiser l'historique quand on change de page
+  useEffect(() => {
+    if (isChangingPageRef.current) {
+      // Quand on change de page, réinitialiser l'historique pour cette page
+      setHistory([JSON.parse(JSON.stringify(elements))]);
+      setHistoryIndex(0);
+    }
+  }, [currentPageIndex]);
+
+  // Fonction Undo
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      isUndoRedoRef.current = true;
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setElements(JSON.parse(JSON.stringify(history[newIndex])));
+      setSelectedId(null);
+      setSelectedIds([]);
+
+      // Réactiver la sauvegarde après un court délai
+      setTimeout(() => {
+        isUndoRedoRef.current = false;
+      }, 50);
+    }
+  }, [history, historyIndex]);
+
+  // Fonction Redo
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      isUndoRedoRef.current = true;
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setElements(JSON.parse(JSON.stringify(history[newIndex])));
+      setSelectedId(null);
+      setSelectedIds([]);
+
+      // Réactiver la sauvegarde après un court délai
+      setTimeout(() => {
+        isUndoRedoRef.current = false;
+      }, 50);
+    }
+  }, [history, historyIndex]);
+
+  // Raccourcis clavier pour Undo/Redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignorer si on est dans un input ou textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          handleUndo();
+        } else if ((e.key === 'y') || (e.key === 'z' && e.shiftKey)) {
+          e.preventDefault();
+          handleRedo();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
+
+  // Sauvegarder dans l'historique quand les éléments changent (sauf pour undo/redo)
+  const previousElementsRef = useRef<string>('');
+  useEffect(() => {
+    if (isUndoRedoRef.current || isChangingPageRef.current) return;
+
+    const currentElementsStr = JSON.stringify(elements);
+    if (currentElementsStr !== previousElementsRef.current && previousElementsRef.current !== '') {
+      saveToHistory(elements);
+    }
+    previousElementsRef.current = currentElementsStr;
+  }, [elements, saveToHistory]);
+
+  // États pour les boutons Undo/Redo
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
 
   // Sauvegarder
   const handleSave = async () => {
@@ -855,6 +979,28 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
               {/* Dimension du canvas (affichage info) */}
               <div className="px-3 py-2 text-xs bg-gray-50 text-gray-600 rounded-lg border border-gray-200">
                 {canvasSize.width} × {canvasSize.height} px
+              </div>
+
+              {/* Boutons Undo/Redo */}
+              <div className="flex items-center gap-1 border-l border-gray-300 pl-3">
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  disabled={!canUndo}
+                  className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Annuler (Ctrl+Z)"
+                >
+                  <Undo2 className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRedo}
+                  disabled={!canRedo}
+                  className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Rétablir (Ctrl+Y)"
+                >
+                  <Redo2 className="h-5 w-5" />
+                </button>
               </div>
 
               <button
