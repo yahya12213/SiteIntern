@@ -94,9 +94,15 @@ export class CertificatePDFGenerator {
     const fonts = templateConfig.fonts || {};
 
     // Render first page (we'll support multi-page later)
-    if (pages.length > 0) {
+    if (pages.length > 0 && pages[0]) {
       const page = pages[0];
       const elements = page.elements || [];
+
+      if (!Array.isArray(elements)) {
+        console.warn('Elements is not an array, using default certificate');
+        this.renderDefaultCertificate(doc, certificate);
+        return;
+      }
 
       elements.forEach(element => {
         try {
@@ -134,15 +140,25 @@ export class CertificatePDFGenerator {
    * @param {Object} fonts - Font configurations
    */
   renderTextElement(doc, element, certificate, fonts) {
+    if (!element) {
+      console.warn('renderTextElement: element is undefined');
+      return;
+    }
+
     const content = this.substituteVariables(element.content || '', certificate);
-    const x = this.resolvePosition(element.x, doc.page.width);
-    const y = this.resolvePosition(element.y, doc.page.height);
+    const x = this.resolvePosition(element.x || 0, doc.page.width);
+    const y = this.resolvePosition(element.y || 0, doc.page.height);
     const fontSize = element.fontSize || 12;
     const color = element.color || '#000000';
     const align = element.align || 'left';
 
     // Set font (PDFKit has limited font support, we'll use built-in fonts)
-    doc.font(this.resolveFont(element.font || 'Helvetica'));
+    try {
+      doc.font(this.resolveFont(element.font || 'Helvetica'));
+    } catch (fontError) {
+      console.warn('Font error, using Helvetica:', fontError);
+      doc.font('Helvetica');
+    }
 
     // Set font size and color
     doc.fontSize(fontSize);
@@ -407,6 +423,10 @@ export class CertificatePDFGenerator {
    * @returns {number} - Resolved position in pixels
    */
   resolvePosition(position, dimension) {
+    if (position === undefined || position === null) {
+      return 0;
+    }
+
     if (position === 'center') {
       return dimension / 2;
     }
@@ -416,10 +436,31 @@ export class CertificatePDFGenerator {
     }
 
     if (typeof position === 'string') {
-      // Handle expressions like "width / 2" or "height - 100"
+      // Handle percentage values like "50%"
+      if (position.endsWith('%')) {
+        const percent = parseFloat(position);
+        if (!isNaN(percent)) {
+          return (percent / 100) * dimension;
+        }
+      }
+
+      // Handle simple expressions like "width / 2" or "height - 100"
       try {
-        const expr = position.replace(/width/g, dimension.toString()).replace(/height/g, dimension.toString());
-        return eval(expr);
+        // Safer expression evaluation without eval
+        const cleanExpr = position
+          .replace(/width/gi, dimension.toString())
+          .replace(/height/gi, dimension.toString());
+
+        // Only allow numbers, operators, and whitespace
+        if (/^[\d\s+\-*/().]+$/.test(cleanExpr)) {
+          // Use Function constructor as safer alternative to eval
+          const result = new Function('return ' + cleanExpr)();
+          if (!isNaN(result)) {
+            return result;
+          }
+        }
+
+        return parseFloat(position) || 0;
       } catch {
         return parseFloat(position) || 0;
       }

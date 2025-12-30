@@ -156,6 +156,7 @@ import migration091Router from './routes/migration-091-sync-role-ids.js';
 import migration092Router from './routes/migration-092-template-folders-permissions.js';
 import migration093Router from './routes/migration-093-fix-formation-templates-badge.js';
 import migration094Router from './routes/migration-094-fix-badge-document-types.js';
+import migration095Router from './routes/migration-095-fix-certificates-unique-constraint.js';
 import visitsRouter from './routes/visits.js';
 
 const app = express();
@@ -365,6 +366,7 @@ app.use('/api/migration-091-sync-role-ids', ...adminOnly, migration091Router);
 app.use('/api/migration-092-template-folders-permissions', ...adminOnly, migration092Router);
 app.use('/api/migration-093-fix-formation-templates-badge', ...adminOnly, migration093Router);
 app.use('/api/migration-094-fix-badge-document-types', ...adminOnly, migration094Router);
+app.use('/api/migration-095-fix-certificates-unique-constraint', ...adminOnly, migration095Router);
 
 // Health check
 app.get('/api/health', async (req, res) => {
