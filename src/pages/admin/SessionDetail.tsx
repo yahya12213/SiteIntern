@@ -11,9 +11,6 @@ import { SessionDocumentsDownloadModal } from '@/components/admin/sessions-forma
 import { ImageCropperModal } from '@/components/admin/students/ImageCropperModal';
 import { apiClient } from '@/lib/api/client';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { CertificateTemplateEngine } from '@/lib/utils/certificateTemplateEngine';
-import type { Certificate } from '@/lib/api/certificates';
-import type { CertificateTemplate } from '@/types/certificateTemplate';
 import {
   Calendar,
   MapPin,
@@ -57,8 +54,9 @@ export const SessionDetail: React.FC = () => {
   const [isChangingStatus, setIsChangingStatus] = useState(false);
   const [showBulkDocumentModal, setShowBulkDocumentModal] = useState(false);
   const [bulkTemplates, setBulkTemplates] = useState<any[]>([]);
+  const [selectedTemplates, setSelectedTemplates] = useState<Set<string>>(new Set());
   const [generatingBulkDocuments, setGeneratingBulkDocuments] = useState(false);
-  const [bulkGenerationProgress, setBulkGenerationProgress] = useState({ current: 0, total: 0, templateName: '' });
+  const [bulkGenerationProgress, setBulkGenerationProgress] = useState({ current: 0, total: 0, templateName: '', templateIndex: 0, totalTemplates: 0 });
   const [showSessionDocumentsModal, setShowSessionDocumentsModal] = useState(false);
 
   const handleDeleteStudent = async (etudiant: any) => {
@@ -193,8 +191,36 @@ export const SessionDetail: React.FC = () => {
     }
   };
 
-  // Générer les documents en masse
-  const handleBulkDocumentGeneration = async (template: any) => {
+  // Toggle template selection
+  const toggleTemplateSelection = (templateId: string) => {
+    setSelectedTemplates(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(templateId)) {
+        newSet.delete(templateId);
+      } else {
+        newSet.add(templateId);
+      }
+      return newSet;
+    });
+  };
+
+  // Select/deselect all templates
+  const toggleAllTemplates = () => {
+    if (selectedTemplates.size === bulkTemplates.length) {
+      setSelectedTemplates(new Set());
+    } else {
+      setSelectedTemplates(new Set(bulkTemplates.map((t: any) => t.template_id)));
+    }
+  };
+
+  // Générer les documents pour TOUS les templates sélectionnés
+  const handleBulkDocumentGenerationAll = async () => {
+    if (selectedTemplates.size === 0) {
+      alert('Veuillez sélectionner au moins un type de document');
+      return;
+    }
+
+    const templatesToGenerate = bulkTemplates.filter((t: any) => selectedTemplates.has(t.template_id));
     const selectedEtudiants = session?.etudiants?.filter(
       (e: any) => selectedStudents.has(e.student_id) && e.student_status !== 'abandonne'
     ) || [];
@@ -205,162 +231,61 @@ export const SessionDetail: React.FC = () => {
     }
 
     setGeneratingBulkDocuments(true);
-    setBulkGenerationProgress({ current: 0, total: selectedEtudiants.length, templateName: template.template_name });
+    let totalSaved = 0;
 
     try {
-      // Récupérer le template complet
-      const templateResponse = await apiClient.get(`/certificate-templates/${template.template_id}`) as { success: boolean; template: CertificateTemplate };
-      const fullTemplate: CertificateTemplate = templateResponse.template;
+      for (let templateIndex = 0; templateIndex < templatesToGenerate.length; templateIndex++) {
+        const template = templatesToGenerate[templateIndex];
+        setBulkGenerationProgress({
+          current: 0,
+          total: selectedEtudiants.length,
+          templateName: template.template_name,
+          templateIndex: templateIndex + 1,
+          totalTemplates: templatesToGenerate.length
+        });
 
-      // Générer le premier document pour l'utiliser comme base
-      const firstEtudiant: any = selectedEtudiants[0];
-      setBulkGenerationProgress(prev => ({ ...prev, current: 1 }));
+        // Enregistrer chaque certificat en base de données
+        for (let i = 0; i < selectedEtudiants.length; i++) {
+          const etudiant = selectedEtudiants[i];
+          setBulkGenerationProgress(prev => ({ ...prev, current: i + 1 }));
 
-      const firstCertificateData: Certificate = {
-        id: `temp-${Date.now()}-0`,
-        student_id: firstEtudiant.student_id,
-        formation_id: firstEtudiant.formation_id || '',
-        student_name: firstEtudiant.student_name,
-        student_email: firstEtudiant.student_email || '',
-        formation_title: firstEtudiant.formation_title || '',
-        formation_description: '',
-        duration_hours: 0,
-        certificate_number: `DOC-${Date.now()}-0`,
-        issued_at: new Date().toISOString(),
-        completion_date: new Date().toISOString(),
-        grade: null,
-        metadata: {
-          student_first_name: firstEtudiant.student_first_name || firstEtudiant.student_name?.split(' ')[0] || '',
-          student_last_name: firstEtudiant.student_last_name || firstEtudiant.student_name?.split(' ').slice(1).join(' ') || '',
-          cin: firstEtudiant.student_cin || '',
-          phone: firstEtudiant.student_phone || '',
-          whatsapp: firstEtudiant.student_whatsapp || '',
-          date_naissance: firstEtudiant.student_birth_date || '',
-          lieu_naissance: firstEtudiant.student_birth_place || '',
-          adresse: firstEtudiant.student_address || '',
-          organization_name: session?.titre || 'Session de Formation',
-          session_title: session?.titre || '',
-          session_date_debut: session?.date_debut || '',
-          session_date_fin: session?.date_fin || '',
-          session_ville: session?.ville_name || '',
-          session_segment: session?.segment_name || '',
-          session_corps_formation: session?.corps_formation_name || '',
-          student_photo_url: firstEtudiant.profile_image_url || '',
-          certificate_serial: `${firstEtudiant.student_id?.substring(0, 8) || 'XXXX'}-${Date.now().toString(36).toUpperCase()}`,
-        },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+          try {
+            const requestData = {
+              student_id: etudiant.student_id,
+              formation_id: etudiant.formation_id,
+              session_id: id || session?.id,
+              template_id: template.template_id,
+              completion_date: new Date().toISOString(),
+              grade: null,
+              document_type: template.document_type || 'certificat',
+              template_name: template.template_name
+            };
 
-      const firstEngine = new CertificateTemplateEngine(firstCertificateData, fullTemplate);
-      const combinedDoc = await firstEngine.generate();
+            const response = await apiClient.post('/certificates/generate', requestData) as { success: boolean; error?: string };
 
-      // Ajouter les pages pour les autres étudiants
-      for (let i = 1; i < selectedEtudiants.length; i++) {
-        const etudiant: any = selectedEtudiants[i];
-        setBulkGenerationProgress(prev => ({ ...prev, current: i + 1 }));
-
-        const certificateData: Certificate = {
-          id: `temp-${Date.now()}-${i}`,
-          student_id: etudiant.student_id,
-          formation_id: etudiant.formation_id || '',
-          student_name: etudiant.student_name,
-          student_email: etudiant.student_email || '',
-          formation_title: etudiant.formation_title || '',
-          formation_description: '',
-          duration_hours: 0,
-          certificate_number: `DOC-${Date.now()}-${i}`,
-          issued_at: new Date().toISOString(),
-          completion_date: new Date().toISOString(),
-          grade: null,
-          metadata: {
-            student_first_name: etudiant.student_first_name || etudiant.student_name?.split(' ')[0] || '',
-            student_last_name: etudiant.student_last_name || etudiant.student_name?.split(' ').slice(1).join(' ') || '',
-            cin: etudiant.student_cin || '',
-            phone: etudiant.student_phone || '',
-            whatsapp: etudiant.student_whatsapp || '',
-            date_naissance: etudiant.student_birth_date || '',
-            lieu_naissance: etudiant.student_birth_place || '',
-            adresse: etudiant.student_address || '',
-            organization_name: session?.titre || 'Session de Formation',
-            session_title: session?.titre || '',
-            session_date_debut: session?.date_debut || '',
-            session_date_fin: session?.date_fin || '',
-            session_ville: session?.ville_name || '',
-            session_segment: session?.segment_name || '',
-            session_corps_formation: session?.corps_formation_name || '',
-            student_photo_url: etudiant.profile_image_url || '',
-            certificate_serial: `${etudiant.student_id?.substring(0, 8) || 'XXXX'}-${Date.now().toString(36).toUpperCase()}`,
-          },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-
-        // Créer l'engine avec le document combiné existant
-        const engine = new CertificateTemplateEngine(certificateData, fullTemplate);
-        await engine.appendToDocument(combinedDoc);
-      }
-
-      // Téléchargement automatique désactivé (Option A)
-      // L'utilisateur peut télécharger via le bouton "Télécharger Documents"
-      // const sessionName = session?.titre?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Session';
-      // const templateName = template.document_type?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '') || 'Document';
-      // const filename = `${templateName}_${sessionName}_${selectedEtudiants.length}_etudiants.pdf`;
-      // combinedDoc.save(filename);
-
-      // Enregistrer chaque certificat en base de données
-      console.log('💾 Enregistrement des certificats en base de données...');
-      console.log('📋 Données template:', {
-        template_id: template.template_id,
-        document_type: template.document_type,
-        template_name: template.template_name
-      });
-      let savedCount = 0;
-
-      for (const etudiant of selectedEtudiants) {
-        try {
-          // Debug: afficher les données envoyées
-          const requestData = {
-            student_id: etudiant.student_id,
-            formation_id: etudiant.formation_id,
-            session_id: id || session?.id,
-            template_id: template.template_id,
-            completion_date: new Date().toISOString(),
-            grade: null,
-            document_type: template.document_type || 'certificat',
-            template_name: template.template_name
-          };
-          console.log(`📤 Envoi pour ${etudiant.student_name}:`, requestData);
-
-          const response = await apiClient.post('/certificates/generate', requestData) as { success: boolean; error?: string };
-
-          if (response.success) {
-            savedCount++;
-            console.log(`✅ Certificat enregistré pour ${etudiant.student_name}`);
-          } else {
-            console.error(`❌ Échec enregistrement pour ${etudiant.student_name}:`, response.error);
+            if (response.success) {
+              totalSaved++;
+            } else {
+              console.error(`❌ Échec enregistrement pour ${etudiant.student_name} (${template.template_name}):`, response.error);
+            }
+          } catch (error: any) {
+            console.error(`❌ Erreur enregistrement pour ${etudiant.student_name} (${template.template_name}):`, error.message);
           }
-        } catch (error: any) {
-          // Log détaillé pour debug
-          console.error(`❌ Erreur enregistrement pour ${etudiant.student_name}:`, {
-            message: error.message,
-            status: error.status,
-            code: error.code,
-            fullError: error
-          });
         }
       }
 
-      console.log(`✅ ${savedCount}/${selectedEtudiants.length} certificats enregistrés en base de données`);
-
       setShowBulkDocumentModal(false);
-      alert(`PDF combiné généré avec succès pour ${selectedEtudiants.length} étudiant(s)\n\n${savedCount} certificat(s) enregistré(s) en base de données`);
+      setSelectedTemplates(new Set());
+      alert(`${totalSaved} document(s) généré(s) avec succès!\n\n${templatesToGenerate.length} type(s) de document × ${selectedEtudiants.length} étudiant(s)`);
+
+      // Rafraîchir la page pour voir les nouveaux documents
+      window.location.reload();
     } catch (error: any) {
       console.error('Error generating bulk documents:', error);
       alert('Erreur lors de la génération: ' + error.message);
     } finally {
       setGeneratingBulkDocuments(false);
-      setBulkGenerationProgress({ current: 0, total: 0, templateName: '' });
+      setBulkGenerationProgress({ current: 0, total: 0, templateName: '', templateIndex: 0, totalTemplates: 0 });
     }
   };
 
@@ -1247,7 +1172,7 @@ export const SessionDetail: React.FC = () => {
                 Générer Documents en Masse
               </h3>
               <p className="text-sm text-gray-600 mt-1">
-                {selectedStudents.size} étudiant(s) sélectionné(s) - Choisissez le type de document
+                {selectedStudents.size} étudiant(s) sélectionné(s) - Sélectionnez les types de documents
               </p>
             </div>
 
@@ -1259,7 +1184,7 @@ export const SessionDetail: React.FC = () => {
                     Génération en cours...
                   </p>
                   <p className="text-sm text-gray-600 mt-1">
-                    {bulkGenerationProgress.templateName}
+                    Document {bulkGenerationProgress.templateIndex}/{bulkGenerationProgress.totalTemplates}: {bulkGenerationProgress.templateName}
                   </p>
                   <div className="mt-4 bg-gray-200 rounded-full h-2.5">
                     <div
@@ -1275,43 +1200,94 @@ export const SessionDetail: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="p-6 space-y-3 max-h-96 overflow-y-auto">
+              <div className="p-6 space-y-3">
                 {bulkTemplates.length === 0 ? (
                   <p className="text-sm text-gray-500 italic">
                     Aucun template disponible
                   </p>
                 ) : (
-                  bulkTemplates.map((template: any) => (
-                    <button
-                      key={template.template_id}
-                      onClick={() => handleBulkDocumentGeneration(template)}
-                      className="w-full p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {template.template_name}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {template.document_type}
-                          </p>
-                        </div>
-                        <FileDown className="h-5 w-5 text-blue-600" />
-                      </div>
-                    </button>
-                  ))
+                  <>
+                    {/* Bouton Tout sélectionner */}
+                    <div className="flex items-center justify-between pb-3 border-b border-gray-200">
+                      <button
+                        onClick={toggleAllTemplates}
+                        className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedTemplates.size === bulkTemplates.length}
+                          onChange={toggleAllTemplates}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        {selectedTemplates.size === bulkTemplates.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                      </button>
+                      <span className="text-sm text-gray-500">
+                        {selectedTemplates.size} / {bulkTemplates.length} sélectionné(s)
+                      </span>
+                    </div>
+
+                    {/* Liste des templates avec checkboxes */}
+                    <div className="max-h-72 overflow-y-auto space-y-2">
+                      {bulkTemplates.map((template: any) => (
+                        <label
+                          key={template.template_id}
+                          className={`w-full p-4 border rounded-lg cursor-pointer transition-colors flex items-center gap-3 ${
+                            selectedTemplates.has(template.template_id)
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedTemplates.has(template.template_id)}
+                            onChange={() => toggleTemplateSelection(template.template_id)}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">
+                              {template.template_name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {template.document_type}
+                            </p>
+                          </div>
+                          <FileDown className={`h-5 w-5 ${selectedTemplates.has(template.template_id) ? 'text-blue-600' : 'text-gray-400'}`} />
+                        </label>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             )}
 
-            <div className="p-6 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={() => setShowBulkDocumentModal(false)}
-                disabled={generatingBulkDocuments}
-                className="px-4 py-2 text-gray-700 hover:text-gray-900 disabled:opacity-50"
-              >
-                Fermer
-              </button>
+            <div className="p-6 border-t border-gray-200 flex justify-between items-center">
+              <p className="text-sm text-gray-600">
+                {selectedTemplates.size > 0 && !generatingBulkDocuments && (
+                  <>
+                    <span className="font-medium text-blue-600">{selectedTemplates.size * selectedStudents.size}</span> document(s) seront générés
+                  </>
+                )}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowBulkDocumentModal(false);
+                    setSelectedTemplates(new Set());
+                  }}
+                  disabled={generatingBulkDocuments}
+                  className="px-4 py-2 text-gray-700 hover:text-gray-900 disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleBulkDocumentGenerationAll}
+                  disabled={generatingBulkDocuments || selectedTemplates.size === 0}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <FileDown className="h-4 w-4" />
+                  Générer {selectedTemplates.size > 0 ? `(${selectedTemplates.size})` : ''}
+                </button>
+              </div>
             </div>
           </div>
         </div>
