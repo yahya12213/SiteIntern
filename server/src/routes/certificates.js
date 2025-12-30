@@ -65,22 +65,37 @@ router.post('/generate',
       }
     }
 
-    // Vérifier si un certificat existe déjà pour cette combinaison student + formation + session + document_type
-    // Note: On vérifie avec session_id ET document_type pour permettre plusieurs types de documents par session
+    // Vérifier si un certificat existe déjà pour cette combinaison student + formation + session + template_id
+    // Note: On vérifie avec template_id pour permettre plusieurs types de documents par session
+    // mais empêcher la duplication du même template pour le même étudiant
     const finalDocumentType = document_type || 'certificat';
-    const existingCert = await client.query(
-      `SELECT id FROM certificates
-       WHERE student_id = $1 AND formation_id = $2
-       AND (session_id = $3 OR (session_id IS NULL AND $3 IS NULL))
-       AND document_type = $4`,
-      [student_id, formation_id, session_id || null, finalDocumentType]
-    );
+
+    // Si template_id est fourni, vérifier par template_id (plus précis)
+    // Sinon, vérifier par document_type (rétro-compatibilité)
+    let existingCert;
+    if (template_id) {
+      existingCert = await client.query(
+        `SELECT id FROM certificates
+         WHERE student_id = $1 AND formation_id = $2
+         AND (session_id = $3 OR (session_id IS NULL AND $3 IS NULL))
+         AND template_id = $4`,
+        [student_id, formation_id, session_id || null, template_id]
+      );
+    } else {
+      existingCert = await client.query(
+        `SELECT id FROM certificates
+         WHERE student_id = $1 AND formation_id = $2
+         AND (session_id = $3 OR (session_id IS NULL AND $3 IS NULL))
+         AND document_type = $4`,
+        [student_id, formation_id, session_id || null, finalDocumentType]
+      );
+    }
 
     if (existingCert.rows.length > 0) {
-      console.log(`⚠️ Certificate already exists for student ${student_id}, formation ${formation_id}, session ${session_id || 'NULL'}, document_type ${finalDocumentType}`);
+      console.log(`⚠️ Certificate already exists for student ${student_id}, formation ${formation_id}, session ${session_id || 'NULL'}, template_id ${template_id || 'N/A'}`);
       return res.status(409).json({
         success: false,
-        error: `Un ${finalDocumentType} existe déjà pour cet étudiant dans cette session`,
+        error: `Ce document existe déjà pour cet étudiant dans cette session`,
         certificate_id: existingCert.rows[0].id,
       });
     }

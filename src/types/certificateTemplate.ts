@@ -249,6 +249,7 @@ export const FONT_FAMILIES = [
   'bookman',
   'trebuchet',
   'impact',
+  'montserrat',
 ] as const;
 
 /**
