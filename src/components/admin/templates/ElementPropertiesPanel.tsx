@@ -206,8 +206,8 @@ export const ElementPropertiesPanel: React.FC<ElementPropertiesPanelProps> = ({
                 <label className="block text-xs font-medium text-gray-600 mb-1">Taille</label>
                 <input
                   type="number"
-                  min="8"
-                  max="100"
+                  min="1"
+                  max="200"
                   value={element.fontSize || 12}
                   onChange={(e) => handleFieldChange('fontSize', parseInt(e.target.value) || 12)}
                   className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"

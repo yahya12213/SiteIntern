@@ -649,7 +649,7 @@ export const CanvasEditor: React.FC<CanvasEditorProps> = ({
                   {/* Font size */}
                   <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-1 py-0.5 flex-shrink-0">
                     <button
-                      onClick={() => onElementUpdate?.({ ...selectedElement, fontSize: Math.max(8, (selectedElement.fontSize || 12) - 2) })}
+                      onClick={() => onElementUpdate?.({ ...selectedElement, fontSize: Math.max(1, (selectedElement.fontSize || 12) - 2) })}
                       className="p-1 rounded hover:bg-gray-200 text-gray-600"
                       title="Réduire la taille"
                     >
