@@ -299,6 +299,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 094: Fix Existing Badge Associations',
     description: '🔧 FIX BADGE: Corrige les associations existantes - détecte automatiquement le type (badge/attestation/diplome) basé sur le nom du template',
     endpoint: '/migration-094-fix-badge-document-types'
+  },
+  {
+    id: 'migration-095',
+    name: 'Migration 095: Fix Certificates Unique Constraint',
+    description: '🔧 FIX CRITIQUE: Change la contrainte UNIQUE de (student_id, formation_id, session_id, document_type) vers (student_id, formation_id, session_id, template_id) - Permet plusieurs types de documents avec le même document_type',
+    endpoint: '/migration-095-fix-certificates-unique-constraint'
   }
 ];
 
