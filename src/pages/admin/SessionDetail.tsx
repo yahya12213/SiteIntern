@@ -262,15 +262,19 @@ export const SessionDetail: React.FC = () => {
               replace_existing: true // Permet de régénérer les documents existants
             };
 
+            console.log(`📤 Génération document: ${template.template_name} pour ${etudiant.student_name}, template_id: ${template.template_id}`);
             const response = await apiClient.post('/certificates/generate', requestData) as { success: boolean; error?: string };
 
             if (response.success) {
               totalSaved++;
+              console.log(`✅ Document généré: ${template.template_name} pour ${etudiant.student_name}`);
             } else {
               console.error(`❌ Échec enregistrement pour ${etudiant.student_name} (${template.template_name}):`, response.error);
             }
           } catch (error: any) {
-            console.error(`❌ Erreur enregistrement pour ${etudiant.student_name} (${template.template_name}):`, error.message);
+            // Essayer d'extraire le message d'erreur du serveur
+            const serverError = error.response?.data?.error || error.message;
+            console.error(`❌ Erreur enregistrement pour ${etudiant.student_name} (${template.template_name}):`, serverError, error);
           }
         }
       }
