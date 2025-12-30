@@ -28,12 +28,45 @@ export class CertificatePDFGenerator {
         const layout = templateConfig.layout || {};
 
         // Determine PDF format and orientation
-        const format = layout.format || 'a4';
+        const rawFormat = layout.format || 'a4';
         const orientation = layout.orientation || 'landscape';
+
+        // Resolve format - handle standard names, custom dimensions, or arrays
+        let size;
+        const standardFormats = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10',
+          'B0', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9', 'B10',
+          'C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10',
+          'LETTER', 'LEGAL', 'TABLOID', 'EXECUTIVE', 'FOLIO', '4A0', '2A0'];
+
+        if (Array.isArray(rawFormat) && rawFormat.length === 2) {
+          // Custom dimensions as array [width, height]
+          size = rawFormat;
+        } else if (typeof rawFormat === 'object' && rawFormat.width && rawFormat.height) {
+          // Custom dimensions as object {width, height}
+          size = [rawFormat.width, rawFormat.height];
+        } else if (typeof rawFormat === 'string') {
+          const upperFormat = rawFormat.toUpperCase();
+          if (standardFormats.includes(upperFormat)) {
+            size = upperFormat;
+          } else {
+            // Try to parse as "WIDTHxHEIGHT" format (e.g., "85x54" for badge)
+            const match = rawFormat.match(/^(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)$/);
+            if (match) {
+              // Convert mm to points (1mm = 2.83465 points)
+              const mmToPoints = 2.83465;
+              size = [parseFloat(match[1]) * mmToPoints, parseFloat(match[2]) * mmToPoints];
+            } else {
+              console.warn(`Unknown format "${rawFormat}", defaulting to A4`);
+              size = 'A4';
+            }
+          }
+        } else {
+          size = 'A4';
+        }
 
         // Create PDF document
         const doc = new PDFDocument({
-          size: format.toUpperCase(),
+          size: size,
           layout: orientation,
           margins: { top: 0, bottom: 0, left: 0, right: 0 }
         });
