@@ -1137,7 +1137,43 @@ router.post('/:id/templates',
       );
     }
 
-    res.json({ success: true, templates: insertedTemplates });
+    // Propager les templates aux packs qui contiennent cette formation
+    const packsContainingFormation = await pool.query(
+      `SELECT DISTINCT fpi.pack_id, f.title as pack_title
+       FROM formation_pack_items fpi
+       INNER JOIN formations f ON f.id = fpi.pack_id
+       WHERE fpi.formation_id = $1`,
+      [formation_id]
+    );
+
+    let packsUpdated = 0;
+    if (packsContainingFormation.rows.length > 0) {
+      console.log(`📦 Formation ${formation_id} is part of ${packsContainingFormation.rows.length} pack(s), propagating templates...`);
+
+      for (const pack of packsContainingFormation.rows) {
+        for (const tmpl of insertedTemplates) {
+          try {
+            // Ajouter le template au pack s'il n'existe pas déjà
+            await pool.query(
+              `INSERT INTO formation_templates (id, formation_id, template_id, document_type, is_default)
+               VALUES ($1, $2, $3, $4, FALSE)
+               ON CONFLICT (formation_id, template_id, document_type) DO NOTHING`,
+              [nanoid(), pack.pack_id, tmpl.template_id, tmpl.document_type]
+            );
+          } catch (err) {
+            console.error(`Error propagating template to pack ${pack.pack_id}:`, err);
+          }
+        }
+        console.log(`  ✓ Templates propagated to pack "${pack.pack_title}"`);
+        packsUpdated++;
+      }
+    }
+
+    res.json({
+      success: true,
+      templates: insertedTemplates,
+      packs_updated: packsUpdated
+    });
   } catch (error) {
     console.error('Error adding formation templates:', error);
     res.status(500).json({ error: error.message });
