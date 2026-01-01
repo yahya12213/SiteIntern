@@ -141,10 +141,10 @@ router.post('/generate',
     if (session_id) {
       const sessionResult = await client.query(
         `SELECT sf.id, sf.titre, sf.date_debut, sf.date_fin,
-                v.name as ville_name, s.name as segment_name,
+                c.name as ville_name, s.name as segment_name,
                 cf.name as corps_formation_name
          FROM sessions_formation sf
-         LEFT JOIN villes v ON v.id = sf.ville_id
+         LEFT JOIN cities c ON c.id = sf.ville_id
          LEFT JOIN segments s ON s.id = sf.segment_id
          LEFT JOIN corps_formation cf ON cf.id = sf.corps_formation_id
          WHERE sf.id = $1`,
