@@ -304,8 +304,14 @@ export class CertificateTemplateEngine {
 
   /**
    * Remplacer les variables dynamiques dans un texte
+   * @param text Texte contenant des variables {xxx}
+   * @param dateFormat Format de date à utiliser (de l'élément): 'numeric', 'short', 'long', 'full'
    */
-  private replaceVariables(text: string): string {
+  private replaceVariables(text: string, dateFormat?: string): string {
+    // Déterminer le format de date effectif
+    // Si dateFormat n'est pas défini ou est 'numeric', utiliser 'long' par défaut pour les dates
+    const effectiveDateFormat = (!dateFormat || dateFormat === 'numeric') ? 'long' : dateFormat;
+
     // Construire l'objet des variables
     const variables: Record<string, any> = {
       // Student fields
@@ -316,18 +322,18 @@ export class CertificateTemplateEngine {
       '{student_id}': (this.certificate.metadata as any)?.student_id || (this.certificate.metadata as any)?.cin || '',
       '{student_phone}': (this.certificate.metadata as any)?.student_phone || (this.certificate.metadata as any)?.phone || '',
       '{student_whatsapp}': (this.certificate.metadata as any)?.student_whatsapp || (this.certificate.metadata as any)?.whatsapp || '',
-      '{student_birth_date}': (this.certificate.metadata as any)?.student_birth_date || (this.certificate.metadata as any)?.date_naissance ? this.formatDate((this.certificate.metadata as any)?.student_birth_date || (this.certificate.metadata as any)?.date_naissance, 'short') : '',
+      '{student_birth_date}': (this.certificate.metadata as any)?.student_birth_date || (this.certificate.metadata as any)?.date_naissance ? this.formatDate((this.certificate.metadata as any)?.student_birth_date || (this.certificate.metadata as any)?.date_naissance, effectiveDateFormat as 'numeric' | 'long' | 'short' | 'full') : '',
       '{student_birth_place}': (this.certificate.metadata as any)?.student_birth_place || (this.certificate.metadata as any)?.lieu_naissance || '',
       '{student_address}': (this.certificate.metadata as any)?.student_address || (this.certificate.metadata as any)?.adresse || '',
       // Formation fields
       '{formation_title}': this.certificate.formation_title || 'Formation',
       '{formation_description}': this.certificate.formation_description || '',
       '{duration_hours}': this.certificate.duration_hours || '',
-      // Certificate fields
-      '{completion_date}': this.formatDate(this.certificate.completion_date, 'long'),
-      '{completion_date_short}': this.formatDate(this.certificate.completion_date, 'short'),
-      '{issued_date}': this.formatDate(this.certificate.issued_at, 'long'),
-      '{issued_date_short}': this.formatDate(this.certificate.issued_at, 'short'),
+      // Certificate fields - use effectiveDateFormat
+      '{completion_date}': this.formatDate(this.certificate.completion_date, effectiveDateFormat as 'numeric' | 'long' | 'short' | 'full'),
+      '{completion_date_short}': this.formatDate(this.certificate.completion_date, 'numeric'),
+      '{issued_date}': this.formatDate(this.certificate.issued_at, effectiveDateFormat as 'numeric' | 'long' | 'short' | 'full'),
+      '{issued_date_short}': this.formatDate(this.certificate.issued_at, 'numeric'),
       '{certificate_number}': this.certificate.certificate_number || '',
       '{certificate_serial}': (this.certificate.metadata as any)?.certificate_serial || '',
       '{grade}': this.certificate.grade !== null && this.certificate.grade !== undefined ? this.certificate.grade : '',
@@ -335,16 +341,16 @@ export class CertificateTemplateEngine {
         this.certificate.grade !== null && this.certificate.grade !== undefined
           ? Math.round(this.certificate.grade)
           : '',
-      // Session fields
+      // Session fields - use effectiveDateFormat (was hardcoded to 'short', causing the bug!)
       '{session_title}': (this.certificate.metadata as any)?.session_title || '',
-      '{session_date_debut}': (this.certificate.metadata as any)?.session_date_debut ? this.formatDate((this.certificate.metadata as any)?.session_date_debut, 'short') : '',
-      '{session_date_fin}': (this.certificate.metadata as any)?.session_date_fin ? this.formatDate((this.certificate.metadata as any)?.session_date_fin, 'short') : '',
+      '{session_date_debut}': (this.certificate.metadata as any)?.session_date_debut ? this.formatDate((this.certificate.metadata as any)?.session_date_debut, effectiveDateFormat as 'numeric' | 'long' | 'short' | 'full') : '',
+      '{session_date_fin}': (this.certificate.metadata as any)?.session_date_fin ? this.formatDate((this.certificate.metadata as any)?.session_date_fin, effectiveDateFormat as 'numeric' | 'long' | 'short' | 'full') : '',
       '{session_ville}': (this.certificate.metadata as any)?.session_ville || '',
       '{session_segment}': (this.certificate.metadata as any)?.session_segment || '',
       '{session_corps_formation}': (this.certificate.metadata as any)?.session_corps_formation || '',
       // Other fields
       '{current_year}': new Date().getFullYear(),
-      '{current_date}': this.formatDate(new Date(), 'long'),
+      '{current_date}': this.formatDate(new Date(), effectiveDateFormat as 'numeric' | 'long' | 'short' | 'full'),
       '{organization_name}':
         (this.certificate.metadata as any)?.organization_name || 'Centre de Formation',
       '{organization_address}': (this.certificate.metadata as any)?.organization_address || '',
@@ -394,23 +400,49 @@ export class CertificateTemplateEngine {
   }
 
   /**
-   * Formater une date
+   * Formater une date selon le format spécifié
+   * @param dateString Date à formater
+   * @param format Format: 'numeric' (01/01/2026), 'long' (01 Janvier 2026), 'short' (1 Jan 2026), 'full' (Mercredi 01 Janvier 2026)
    */
-  private formatDate(dateString: string | Date, format: 'long' | 'short'): string {
+  private formatDate(dateString: string | Date, format: 'numeric' | 'long' | 'short' | 'full'): string {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) {
         return '';
       }
 
-      if (format === 'long') {
-        return date.toLocaleDateString('fr-FR', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        });
-      } else {
-        return date.toLocaleDateString('fr-FR');
+      const months = [
+        'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+      ];
+      const monthsShort = [
+        'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
+        'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'
+      ];
+      const days = [
+        'Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'
+      ];
+
+      const day = String(date.getDate()).padStart(2, '0');
+      const dayNum = date.getDate();
+      const month = date.getMonth();
+      const year = date.getFullYear();
+      const dayOfWeek = date.getDay();
+
+      switch (format) {
+        case 'long':
+          // 01 Janvier 2026
+          return `${day} ${months[month]} ${year}`;
+        case 'short':
+          // 1 Jan 2026
+          return `${dayNum} ${monthsShort[month]} ${year}`;
+        case 'full':
+          // Mercredi 01 Janvier 2026
+          return `${days[dayOfWeek]} ${day} ${months[month]} ${year}`;
+        case 'numeric':
+        default:
+          // 01/01/2026
+          return date.toLocaleDateString('fr-FR');
       }
     } catch {
       return '';
@@ -484,8 +516,8 @@ export class CertificateTemplateEngine {
       : this.getColor(fontConfig.color || 'text');
     this.doc.setTextColor(...color);
 
-    // Remplacer les variables
-    const text = this.replaceVariables(element.content || '');
+    // Remplacer les variables (passer le dateFormat de l'élément pour formater les dates correctement)
+    const text = this.replaceVariables(element.content || '', element.dateFormat);
 
     // Convertir les coordonnées pixels → mm
     let x = this.pxToMm(element.x || 0, 'x');

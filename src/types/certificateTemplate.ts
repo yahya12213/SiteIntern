@@ -75,6 +75,10 @@ export interface TemplateElement {
   // Condition d'affichage (nom d'une propriété du certificat)
   condition?: string;
 
+  // Format de date pour les éléments contenant des variables de date
+  // 'numeric' = 01/01/2026, 'long' = 01 Janvier 2026, 'short' = 1 Jan 2026, 'full' = Mercredi 01 Janvier 2026
+  dateFormat?: 'numeric' | 'long' | 'short' | 'full';
+
   // Autres propriétés possibles
   [key: string]: any;
 }
