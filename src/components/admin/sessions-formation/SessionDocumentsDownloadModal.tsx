@@ -50,6 +50,7 @@ export function SessionDocumentsDownloadModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [downloadingAll, setDownloadingAll] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number } | null>(null);
   const [totalDocuments, setTotalDocuments] = useState(0);
   const [segmentName, setSegmentName] = useState<string>('');
@@ -252,6 +253,104 @@ export function SessionDocumentsDownloadModal({
     }
   };
 
+  /**
+   * Télécharge TOUS les documents dans un seul ZIP organisé par sous-dossiers
+   * Structure: Session_Name.zip / Attestations / fichiers.pdf
+   *                             / Badges / fichiers.pdf
+   *                             / Certificats / fichiers.pdf
+   */
+  const handleDownloadAll = async () => {
+    try {
+      setDownloadingAll(true);
+      setDownloadProgress({ current: 0, total: totalDocuments });
+
+      // Créer le ZIP principal
+      const zip = new JSZip();
+      let successCount = 0;
+      let errorCount = 0;
+      let processedCount = 0;
+
+      // Parcourir chaque type de document
+      for (const doc of documents) {
+        const documentType = doc.document_type;
+
+        // Récupérer la liste des certificats pour ce type
+        const listResponse = await apiClient.get<{
+          success: boolean;
+          certificates: CertificateListItem[];
+          error?: string
+        }>(`/sessions-formation/${sessionId}/certificates-list?document_type=${documentType}`);
+
+        if (!listResponse.success || !listResponse.certificates?.length) {
+          continue;
+        }
+
+        const certificates = listResponse.certificates;
+
+        // Nom du sous-dossier selon le type
+        const folderLabel = DOCUMENT_TYPE_LABELS[documentType] || documentType;
+        const subFolder = zip.folder(folderLabel);
+
+        if (!subFolder) continue;
+
+        // Régénérer chaque PDF et l'ajouter au sous-dossier
+        for (const cert of certificates) {
+          processedCount++;
+          setDownloadProgress({ current: processedCount, total: totalDocuments });
+
+          try {
+            const result = await regeneratePdf(cert.id);
+            if (result) {
+              subFolder.file(result.fileName, result.blob);
+              successCount++;
+            } else {
+              errorCount++;
+            }
+          } catch (err) {
+            console.error(`Error regenerating PDF for ${cert.certificate_number}:`, err);
+            errorCount++;
+          }
+        }
+      }
+
+      if (successCount === 0) {
+        alert('Impossible de générer les PDFs. Veuillez réessayer.');
+        return;
+      }
+
+      // Générer et télécharger le ZIP
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+      // Format du nom: segment_session.zip
+      const cleanSegment = segmentName.replace(/[^\w\s\u00C0-\u017F-]/g, '').trim() || 'Session';
+      const cleanTitle = sessionTitle.replace(/[^\w\s\u00C0-\u017F-]/g, '').trim() || 'Documents';
+      const fileName = `${cleanSegment}_${cleanTitle}.zip`;
+
+      const url = window.URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      // Message de résumé
+      let message = `ZIP téléchargé avec ${successCount} document(s) organisés par catégorie.`;
+      if (errorCount > 0) {
+        message += `\n⚠️ ${errorCount} document(s) n'ont pas pu être générés.`;
+      }
+      alert(message);
+
+    } catch (err: any) {
+      console.error('Error downloading all documents:', err);
+      alert(err.message || 'Erreur lors du téléchargement');
+    } finally {
+      setDownloadingAll(false);
+      setDownloadProgress(null);
+    }
+  };
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('fr-FR', {
@@ -284,7 +383,7 @@ export function SessionDocumentsDownloadModal({
           <button
             type="button"
             onClick={onClose}
-            disabled={downloading !== null}
+            disabled={downloading !== null || downloadingAll}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
           >
             <X className="h-5 w-5 text-gray-500" />
@@ -320,14 +419,48 @@ export function SessionDocumentsDownloadModal({
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Résumé total */}
-              <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                <p className="text-sm text-gray-600">
-                  <span className="font-semibold text-gray-900">{totalDocuments}</span> document(s) générés au total
-                </p>
+              {/* Résumé total + Bouton Télécharger Tout */}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-semibold text-gray-900">{totalDocuments}</span> document(s) générés au total
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {documents.length} catégorie(s): {documents.map(d => DOCUMENT_TYPE_LABELS[d.document_type] || d.document_type).join(', ')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDownloadAll}
+                    disabled={downloading !== null || downloadingAll}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      downloading !== null || downloadingAll
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
+                    }`}
+                  >
+                    {downloadingAll ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {downloadProgress ? (
+                          <span>{downloadProgress.current}/{downloadProgress.total}</span>
+                        ) : (
+                          <span>Préparation...</span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4" />
+                        Télécharger Tout
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
-              {/* Liste des types de documents */}
+              {/* Liste des types de documents (détail) */}
+              <p className="text-xs text-gray-500 uppercase font-medium tracking-wide">Détail par catégorie</p>
               {documents.map((doc) => (
                 <div
                   key={doc.document_type}
@@ -350,9 +483,9 @@ export function SessionDocumentsDownloadModal({
                   <button
                     type="button"
                     onClick={() => handleDownload(doc.document_type)}
-                    disabled={downloading !== null}
+                    disabled={downloading !== null || downloadingAll}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      downloading !== null
+                      downloading !== null || downloadingAll
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
@@ -384,7 +517,7 @@ export function SessionDocumentsDownloadModal({
           <button
             type="button"
             onClick={onClose}
-            disabled={downloading !== null}
+            disabled={downloading !== null || downloadingAll}
             className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
           >
             Fermer
