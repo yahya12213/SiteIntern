@@ -170,19 +170,39 @@ router.post('/generate',
 
     const template = templateResult.rows[0];
 
-    // Générer le numéro de certificat
-    let certificateNumber = generateCertificateNumber();
+    // Get certificate number from enrollment (session_etudiants)
+    // This ensures ALL documents for the same student/session have the SAME number
+    let certificateNumber = null;
 
-    // Vérifier l'unicité
-    let attempts = 0;
-    while (attempts < 5) {
-      const exists = await client.query(
-        'SELECT id FROM certificates WHERE certificate_number = $1',
-        [certificateNumber]
+    if (session_id) {
+      const enrollmentResult = await client.query(
+        `SELECT certificate_number FROM session_etudiants
+         WHERE student_id = $1 AND session_id = $2`,
+        [student_id, session_id]
       );
-      if (exists.rows.length === 0) break;
+
+      if (enrollmentResult.rows.length > 0 && enrollmentResult.rows[0].certificate_number) {
+        certificateNumber = enrollmentResult.rows[0].certificate_number;
+        console.log(`Using enrollment certificate number: ${certificateNumber}`);
+      }
+    }
+
+    // Fallback: generate new number if not found in enrollment
+    if (!certificateNumber) {
       certificateNumber = generateCertificateNumber();
-      attempts++;
+
+      // Verify uniqueness
+      let attempts = 0;
+      while (attempts < 5) {
+        const exists = await client.query(
+          'SELECT id FROM certificates WHERE certificate_number = $1',
+          [certificateNumber]
+        );
+        if (exists.rows.length === 0) break;
+        certificateNumber = generateCertificateNumber();
+        attempts++;
+      }
+      console.log(`Generated new certificate number: ${certificateNumber}`);
     }
 
     // Début de la transaction

@@ -5,6 +5,45 @@ import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import { injectUserScope, buildScopeFilter, requireRecordScope } from '../middleware/requireScope.js';
 import * as archiveManager from '../utils/archiveManager.js';
 
+/**
+ * Generate a unique certificate number for a student enrollment
+ * Format: CERT-{SEGMENT_CODE}-{6 digits}
+ * Example: CERT-CASA-000001, CERT-RABAT-000042
+ */
+async function generateCertificateNumber(sessionId) {
+  // Get the segment code for this session
+  const segmentResult = await pool.query(`
+    SELECT s.id, s.name
+    FROM sessions_formation sf
+    JOIN segments s ON sf.segment_id = s.id
+    WHERE sf.id = $1
+  `, [sessionId]);
+
+  let segmentCode = 'GEN'; // Default if no segment
+
+  if (segmentResult.rows.length > 0) {
+    // Create a short code from segment name (first 4 chars, uppercase)
+    const segmentName = segmentResult.rows[0].name || 'GEN';
+    segmentCode = segmentName
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .substring(0, 4)
+      .padEnd(4, 'X');
+  }
+
+  // Get the next sequence number for this segment
+  const countResult = await pool.query(`
+    SELECT COUNT(*) as count
+    FROM session_etudiants
+    WHERE certificate_number LIKE $1
+  `, [`CERT-${segmentCode}-%`]);
+
+  const nextNumber = (parseInt(countResult.rows[0].count) || 0) + 1;
+  const paddedNumber = String(nextNumber).padStart(6, '0');
+
+  return `CERT-${segmentCode}-${paddedNumber}`;
+}
+
 const router = express.Router();
 
 // ============================================
@@ -802,15 +841,19 @@ router.post('/:id/etudiants',
     const final_montant_total = formation_original_price - discount_amount;
     const montant_du = final_montant_total - (montant_paye || 0);
 
+    // Generate unique certificate number for this enrollment
+    const certificateNumber = await generateCertificateNumber(session_id);
+
     const query = `
       INSERT INTO session_etudiants (
         id, session_id, student_id, formation_id, statut_paiement,
         montant_total, montant_paye, montant_du,
         discount_percentage, discount_amount, formation_original_price,
         centre_id, classe_id, numero_bon,
+        certificate_number,
         date_inscription, created_at, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *
     `;
 
@@ -819,6 +862,7 @@ router.post('/:id/etudiants',
       final_montant_total, montant_paye || 0, montant_du,
       discount_pct, discount_amount, formation_original_price,
       centre_id || null, classe_id || null, numero_bon || null,
+      certificateNumber,
       now, now, now
     ];
 

@@ -329,6 +329,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 099: Standardiser Données Étudiants',
     description: '📝 FORMATAGE: Standardise automatiquement les données existantes - Noms en majuscule initiale (Jean Dupont), CIN en majuscules (T209876), emails en minuscules',
     endpoint: '/migration-099-standardize-existing-data'
+  },
+  {
+    id: 'migration-100',
+    name: 'Migration 100: Numéro Certificat Unique par Étudiant',
+    description: '🔢 SÉRIE UNIQUE: Ajoute un numéro de certificat unique par inscription (CERT-SEGMENT-000001) qui reste le même pour tous les documents de l\'étudiant',
+    endpoint: '/migration-100-student-certificate-number'
   }
 ];
 
