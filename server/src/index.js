@@ -159,6 +159,7 @@ import migration094Router from './routes/migration-094-fix-badge-document-types.
 import migration095Router from './routes/migration-095-fix-certificates-unique-constraint.js';
 import migration096Router from './routes/migration-096-gerant-certificates-generate-permission.js';
 import migration097Router from './routes/migration-097-create-and-assign-certificates-generate.js';
+import migration098Router from './routes/migration-098-add-certificates-view-permission.js';
 import visitsRouter from './routes/visits.js';
 
 const app = express();
@@ -371,6 +372,7 @@ app.use('/api/migration-094-fix-badge-document-types', ...adminOnly, migration09
 app.use('/api/migration-095-fix-certificates-unique-constraint', ...adminOnly, migration095Router);
 app.use('/api/migration-096-gerant-certificates-generate-permission', ...adminOnly, migration096Router);
 app.use('/api/migration-097-create-and-assign-certificates-generate', ...adminOnly, migration097Router);
+app.use('/api/migration-098-add-certificates-view-permission', ...adminOnly, migration098Router);
 
 // Health check
 app.get('/api/health', async (req, res) => {

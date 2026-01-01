@@ -317,6 +317,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 097: CRÉER Permission Génération Certificats',
     description: '🔧 FIX CRITIQUE: Crée la permission training.certificates.generate si elle n\'existe pas ET l\'assigne au gérant - Résout le problème de génération de documents',
     endpoint: '/migration-097-create-and-assign-certificates-generate'
+  },
+  {
+    id: 'migration-098',
+    name: 'Migration 098: Permission Voir Certificat pour Gérant',
+    description: '🔧 FIX GÉRANT: Ajoute la permission training.certificates.view - Permet de voir/télécharger les certificats individuels',
+    endpoint: '/migration-098-add-certificates-view-permission'
   }
 ];
 
