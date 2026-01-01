@@ -179,6 +179,15 @@ export class CertificatePDFGenerator {
       return;
     }
 
+    // Debug: Log dateFormat if element contains date variables
+    if (element.content && (
+      element.content.includes('{session_date_debut}') ||
+      element.content.includes('{session_date_fin}') ||
+      element.content.includes('{completion_date}')
+    )) {
+      console.log(`📅 Date element found: "${element.content}" | dateFormat: ${element.dateFormat || 'NOT SET (default: numeric)'}`);
+    }
+
     const content = this.substituteVariables(element.content || '', certificate, element);
     const x = this.resolvePosition(element.x || 0, doc.page.width);
     const y = this.resolvePosition(element.y || 0, doc.page.height);
