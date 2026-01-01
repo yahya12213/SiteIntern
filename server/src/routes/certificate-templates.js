@@ -454,6 +454,22 @@ router.put('/:id',
     }
 
     if (template_config !== undefined) {
+      // Debug: Log elements with date variables to check dateFormat
+      if (template_config.pages) {
+        template_config.pages.forEach((page, pageIndex) => {
+          if (page.elements) {
+            page.elements.forEach((el) => {
+              if (el.type === 'text' && el.content && (
+                el.content.includes('{session_date_debut}') ||
+                el.content.includes('{session_date_fin}') ||
+                el.content.includes('{completion_date}')
+              )) {
+                console.log(`📅 SAVE API - Page ${pageIndex}, Element ${el.id}: dateFormat="${el.dateFormat || 'NOT SET'}"`);
+              }
+            });
+          }
+        });
+      }
       updates.push(`template_config = $${paramCount++}`);
       values.push(JSON.stringify(template_config));
     }

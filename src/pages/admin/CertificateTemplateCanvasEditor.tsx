@@ -177,6 +177,20 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
     }
 
     if (pages.length > 0 && currentPageIndex < pages.length) {
+      // Debug: Log when syncing elements with date variables
+      const dateElements = elements.filter(el =>
+        el.type === 'text' && el.content && (
+          el.content.includes('{session_date_debut}') ||
+          el.content.includes('{session_date_fin}') ||
+          el.content.includes('{completion_date}')
+        )
+      );
+      if (dateElements.length > 0) {
+        console.log(`🔍 SYNC DEBUG - Syncing ${dateElements.length} date element(s) to page ${currentPageIndex}:`,
+          dateElements.map(el => ({ id: el.id, dateFormat: el.dateFormat || 'NOT SET' }))
+        );
+      }
+
       setPages(prevPages => {
         const newPages = [...prevPages];
         newPages[currentPageIndex] = {
@@ -439,6 +453,20 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
         },
       };
 
+      // Debug: Log elements with date variables to check dateFormat
+      console.log('🔍 SAVE DEBUG - Elements with date variables:');
+      finalPages.forEach((page, pageIndex) => {
+        page.elements.forEach((el) => {
+          if (el.type === 'text' && el.content && (
+            el.content.includes('{session_date_debut}') ||
+            el.content.includes('{session_date_fin}') ||
+            el.content.includes('{completion_date}')
+          )) {
+            console.log(`  Page ${pageIndex}, Element ${el.id}: content="${el.content}", dateFormat="${el.dateFormat || 'NOT SET'}"`);
+          }
+        });
+      });
+
       if (isNewTemplate) {
         const { id, created_at, updated_at, ...createData } = updatedTemplate;
         await createTemplate.mutateAsync(createData);
@@ -549,6 +577,10 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
 
   // Modifier un élément
   const handleElementChange = (updatedElement: TemplateElement) => {
+    // Debug: Log when dateFormat is changed
+    if (updatedElement.dateFormat) {
+      console.log(`🔍 CHANGE DEBUG - Element ${updatedElement.id}: dateFormat changed to "${updatedElement.dateFormat}"`);
+    }
     setElements(
       elements.map((el) =>
         el.id === updatedElement.id ? updatedElement : el

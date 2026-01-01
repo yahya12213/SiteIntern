@@ -287,13 +287,13 @@ export const ElementPropertiesPanel: React.FC<ElementPropertiesPanelProps> = ({
             </div>
 
             {/* Format de date - affiché uniquement pour les variables de date */}
-            {element.content && (
+            {(element.content && (
               element.content.includes('{session_date_debut}') ||
               element.content.includes('{session_date_fin}') ||
               element.content.includes('{completion_date}') ||
               element.content.includes('{issued_date}') ||
               element.content.includes('{student_birth_date}')
-            ) && (
+            )) && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Format de date</label>
                 <select
