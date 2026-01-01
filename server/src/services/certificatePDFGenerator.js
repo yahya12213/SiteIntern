@@ -2,6 +2,7 @@ import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { toTitleCase, formatCIN, formatCertificateNumber } from '../utils/textStandardizer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -418,27 +419,51 @@ export class CertificatePDFGenerator {
 
   /**
    * Substitutes variables in text with certificate data
+   * Automatically standardizes text formatting for consistent documents
    * @param {string} text - Text with variables
    * @param {Object} certificate - Certificate data
-   * @returns {string} - Text with substituted values
+   * @returns {string} - Text with substituted and standardized values
    */
   substituteVariables(text, certificate) {
     const metadata = certificate.metadata || {};
 
+    // Apply standardization rules to each field type
     const variables = {
-      '{student_name}': certificate.student_name || '',
-      '{student_first_name}': metadata.prenom || metadata.student_first_name || '',
-      '{student_last_name}': metadata.nom || metadata.student_last_name || '',
-      '{formation_title}': certificate.formation_title || '',
+      // Names - Title Case (Jean Dupont, not JEAN DUPONT or jean dupont)
+      '{student_name}': toTitleCase(certificate.student_name || ''),
+      '{student_first_name}': toTitleCase(metadata.prenom || metadata.student_first_name || ''),
+      '{student_last_name}': toTitleCase(metadata.nom || metadata.student_last_name || ''),
+      '{director_name}': toTitleCase(metadata.director_name || ''),
+
+      // Formation - Title Case
+      '{formation_title}': toTitleCase(certificate.formation_title || ''),
+
+      // Locations - Title Case
+      '{birth_place}': toTitleCase(metadata.birth_place || metadata.lieu_naissance || ''),
+      '{lieu_naissance}': toTitleCase(metadata.lieu_naissance || metadata.birth_place || ''),
+      '{city}': toTitleCase(metadata.city || metadata.ville || ''),
+      '{ville}': toTitleCase(metadata.ville || metadata.city || ''),
+
+      // CIN - Uppercase, no spaces (T209876, not t 209876)
+      '{cin}': formatCIN(metadata.cin || metadata.student_id || ''),
+      '{CIN}': formatCIN(metadata.cin || metadata.student_id || ''),
+
+      // Certificate number - Uppercase (CERT-2024-001)
+      '{certificate_number}': formatCertificateNumber(certificate.certificate_number || ''),
+
+      // Dates - Keep as is
       '{completion_date}': certificate.completion_date ? new Date(certificate.completion_date).toLocaleDateString('fr-FR') : '',
-      '{certificate_number}': certificate.certificate_number || '',
+      '{birth_date}': metadata.birth_date ? new Date(metadata.birth_date).toLocaleDateString('fr-FR') : '',
+      '{date_naissance}': metadata.date_naissance || metadata.birth_date ? new Date(metadata.date_naissance || metadata.birth_date).toLocaleDateString('fr-FR') : '',
+
+      // Numbers - Keep as is
       '{grade}': certificate.grade ? certificate.grade.toFixed(1) : '',
       '{grade_rounded}': certificate.grade ? Math.round(certificate.grade).toString() : '',
       '{duration_hours}': certificate.duration_hours || '',
       '{current_year}': new Date().getFullYear().toString(),
-      '{organization_name}': metadata.organization_name || '',
-      '{director_name}': metadata.director_name || '',
-      '{cin}': metadata.cin || metadata.student_id || ''
+
+      // Organization - Title Case
+      '{organization_name}': toTitleCase(metadata.organization_name || '')
     };
 
     let result = text;

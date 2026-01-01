@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 import { uploadProfileImage } from '../middleware/upload.js';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import { injectUserScope, buildScopeFilter } from '../middleware/requireScope.js';
+import { toTitleCase, formatCIN, formatEmail, formatPhone, formatAddress } from '../utils/textStandardizer.js';
 
 const router = express.Router();
 
@@ -54,21 +55,32 @@ router.post('/',
   requirePermission('training.students.create'),
   uploadProfileImage,
   async (req, res) => {
+  // Extract and standardize input data
   const {
-    nom,
-    prenom,
-    cin,
-    email,
-    phone,
-    whatsapp,
+    nom: rawNom,
+    prenom: rawPrenom,
+    cin: rawCin,
+    email: rawEmail,
+    phone: rawPhone,
+    whatsapp: rawWhatsapp,
     date_naissance,
-    lieu_naissance,
-    adresse,
+    lieu_naissance: rawLieuNaissance,
+    adresse: rawAdresse,
     statut_compte,
   } = req.body;
 
+  // Apply standardization rules
+  const nom = toTitleCase(rawNom);                    // "DUPONT" -> "Dupont"
+  const prenom = toTitleCase(rawPrenom);              // "JEAN" -> "Jean"
+  const cin = formatCIN(rawCin);                      // "t 209876" -> "T209876"
+  const email = formatEmail(rawEmail);                // "JOHN@GMAIL.COM" -> "john@gmail.com"
+  const phone = formatPhone(rawPhone);                // "06 12 34 56 78" -> "0612345678"
+  const whatsapp = formatPhone(rawWhatsapp);          // Same for whatsapp
+  const lieu_naissance = toTitleCase(rawLieuNaissance); // "CASABLANCA" -> "Casablanca"
+  const adresse = formatAddress(rawAdresse);          // Title case for address
+
   try {
-    // Check if CIN already exists
+    // Check if CIN already exists (use standardized CIN)
     const existingStudent = await pool.query('SELECT id FROM students WHERE cin = $1', [cin]);
 
     if (existingStudent.rows.length > 0) {
@@ -249,18 +261,29 @@ router.put('/:id',
   uploadProfileImage,
   async (req, res) => {
   const { id } = req.params;
+  // Extract raw input data
   const {
-    nom,
-    prenom,
-    cin,
-    email,
-    phone,
-    whatsapp,
+    nom: rawNom,
+    prenom: rawPrenom,
+    cin: rawCin,
+    email: rawEmail,
+    phone: rawPhone,
+    whatsapp: rawWhatsapp,
     date_naissance,
-    lieu_naissance,
-    adresse,
+    lieu_naissance: rawLieuNaissance,
+    adresse: rawAdresse,
     statut_compte,
   } = req.body;
+
+  // Apply standardization rules (only if values are provided)
+  const nom = rawNom ? toTitleCase(rawNom) : null;
+  const prenom = rawPrenom ? toTitleCase(rawPrenom) : null;
+  const cin = rawCin ? formatCIN(rawCin) : null;
+  const email = rawEmail ? formatEmail(rawEmail) : null;
+  const phone = rawPhone ? formatPhone(rawPhone) : null;
+  const whatsapp = rawWhatsapp ? formatPhone(rawWhatsapp) : null;
+  const lieu_naissance = rawLieuNaissance ? toTitleCase(rawLieuNaissance) : null;
+  const adresse = rawAdresse ? formatAddress(rawAdresse) : null;
 
   try {
     // Check if student exists
@@ -296,15 +319,15 @@ router.put('/:id',
       WHERE id = $12
       RETURNING *`,
       [
-        nom || null,
-        prenom || null,
-        cin || null,
-        email || null,
-        phone || null,
-        whatsapp || null,
+        nom,
+        prenom,
+        cin,
+        email,
+        phone,
+        whatsapp,
         date_naissance || null,
-        lieu_naissance || null,
-        adresse || null,
+        lieu_naissance,
+        adresse,
         statut_compte || null,
         req.file ? profile_image_url : null,
         id,

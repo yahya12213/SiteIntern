@@ -323,6 +323,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 098: Permission Voir Certificat pour Gérant',
     description: '🔧 FIX GÉRANT: Ajoute la permission training.certificates.view - Permet de voir/télécharger les certificats individuels',
     endpoint: '/migration-098-add-certificates-view-permission'
+  },
+  {
+    id: 'migration-099',
+    name: 'Migration 099: Standardiser Données Étudiants',
+    description: '📝 FORMATAGE: Standardise automatiquement les données existantes - Noms en majuscule initiale (Jean Dupont), CIN en majuscules (T209876), emails en minuscules',
+    endpoint: '/migration-099-standardize-existing-data'
   }
 ];
 
