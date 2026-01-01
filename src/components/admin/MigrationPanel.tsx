@@ -341,6 +341,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 101: Permettre Même Numéro sur Plusieurs Documents',
     description: '🔧 FIX CRITIQUE: Supprime la contrainte UNIQUE sur certificate_number dans certificates - Permet badge, attestation, diplôme avec le même numéro',
     endpoint: '/migration-101-remove-certificate-number-unique'
+  },
+  {
+    id: 'fix-dateformat',
+    name: 'Fix: Corriger Format de Date dans Templates',
+    description: '📅 FIX DATE: Applique le format "En lettres" (01 Janvier 2026) à tous les éléments de date dans tous les templates de certificats',
+    endpoint: '/debug-template-dateformat/fix-all'
   }
 ];
 

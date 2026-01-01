@@ -88,6 +88,83 @@ router.get('/:templateId', async (req, res) => {
   }
 });
 
+// GET /api/debug-template-dateformat/fix-all/status - Check if dateFormat fix is needed
+router.get('/fix-all/status', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, name, template_config FROM certificate_templates');
+
+    let templatesNeedingFix = 0;
+    let elementsNeedingFix = 0;
+
+    for (const template of result.rows) {
+      const config = template.template_config;
+      let needsFix = false;
+
+      // Check pages
+      if (config.pages) {
+        config.pages.forEach((page) => {
+          if (page.elements) {
+            page.elements.forEach((el) => {
+              if (el.type === 'text' && el.content && (
+                el.content.includes('{session_date_debut}') ||
+                el.content.includes('{session_date_fin}') ||
+                el.content.includes('{completion_date}') ||
+                el.content.includes('{issued_date}') ||
+                el.content.includes('{student_birth_date}')
+              )) {
+                if (!el.dateFormat || el.dateFormat === 'numeric') {
+                  needsFix = true;
+                  elementsNeedingFix++;
+                }
+              }
+            });
+          }
+        });
+      }
+
+      // Check legacy elements
+      if (config.elements) {
+        config.elements.forEach((el) => {
+          if (el.type === 'text' && el.content && (
+            el.content.includes('{session_date_debut}') ||
+            el.content.includes('{session_date_fin}') ||
+            el.content.includes('{completion_date}') ||
+            el.content.includes('{issued_date}') ||
+            el.content.includes('{student_birth_date}')
+          )) {
+            if (!el.dateFormat || el.dateFormat === 'numeric') {
+              needsFix = true;
+              elementsNeedingFix++;
+            }
+          }
+        });
+      }
+
+      if (needsFix) {
+        templatesNeedingFix++;
+      }
+    }
+
+    const needsMigration = elementsNeedingFix > 0;
+
+    res.json({
+      applied: !needsMigration,
+      status: { migrationNeeded: needsMigration },
+      message: needsMigration
+        ? `${elementsNeedingFix} élément(s) de date dans ${templatesNeedingFix} template(s) n'ont pas le format "En lettres"`
+        : 'Tous les templates ont le format de date "En lettres" appliqué'
+    });
+
+  } catch (error) {
+    console.error('Status error:', error);
+    res.status(500).json({
+      applied: false,
+      status: { migrationNeeded: true },
+      message: error.message
+    });
+  }
+});
+
 // GET /api/debug-template-dateformat - List all templates with date elements
 router.get('/', async (req, res) => {
   try {
@@ -180,6 +257,88 @@ router.post('/:templateId/fix', async (req, res) => {
   } catch (error) {
     console.error('Fix error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/debug-template-dateformat/fix-all/run
+// Run endpoint for MigrationPanel
+router.post('/fix-all/run', async (req, res) => {
+  try {
+    const dateFormat = 'long'; // Default to 'long' (01 Janvier 2026)
+
+    const result = await pool.query('SELECT id, name, template_config FROM certificate_templates');
+
+    let totalFixed = 0;
+    const fixedTemplates = [];
+
+    for (const template of result.rows) {
+      const config = template.template_config;
+      let fixedInTemplate = 0;
+
+      // Fix all date elements in pages
+      if (config.pages) {
+        config.pages.forEach((page) => {
+          if (page.elements) {
+            page.elements.forEach((el) => {
+              if (el.type === 'text' && el.content && (
+                el.content.includes('{session_date_debut}') ||
+                el.content.includes('{session_date_fin}') ||
+                el.content.includes('{completion_date}') ||
+                el.content.includes('{issued_date}') ||
+                el.content.includes('{student_birth_date}')
+              )) {
+                el.dateFormat = dateFormat;
+                fixedInTemplate++;
+              }
+            });
+          }
+        });
+      }
+
+      // Also fix legacy elements array
+      if (config.elements) {
+        config.elements.forEach((el) => {
+          if (el.type === 'text' && el.content && (
+            el.content.includes('{session_date_debut}') ||
+            el.content.includes('{session_date_fin}') ||
+            el.content.includes('{completion_date}') ||
+            el.content.includes('{issued_date}') ||
+            el.content.includes('{student_birth_date}')
+          )) {
+            el.dateFormat = dateFormat;
+            fixedInTemplate++;
+          }
+        });
+      }
+
+      if (fixedInTemplate > 0) {
+        await pool.query(
+          'UPDATE certificate_templates SET template_config = $1, updated_at = NOW() WHERE id = $2',
+          [JSON.stringify(config), template.id]
+        );
+
+        fixedTemplates.push({
+          id: template.id,
+          name: template.name,
+          elementsFixed: fixedInTemplate
+        });
+        totalFixed += fixedInTemplate;
+      }
+    }
+
+    res.json({
+      success: true,
+      details: {
+        dateFormat,
+        totalElementsFixed: totalFixed,
+        templatesModified: fixedTemplates.length,
+        templates: fixedTemplates
+      }
+    });
+
+  } catch (error) {
+    console.error('Fix-all run error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
