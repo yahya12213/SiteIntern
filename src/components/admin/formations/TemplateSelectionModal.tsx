@@ -1,7 +1,14 @@
-import React, { useState, useMemo } from 'react';
-import { X, FolderOpen, Folder, FileText, Search, Award, Check } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { X, FolderOpen, Folder, FileText, Search, Award, Check, ChevronRight, ChevronDown } from 'lucide-react';
 import { useCertificateTemplates } from '@/hooks/useCertificateTemplates';
 import { useTemplateFolders } from '@/hooks/useTemplateFolders';
+
+interface TemplateFolder {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  created_at?: string;
+}
 
 interface TemplateSelectionModalProps {
   isOpen: boolean;
@@ -16,24 +23,98 @@ export const TemplateSelectionModal: React.FC<TemplateSelectionModalProps> = ({
   onClose,
   onSelect,
   selectedTemplateIds = [],
-  title = 'Sélectionner des templates',
+  title = 'Sélectionner des templates de certificat',
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [localSelectedIds, setLocalSelectedIds] = useState<string[]>(selectedTemplateIds);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
   const { data: templates, isLoading: loadingTemplates } = useCertificateTemplates();
   const { data: folders, isLoading: loadingFolders } = useTemplateFolders();
 
-  // Filtrer les templates par dossier et recherche
+  // Synchroniser avec les templates déjà sélectionnés quand le modal s'ouvre
+  useEffect(() => {
+    if (isOpen) {
+      setLocalSelectedIds(selectedTemplateIds);
+      // Expand all folders by default when opening
+      if (folders) {
+        setExpandedFolders(new Set(folders.map(f => f.id)));
+      }
+    }
+  }, [isOpen, selectedTemplateIds, folders]);
+
+  // Construire l'arborescence des dossiers
+  const folderTree = useMemo(() => {
+    if (!folders) return [];
+
+    // Fonction récursive pour construire l'arbre
+    const buildTree = (parentId: string | null): (TemplateFolder & { children: any[], level: number })[] => {
+      return folders
+        .filter(f => f.parent_id === parentId)
+        .map(folder => ({
+          ...folder,
+          children: buildTree(folder.id),
+          level: 0
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    };
+
+    // Fonction pour aplatir l'arbre avec les niveaux
+    const flattenTree = (tree: any[], level: number = 0): (TemplateFolder & { level: number, hasChildren: boolean })[] => {
+      let result: (TemplateFolder & { level: number, hasChildren: boolean })[] = [];
+      for (const node of tree) {
+        result.push({
+          ...node,
+          level,
+          hasChildren: node.children.length > 0
+        });
+        if (expandedFolders.has(node.id)) {
+          result = result.concat(flattenTree(node.children, level + 1));
+        }
+      }
+      return result;
+    };
+
+    const tree = buildTree(null);
+    return flattenTree(tree);
+  }, [folders, expandedFolders]);
+
+  // Toggle expansion d'un dossier
+  const toggleFolderExpand = (folderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedFolders(prev => {
+      const next = new Set(prev);
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+      return next;
+    });
+  };
+
+  // Obtenir les IDs de tous les sous-dossiers d'un dossier
+  const getAllSubfolderIds = (folderId: string): string[] => {
+    if (!folders) return [];
+    const subfolders = folders.filter(f => f.parent_id === folderId);
+    let ids = subfolders.map(f => f.id);
+    for (const subfolder of subfolders) {
+      ids = ids.concat(getAllSubfolderIds(subfolder.id));
+    }
+    return ids;
+  };
+
+  // Filtrer les templates par dossier (inclure les sous-dossiers) et recherche
   const filteredTemplates = useMemo(() => {
     if (!templates) return [];
 
     let result = templates;
 
-    // Filtre par dossier
+    // Filtre par dossier (inclure les sous-dossiers)
     if (selectedFolderId) {
-      result = result.filter((t) => t.folder_id === selectedFolderId);
+      const folderIds = [selectedFolderId, ...getAllSubfolderIds(selectedFolderId)];
+      result = result.filter((t) => folderIds.includes(t.folder_id));
     }
 
     // Filtre par recherche
@@ -47,7 +128,16 @@ export const TemplateSelectionModal: React.FC<TemplateSelectionModalProps> = ({
     }
 
     return result;
-  }, [templates, selectedFolderId, searchQuery]);
+  }, [templates, selectedFolderId, searchQuery, folders]);
+
+  // Compter les templates par dossier (inclure les sous-dossiers)
+  const getTemplateCount = (folderId: string | null): number => {
+    if (!templates) return 0;
+    if (folderId === null) return templates.length;
+
+    const folderIds = [folderId, ...getAllSubfolderIds(folderId)];
+    return templates.filter(t => folderIds.includes(t.folder_id)).length;
+  };
 
   // Toggle sélection d'un template
   const toggleTemplate = (templateId: string) => {
@@ -76,6 +166,9 @@ export const TemplateSelectionModal: React.FC<TemplateSelectionModalProps> = ({
     if (!templates) return [];
     return templates.filter((t) => localSelectedIds.includes(t.id));
   }, [templates, localSelectedIds]);
+
+  // Identifier les templates déjà affectés (provenant des props)
+  const alreadyAssignedIds = useMemo(() => new Set(selectedTemplateIds), [selectedTemplateIds]);
 
   const handleConfirm = () => {
     onSelect(localSelectedIds);
@@ -127,32 +220,49 @@ export const TemplateSelectionModal: React.FC<TemplateSelectionModalProps> = ({
               </span>
             </div>
 
-            {/* Folder List */}
+            {/* Folder Tree */}
             {loadingFolders ? (
               <div className="text-xs text-gray-500 px-3 py-2">Chargement...</div>
             ) : (
-              folders?.map((folder) => {
-                const folderTemplateCount =
-                  templates?.filter((t) => t.folder_id === folder.id).length || 0;
+              <div className="space-y-0.5">
+                {folderTree.map((folder) => {
+                  const isExpanded = expandedFolders.has(folder.id);
+                  const templateCount = getTemplateCount(folder.id);
 
-                return (
-                  <div
-                    key={folder.id}
-                    onClick={() => setSelectedFolderId(folder.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded cursor-pointer mb-1 transition-colors ${
-                      selectedFolderId === folder.id
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'hover:bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    <Folder className="h-4 w-4" />
-                    <span className="text-sm flex-1 truncate">{folder.name}</span>
-                    <span className="text-xs text-gray-500">
-                      {folderTemplateCount}
-                    </span>
-                  </div>
-                );
-              })
+                  return (
+                    <div
+                      key={folder.id}
+                      onClick={() => setSelectedFolderId(folder.id)}
+                      className={`flex items-center gap-1 px-2 py-2 rounded cursor-pointer transition-colors ${
+                        selectedFolderId === folder.id
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'hover:bg-gray-200 text-gray-700'
+                      }`}
+                      style={{ paddingLeft: `${8 + folder.level * 16}px` }}
+                    >
+                      {/* Expand/Collapse button */}
+                      {folder.hasChildren ? (
+                        <button
+                          onClick={(e) => toggleFolderExpand(folder.id, e)}
+                          className="p-0.5 hover:bg-gray-300 rounded"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-3 w-3" />
+                          ) : (
+                            <ChevronRight className="h-3 w-3" />
+                          )}
+                        </button>
+                      ) : (
+                        <span className="w-4" />
+                      )}
+
+                      <Folder className="h-4 w-4 flex-shrink-0" />
+                      <span className="text-sm flex-1 truncate">{folder.name}</span>
+                      <span className="text-xs text-gray-500">{templateCount}</span>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
 
@@ -207,6 +317,7 @@ export const TemplateSelectionModal: React.FC<TemplateSelectionModalProps> = ({
                 <div className="grid grid-cols-3 gap-4">
                   {filteredTemplates.map((template) => {
                     const isSelected = localSelectedIds.includes(template.id);
+                    const wasAlreadyAssigned = alreadyAssignedIds.has(template.id);
 
                     return (
                       <div
@@ -218,6 +329,13 @@ export const TemplateSelectionModal: React.FC<TemplateSelectionModalProps> = ({
                             : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
                         }`}
                       >
+                        {/* Badge "Déjà affecté" */}
+                        {wasAlreadyAssigned && (
+                          <div className="absolute top-0 left-0 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-tl-lg rounded-br-lg">
+                            Déjà affecté
+                          </div>
+                        )}
+
                         {/* Checkbox */}
                         <div
                           className={`absolute top-3 right-3 w-5 h-5 rounded border-2 flex items-center justify-center ${
@@ -230,7 +348,7 @@ export const TemplateSelectionModal: React.FC<TemplateSelectionModalProps> = ({
                         </div>
 
                         {/* Template Info */}
-                        <div className="flex items-start gap-3 pr-6">
+                        <div className={`flex items-start gap-3 ${wasAlreadyAssigned ? 'pt-4' : ''} pr-6`}>
                           <Award className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-sm text-gray-900 truncate">
@@ -241,10 +359,10 @@ export const TemplateSelectionModal: React.FC<TemplateSelectionModalProps> = ({
                             </p>
                             <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
                               <span className="px-2 py-0.5 bg-gray-100 rounded">
-                                {template.template_config.layout.format.toUpperCase()}
+                                {template.template_config?.layout?.format?.toUpperCase() || 'A4'}
                               </span>
                               <span>
-                                {template.template_config.layout.orientation === 'landscape'
+                                {template.template_config?.layout?.orientation === 'landscape'
                                   ? 'Paysage'
                                   : 'Portrait'}
                               </span>
@@ -267,23 +385,34 @@ export const TemplateSelectionModal: React.FC<TemplateSelectionModalProps> = ({
               Templates sélectionnés ({localSelectedIds.length})
             </div>
             <div className="flex flex-wrap gap-2 max-h-20 overflow-y-auto">
-              {selectedTemplates.map((template) => (
-                <div
-                  key={template.id}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs"
-                >
-                  <span className="font-medium truncate max-w-xs">{template.name}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleTemplate(template.id);
-                    }}
-                    className="hover:bg-blue-200 rounded-full p-0.5 transition-colors"
+              {selectedTemplates.map((template) => {
+                const wasAlreadyAssigned = alreadyAssignedIds.has(template.id);
+
+                return (
+                  <div
+                    key={template.id}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs ${
+                      wasAlreadyAssigned
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-blue-100 text-blue-700'
+                    }`}
                   >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
+                    <span className="font-medium truncate max-w-xs">{template.name}</span>
+                    {wasAlreadyAssigned && (
+                      <span className="text-[10px] opacity-70">(déjà)</span>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleTemplate(template.id);
+                      }}
+                      className="hover:bg-opacity-50 rounded-full p-0.5 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
