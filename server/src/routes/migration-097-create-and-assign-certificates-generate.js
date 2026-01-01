@@ -181,6 +181,19 @@ router.post('/', async (req, res) => {
   }
 });
 
+// /run endpoint for MigrationPanel compatibility
+router.post('/run', async (req, res) => {
+  try {
+    const result = await runMigration();
+    res.json({ success: true, details: result });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // GET endpoint
 router.get('/', async (req, res) => {
   try {
@@ -190,6 +203,35 @@ router.get('/', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+// /status endpoint for MigrationPanel
+router.get('/status', async (req, res) => {
+  try {
+    // Check if permission exists and is assigned to gérant
+    const result = await pool.query(`
+      SELECT 1 FROM role_permissions rp
+      JOIN permissions p ON rp.permission_id = p.id
+      JOIN roles r ON rp.role_id = r.id
+      WHERE p.code = 'training.certificates.generate'
+      AND LOWER(r.name) IN ('gerant', 'gérant')
+    `);
+
+    const applied = result.rows.length > 0;
+    res.json({
+      applied,
+      status: { migrationNeeded: !applied },
+      message: applied
+        ? 'Migration 097 déjà appliquée - permission certificates.generate existe et assignée au gérant'
+        : 'Migration 097 nécessaire - permission à créer et assigner'
+    });
+  } catch (error) {
+    res.status(500).json({
+      applied: false,
+      status: { migrationNeeded: true },
+      message: error.message
     });
   }
 });

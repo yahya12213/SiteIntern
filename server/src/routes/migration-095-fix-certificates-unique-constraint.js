@@ -119,6 +119,19 @@ router.post('/', async (req, res) => {
   }
 });
 
+// /run endpoint for MigrationPanel compatibility
+router.post('/run', async (req, res) => {
+  try {
+    const result = await runMigration();
+    res.json({ success: true, details: result });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 router.get('/', async (req, res) => {
   try {
     const result = await runMigration();
@@ -127,6 +140,32 @@ router.get('/', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+// /status endpoint for MigrationPanel
+router.get('/status', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT conname FROM pg_constraint
+      WHERE conrelid = 'certificates'::regclass
+      AND conname = 'certificates_unique_template'
+    `);
+
+    const applied = result.rows.length > 0;
+    res.json({
+      applied,
+      status: { migrationNeeded: !applied },
+      message: applied
+        ? 'Migration 095 déjà appliquée - contrainte certificates_unique_template existe'
+        : 'Migration 095 nécessaire - contrainte à mettre à jour'
+    });
+  } catch (error) {
+    res.status(500).json({
+      applied: false,
+      status: { migrationNeeded: true },
+      message: error.message
     });
   }
 });
