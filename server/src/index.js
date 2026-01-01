@@ -163,6 +163,7 @@ import migration098Router from './routes/migration-098-add-certificates-view-per
 import migration099Router from './routes/migration-099-standardize-existing-data.js';
 import migration100Router from './routes/migration-100-student-certificate-number.js';
 import migration101Router from './routes/migration-101-remove-certificate-number-unique.js';
+import debugTemplateDateformatRouter from './routes/debug-template-dateformat.js';
 import visitsRouter from './routes/visits.js';
 
 const app = express();
@@ -379,6 +380,7 @@ app.use('/api/migration-098-add-certificates-view-permission', ...adminOnly, mig
 app.use('/api/migration-099-standardize-existing-data', ...adminOnly, migration099Router);
 app.use('/api/migration-100-student-certificate-number', ...adminOnly, migration100Router);
 app.use('/api/migration-101-remove-certificate-number-unique', ...adminOnly, migration101Router);
+app.use('/api/debug-template-dateformat', ...adminOnly, debugTemplateDateformatRouter);
 
 // Health check
 app.get('/api/health', async (req, res) => {
