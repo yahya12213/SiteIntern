@@ -179,16 +179,29 @@ export class CertificatePDFGenerator {
       return;
     }
 
-    // Debug: Log dateFormat if element contains date variables
-    if (element.content && (
+    // Auto-detect date elements and force 'long' format if not set
+    // This ensures dates are always formatted nicely regardless of template settings
+    const hasDateVariable = element.content && (
       element.content.includes('{session_date_debut}') ||
       element.content.includes('{session_date_fin}') ||
-      element.content.includes('{completion_date}')
-    )) {
-      console.log(`📅 Date element found: "${element.content}" | dateFormat: ${element.dateFormat || 'NOT SET (default: numeric)'}`);
+      element.content.includes('{completion_date}') ||
+      element.content.includes('{issued_date}') ||
+      element.content.includes('{student_birth_date}') ||
+      element.content.includes('{birth_date}') ||
+      element.content.includes('{date_naissance}')
+    );
+
+    // If element contains date variables and dateFormat is not set or is 'numeric',
+    // force 'long' format (01 Janvier 2026)
+    const effectiveElement = hasDateVariable && (!element.dateFormat || element.dateFormat === 'numeric')
+      ? { ...element, dateFormat: 'long' }
+      : element;
+
+    if (hasDateVariable) {
+      console.log(`📅 Date element: "${element.content}" | original dateFormat: ${element.dateFormat || 'NOT SET'} | effective: ${effectiveElement.dateFormat}`);
     }
 
-    const content = this.substituteVariables(element.content || '', certificate, element);
+    const content = this.substituteVariables(effectiveElement.content || '', certificate, effectiveElement);
     const x = this.resolvePosition(element.x || 0, doc.page.width);
     const y = this.resolvePosition(element.y || 0, doc.page.height);
     const fontSize = element.fontSize || 12;
@@ -485,15 +498,6 @@ export class CertificatePDFGenerator {
     const metadata = certificate.metadata || {};
     const dateFormat = element?.dateFormat || 'numeric';
 
-    // Debug: Log date substitution
-    if (text && (text.includes('{session_date_debut}') || text.includes('{session_date_fin}'))) {
-      console.log(`🔄 substituteVariables called:`);
-      console.log(`   text: "${text}"`);
-      console.log(`   dateFormat received: "${dateFormat}"`);
-      console.log(`   session_date_debut raw: ${metadata.session_date_debut}`);
-      console.log(`   session_date_fin raw: ${metadata.session_date_fin}`);
-    }
-
     // Apply standardization rules to each field type
     const variables = {
       // Names - Title Case (Jean Dupont, not JEAN DUPONT or jean dupont)
@@ -528,16 +532,8 @@ export class CertificatePDFGenerator {
       '{student_birth_date}': this.formatDate(metadata.date_naissance || metadata.birth_date || metadata.student_birth_date, dateFormat),
 
       // Session dates - Use element's dateFormat
-      '{session_date_debut}': (() => {
-        const formatted = this.formatDate(metadata.session_date_debut || metadata.session_start_date, dateFormat);
-        console.log(`   📆 session_date_debut formatted with "${dateFormat}": "${formatted}"`);
-        return formatted;
-      })(),
-      '{session_date_fin}': (() => {
-        const formatted = this.formatDate(metadata.session_date_fin || metadata.session_end_date, dateFormat);
-        console.log(`   📆 session_date_fin formatted with "${dateFormat}": "${formatted}"`);
-        return formatted;
-      })(),
+      '{session_date_debut}': this.formatDate(metadata.session_date_debut || metadata.session_start_date, dateFormat),
+      '{session_date_fin}': this.formatDate(metadata.session_date_fin || metadata.session_end_date, dateFormat),
 
       // Session info
       '{session_title}': toTitleCase(metadata.session_title || metadata.session_name || ''),
