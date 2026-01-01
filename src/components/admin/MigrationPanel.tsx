@@ -333,8 +333,14 @@ const MIGRATIONS: Migration[] = [
   {
     id: 'migration-100',
     name: 'Migration 100: Numéro Certificat Unique par Étudiant',
-    description: '🔢 SÉRIE UNIQUE: Ajoute un numéro de certificat unique par inscription (CERT-SEGMENT-000001) qui reste le même pour tous les documents de l\'étudiant',
+    description: '🔢 SÉRIE UNIQUE: Ajoute un numéro de certificat unique par inscription (CERT_SEGMENT_VILLE_000001) qui reste le même pour tous les documents de l\'étudiant',
     endpoint: '/migration-100-student-certificate-number'
+  },
+  {
+    id: 'migration-101',
+    name: 'Migration 101: Permettre Même Numéro sur Plusieurs Documents',
+    description: '🔧 FIX CRITIQUE: Supprime la contrainte UNIQUE sur certificate_number dans certificates - Permet badge, attestation, diplôme avec le même numéro',
+    endpoint: '/migration-101-remove-certificate-number-unique'
   }
 ];
 
