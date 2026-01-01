@@ -305,6 +305,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 095: Fix Certificates Unique Constraint',
     description: '🔧 FIX CRITIQUE: Change la contrainte UNIQUE de (student_id, formation_id, session_id, document_type) vers (student_id, formation_id, session_id, template_id) - Permet plusieurs types de documents avec le même document_type',
     endpoint: '/migration-095-fix-certificates-unique-constraint'
+  },
+  {
+    id: 'migration-096',
+    name: 'Migration 096: Permission Génération Certificats pour Gérant',
+    description: '🔧 FIX GÉRANT: Ajoute la permission training.certificates.generate au rôle gérant - Permet au gérant de générer des certificats/documents',
+    endpoint: '/migration-096-gerant-certificates-generate-permission'
   }
 ];
 
