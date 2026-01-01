@@ -179,7 +179,7 @@ export class CertificatePDFGenerator {
       return;
     }
 
-    const content = this.substituteVariables(element.content || '', certificate);
+    const content = this.substituteVariables(element.content || '', certificate, element);
     const x = this.resolvePosition(element.x || 0, doc.page.width);
     const y = this.resolvePosition(element.y || 0, doc.page.height);
     const fontSize = element.fontSize || 12;
@@ -418,14 +418,63 @@ export class CertificatePDFGenerator {
   }
 
   /**
+   * Formats a date according to the specified format
+   * @param {string|Date} dateValue - Date value to format
+   * @param {string} format - Format type: 'numeric', 'long', 'short', 'full'
+   * @returns {string} - Formatted date string
+   */
+  formatDate(dateValue, format = 'numeric') {
+    if (!dateValue) return '';
+
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return '';
+
+    const months = [
+      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+    ];
+    const monthsShort = [
+      'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
+      'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'
+    ];
+    const days = [
+      'Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'
+    ];
+
+    const day = String(date.getDate()).padStart(2, '0');
+    const dayNum = date.getDate();
+    const month = date.getMonth();
+    const year = date.getFullYear();
+    const dayOfWeek = date.getDay();
+
+    switch (format) {
+      case 'long':
+        // 01 Janvier 2026
+        return `${day} ${months[month]} ${year}`;
+      case 'short':
+        // 1 Jan 2026
+        return `${dayNum} ${monthsShort[month]} ${year}`;
+      case 'full':
+        // Mercredi 01 Janvier 2026
+        return `${days[dayOfWeek]} ${day} ${months[month]} ${year}`;
+      case 'numeric':
+      default:
+        // 01/01/2026
+        return date.toLocaleDateString('fr-FR');
+    }
+  }
+
+  /**
    * Substitutes variables in text with certificate data
    * Automatically standardizes text formatting for consistent documents
    * @param {string} text - Text with variables
    * @param {Object} certificate - Certificate data
+   * @param {Object} element - Optional element with dateFormat property
    * @returns {string} - Text with substituted and standardized values
    */
-  substituteVariables(text, certificate) {
+  substituteVariables(text, certificate, element = null) {
     const metadata = certificate.metadata || {};
+    const dateFormat = element?.dateFormat || 'numeric';
 
     // Apply standardization rules to each field type
     const variables = {
@@ -447,23 +496,44 @@ export class CertificatePDFGenerator {
       // CIN - Uppercase, no spaces (T209876, not t 209876)
       '{cin}': formatCIN(metadata.cin || metadata.student_id || ''),
       '{CIN}': formatCIN(metadata.cin || metadata.student_id || ''),
+      '{student_id}': formatCIN(metadata.cin || metadata.student_id || certificate.student_id || ''),
 
       // Certificate number - Uppercase (CERT-2024-001)
       '{certificate_number}': formatCertificateNumber(certificate.certificate_number || ''),
+      '{certificate_serial}': certificate.certificate_serial || certificate.certificate_number || '',
 
-      // Dates - Keep as is
-      '{completion_date}': certificate.completion_date ? new Date(certificate.completion_date).toLocaleDateString('fr-FR') : '',
-      '{birth_date}': metadata.birth_date ? new Date(metadata.birth_date).toLocaleDateString('fr-FR') : '',
-      '{date_naissance}': metadata.date_naissance || metadata.birth_date ? new Date(metadata.date_naissance || metadata.birth_date).toLocaleDateString('fr-FR') : '',
+      // Dates - Use element's dateFormat
+      '{completion_date}': this.formatDate(certificate.completion_date, dateFormat),
+      '{issued_date}': this.formatDate(certificate.issued_date || certificate.completion_date, dateFormat),
+      '{birth_date}': this.formatDate(metadata.birth_date, dateFormat),
+      '{date_naissance}': this.formatDate(metadata.date_naissance || metadata.birth_date, dateFormat),
+      '{student_birth_date}': this.formatDate(metadata.date_naissance || metadata.birth_date || metadata.student_birth_date, dateFormat),
+
+      // Session dates - Use element's dateFormat
+      '{session_date_debut}': this.formatDate(metadata.session_date_debut || metadata.session_start_date, dateFormat),
+      '{session_date_fin}': this.formatDate(metadata.session_date_fin || metadata.session_end_date, dateFormat),
+
+      // Session info
+      '{session_title}': toTitleCase(metadata.session_title || metadata.session_name || ''),
+      '{session_ville}': toTitleCase(metadata.session_ville || metadata.session_city || ''),
+      '{session_segment}': toTitleCase(metadata.session_segment || ''),
+      '{session_corps_formation}': toTitleCase(metadata.session_corps_formation || metadata.corps_formation || ''),
+
+      // Student contact info
+      '{student_email}': metadata.student_email || metadata.email || '',
+      '{student_phone}': metadata.student_phone || metadata.phone || metadata.telephone || '',
+      '{student_whatsapp}': metadata.student_whatsapp || metadata.whatsapp || '',
+      '{student_address}': metadata.student_address || metadata.address || metadata.adresse || '',
 
       // Numbers - Keep as is
       '{grade}': certificate.grade ? certificate.grade.toFixed(1) : '',
       '{grade_rounded}': certificate.grade ? Math.round(certificate.grade).toString() : '',
-      '{duration_hours}': certificate.duration_hours || '',
+      '{duration_hours}': certificate.duration_hours || metadata.duration_hours || '',
       '{current_year}': new Date().getFullYear().toString(),
 
       // Organization - Title Case
-      '{organization_name}': toTitleCase(metadata.organization_name || '')
+      '{organization_name}': toTitleCase(metadata.organization_name || ''),
+      '{organization_address}': metadata.organization_address || ''
     };
 
     let result = text;

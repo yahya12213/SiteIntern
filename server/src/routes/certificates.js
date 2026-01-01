@@ -136,6 +136,27 @@ router.post('/generate',
 
     const formation = formationResult.rows[0];
 
+    // Récupérer les informations de la session si session_id est fourni
+    let sessionData = null;
+    if (session_id) {
+      const sessionResult = await client.query(
+        `SELECT sf.id, sf.titre, sf.date_debut, sf.date_fin,
+                v.name as ville_name, s.name as segment_name,
+                cf.name as corps_formation_name
+         FROM sessions_formation sf
+         LEFT JOIN villes v ON v.id = sf.ville_id
+         LEFT JOIN segments s ON s.id = sf.segment_id
+         LEFT JOIN corps_formation cf ON cf.id = sf.corps_formation_id
+         WHERE sf.id = $1`,
+        [session_id]
+      );
+
+      if (sessionResult.rows.length > 0) {
+        sessionData = sessionResult.rows[0];
+        console.log('📅 Session data loaded:', sessionData.titre, sessionData.date_debut, sessionData.date_fin);
+      }
+    }
+
     // Déterminer le template à utiliser
     let finalTemplateId = template_id || formation.certificate_template_id;
 
@@ -248,7 +269,16 @@ router.post('/generate',
         ...existingMetadata,
         prenom: student.prenom,
         nom: student.nom,
-        cin: student.cin
+        cin: student.cin,
+        // Session data
+        ...(sessionData ? {
+          session_title: sessionData.titre,
+          session_date_debut: sessionData.date_debut,
+          session_date_fin: sessionData.date_fin,
+          session_ville: sessionData.ville_name,
+          session_segment: sessionData.segment_name,
+          session_corps_formation: sessionData.corps_formation_name
+        } : {})
       }
     };
 

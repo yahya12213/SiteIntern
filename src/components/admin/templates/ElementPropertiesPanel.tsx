@@ -285,6 +285,32 @@ export const ElementPropertiesPanel: React.FC<ElementPropertiesPanelProps> = ({
                 Basé sur la largeur du cadre ({element.width ? `${element.width}px` : 'non définie'})
               </p>
             </div>
+
+            {/* Format de date - affiché uniquement pour les variables de date */}
+            {element.content && (
+              element.content.includes('{session_date_debut}') ||
+              element.content.includes('{session_date_fin}') ||
+              element.content.includes('{completion_date}') ||
+              element.content.includes('{issued_date}') ||
+              element.content.includes('{student_birth_date}')
+            ) && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Format de date</label>
+                <select
+                  value={element.dateFormat || 'numeric'}
+                  onChange={(e) => handleFieldChange('dateFormat', e.target.value)}
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="numeric">Numérique (01/01/2026)</option>
+                  <option value="long">En lettres (01 Janvier 2026)</option>
+                  <option value="short">Court (1 Jan 2026)</option>
+                  <option value="full">Complet (Mercredi 01 Janvier 2026)</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Choisissez comment afficher la date sur le certificat
+                </p>
+              </div>
+            )}
           </>
         )}
 
