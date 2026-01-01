@@ -1126,12 +1126,40 @@ router.post('/packs', requirePermission('training.formations.create_pack'), asyn
       );
     }
 
+    // Auto-assigner les templates des formations membres (sans doublons)
+    // Récupérer tous les templates des formations du pack
+    const memberTemplatesResult = await client.query(
+      `SELECT DISTINCT ft.template_id, ft.document_type, ct.name as template_name
+       FROM formation_templates ft
+       INNER JOIN certificate_templates ct ON ct.id = ft.template_id
+       WHERE ft.formation_id = ANY($1::text[])
+       ORDER BY ct.name`,
+      [formation_ids]
+    );
+
+    console.log(`📋 Found ${memberTemplatesResult.rows.length} unique templates from pack members`);
+
+    // Assigner chaque template unique au pack
+    let firstTemplate = true;
+    for (const tmpl of memberTemplatesResult.rows) {
+      const ftId = nanoid();
+      await client.query(
+        `INSERT INTO formation_templates (id, formation_id, template_id, document_type, is_default)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (formation_id, template_id, document_type) DO NOTHING`,
+        [ftId, packId, tmpl.template_id, tmpl.document_type, firstTemplate]
+      );
+      console.log(`  ✓ Assigned template "${tmpl.template_name}" (${tmpl.document_type}) to pack`);
+      firstTemplate = false;
+    }
+
     await client.query('COMMIT');
 
     res.status(201).json({
       success: true,
       pack: packResult.rows[0],
-      formations_count: formation_ids.length
+      formations_count: formation_ids.length,
+      templates_inherited: memberTemplatesResult.rows.length
     });
 
   } catch (error) {
