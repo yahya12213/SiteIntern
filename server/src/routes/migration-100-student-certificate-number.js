@@ -4,7 +4,8 @@
  * This migration:
  * 1. Adds certificate_number column to session_etudiants table
  * 2. Generates unique certificate numbers for existing enrollments
- * 3. Format: CERT_{SEGMENT}_{VILLE}_{6 digits}
+ * 3. Format: CERT_{2 letters segment}_{2 letters ville}_{6 digits starting at 103009}
+ *    Example: CERT_PR_KH_103009 (Prolean + Khemisset)
  *
  * The certificate number is generated ONCE when student is enrolled
  * and remains the same for ALL documents (attestation, badge, diploma, etc.)
@@ -75,24 +76,27 @@ export async function runMigration() {
     const segmentCityCounts = {};
 
     for (const enrollment of enrollmentsResult.rows) {
-      // Get segment code (full name, uppercase, no special chars)
-      const segmentName = enrollment.segment_name || 'GEN';
+      // Get segment code (first 2 letters, uppercase)
+      const segmentName = enrollment.segment_name || 'GE';
       const segmentCode = segmentName
         .toUpperCase()
-        .replace(/[^A-Z0-9]/g, '')
-        .trim();
+        .replace(/[^A-Z]/g, '')
+        .substring(0, 2)
+        .padEnd(2, 'X');
 
-      // Get city code (full name, uppercase, no special chars)
-      const cityName = enrollment.city_name || 'VILLE';
+      // Get city code (first 2 letters, uppercase)
+      const cityName = enrollment.city_name || 'VI';
       const cityCode = cityName
         .toUpperCase()
-        .replace(/[^A-Z0-9]/g, '')
-        .trim();
+        .replace(/[^A-Z]/g, '')
+        .substring(0, 2)
+        .padEnd(2, 'X');
 
       // Create unique key for segment+city combination
       const key = `${segmentCode}_${cityCode}`;
 
       // Initialize or increment count for this segment+city
+      // Base number is 103008, so first certificate will be 103009
       if (!segmentCityCounts[key]) {
         // Get existing count from database
         const existingCount = await client.query(`
@@ -104,9 +108,9 @@ export async function runMigration() {
       }
 
       segmentCityCounts[key]++;
-      const nextNumber = segmentCityCounts[key];
-      const paddedNumber = String(nextNumber).padStart(6, '0');
-      const certificateNumber = `CERT_${segmentCode}_${cityCode}_${paddedNumber}`;
+      const baseNumber = 103008;
+      const nextNumber = baseNumber + segmentCityCounts[key];
+      const certificateNumber = `CERT_${segmentCode}_${cityCode}_${nextNumber}`;
 
       // Update the enrollment
       await client.query(`
