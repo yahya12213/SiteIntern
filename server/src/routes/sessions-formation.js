@@ -7,41 +7,53 @@ import * as archiveManager from '../utils/archiveManager.js';
 
 /**
  * Generate a unique certificate number for a student enrollment
- * Format: CERT-{SEGMENT_CODE}-{6 digits}
- * Example: CERT-CASA-000001, CERT-RABAT-000042
+ * Format: CERT_{SEGMENT}_{VILLE}_{6 digits}
+ * Example: CERT_DIRAY_RABAT_000001, CERT_PROLEAN_KHEMISSET_000042
  */
 async function generateCertificateNumber(sessionId) {
-  // Get the segment code for this session
-  const segmentResult = await pool.query(`
-    SELECT s.id, s.name
+  // Get the segment name and city name for this session
+  const sessionResult = await pool.query(`
+    SELECT s.name as segment_name, c.name as city_name
     FROM sessions_formation sf
     JOIN segments s ON sf.segment_id = s.id
+    JOIN cities c ON sf.city_id = c.id
     WHERE sf.id = $1
   `, [sessionId]);
 
   let segmentCode = 'GEN'; // Default if no segment
+  let cityCode = 'VILLE'; // Default if no city
 
-  if (segmentResult.rows.length > 0) {
-    // Create a short code from segment name (first 4 chars, uppercase)
-    const segmentName = segmentResult.rows[0].name || 'GEN';
-    segmentCode = segmentName
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '')
-      .substring(0, 4)
-      .padEnd(4, 'X');
+  if (sessionResult.rows.length > 0) {
+    const row = sessionResult.rows[0];
+
+    // Get segment name (uppercase, remove special chars)
+    if (row.segment_name) {
+      segmentCode = row.segment_name
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .trim();
+    }
+
+    // Get city name (uppercase, remove special chars)
+    if (row.city_name) {
+      cityCode = row.city_name
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .trim();
+    }
   }
 
-  // Get the next sequence number for this segment
+  // Get the next sequence number for this segment+city combination
   const countResult = await pool.query(`
     SELECT COUNT(*) as count
     FROM session_etudiants
     WHERE certificate_number LIKE $1
-  `, [`CERT-${segmentCode}-%`]);
+  `, [`CERT_${segmentCode}_${cityCode}_%`]);
 
   const nextNumber = (parseInt(countResult.rows[0].count) || 0) + 1;
   const paddedNumber = String(nextNumber).padStart(6, '0');
 
-  return `CERT-${segmentCode}-${paddedNumber}`;
+  return `CERT_${segmentCode}_${cityCode}_${paddedNumber}`;
 }
 
 const router = express.Router();

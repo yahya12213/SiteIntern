@@ -4,7 +4,7 @@
  * This migration:
  * 1. Adds certificate_number column to session_etudiants table
  * 2. Generates unique certificate numbers for existing enrollments
- * 3. Format: CERT-{SEGMENT_CODE}-{6 digits}
+ * 3. Format: CERT_{SEGMENT}_{VILLE}_{6 digits}
  *
  * The certificate number is generated ONCE when student is enrolled
  * and remains the same for ALL documents (attestation, badge, diploma, etc.)
@@ -14,46 +14,6 @@ import express from 'express';
 import pool from '../config/database.js';
 
 const router = express.Router();
-
-/**
- * Generate a certificate number for a student enrollment
- * Format: CERT-{SEGMENT_CODE}-{6 digits}
- * Example: CERT-CASA-000001, CERT-RABAT-000042
- */
-async function generateCertificateNumber(client, sessionId) {
-  // Get the segment code for this session
-  const segmentResult = await client.query(`
-    SELECT s.id, s.name
-    FROM sessions_formation sf
-    JOIN segments s ON sf.segment_id = s.id
-    WHERE sf.id = $1
-  `, [sessionId]);
-
-  let segmentCode = 'GEN'; // Default if no segment
-
-  if (segmentResult.rows.length > 0) {
-    // Create a short code from segment name (first 4 chars, uppercase)
-    const segmentName = segmentResult.rows[0].name || 'GEN';
-    segmentCode = segmentName
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '')
-      .substring(0, 4)
-      .padEnd(4, 'X');
-  }
-
-  // Get the next sequence number for this segment
-  // Count existing certificates with this segment prefix
-  const countResult = await client.query(`
-    SELECT COUNT(*) as count
-    FROM session_etudiants
-    WHERE certificate_number LIKE $1
-  `, [`CERT-${segmentCode}-%`]);
-
-  const nextNumber = (parseInt(countResult.rows[0].count) || 0) + 1;
-  const paddedNumber = String(nextNumber).padStart(6, '0');
-
-  return `CERT-${segmentCode}-${paddedNumber}`;
-}
 
 export async function runMigration() {
   const client = await pool.connect();
@@ -75,11 +35,18 @@ export async function runMigration() {
       console.log('Step 1: Adding certificate_number column...');
       await client.query(`
         ALTER TABLE session_etudiants
-        ADD COLUMN certificate_number VARCHAR(30) UNIQUE
+        ADD COLUMN certificate_number VARCHAR(100) UNIQUE
       `);
       console.log('✓ Column certificate_number added\n');
     } else {
-      console.log('✓ Column certificate_number already exists\n');
+      // Increase column size if needed (in case it was created with smaller size)
+      console.log('✓ Column certificate_number already exists');
+      console.log('Ensuring column size is sufficient...');
+      await client.query(`
+        ALTER TABLE session_etudiants
+        ALTER COLUMN certificate_number TYPE VARCHAR(100)
+      `);
+      console.log('✓ Column size updated\n');
     }
 
     // Step 2: Generate certificate numbers for existing enrollments without one
@@ -87,11 +54,14 @@ export async function runMigration() {
 
     const enrollmentsResult = await client.query(`
       SELECT se.id, se.session_id, se.student_id, s.nom, s.prenom,
-             sf.titre as session_titre, seg.name as segment_name
+             sf.titre as session_titre,
+             seg.name as segment_name,
+             c.name as city_name
       FROM session_etudiants se
       JOIN students s ON se.student_id = s.id
       JOIN sessions_formation sf ON se.session_id = sf.id
       LEFT JOIN segments seg ON sf.segment_id = seg.id
+      LEFT JOIN cities c ON sf.city_id = c.id
       WHERE se.certificate_number IS NULL
       ORDER BY se.created_at ASC
     `);
@@ -101,33 +71,42 @@ export async function runMigration() {
     let generatedCount = 0;
     const generated = [];
 
-    // Group by segment to generate sequential numbers
-    const segmentCounts = {};
+    // Group by segment+city to generate sequential numbers
+    const segmentCityCounts = {};
 
     for (const enrollment of enrollmentsResult.rows) {
-      // Get segment code
+      // Get segment code (full name, uppercase, no special chars)
       const segmentName = enrollment.segment_name || 'GEN';
       const segmentCode = segmentName
         .toUpperCase()
         .replace(/[^A-Z0-9]/g, '')
-        .substring(0, 4)
-        .padEnd(4, 'X');
+        .trim();
 
-      // Initialize or increment count for this segment
-      if (!segmentCounts[segmentCode]) {
+      // Get city code (full name, uppercase, no special chars)
+      const cityName = enrollment.city_name || 'VILLE';
+      const cityCode = cityName
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .trim();
+
+      // Create unique key for segment+city combination
+      const key = `${segmentCode}_${cityCode}`;
+
+      // Initialize or increment count for this segment+city
+      if (!segmentCityCounts[key]) {
         // Get existing count from database
         const existingCount = await client.query(`
           SELECT COUNT(*) as count
           FROM session_etudiants
           WHERE certificate_number LIKE $1
-        `, [`CERT-${segmentCode}-%`]);
-        segmentCounts[segmentCode] = parseInt(existingCount.rows[0].count) || 0;
+        `, [`CERT_${segmentCode}_${cityCode}_%`]);
+        segmentCityCounts[key] = parseInt(existingCount.rows[0].count) || 0;
       }
 
-      segmentCounts[segmentCode]++;
-      const nextNumber = segmentCounts[segmentCode];
+      segmentCityCounts[key]++;
+      const nextNumber = segmentCityCounts[key];
       const paddedNumber = String(nextNumber).padStart(6, '0');
-      const certificateNumber = `CERT-${segmentCode}-${paddedNumber}`;
+      const certificateNumber = `CERT_${segmentCode}_${cityCode}_${paddedNumber}`;
 
       // Update the enrollment
       await client.query(`
@@ -279,5 +258,4 @@ router.get('/status', async (req, res) => {
   }
 });
 
-export { generateCertificateNumber };
 export default router;
