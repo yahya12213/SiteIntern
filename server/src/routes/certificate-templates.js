@@ -454,17 +454,24 @@ router.put('/:id',
     }
 
     if (template_config !== undefined) {
-      // Debug: Log elements with date variables to check dateFormat
+      // Debug: Log ALL elements to see what's being saved
+      console.log('📋 SAVE API - Template config overview:');
+      console.log(`   Pages count: ${template_config.pages?.length || 0}`);
       if (template_config.pages) {
         template_config.pages.forEach((page, pageIndex) => {
+          console.log(`   Page ${pageIndex} (${page.name || 'unnamed'}): ${page.elements?.length || 0} elements`);
           if (page.elements) {
             page.elements.forEach((el) => {
-              if (el.type === 'text' && el.content && (
-                el.content.includes('{session_date_debut}') ||
-                el.content.includes('{session_date_fin}') ||
-                el.content.includes('{completion_date}')
-              )) {
-                console.log(`📅 SAVE API - Page ${pageIndex}, Element ${el.id}: dateFormat="${el.dateFormat || 'NOT SET'}"`);
+              // Log ALL text elements
+              if (el.type === 'text') {
+                const hasDateVar = el.content && (
+                  el.content.includes('{session_date_debut}') ||
+                  el.content.includes('{session_date_fin}') ||
+                  el.content.includes('{completion_date}')
+                );
+                if (hasDateVar) {
+                  console.log(`   📅 Page${pageIndex}/${el.id}: "${el.content?.substring(0, 30)}" | dateFormat="${el.dateFormat || 'NOT SET'}"`);
+                }
               }
             });
           }
