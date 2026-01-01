@@ -179,8 +179,8 @@ export class CertificatePDFGenerator {
       return;
     }
 
-    // Auto-detect date elements and force 'long' format if not set
-    // This ensures dates are always formatted nicely regardless of template settings
+    // Auto-detect date elements and use 'long' format as default only if dateFormat is not set
+    // IMPORTANT: Respect user's choice - if they chose 'numeric', use 'numeric'
     const hasDateVariable = element.content && (
       element.content.includes('{session_date_debut}') ||
       element.content.includes('{session_date_fin}') ||
@@ -191,9 +191,9 @@ export class CertificatePDFGenerator {
       element.content.includes('{date_naissance}')
     );
 
-    // If element contains date variables and dateFormat is not set or is 'numeric',
-    // force 'long' format (01 Janvier 2026)
-    const effectiveElement = hasDateVariable && (!element.dateFormat || element.dateFormat === 'numeric')
+    // Only set default 'long' format if dateFormat is not defined at all
+    // If user explicitly chose 'numeric', respect that choice
+    const effectiveElement = hasDateVariable && !element.dateFormat
       ? { ...element, dateFormat: 'long' }
       : element;
 

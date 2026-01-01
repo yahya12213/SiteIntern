@@ -308,9 +308,9 @@ export class CertificateTemplateEngine {
    * @param dateFormat Format de date à utiliser (de l'élément): 'numeric', 'short', 'long', 'full'
    */
   private replaceVariables(text: string, dateFormat?: string): string {
-    // Déterminer le format de date effectif
-    // Si dateFormat n'est pas défini ou est 'numeric', utiliser 'long' par défaut pour les dates
-    const effectiveDateFormat = (!dateFormat || dateFormat === 'numeric') ? 'long' : dateFormat;
+    // Utiliser le format de date spécifié par l'élément, ou 'long' par défaut si non défini
+    // IMPORTANT: Respecter le choix de l'utilisateur - si 'numeric' est choisi, utiliser 'numeric'
+    const effectiveDateFormat = dateFormat || 'long';
 
     // Construire l'objet des variables
     const variables: Record<string, any> = {
