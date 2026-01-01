@@ -61,7 +61,7 @@ export async function runMigration() {
       JOIN students s ON se.student_id = s.id
       JOIN sessions_formation sf ON se.session_id = sf.id
       LEFT JOIN segments seg ON sf.segment_id = seg.id
-      LEFT JOIN cities c ON sf.city_id = c.id
+      LEFT JOIN cities c ON sf.ville_id = c.id
       WHERE se.certificate_number IS NULL
       ORDER BY se.created_at ASC
     `);

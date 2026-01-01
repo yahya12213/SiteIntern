@@ -16,7 +16,7 @@ async function generateCertificateNumber(sessionId) {
     SELECT s.name as segment_name, c.name as city_name
     FROM sessions_formation sf
     JOIN segments s ON sf.segment_id = s.id
-    JOIN cities c ON sf.city_id = c.id
+    JOIN cities c ON sf.ville_id = c.id
     WHERE sf.id = $1
   `, [sessionId]);
 
