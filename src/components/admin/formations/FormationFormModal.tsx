@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, BookOpen, AlertCircle, Award, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
@@ -36,11 +36,16 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
     corps_formation_id: formation?.corps_formation_id || '',
   });
 
-  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>(
-    existingTemplates?.map((t) => t.template_id) || []
-  );
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Mettre à jour selectedTemplateIds quand existingTemplates est chargé
+  useEffect(() => {
+    if (existingTemplates && existingTemplates.length > 0) {
+      setSelectedTemplateIds(existingTemplates.map((t) => t.template_id));
+    }
+  }, [existingTemplates]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validate = () => {
