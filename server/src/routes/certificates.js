@@ -191,6 +191,33 @@ router.post('/generate',
 
     const template = templateResult.rows[0];
 
+    // DEBUG: Afficher le template_config pour vérifier le dateFormat
+    console.log('🔍 DEBUG Template loaded from DB:');
+    console.log('  Template ID:', template.id, '| Name:', template.name);
+    const tc = template.template_config;
+    console.log('  template_config type:', typeof tc);
+
+    if (tc && tc.pages && tc.pages[0] && tc.pages[0].elements) {
+      console.log(`  Pages count: ${tc.pages.length}, Elements in page 0: ${tc.pages[0].elements.length}`);
+      tc.pages[0].elements.forEach((el, i) => {
+        if (el.content && (
+          el.content.includes('{session_date_debut}') ||
+          el.content.includes('{session_date_fin}') ||
+          el.content.includes('{completion_date}')
+        )) {
+          console.log(`  📅 Element[${i}]: "${el.content}"`);
+          console.log(`      dateFormat property: ${JSON.stringify(el.dateFormat)}`);
+          console.log(`      All element keys: ${Object.keys(el).join(', ')}`);
+        }
+      });
+    } else {
+      console.log('  ⚠️ No pages/elements found in template_config');
+      console.log('  template_config keys:', tc ? Object.keys(tc) : 'null');
+      if (tc && tc.elements) {
+        console.log('  ⚠️ Found legacy elements array, length:', tc.elements.length);
+      }
+    }
+
     // Get certificate number from enrollment (session_etudiants)
     // This ensures ALL documents for the same student/session have the SAME number
     let certificateNumber = null;
