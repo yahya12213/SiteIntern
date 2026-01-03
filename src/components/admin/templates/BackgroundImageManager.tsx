@@ -32,6 +32,38 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     template.template_config.layout.customHeight
   );
 
+  // Helper function to update background correctly for both page-level and template-level
+  const updateBackground = (backgroundUrl: string, backgroundType: 'upload' | 'url') => {
+    if (pageId && template.template_config?.pages) {
+      // Multi-pages: mettre à jour dans template_config.pages[]
+      const updatedPages = template.template_config.pages.map(page => {
+        if (page.id === pageId) {
+          return {
+            ...page,
+            background_image_url: backgroundUrl,
+            background_image_type: backgroundType,
+          };
+        }
+        return page;
+      });
+
+      onUpdate({
+        ...template,
+        template_config: {
+          ...template.template_config,
+          pages: updatedPages,
+        },
+      });
+    } else {
+      // Comportement original: niveau template
+      onUpdate({
+        ...template,
+        background_image_url: backgroundUrl,
+        background_image_type: backgroundType,
+      });
+    }
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -60,12 +92,7 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
       const backgroundUrl = result.background_url || result.template?.background_image_url;
 
       if (backgroundUrl) {
-        // Mettre à jour uniquement le background_image_url, sans écraser le reste du template
-        onUpdate({
-          ...template,
-          background_image_url: backgroundUrl,
-          background_image_type: 'upload',
-        });
+        updateBackground(backgroundUrl, 'upload');
       }
     } catch (err: any) {
       setError(err.message || 'Erreur lors de l\'upload de l\'image');
@@ -93,12 +120,7 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
       // IMPORTANT: Ne pas utiliser result.template car il écrase les modifications locales
       const backgroundUrl = result.background_url || result.template?.background_image_url || url.trim();
 
-      // Mettre à jour uniquement le background_image_url
-      onUpdate({
-        ...template,
-        background_image_url: backgroundUrl,
-        background_image_type: 'url',
-      });
+      updateBackground(backgroundUrl, 'url');
       setUrl('');
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la définition de l\'URL');
@@ -133,11 +155,7 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
       const backgroundUrl = result.background_url || result.template?.background_image_url;
 
       if (backgroundUrl) {
-        onUpdate({
-          ...template,
-          background_image_url: backgroundUrl,
-          background_image_type: 'upload',
-        });
+        updateBackground(backgroundUrl, 'upload');
         setLocalPath('');
         setError(null);
       }
@@ -179,11 +197,7 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
         const backgroundUrl = result.background_url || result.template?.background_image_url;
 
         if (backgroundUrl) {
-          onUpdate({
-            ...template,
-            background_image_url: backgroundUrl,
-            background_image_type: 'upload',
-          });
+          updateBackground(backgroundUrl, 'upload');
           setLocalPath('');
           setError(null);
         }
