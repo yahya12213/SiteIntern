@@ -107,7 +107,7 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     }
   };
 
-  // Upload depuis un chemin local - utilise le File System Access API pour lire le fichier
+  // Upload depuis un chemin local - envoie directement le chemin au serveur
   const handleLocalPathSubmit = async () => {
     if (!localPath.trim()) {
       setError('Veuillez saisir un chemin de fichier');
@@ -128,25 +128,8 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     setError(null);
 
     try {
-      // Utiliser le File System Access API pour ouvrir un sélecteur de fichier
-      // Le chemin est juste un indice pour l'utilisateur
-      const [fileHandle] = await (window as any).showOpenFilePicker({
-        types: [
-          {
-            description: 'Images',
-            accept: {
-              'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.svg', '.gif'],
-            },
-          },
-        ],
-        multiple: false,
-      });
-
-      const file = await fileHandle.getFile();
-
-      // Uploader le fichier via l'API standard
-      const result = await certificateTemplatesApi.uploadBackground(template.id, file, pageId);
-
+      // Envoyer directement le chemin au serveur qui va lire le fichier
+      const result = await certificateTemplatesApi.uploadBackgroundFromPath(template.id, localPath.trim(), pageId);
       const backgroundUrl = result.background_url || result.template?.background_image_url;
 
       if (backgroundUrl) {
@@ -159,32 +142,7 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
         setError(null);
       }
     } catch (err: any) {
-      // Si l'utilisateur annule le sélecteur de fichier
-      if (err.name === 'AbortError') {
-        setError(null);
-        setIsUploading(false);
-        return;
-      }
-      // Si le File System Access API n'est pas supporté, essayer la méthode serveur
-      if (err.name === 'TypeError' || !('showOpenFilePicker' in window)) {
-        try {
-          const result = await certificateTemplatesApi.uploadBackgroundFromPath(template.id, localPath.trim(), pageId);
-          const backgroundUrl = result.background_url || result.template?.background_image_url;
-          if (backgroundUrl) {
-            onUpdate({
-              ...template,
-              background_image_url: backgroundUrl,
-              background_image_type: 'upload',
-            });
-            setLocalPath('');
-            setError(null);
-          }
-        } catch (serverErr: any) {
-          setError(serverErr.message || 'Erreur lors de l\'upload depuis le chemin local');
-        }
-      } else {
-        setError(err.message || 'Erreur lors de l\'upload depuis le chemin local');
-      }
+      setError(err.message || 'Erreur lors de l\'upload depuis le chemin local. Vérifiez que le serveur a accès à ce chemin.');
     } finally {
       setIsUploading(false);
     }
