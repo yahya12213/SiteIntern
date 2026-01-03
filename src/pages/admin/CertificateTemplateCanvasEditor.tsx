@@ -886,9 +886,14 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
 
   // Gérer la mise à jour du background de la page actuelle
   const handlePageBackgroundUpdate = (updatedTemplate: CertificateTemplate) => {
-    // Extraire le background_image_url et background_image_type du template
-    const newBackgroundUrl = updatedTemplate.background_image_url;
-    const newBackgroundType = updatedTemplate.background_image_type;
+    // Extraire le background de la page actuelle dans template_config.pages[] si disponible
+    // Sinon utiliser le background au niveau template (ancien comportement)
+    const currentPage = updatedTemplate.template_config?.pages?.find(
+      (p: any) => p.id === pages[currentPageIndex]?.id
+    );
+
+    const newBackgroundUrl = currentPage?.background_image_url || updatedTemplate.background_image_url;
+    const newBackgroundType = currentPage?.background_image_type || updatedTemplate.background_image_type;
 
     // Mettre à jour la page actuelle avec le nouveau background
     setPages(prevPages => {
