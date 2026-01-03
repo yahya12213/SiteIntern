@@ -1232,70 +1232,144 @@ router.post('/:id/background-url',
     const oldTemplate = existing.rows[0];
 
     // =====================================================
-    // CENTRALISATION: Télécharger l'image et la stocker localement
-    // au lieu de stocker l'URL externe directement
+    // CENTRALISATION: Stocker l'image localement dans /uploads/backgrounds/
+    // - Si URL locale (templates-prolean, uploads): copier depuis filesystem
+    // - Si URL externe: télécharger et sauvegarder
     // =====================================================
-    console.log(`📥 Downloading background image from URL: ${url}`);
+
+    const uploadsPath = process.env.UPLOADS_PATH || path.join(__dirname, '../../uploads');
+    const backgroundsDir = path.join(uploadsPath, 'backgrounds');
+
+    // Créer dossier si nécessaire
+    if (!fs.existsSync(backgroundsDir)) {
+      fs.mkdirSync(backgroundsDir, { recursive: true });
+    }
 
     let localUrl;
-    try {
-      // Télécharger l'image depuis l'URL
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-      });
 
-      if (!response.ok) {
+    // Détecter si c'est une URL locale (même serveur)
+    const isLocalUrl = url.includes('/templates-prolean/') || url.includes('/uploads/');
+
+    if (isLocalUrl) {
+      // =====================================================
+      // CAS 1: URL locale - copier depuis le filesystem
+      // =====================================================
+      console.log(`📁 Detected local URL, copying from filesystem: ${url}`);
+
+      try {
+        let sourcePath = null;
+        let relativePath = '';
+
+        if (url.includes('/templates-prolean/')) {
+          // Extraire le nom de fichier après /templates-prolean/
+          relativePath = url.substring(url.indexOf('/templates-prolean/') + '/templates-prolean/'.length);
+          // Chercher dans dist puis public
+          const distPath = path.join(__dirname, '../../dist');
+          const publicPath = path.join(process.cwd(), 'public');
+          const inDist = path.join(distPath, 'templates-prolean', relativePath);
+          const inPublic = path.join(publicPath, 'templates-prolean', relativePath);
+
+          console.log(`   Checking dist: ${inDist} | exists: ${fs.existsSync(inDist)}`);
+          console.log(`   Checking public: ${inPublic} | exists: ${fs.existsSync(inPublic)}`);
+
+          if (fs.existsSync(inDist)) {
+            sourcePath = inDist;
+          } else if (fs.existsSync(inPublic)) {
+            sourcePath = inPublic;
+          }
+        } else if (url.includes('/uploads/backgrounds/')) {
+          // Déjà dans uploads/backgrounds - extraire le chemin relatif
+          relativePath = url.substring(url.indexOf('/uploads/backgrounds/'));
+          // C'est déjà dans le bon dossier, on peut juste utiliser ce chemin
+          localUrl = relativePath;
+          console.log(`✅ Image already in uploads/backgrounds: ${localUrl}`);
+        } else if (url.includes('/uploads/')) {
+          // Autre dossier uploads - copier vers backgrounds
+          relativePath = url.substring(url.indexOf('/uploads/') + '/uploads/'.length);
+          sourcePath = path.join(uploadsPath, relativePath);
+        }
+
+        // Si on a trouvé un fichier source, le copier vers /uploads/backgrounds/
+        if (sourcePath && fs.existsSync(sourcePath)) {
+          const ext = path.extname(sourcePath);
+          const filename = `background-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+          const destPath = path.join(backgroundsDir, filename);
+
+          fs.copyFileSync(sourcePath, destPath);
+          localUrl = `/uploads/backgrounds/${filename}`;
+          console.log(`✅ Background copied from filesystem: ${sourcePath} → ${localUrl}`);
+        } else if (!localUrl) {
+          // Fichier non trouvé et localUrl pas déjà défini
+          return res.status(400).json({
+            success: false,
+            error: `Fichier local non trouvé: ${url}`,
+          });
+        }
+
+      } catch (copyError) {
+        console.error('Error copying local file:', copyError);
         return res.status(400).json({
           success: false,
-          error: `Impossible de télécharger l'image depuis l'URL (status: ${response.status})`,
+          error: `Erreur lors de la copie du fichier local: ${copyError.message}`,
         });
       }
 
-      // Vérifier le Content-Type
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('image/')) {
+    } else {
+      // =====================================================
+      // CAS 2: URL externe - télécharger via HTTP
+      // =====================================================
+      console.log(`📥 Downloading background image from external URL: ${url}`);
+
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+        });
+
+        if (!response.ok) {
+          return res.status(400).json({
+            success: false,
+            error: `Impossible de télécharger l'image depuis l'URL (status: ${response.status})`,
+          });
+        }
+
+        // Vérifier le Content-Type
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('image/')) {
+          return res.status(400).json({
+            success: false,
+            error: `L'URL ne pointe pas vers une image valide (content-type: ${contentType})`,
+          });
+        }
+
+        // Déterminer l'extension depuis Content-Type ou URL
+        let ext = '.jpg';
+        const urlLower = url.toLowerCase();
+        if (contentType.includes('png') || urlLower.includes('.png')) ext = '.png';
+        else if (contentType.includes('webp') || urlLower.includes('.webp')) ext = '.webp';
+        else if (contentType.includes('svg') || urlLower.includes('.svg')) ext = '.svg';
+        else if (contentType.includes('gif') || urlLower.includes('.gif')) ext = '.gif';
+        else if (contentType.includes('jpeg') || urlLower.includes('.jpeg')) ext = '.jpg';
+
+        // Générer nom unique
+        const filename = `background-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+        const filePath = path.join(backgroundsDir, filename);
+
+        // Écrire le fichier
+        const arrayBuffer = await response.arrayBuffer();
+        fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
+
+        localUrl = `/uploads/backgrounds/${filename}`;
+        console.log(`✅ Background downloaded from external URL: ${localUrl}`);
+
+      } catch (downloadError) {
+        console.error('Error downloading image:', downloadError);
         return res.status(400).json({
           success: false,
-          error: `L'URL ne pointe pas vers une image valide (content-type: ${contentType})`,
+          error: `Erreur lors du téléchargement de l'image: ${downloadError.message}`,
         });
       }
-
-      // Déterminer l'extension depuis Content-Type ou URL
-      let ext = '.jpg';
-      const urlLower = url.toLowerCase();
-      if (contentType.includes('png') || urlLower.includes('.png')) ext = '.png';
-      else if (contentType.includes('webp') || urlLower.includes('.webp')) ext = '.webp';
-      else if (contentType.includes('svg') || urlLower.includes('.svg')) ext = '.svg';
-      else if (contentType.includes('gif') || urlLower.includes('.gif')) ext = '.gif';
-      else if (contentType.includes('jpeg') || urlLower.includes('.jpeg')) ext = '.jpg';
-
-      // Générer nom unique
-      const filename = `background-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
-      const uploadsPath = process.env.UPLOADS_PATH || path.join(__dirname, '../../uploads');
-      const backgroundsDir = path.join(uploadsPath, 'backgrounds');
-      const filePath = path.join(backgroundsDir, filename);
-
-      // Créer dossier si nécessaire
-      if (!fs.existsSync(backgroundsDir)) {
-        fs.mkdirSync(backgroundsDir, { recursive: true });
-      }
-
-      // Écrire le fichier
-      const arrayBuffer = await response.arrayBuffer();
-      fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
-
-      // Utiliser le chemin local au lieu de l'URL externe
-      localUrl = `/uploads/backgrounds/${filename}`;
-      console.log(`✅ Background image saved locally: ${localUrl}`);
-
-    } catch (downloadError) {
-      console.error('Error downloading image:', downloadError);
-      return res.status(400).json({
-        success: false,
-        error: `Erreur lors du téléchargement de l'image: ${downloadError.message}`,
-      });
     }
 
     let result;
