@@ -953,11 +953,16 @@ export const CertificateTemplateCanvasEditor: React.FC = () => {
 
   const selectedElement = selectedId ? elements.find((el) => el.id === selectedId) || null : null;
 
-  // Template modifié pour le BackgroundImageManager (avec le background de la page actuelle)
+  // Template modifié pour le BackgroundImageManager (avec les pages actualisées)
+  // IMPORTANT: On doit passer les pages actualisées pour que updateBackground puisse les trouver
   const templateForBackgroundManager = template ? {
     ...template,
     background_image_url: pages[currentPageIndex]?.background_image_url || template.background_image_url,
     background_image_type: pages[currentPageIndex]?.background_image_type || template.background_image_type,
+    template_config: {
+      ...template.template_config,
+      pages: pages, // Passer les pages actualisées, pas celles du template original
+    },
   } : null;
 
   return (
