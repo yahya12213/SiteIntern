@@ -377,6 +377,30 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     }
   };
 
+  // Obtenir l'URL et le type du background actuel (page-level ou template-level)
+  const getCurrentBackground = () => {
+    // Pour les templates multi-pages, chercher d'abord dans pages[]
+    if (pageId && template.template_config?.pages) {
+      const currentPage = template.template_config.pages.find((p: any) => p.id === pageId);
+      if (currentPage?.background_image_url) {
+        return {
+          url: currentPage.background_image_url,
+          type: currentPage.background_image_type || 'url',
+        };
+      }
+    }
+    // Fallback au niveau template
+    if (template.background_image_url) {
+      return {
+        url: template.background_image_url,
+        type: template.background_image_type || 'url',
+      };
+    }
+    return null;
+  };
+
+  const currentBackground = getCurrentBackground();
+
   return (
     <div className="h-full overflow-y-auto bg-white">
       <div className="p-4 space-y-6">
@@ -389,7 +413,7 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
         </div>
 
         {/* Aperçu actuel */}
-        {template.background_image_url && (
+        {currentBackground && (
           <div className="space-y-2">
             <label className="block text-xs font-medium text-gray-600">Arrière-plan actuel</label>
             <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
@@ -398,10 +422,10 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
                   <ImageIcon className="h-4 w-4 text-blue-600 flex-shrink-0" />
                   <div className="min-w-0">
                     <p className="text-xs text-gray-700 truncate font-mono">
-                      {template.background_image_url}
+                      {currentBackground.url}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      Type: {template.background_image_type === 'upload' ? 'Fichier uploadé' : 'URL externe'}
+                      Type: {currentBackground.type === 'upload' ? 'Fichier uploadé' : 'URL externe'}
                     </p>
                   </div>
                 </div>
@@ -419,7 +443,7 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
               {/* Preview image */}
               <div className="mt-3">
                 <img
-                  src={template.background_image_url}
+                  src={currentBackground.url}
                   alt="Aperçu arrière-plan"
                   className="w-full h-32 object-cover rounded border border-gray-200"
                   onError={(e) => {
