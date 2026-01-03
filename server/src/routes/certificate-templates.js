@@ -1230,6 +1230,74 @@ router.post('/:id/background-url',
     }
 
     const oldTemplate = existing.rows[0];
+
+    // =====================================================
+    // CENTRALISATION: Télécharger l'image et la stocker localement
+    // au lieu de stocker l'URL externe directement
+    // =====================================================
+    console.log(`📥 Downloading background image from URL: ${url}`);
+
+    let localUrl;
+    try {
+      // Télécharger l'image depuis l'URL
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
+      });
+
+      if (!response.ok) {
+        return res.status(400).json({
+          success: false,
+          error: `Impossible de télécharger l'image depuis l'URL (status: ${response.status})`,
+        });
+      }
+
+      // Vérifier le Content-Type
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('image/')) {
+        return res.status(400).json({
+          success: false,
+          error: `L'URL ne pointe pas vers une image valide (content-type: ${contentType})`,
+        });
+      }
+
+      // Déterminer l'extension depuis Content-Type ou URL
+      let ext = '.jpg';
+      const urlLower = url.toLowerCase();
+      if (contentType.includes('png') || urlLower.includes('.png')) ext = '.png';
+      else if (contentType.includes('webp') || urlLower.includes('.webp')) ext = '.webp';
+      else if (contentType.includes('svg') || urlLower.includes('.svg')) ext = '.svg';
+      else if (contentType.includes('gif') || urlLower.includes('.gif')) ext = '.gif';
+      else if (contentType.includes('jpeg') || urlLower.includes('.jpeg')) ext = '.jpg';
+
+      // Générer nom unique
+      const filename = `background-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+      const uploadsPath = process.env.UPLOADS_PATH || path.join(__dirname, '../../uploads');
+      const backgroundsDir = path.join(uploadsPath, 'backgrounds');
+      const filePath = path.join(backgroundsDir, filename);
+
+      // Créer dossier si nécessaire
+      if (!fs.existsSync(backgroundsDir)) {
+        fs.mkdirSync(backgroundsDir, { recursive: true });
+      }
+
+      // Écrire le fichier
+      const arrayBuffer = await response.arrayBuffer();
+      fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
+
+      // Utiliser le chemin local au lieu de l'URL externe
+      localUrl = `/uploads/backgrounds/${filename}`;
+      console.log(`✅ Background image saved locally: ${localUrl}`);
+
+    } catch (downloadError) {
+      console.error('Error downloading image:', downloadError);
+      return res.status(400).json({
+        success: false,
+        error: `Erreur lors du téléchargement de l'image: ${downloadError.message}`,
+      });
+    }
+
     let result;
 
     // Si pageId est fourni, sauvegarder dans template_config.pages[]
@@ -1264,9 +1332,9 @@ router.post('/:id/background-url',
       // NOTE: On ne supprime plus automatiquement l'ancien fichier car il peut être partagé
       // entre plusieurs templates. Le nettoyage des fichiers orphelins doit être fait manuellement.
 
-      // Mettre à jour l'arrière-plan de la page
-      templateConfig.pages[pageIndex].background_image_url = url;
-      templateConfig.pages[pageIndex].background_image_type = 'url';
+      // Mettre à jour l'arrière-plan de la page avec le chemin local
+      templateConfig.pages[pageIndex].background_image_url = localUrl;
+      templateConfig.pages[pageIndex].background_image_type = 'upload'; // 'upload' car stocké localement
 
       result = await pool.query(
         `UPDATE certificate_templates
@@ -1281,23 +1349,24 @@ router.post('/:id/background-url',
       // NOTE: On ne supprime plus automatiquement l'ancien fichier car il peut être partagé
       // entre plusieurs templates. Le nettoyage des fichiers orphelins doit être fait manuellement.
 
-      // Mettre à jour le template
+      // Mettre à jour le template avec le chemin local
       result = await pool.query(
         `UPDATE certificate_templates
          SET background_image_url = $1,
-             background_image_type = 'url',
+             background_image_type = 'upload',
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $2
          RETURNING *`,
-        [url, id]
+        [localUrl, id]
       );
     }
 
     res.json({
       success: true,
       template: result.rows[0],
+      background_url: localUrl,
       pageId: pageId || null,
-      message: pageId ? `Background URL set for page ${pageId}` : 'Background URL set successfully',
+      message: pageId ? `Background downloaded and saved for page ${pageId}` : 'Background downloaded and saved successfully',
     });
   } catch (error) {
     console.error('Error setting background URL:', error);
