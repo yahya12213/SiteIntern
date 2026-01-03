@@ -1309,6 +1309,152 @@ router.post('/:id/background-url',
 });
 
 /**
+ * POST /api/certificate-templates/:id/upload-background-from-path
+ * Upload un arrière-plan depuis un chemin de fichier local sur le serveur
+ * Protected: Requires training.certificate_templates.update permission
+ */
+router.post('/:id/upload-background-from-path',
+  authenticateToken,
+  requirePermission('training.certificate_templates.update'),
+  async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { filePath, pageId } = req.body;
+
+    if (!filePath) {
+      return res.status(400).json({
+        success: false,
+        error: 'filePath is required',
+      });
+    }
+
+    // Vérifier que le template existe
+    const existing = await pool.query(
+      'SELECT id, background_image_url, background_image_type, template_config FROM certificate_templates WHERE id = $1',
+      [id]
+    );
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Template not found',
+      });
+    }
+
+    // Vérifier que le fichier existe
+    if (!fs.existsSync(filePath)) {
+      return res.status(400).json({
+        success: false,
+        error: `Le fichier n'existe pas: ${filePath}`,
+      });
+    }
+
+    // Vérifier l'extension du fichier
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.svg', '.gif'];
+    const ext = path.extname(filePath).toLowerCase();
+    if (!validExtensions.includes(ext)) {
+      return res.status(400).json({
+        success: false,
+        error: `Extension non supportée: ${ext}. Extensions valides: ${validExtensions.join(', ')}`,
+      });
+    }
+
+    // Créer le dossier de destination si nécessaire
+    const backgroundsDir = path.join(UPLOADS_PATH, 'backgrounds');
+    if (!fs.existsSync(backgroundsDir)) {
+      fs.mkdirSync(backgroundsDir, { recursive: true });
+    }
+
+    // Générer un nom de fichier unique
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const originalName = path.basename(filePath);
+    const safeName = originalName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const filename = `${timestamp}-${randomSuffix}-${safeName}`;
+    const destPath = path.join(backgroundsDir, filename);
+
+    // Copier le fichier
+    fs.copyFileSync(filePath, destPath);
+
+    // Construire l'URL relative
+    const backgroundUrl = `/uploads/backgrounds/${filename}`;
+
+    console.log(`✅ Background uploaded from local path: ${filePath} -> ${backgroundUrl}`);
+
+    const oldTemplate = existing.rows[0];
+    let result;
+
+    // Si pageId est fourni, sauvegarder dans template_config.pages[]
+    if (pageId) {
+      let templateConfig = oldTemplate.template_config || {};
+
+      if (!templateConfig.pages || !Array.isArray(templateConfig.pages)) {
+        templateConfig.pages = [];
+      }
+
+      let pageIndex = templateConfig.pages.findIndex(p => p.id === pageId);
+
+      // Si la page n'existe pas, la créer automatiquement
+      if (pageIndex === -1) {
+        console.log(`📄 Page ${pageId} not found, creating it automatically`);
+        const pageName = templateConfig.pages.length === 0 ? 'Recto' :
+                         templateConfig.pages.length === 1 ? 'Verso' :
+                         `Page ${templateConfig.pages.length + 1}`;
+
+        templateConfig.pages.push({
+          id: pageId,
+          name: pageName,
+          elements: [],
+          background_image_url: null,
+          background_image_type: null,
+        });
+
+        pageIndex = templateConfig.pages.length - 1;
+        console.log(`✓ Created page "${pageName}" with id ${pageId}`);
+      }
+
+      // Mettre à jour l'arrière-plan de la page
+      templateConfig.pages[pageIndex].background_image_url = backgroundUrl;
+      templateConfig.pages[pageIndex].background_image_type = 'upload';
+
+      result = await pool.query(
+        `UPDATE certificate_templates
+         SET template_config = $1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING *`,
+        [templateConfig, id]
+      );
+    } else {
+      // Comportement original: niveau template
+      result = await pool.query(
+        `UPDATE certificate_templates
+         SET background_image_url = $1,
+             background_image_type = 'upload',
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+         RETURNING *`,
+        [backgroundUrl, id]
+      );
+    }
+
+    res.json({
+      success: true,
+      template: result.rows[0],
+      background_url: backgroundUrl,
+      pageId: pageId || null,
+      message: pageId ? `Background uploaded from local path for page ${pageId}` : 'Background uploaded from local path successfully',
+    });
+  } catch (error) {
+    console.error('Error uploading background from local path:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+/**
  * DELETE /api/certificate-templates/:id/background
  * Supprimer l'arrière-plan d'un template ou d'une page spécifique
  * Protected: Requires training.certificate_templates.delete permission

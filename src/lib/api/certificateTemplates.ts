@@ -157,6 +157,16 @@ export const certificateTemplatesApi = {
   },
 
   /**
+   * Upload un arrière-plan depuis un chemin local sur le serveur
+   * @param id - ID du template
+   * @param filePath - Chemin complet du fichier sur le serveur/machine locale
+   * @param pageId - (optionnel) ID de la page pour upload par page (multi-pages)
+   */
+  uploadBackgroundFromPath: async (id: string, filePath: string, pageId?: string): Promise<{ success: boolean; template?: CertificateTemplate; background_url?: string; pageId?: string | null; message: string }> => {
+    return apiClient.post(`/certificate-templates/${id}/upload-background-from-path`, { filePath, pageId });
+  },
+
+  /**
    * Upload une police personnalisée
    */
   uploadCustomFont: async (file: File, fontName: string): Promise<{ success: boolean; font: CustomFont; message: string }> => {

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Link, X, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { Upload, Link, X, AlertCircle, Image as ImageIcon, FolderOpen } from 'lucide-react';
 import type { CertificateTemplate } from '@/types/certificateTemplate';
 import { certificateTemplatesApi } from '@/lib/api/certificateTemplates';
 import { getRecommendedImageDimensions } from '@/lib/utils/canvasDimensions';
@@ -15,12 +15,14 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
   onUpdate,
   pageId,
 }) => {
-  const [activeTab, setActiveTab] = useState<'upload' | 'url'>('upload');
+  const [activeTab, setActiveTab] = useState<'upload' | 'url' | 'path'>('upload');
   const [url, setUrl] = useState('');
+  const [localPath, setLocalPath] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pathInputRef = useRef<HTMLInputElement>(null);
 
   // Obtenir les dimensions recommandées en fonction du format et de l'orientation
   const recommendedDimensions = getRecommendedImageDimensions(
@@ -100,6 +102,48 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
       setUrl('');
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la définition de l\'URL');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Upload depuis un chemin local - ouvre le sélecteur de fichier avec le chemin comme indice
+  const handleLocalPathSubmit = async () => {
+    if (!localPath.trim()) {
+      setError('Veuillez saisir un chemin de fichier');
+      return;
+    }
+
+    // Vérifier que c'est un chemin de fichier image valide
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.svg', '.gif'];
+    const lowerPath = localPath.toLowerCase();
+    const hasValidExtension = validExtensions.some(ext => lowerPath.endsWith(ext));
+
+    if (!hasValidExtension) {
+      setError('Le fichier doit être une image (JPG, PNG, WEBP, SVG ou GIF)');
+      return;
+    }
+
+    setIsUploading(true);
+    setError(null);
+
+    try {
+      // Appeler l'API pour uploader depuis le chemin local
+      const result = await certificateTemplatesApi.uploadBackgroundFromPath(template.id, localPath.trim(), pageId);
+
+      const backgroundUrl = result.background_url || result.template?.background_image_url;
+
+      if (backgroundUrl) {
+        onUpdate({
+          ...template,
+          background_image_url: backgroundUrl,
+          background_image_type: 'upload',
+        });
+        setLocalPath('');
+        setError(null);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de l\'upload depuis le chemin local');
     } finally {
       setIsUploading(false);
     }
@@ -242,24 +286,35 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
         <div className="flex border-b border-gray-200">
           <button
             onClick={() => setActiveTab('upload')}
-            className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+            className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
               activeTab === 'upload'
                 ? 'text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <Upload className="h-4 w-4 inline mr-1" />
+            <Upload className="h-3 w-3 inline mr-1" />
             Upload
           </button>
           <button
+            onClick={() => setActiveTab('path')}
+            className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+              activeTab === 'path'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <FolderOpen className="h-3 w-3 inline mr-1" />
+            Chemin
+          </button>
+          <button
             onClick={() => setActiveTab('url')}
-            className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+            className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
               activeTab === 'url'
                 ? 'text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <Link className="h-4 w-4 inline mr-1" />
+            <Link className="h-3 w-3 inline mr-1" />
             URL
           </button>
         </div>
@@ -305,6 +360,51 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
                   <p className="text-xs text-gray-600 mt-2">Upload en cours...</p>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'path' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-2">
+                Chemin du fichier local
+              </label>
+              <input
+                ref={pathInputRef}
+                type="text"
+                value={localPath}
+                onChange={(e) => setLocalPath(e.target.value)}
+                placeholder="C:\Users\...\image.jpg"
+                disabled={isUploading}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 font-mono text-xs"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Collez le chemin complet du fichier image sur votre ordinateur
+              </p>
+            </div>
+            <button
+              onClick={handleLocalPathSubmit}
+              disabled={isUploading || !localPath.trim()}
+              className="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50 text-sm font-medium"
+            >
+              {isUploading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Upload en cours...
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <FolderOpen className="h-4 w-4" />
+                  Uploader depuis ce chemin
+                </span>
+              )}
+            </button>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-xs text-amber-700">
+                <strong>Note:</strong> Le fichier sera lu depuis votre ordinateur et uploadé sur le serveur.
+                Formats acceptés: JPG, PNG, WEBP, SVG, GIF
+              </p>
             </div>
           </div>
         )}
