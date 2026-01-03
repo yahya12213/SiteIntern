@@ -411,6 +411,19 @@ if (!fs.existsSync(distPath)) {
   } catch (e) {
     console.error('Could not list /app directory:', e.message);
   }
+} else {
+  // Log dist contents for debugging
+  try {
+    console.log('📂 Contents of dist:', fs.readdirSync(distPath));
+    const templatesProleanPath = path.join(distPath, 'templates-prolean');
+    if (fs.existsSync(templatesProleanPath)) {
+      console.log('📂 Contents of templates-prolean:', fs.readdirSync(templatesProleanPath));
+    } else {
+      console.log('⚠️ templates-prolean folder not found in dist');
+    }
+  } catch (e) {
+    console.error('Could not list dist contents:', e.message);
+  }
 }
 
 // Serve uploaded files (backgrounds, fonts, student photos)
@@ -446,6 +459,22 @@ app.use('/uploads', (req, res, next) => {
 });
 
 app.use('/uploads', express.static(uploadsPath));
+
+// Serve templates-prolean from multiple possible locations (fallback chain)
+// 1. First try from dist (Vite build output)
+// 2. Then try from public/ (source files)
+const templatesProleanInDist = path.join(distPath, 'templates-prolean');
+const templatesProleanInPublic = path.join(process.cwd(), 'public', 'templates-prolean');
+console.log('📁 templates-prolean paths:');
+console.log('   - In dist:', templatesProleanInDist, '| exists:', fs.existsSync(templatesProleanInDist));
+console.log('   - In public:', templatesProleanInPublic, '| exists:', fs.existsSync(templatesProleanInPublic));
+
+app.use('/templates-prolean', (req, res, next) => {
+  // Add CORS headers for images
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  next();
+}, express.static(templatesProleanInDist), express.static(templatesProleanInPublic));
 
 // Serve static files with cache-control headers
 // CSS/JS assets have hash in filename, can be cached long-term
