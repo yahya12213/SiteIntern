@@ -80,6 +80,15 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
       return;
     }
 
+    // Pour les nouveaux templates, on doit d'abord sauvegarder avant d'uploader
+    if (template.id === 'new') {
+      setError('Veuillez d\'abord enregistrer le template avant d\'uploader une image. Utilisez l\'onglet "URL" pour définir une URL directement.');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
     setIsUploading(true);
     setError(null);
 
@@ -114,14 +123,21 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     setError(null);
 
     try {
-      // Passer pageId à l'API si fourni (support multi-pages)
-      const result = await certificateTemplatesApi.setBackgroundUrl(template.id, url.trim(), pageId);
+      // Pour les nouveaux templates (id === 'new'), on met à jour uniquement localement
+      // L'URL sera sauvegardée en base quand le template sera enregistré
+      if (template.id === 'new') {
+        updateBackground(url.trim(), 'url');
+        setUrl('');
+      } else {
+        // Passer pageId à l'API si fourni (support multi-pages)
+        const result = await certificateTemplatesApi.setBackgroundUrl(template.id, url.trim(), pageId);
 
-      // IMPORTANT: Ne pas utiliser result.template car il écrase les modifications locales
-      const backgroundUrl = result.background_url || result.template?.background_image_url || url.trim();
+        // IMPORTANT: Ne pas utiliser result.template car il écrase les modifications locales
+        const backgroundUrl = result.background_url || result.template?.background_image_url || url.trim();
 
-      updateBackground(backgroundUrl, 'url');
-      setUrl('');
+        updateBackground(backgroundUrl, 'url');
+        setUrl('');
+      }
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la définition de l\'URL');
     } finally {
@@ -143,6 +159,12 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
 
     if (!hasValidExtension) {
       setError('Le fichier doit être une image (JPG, PNG, WEBP, SVG ou GIF)');
+      return;
+    }
+
+    // Pour les nouveaux templates, on doit d'abord sauvegarder avant d'uploader
+    if (template.id === 'new') {
+      setError('Veuillez d\'abord enregistrer le template avant d\'uploader une image. Utilisez l\'onglet "URL" pour définir une URL directement.');
       return;
     }
 
@@ -168,6 +190,12 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
 
   // Ouvrir directement le sélecteur de fichier
   const handleOpenFilePicker = async () => {
+    // Pour les nouveaux templates, on doit d'abord sauvegarder avant d'uploader
+    if (template.id === 'new') {
+      setError('Veuillez d\'abord enregistrer le template avant d\'uploader une image. Utilisez l\'onglet "URL" pour définir une URL directement.');
+      return;
+    }
+
     setIsUploading(true);
     setError(null);
 
@@ -224,16 +252,68 @@ export const BackgroundImageManager: React.FC<BackgroundImageManagerProps> = ({
     setError(null);
 
     try {
-      // Passer pageId à l'API si fourni (support multi-pages)
-      await certificateTemplatesApi.deleteBackground(template.id, pageId);
+      // Pour les nouveaux templates, on supprime uniquement localement
+      if (template.id === 'new') {
+        if (pageId && template.template_config?.pages) {
+          // Multi-pages: supprimer le background de la page spécifique
+          const updatedPages = template.template_config.pages.map(page => {
+            if (page.id === pageId) {
+              return {
+                ...page,
+                background_image_url: undefined,
+                background_image_type: undefined,
+              };
+            }
+            return page;
+          });
 
-      // IMPORTANT: Ne pas utiliser result.template car il écrase les modifications locales
-      // Supprimer uniquement le background_image_url de la page actuelle
-      onUpdate({
-        ...template,
-        background_image_url: undefined,
-        background_image_type: undefined,
-      });
+          onUpdate({
+            ...template,
+            template_config: {
+              ...template.template_config,
+              pages: updatedPages,
+            },
+          });
+        } else {
+          onUpdate({
+            ...template,
+            background_image_url: undefined,
+            background_image_type: undefined,
+          });
+        }
+      } else {
+        // Passer pageId à l'API si fourni (support multi-pages)
+        await certificateTemplatesApi.deleteBackground(template.id, pageId);
+
+        // IMPORTANT: Ne pas utiliser result.template car il écrase les modifications locales
+        // Supprimer uniquement le background_image_url de la page actuelle
+        if (pageId && template.template_config?.pages) {
+          const updatedPages = template.template_config.pages.map(page => {
+            if (page.id === pageId) {
+              return {
+                ...page,
+                background_image_url: undefined,
+                background_image_type: undefined,
+              };
+            }
+            return page;
+          });
+
+          onUpdate({
+            ...template,
+            template_config: {
+              ...template.template_config,
+              pages: updatedPages,
+            },
+          });
+        } else {
+          onUpdate({
+            ...template,
+            background_image_url: undefined,
+            background_image_type: undefined,
+          });
+        }
+      }
     } catch (err: any) {
       setError(err.message || 'Erreur lors de la suppression de l\'arrière-plan');
     } finally {
