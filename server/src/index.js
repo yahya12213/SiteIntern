@@ -490,6 +490,32 @@ app.use('/badges-prolean', (req, res, next) => {
   next();
 }, express.static(badgesProleanInDist), express.static(badgesProleanInPublic));
 
+// Serve certificates-futurepro from multiple possible locations (fallback chain)
+const certificatesFutureproInDist = path.join(distPath, 'certificates-futurepro');
+const certificatesFutureproInPublic = path.join(process.cwd(), 'public', 'certificates-futurepro');
+console.log('📁 certificates-futurepro paths:');
+console.log('   - In dist:', certificatesFutureproInDist, '| exists:', fs.existsSync(certificatesFutureproInDist));
+console.log('   - In public:', certificatesFutureproInPublic, '| exists:', fs.existsSync(certificatesFutureproInPublic));
+
+app.use('/certificates-futurepro', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  next();
+}, express.static(certificatesFutureproInDist), express.static(certificatesFutureproInPublic));
+
+// Serve badges-futurepro from multiple possible locations (fallback chain)
+const badgesFutureproInDist = path.join(distPath, 'badges-futurepro');
+const badgesFutureproInPublic = path.join(process.cwd(), 'public', 'badges-futurepro');
+console.log('📁 badges-futurepro paths:');
+console.log('   - In dist:', badgesFutureproInDist, '| exists:', fs.existsSync(badgesFutureproInDist));
+console.log('   - In public:', badgesFutureproInPublic, '| exists:', fs.existsSync(badgesFutureproInPublic));
+
+app.use('/badges-futurepro', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  next();
+}, express.static(badgesFutureproInDist), express.static(badgesFutureproInPublic));
+
 // Serve static files with cache-control headers
 // CSS/JS assets have hash in filename, can be cached long-term
 // HTML files should not be cached (they reference the hashed assets)

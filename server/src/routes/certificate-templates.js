@@ -1248,7 +1248,7 @@ router.post('/:id/background-url',
     let localUrl;
 
     // Détecter si c'est une URL locale (même serveur)
-    const isLocalUrl = url.includes('/templates-prolean/') || url.includes('/badges-prolean/') || url.includes('/uploads/');
+    const isLocalUrl = url.includes('/templates-prolean/') || url.includes('/badges-prolean/') || url.includes('/certificates-futurepro/') || url.includes('/badges-futurepro/') || url.includes('/uploads/');
 
     if (isLocalUrl) {
       // =====================================================
@@ -1285,6 +1285,40 @@ router.post('/:id/background-url',
           const publicPath = path.join(process.cwd(), 'public');
           const inDist = path.join(distPath, 'badges-prolean', relativePath);
           const inPublic = path.join(publicPath, 'badges-prolean', relativePath);
+
+          console.log(`   Checking dist: ${inDist} | exists: ${fs.existsSync(inDist)}`);
+          console.log(`   Checking public: ${inPublic} | exists: ${fs.existsSync(inPublic)}`);
+
+          if (fs.existsSync(inDist)) {
+            sourcePath = inDist;
+          } else if (fs.existsSync(inPublic)) {
+            sourcePath = inPublic;
+          }
+        } else if (url.includes('/certificates-futurepro/')) {
+          // Extraire le nom de fichier après /certificates-futurepro/
+          relativePath = url.substring(url.indexOf('/certificates-futurepro/') + '/certificates-futurepro/'.length);
+          // Chercher dans dist puis public
+          const distPath = path.join(__dirname, '../../dist');
+          const publicPath = path.join(process.cwd(), 'public');
+          const inDist = path.join(distPath, 'certificates-futurepro', relativePath);
+          const inPublic = path.join(publicPath, 'certificates-futurepro', relativePath);
+
+          console.log(`   Checking dist: ${inDist} | exists: ${fs.existsSync(inDist)}`);
+          console.log(`   Checking public: ${inPublic} | exists: ${fs.existsSync(inPublic)}`);
+
+          if (fs.existsSync(inDist)) {
+            sourcePath = inDist;
+          } else if (fs.existsSync(inPublic)) {
+            sourcePath = inPublic;
+          }
+        } else if (url.includes('/badges-futurepro/')) {
+          // Extraire le nom de fichier après /badges-futurepro/
+          relativePath = url.substring(url.indexOf('/badges-futurepro/') + '/badges-futurepro/'.length);
+          // Chercher dans dist puis public
+          const distPath = path.join(__dirname, '../../dist');
+          const publicPath = path.join(process.cwd(), 'public');
+          const inDist = path.join(distPath, 'badges-futurepro', relativePath);
+          const inPublic = path.join(publicPath, 'badges-futurepro', relativePath);
 
           console.log(`   Checking dist: ${inDist} | exists: ${fs.existsSync(inDist)}`);
           console.log(`   Checking public: ${inPublic} | exists: ${fs.existsSync(inPublic)}`);

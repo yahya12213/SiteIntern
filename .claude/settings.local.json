@@ -99,7 +99,9 @@
       "Bash(if not exist \"c:\\Users\\pc\\Desktop\\systeme de calcul\\server\\scripts\" mkdir \"c:\\Users\\pc\\Desktop\\systeme de calcul\\server\\scripts\")",
       "Bash(npm test:*)",
       "Bash(if not exist \"c:\\Users\\pc\\Desktop\\systeme de calcul\\.github\\workflows\" mkdir \"c:\\Users\\pc\\Desktop\\systeme de calcul\\.github\\workflows\")",
-      "Bash(if not exist \"c:\\Users\\pc\\Desktop\\systeme de calcul\\src\\components\\admin\\students\" mkdir \"c:\\Users\\pc\\Desktop\\systeme de calcul\\src\\components\\admin\\students\")"
+      "Bash(if not exist \"c:\\Users\\pc\\Desktop\\systeme de calcul\\src\\components\\admin\\students\" mkdir \"c:\\Users\\pc\\Desktop\\systeme de calcul\\src\\components\\admin\\students\")",
+      "Bash(if not exist \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\public\\\\certificates-futurepro\" mkdir \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\public\\\\certificates-futurepro\")",
+      "Bash(if not exist \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\public\\\\badges-futurepro\" mkdir \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\public\\\\badges-futurepro\")"
     ],
     "deny": [],
     "ask": []
