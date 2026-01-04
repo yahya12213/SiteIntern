@@ -476,6 +476,20 @@ app.use('/templates-prolean', (req, res, next) => {
   next();
 }, express.static(templatesProleanInDist), express.static(templatesProleanInPublic));
 
+// Serve badges-prolean from multiple possible locations (fallback chain)
+const badgesProleanInDist = path.join(distPath, 'badges-prolean');
+const badgesProleanInPublic = path.join(process.cwd(), 'public', 'badges-prolean');
+console.log('📁 badges-prolean paths:');
+console.log('   - In dist:', badgesProleanInDist, '| exists:', fs.existsSync(badgesProleanInDist));
+console.log('   - In public:', badgesProleanInPublic, '| exists:', fs.existsSync(badgesProleanInPublic));
+
+app.use('/badges-prolean', (req, res, next) => {
+  // Add CORS headers for images
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  next();
+}, express.static(badgesProleanInDist), express.static(badgesProleanInPublic));
+
 // Serve static files with cache-control headers
 // CSS/JS assets have hash in filename, can be cached long-term
 // HTML files should not be cached (they reference the hashed assets)
