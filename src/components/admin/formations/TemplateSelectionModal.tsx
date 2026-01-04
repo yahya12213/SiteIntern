@@ -314,7 +314,7 @@ export const TemplateSelectionModal: React.FC<TemplateSelectionModalProps> = ({
                   <p className="text-sm">Aucun template trouvé</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   {filteredTemplates.map((template) => {
                     const isSelected = localSelectedIds.includes(template.id);
                     const wasAlreadyAssigned = alreadyAssignedIds.has(template.id);
@@ -323,11 +323,12 @@ export const TemplateSelectionModal: React.FC<TemplateSelectionModalProps> = ({
                       <div
                         key={template.id}
                         onClick={() => toggleTemplate(template.id)}
-                        className={`relative border rounded-lg p-4 cursor-pointer transition-all ${
+                        className={`relative border rounded-lg p-4 cursor-pointer transition-all min-h-[100px] ${
                           isSelected
                             ? 'border-blue-500 bg-blue-50 shadow-md'
                             : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
                         }`}
+                        title={template.name}
                       >
                         {/* Badge "Déjà affecté" */}
                         {wasAlreadyAssigned && (
@@ -351,7 +352,7 @@ export const TemplateSelectionModal: React.FC<TemplateSelectionModalProps> = ({
                         <div className={`flex items-start gap-3 ${wasAlreadyAssigned ? 'pt-4' : ''} pr-6`}>
                           <Award className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-sm text-gray-900 truncate">
+                            <h4 className="font-semibold text-sm text-gray-900 line-clamp-2" title={template.name}>
                               {template.name}
                             </h4>
                             <p className="text-xs text-gray-500 mt-1 line-clamp-2">
