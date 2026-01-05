@@ -40,13 +40,15 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [hasInitializedTemplates, setHasInitializedTemplates] = useState(false);
 
-  // Mettre à jour selectedTemplateIds quand existingTemplates est chargé
+  // Mettre à jour selectedTemplateIds UNE SEULE FOIS quand existingTemplates est chargé
   useEffect(() => {
-    if (existingTemplates && existingTemplates.length > 0) {
+    if (existingTemplates && existingTemplates.length > 0 && !hasInitializedTemplates) {
       setSelectedTemplateIds(existingTemplates.map((t) => t.template_id));
+      setHasInitializedTemplates(true);
     }
-  }, [existingTemplates]);
+  }, [existingTemplates, hasInitializedTemplates]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validate = () => {
