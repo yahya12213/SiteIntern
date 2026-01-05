@@ -1294,4 +1294,169 @@ router.put('/:id/templates/:templateId/default',
   }
 });
 
+/**
+ * PUT /api/formations/:id/templates/sync
+ * Synchronise les templates d'une formation (ajoute les nouveaux, supprime les anciens)
+ * Protected: Requires training.formations.update permission
+ */
+router.put('/:id/templates/sync',
+  authenticateToken,
+  requirePermission('training.formations.update'),
+  async (req, res) => {
+  try {
+    const { id: formation_id } = req.params;
+    const { template_ids } = req.body;
+
+    // Validation
+    if (!template_ids || !Array.isArray(template_ids)) {
+      return res.status(400).json({ error: 'template_ids doit être un tableau' });
+    }
+
+    // Vérifier si la formation existe
+    const formationCheck = await pool.query(
+      'SELECT id, title FROM formations WHERE id = $1',
+      [formation_id]
+    );
+
+    if (formationCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Formation non trouvée' });
+    }
+
+    // Récupérer les templates actuellement associés
+    const currentTemplatesQuery = await pool.query(
+      'SELECT template_id, document_type FROM formation_templates WHERE formation_id = $1',
+      [formation_id]
+    );
+    const currentTemplateIds = currentTemplatesQuery.rows.map(t => t.template_id);
+
+    // Calculer les différences
+    const toAdd = template_ids.filter(id => !currentTemplateIds.includes(id));
+    const toRemove = currentTemplateIds.filter(id => !template_ids.includes(id));
+
+    console.log(`🔄 Syncing templates for formation "${formationCheck.rows[0].title}"`);
+    console.log(`   Current: ${currentTemplateIds.length}, New: ${template_ids.length}`);
+    console.log(`   To add: ${toAdd.length}, To remove: ${toRemove.length}`);
+
+    // Supprimer les templates qui ne sont plus sélectionnés
+    if (toRemove.length > 0) {
+      await pool.query(
+        'DELETE FROM formation_templates WHERE formation_id = $1 AND template_id = ANY($2::text[])',
+        [formation_id, toRemove]
+      );
+      console.log(`   ✓ Removed ${toRemove.length} template(s)`);
+    }
+
+    // Ajouter les nouveaux templates
+    const addedTemplates = [];
+    for (const template_id of toAdd) {
+      try {
+        // Récupérer le nom du template pour détecter automatiquement le type
+        const templateInfo = await pool.query(
+          'SELECT name FROM certificate_templates WHERE id = $1',
+          [template_id]
+        );
+
+        let documentType = 'certificat';
+        if (templateInfo.rows.length > 0) {
+          const templateName = templateInfo.rows[0].name.toUpperCase();
+          if (templateName.includes('BADGE')) {
+            documentType = 'badge';
+          } else if (templateName.includes('ATTESTATION')) {
+            documentType = 'attestation';
+          } else if (templateName.includes('DIPLOME') || templateName.includes('DIPLÔME')) {
+            documentType = 'diplome';
+          }
+        }
+
+        const result = await pool.query(
+          `INSERT INTO formation_templates (id, formation_id, template_id, document_type, is_default)
+           VALUES ($1, $2, $3, $4, FALSE)
+           ON CONFLICT (formation_id, template_id, document_type) DO NOTHING
+           RETURNING *`,
+          [nanoid(), formation_id, template_id, documentType]
+        );
+
+        if (result.rows.length > 0) {
+          addedTemplates.push(result.rows[0]);
+        }
+      } catch (err) {
+        console.error(`Error adding template ${template_id}:`, err);
+      }
+    }
+
+    if (toAdd.length > 0) {
+      console.log(`   ✓ Added ${addedTemplates.length} template(s)`);
+    }
+
+    // S'assurer qu'il y a un template par défaut si des templates existent
+    const remainingTemplates = await pool.query(
+      'SELECT template_id, is_default FROM formation_templates WHERE formation_id = $1 ORDER BY created_at ASC',
+      [formation_id]
+    );
+
+    if (remainingTemplates.rows.length > 0) {
+      const hasDefault = remainingTemplates.rows.some(t => t.is_default);
+      if (!hasDefault) {
+        // Définir le premier comme default
+        const firstTemplateId = remainingTemplates.rows[0].template_id;
+        await pool.query(
+          'UPDATE formation_templates SET is_default = true WHERE formation_id = $1 AND template_id = $2',
+          [formation_id, firstTemplateId]
+        );
+        await pool.query(
+          'UPDATE formations SET certificate_template_id = $1 WHERE id = $2',
+          [firstTemplateId, formation_id]
+        );
+      }
+    } else {
+      // Aucun template, clear le champ legacy
+      await pool.query(
+        'UPDATE formations SET certificate_template_id = NULL WHERE id = $1',
+        [formation_id]
+      );
+    }
+
+    // Propager aux packs si cette formation est membre d'un pack
+    const packsContainingFormation = await pool.query(
+      `SELECT DISTINCT fpi.pack_id, f.title as pack_title
+       FROM formation_pack_items fpi
+       INNER JOIN formations f ON f.id = fpi.pack_id
+       WHERE fpi.formation_id = $1`,
+      [formation_id]
+    );
+
+    let packsUpdated = 0;
+    if (packsContainingFormation.rows.length > 0 && toAdd.length > 0) {
+      console.log(`   📦 Propagating to ${packsContainingFormation.rows.length} pack(s)...`);
+
+      for (const pack of packsContainingFormation.rows) {
+        for (const tmpl of addedTemplates) {
+          try {
+            await pool.query(
+              `INSERT INTO formation_templates (id, formation_id, template_id, document_type, is_default)
+               VALUES ($1, $2, $3, $4, FALSE)
+               ON CONFLICT (formation_id, template_id, document_type) DO NOTHING`,
+              [nanoid(), pack.pack_id, tmpl.template_id, tmpl.document_type]
+            );
+          } catch (err) {
+            console.error(`Error propagating to pack ${pack.pack_id}:`, err);
+          }
+        }
+        packsUpdated++;
+      }
+    }
+
+    res.json({
+      success: true,
+      added: toAdd.length,
+      removed: toRemove.length,
+      total: template_ids.length,
+      packs_updated: packsUpdated
+    });
+  } catch (error) {
+    console.error('Error syncing formation templates:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

@@ -145,6 +145,15 @@ export const coursApi = {
       {}
     ),
 
+  syncFormationTemplates: (formationId: string, template_ids: string[]) =>
+    apiClient.put<{
+      success: boolean;
+      added: number;
+      removed: number;
+      total: number;
+      packs_updated: number;
+    }>(`/formations/${formationId}/templates/sync`, { template_ids }),
+
   // ============================================
   // Duplication
   // ============================================

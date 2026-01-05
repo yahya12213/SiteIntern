@@ -3,7 +3,7 @@ import { X, BookOpen, AlertCircle, Award, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { Input } from '@/components/ui/input';
-import { useCreateFormation, useUpdateFormation, useAddFormationTemplates, useFormationTemplates } from '@/hooks/useCours';
+import { useCreateFormation, useUpdateFormation, useAddFormationTemplates, useSyncFormationTemplates, useFormationTemplates } from '@/hooks/useCours';
 import { useCertificateTemplates } from '@/hooks/useCertificateTemplates';
 import { useCorpsFormation } from '@/hooks/useCorpsFormation';
 import { TemplateSelectionModal } from './TemplateSelectionModal';
@@ -19,6 +19,7 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
   const createFormation = useCreateFormation();
   const updateFormation = useUpdateFormation();
   const addFormationTemplates = useAddFormationTemplates();
+  const syncFormationTemplates = useSyncFormationTemplates();
   const { data: templates } = useCertificateTemplates();
   const { data: corpsList = [] } = useCorpsFormation();
   const { data: existingTemplates } = useFormationTemplates(formation?.id);
@@ -123,8 +124,15 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
         formationId = result.id;
       }
 
-      // Ajouter les templates sélectionnés (si présents)
-      if (selectedTemplateIds.length > 0) {
+      // Gérer les templates
+      if (isEdit) {
+        // En mode édition : synchroniser (ajoute les nouveaux, supprime les anciens)
+        await syncFormationTemplates.mutateAsync({
+          formationId,
+          template_ids: selectedTemplateIds,
+        });
+      } else if (selectedTemplateIds.length > 0) {
+        // En mode création : ajouter seulement
         await addFormationTemplates.mutateAsync({
           formationId,
           template_ids: selectedTemplateIds,

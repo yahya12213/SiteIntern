@@ -176,6 +176,28 @@ export function useRemoveFormationTemplate() {
 }
 
 /**
+ * Synchronise les templates d'une formation (ajoute les nouveaux, supprime les anciens)
+ */
+export function useSyncFormationTemplates() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      formationId,
+      template_ids,
+    }: {
+      formationId: string;
+      template_ids: string[];
+    }) => coursApi.syncFormationTemplates(formationId, template_ids),
+    onSuccess: (_, { formationId }) => {
+      queryClient.invalidateQueries({ queryKey: coursKeys.formationTemplates(formationId) });
+      queryClient.invalidateQueries({ queryKey: coursKeys.formation(formationId) });
+      queryClient.invalidateQueries({ queryKey: coursKeys.formations() });
+    },
+  });
+}
+
+/**
  * Définit un template comme default pour une formation
  */
 export function useSetDefaultTemplate() {
