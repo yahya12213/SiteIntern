@@ -666,7 +666,27 @@ router.post('/:id/duplicate',
           formation.certificate_template_id
         ]);
 
-        duplicatedFormations.push(newFormationResult.rows[0]);
+        // Dupliquer les templates associés à cette formation
+        const templatesResult = await client.query(
+          `SELECT template_id, document_type, is_default
+           FROM formation_templates
+           WHERE formation_id = $1`,
+          [formation.id]
+        );
+
+        for (const template of templatesResult.rows) {
+          await client.query(
+            `INSERT INTO formation_templates (id, formation_id, template_id, document_type, is_default)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [nanoid(), newFormationId, template.template_id, template.document_type, template.is_default]
+          );
+        }
+
+        const formationData = {
+          ...newFormationResult.rows[0],
+          templates_count: templatesResult.rows.length
+        };
+        duplicatedFormations.push(formationData);
       }
     }
 
