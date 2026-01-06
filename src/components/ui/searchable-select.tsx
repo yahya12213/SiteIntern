@@ -1,13 +1,11 @@
 import * as React from "react"
-import { Check, ChevronsUpDown, Search } from "lucide-react"
+import { Check, ChevronsUpDown } from "lucide-react"
 import { cn } from "@/lib/utils/cellUtils"
-import { Button } from "@/components/ui/button"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Input } from "@/components/ui/input"
 
 export interface SearchableSelectOption {
   value: string
@@ -37,6 +35,7 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
+  const inputRef = React.useRef<HTMLInputElement>(null)
 
   const selectedOption = options.find((option) => option.value === value)
 
@@ -54,37 +53,53 @@ export function SearchableSelect({
     setSearchQuery("")
   }
 
+  // Focus input when popover opens
+  React.useEffect(() => {
+    if (open && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 0)
+    }
+    if (!open) {
+      setSearchQuery("")
+    }
+  }, [open])
+
+  const listboxId = React.useId()
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
+        <button
+          type="button"
           role="combobox"
-          aria-expanded={open}
+          aria-expanded={open ? "true" : "false"}
+          aria-controls={listboxId}
+          aria-label={placeholder}
           disabled={disabled}
           className={cn(
-            "w-full justify-between font-normal",
+            "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
             !value && "text-muted-foreground",
             className
           )}
         >
           {selectedOption ? selectedOption.label : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+        </button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <div className="flex items-center border-b px-3 py-2">
-          <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-          <Input
+      <PopoverContent id={listboxId} className="w-[--radix-popover-trigger-width] p-0" align="start">
+        {/* Input intégré en haut du dropdown */}
+        <div className="p-2 border-b">
+          <input
+            ref={inputRef}
+            type="text"
             placeholder={searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="w-full px-2 py-1.5 text-sm border rounded-md outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
           />
         </div>
-        <div className="max-h-[300px] overflow-y-auto p-1">
+        <div className="max-h-[250px] overflow-y-auto p-1">
           {filteredOptions.length === 0 ? (
-            <div className="py-6 text-center text-sm text-muted-foreground">
+            <div className="py-4 text-center text-sm text-muted-foreground">
               {emptyMessage}
             </div>
           ) : (
