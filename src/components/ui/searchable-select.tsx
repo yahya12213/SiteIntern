@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils/cellUtils"
 import {
   Popover,
@@ -28,14 +28,13 @@ export function SearchableSelect({
   value,
   onValueChange,
   placeholder = "Sélectionnez...",
-  searchPlaceholder = "Rechercher...",
   disabled = false,
   className,
   emptyMessage = "Aucun résultat trouvé.",
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
-  const inputRef = React.useRef<HTMLInputElement>(null)
+  const containerRef = React.useRef<HTMLDivElement>(null)
 
   const selectedOption = options.find((option) => option.value === value)
 
@@ -53,15 +52,40 @@ export function SearchableSelect({
     setSearchQuery("")
   }
 
-  // Focus input when popover opens
+  // Reset search when closing
   React.useEffect(() => {
-    if (open && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 0)
-    }
     if (!open) {
       setSearchQuery("")
     }
   }, [open])
+
+  // Handle keyboard typing to filter
+  React.useEffect(() => {
+    if (!open) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore special keys
+      if (e.key === 'Escape') {
+        setOpen(false)
+        return
+      }
+      if (e.key === 'Enter' && filteredOptions.length === 1) {
+        handleSelect(filteredOptions[0].value)
+        return
+      }
+      if (e.key === 'Backspace') {
+        setSearchQuery(prev => prev.slice(0, -1))
+        return
+      }
+      // Only handle printable characters
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+        setSearchQuery(prev => prev + e.key)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [open, filteredOptions])
 
   const listboxId = React.useId()
 
@@ -76,30 +100,30 @@ export function SearchableSelect({
           aria-label={placeholder}
           disabled={disabled}
           className={cn(
-            "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+            "flex h-10 w-full items-center justify-between rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
             !value && "text-muted-foreground",
             className
           )}
         >
           {selectedOption ? selectedOption.label : placeholder}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </button>
       </PopoverTrigger>
-      <PopoverContent id={listboxId} className="w-[--radix-popover-trigger-width] p-0" align="start">
-        {/* Input intégré en haut du dropdown */}
-        <div className="p-2 border-b">
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder={searchPlaceholder}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-2 py-1.5 text-sm border rounded-md outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
-          />
-        </div>
-        <div className="max-h-[250px] overflow-y-auto p-1">
+      <PopoverContent
+        id={listboxId}
+        className="w-[--radix-popover-trigger-width] p-0 bg-white border shadow-lg"
+        align="start"
+        ref={containerRef}
+      >
+        {/* Afficher le texte recherché si l'utilisateur tape */}
+        {searchQuery && (
+          <div className="px-3 py-2 border-b bg-gray-50 text-sm text-gray-600">
+            Recherche: <span className="font-medium text-gray-900">{searchQuery}</span>
+          </div>
+        )}
+        <div className="max-h-[250px] overflow-y-auto">
           {filteredOptions.length === 0 ? (
-            <div className="py-4 text-center text-sm text-muted-foreground">
+            <div className="py-4 text-center text-sm text-gray-500">
               {emptyMessage}
             </div>
           ) : (
@@ -108,13 +132,13 @@ export function SearchableSelect({
                 key={option.value}
                 onClick={() => handleSelect(option.value)}
                 className={cn(
-                  "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
-                  value === option.value && "bg-accent"
+                  "relative flex cursor-pointer select-none items-center px-3 py-2 text-sm hover:bg-blue-50",
+                  value === option.value && "bg-blue-50 text-blue-700"
                 )}
               >
                 <Check
                   className={cn(
-                    "mr-2 h-4 w-4",
+                    "mr-2 h-4 w-4 text-blue-600",
                     value === option.value ? "opacity-100" : "opacity-0"
                   )}
                 />
