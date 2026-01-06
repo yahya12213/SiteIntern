@@ -630,10 +630,14 @@ router.post('/:id/duplicate',
 
     const newCorps = newCorpsResult.rows[0];
     const duplicatedFormations = [];
+    const duplicatedPacks = [];
 
     // Dupliquer les formations si demandé
     if (include_formations) {
-      // Récupérer les formations unitaires (non-packs) du corps original
+      // Map pour associer ancien ID -> nouveau ID (pour les packs)
+      const formationIdMapping = new Map();
+
+      // ÉTAPE 1: Dupliquer les formations unitaires (non-packs)
       const formationsResult = await client.query(
         `SELECT * FROM formations
          WHERE corps_formation_id = $1
@@ -645,6 +649,9 @@ router.post('/:id/duplicate',
       for (const formation of formationsResult.rows) {
         const newFormationId = nanoid();
         const newFormationTitle = `${formation.title} (Copie)`;
+
+        // Stocker le mapping ancien ID -> nouveau ID
+        formationIdMapping.set(formation.id, newFormationId);
 
         const insertFormationQuery = `
           INSERT INTO formations (
@@ -688,15 +695,101 @@ router.post('/:id/duplicate',
         };
         duplicatedFormations.push(formationData);
       }
+
+      // ÉTAPE 2: Dupliquer les packs
+      const packsResult = await client.query(
+        `SELECT * FROM formations
+         WHERE corps_formation_id = $1
+         AND is_pack = TRUE
+         ORDER BY title ASC`,
+        [id]
+      );
+
+      for (const pack of packsResult.rows) {
+        const newPackId = nanoid();
+        const newPackTitle = `${pack.title} (Copie)`;
+
+        // Stocker le mapping pour ce pack aussi
+        formationIdMapping.set(pack.id, newPackId);
+
+        const insertPackQuery = `
+          INSERT INTO formations (
+            id, title, description, price, duration_hours, level,
+            status, corps_formation_id, certificate_template_id, is_pack, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, CURRENT_TIMESTAMP)
+          RETURNING id, title, description, price, level, status, is_pack
+        `;
+
+        const newPackResult = await client.query(insertPackQuery, [
+          newPackId,
+          newPackTitle,
+          pack.description,
+          pack.price,
+          pack.duration_hours,
+          pack.level,
+          'draft',
+          newCorpsId,
+          pack.certificate_template_id
+        ]);
+
+        // Dupliquer les formation_pack_items (compositions du pack)
+        const packItemsResult = await client.query(
+          `SELECT formation_id, order_index
+           FROM formation_pack_items
+           WHERE pack_id = $1
+           ORDER BY order_index ASC`,
+          [pack.id]
+        );
+
+        let packItemsCount = 0;
+        for (const item of packItemsResult.rows) {
+          // Vérifier si la formation membre a été dupliquée
+          const newMemberFormationId = formationIdMapping.get(item.formation_id);
+
+          if (newMemberFormationId) {
+            await client.query(
+              `INSERT INTO formation_pack_items (id, pack_id, formation_id, order_index)
+               VALUES ($1, $2, $3, $4)`,
+              [nanoid(), newPackId, newMemberFormationId, item.order_index]
+            );
+            packItemsCount++;
+          }
+        }
+
+        // Dupliquer les templates associés au pack
+        const packTemplatesResult = await client.query(
+          `SELECT template_id, document_type, is_default
+           FROM formation_templates
+           WHERE formation_id = $1`,
+          [pack.id]
+        );
+
+        for (const template of packTemplatesResult.rows) {
+          await client.query(
+            `INSERT INTO formation_templates (id, formation_id, template_id, document_type, is_default)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [nanoid(), newPackId, template.template_id, template.document_type, template.is_default]
+          );
+        }
+
+        const packData = {
+          ...newPackResult.rows[0],
+          templates_count: packTemplatesResult.rows.length,
+          pack_items_count: packItemsCount
+        };
+        duplicatedPacks.push(packData);
+      }
     }
 
     await client.query('COMMIT');
 
+    const totalDuplicated = duplicatedFormations.length + duplicatedPacks.length;
     res.status(201).json({
       success: true,
       corps: newCorps,
       duplicated_formations: duplicatedFormations,
-      message: `Corps de formation dupliqué avec succès${include_formations ? ` (${duplicatedFormations.length} formation(s) copiée(s))` : ''}`
+      duplicated_packs: duplicatedPacks,
+      message: `Corps de formation dupliqué avec succès${include_formations ? ` (${duplicatedFormations.length} formation(s) + ${duplicatedPacks.length} pack(s) copiés)` : ''}`
     });
 
   } catch (error) {
