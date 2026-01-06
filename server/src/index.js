@@ -138,6 +138,10 @@ import hrEmployeePortalRouter from './routes/hr-employee-portal.js';
 import hrRequestsValidationRouter from './routes/hr-requests-validation.js';
 import hrScheduleManagementRouter from './routes/hr-schedule-management.js';
 import hrValidationWorkflowsRouter from './routes/hr-validation-workflows.js';
+import hrPayrollRouter from './routes/hr-payroll.js';
+import hrDelegationRouter from './routes/hr-delegation.js';
+import hrManagerRouter from './routes/hr-manager.js';
+import hrEmployeeSelfRouter from './routes/hr-employee-self.js';
 import prospectsRouter from './routes/prospects.js';
 import projectsRouter from './routes/projects.js';
 import migrationProjectsRouter from './routes/migration-projects.js';
@@ -163,6 +167,8 @@ import migration098Router from './routes/migration-098-add-certificates-view-per
 import migration099Router from './routes/migration-099-standardize-existing-data.js';
 import migration100Router from './routes/migration-100-student-certificate-number.js';
 import migration101Router from './routes/migration-101-remove-certificate-number-unique.js';
+import migration102Router from './routes/migration-102-hr-payroll.js';
+import migration103Router from './routes/migration-103-hr-delegation.js';
 import debugTemplateDateformatRouter from './routes/debug-template-dateformat.js';
 import visitsRouter from './routes/visits.js';
 
@@ -258,6 +264,10 @@ app.use('/api/hr/employee-portal', authenticateToken, hrEmployeePortalRouter);
 app.use('/api/hr/requests-validation', authenticateToken, hrRequestsValidationRouter);
 app.use('/api/hr/schedule-management', authenticateToken, hrScheduleManagementRouter);
 app.use('/api/hr/validation-workflows', authenticateToken, hrValidationWorkflowsRouter);
+app.use('/api/hr/payroll', authenticateToken, hrPayrollRouter);
+app.use('/api/hr/delegation', authenticateToken, hrDelegationRouter);
+app.use('/api/hr/manager', authenticateToken, hrManagerRouter);
+app.use('/api/hr/my', authenticateToken, hrEmployeeSelfRouter);
 app.use('/api/prospects', authenticateToken, prospectsRouter);
 app.use('/api/visits', authenticateToken, visitsRouter);
 app.use('/api/projects', authenticateToken, projectsRouter);
@@ -380,6 +390,8 @@ app.use('/api/migration-098-add-certificates-view-permission', ...adminOnly, mig
 app.use('/api/migration-099-standardize-existing-data', ...adminOnly, migration099Router);
 app.use('/api/migration-100-student-certificate-number', ...adminOnly, migration100Router);
 app.use('/api/migration-101-remove-certificate-number-unique', ...adminOnly, migration101Router);
+app.use('/api/migration-102-hr-payroll', ...adminOnly, migration102Router);
+app.use('/api/migration-103-hr-delegation', ...adminOnly, migration103Router);
 app.use('/api/debug-template-dateformat', ...adminOnly, debugTemplateDateformatRouter);
 
 // Health check

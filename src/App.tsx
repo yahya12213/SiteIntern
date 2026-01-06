@@ -39,6 +39,13 @@ import ScheduleManagement from './pages/admin/hr/ScheduleManagement';
 import PayrollManagement from './pages/admin/hr/PayrollManagement';
 import EmployeePortal from './pages/admin/hr/EmployeePortal';
 import RequestsValidation from './pages/admin/hr/RequestsValidation';
+import DelegationManagement from './pages/admin/hr/DelegationManagement';
+// Manager pages
+import TeamAttendance from './pages/manager/TeamAttendance';
+import TeamRequests from './pages/manager/TeamRequests';
+// Employee self-service pages
+import MyRequests from './pages/employee/MyRequests';
+import MyPayslips from './pages/employee/MyPayslips';
 import ProjectsManagement from './pages/admin/ProjectsManagement';
 import CommercializationDashboard from './pages/admin/commercialisation/CommercializationDashboard';
 import Clients from './pages/admin/commercialisation/Clients';
@@ -448,6 +455,15 @@ const AppRoutes: React.FC = () => {
         }
       />
 
+      <Route
+        path="/admin/hr/delegations"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.delegation.view_page}>
+            <DelegationManagement />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Admin Routes - Commercialisation */}
       <Route
         path="/admin/commercialisation/dashboard"
@@ -527,6 +543,43 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute requiredPermission={PERMISSIONS.hr.clocking.self}>
             <Clocking />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/employee/requests"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.my.requests}>
+            <MyRequests />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/employee/payslips"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.my.payslips}>
+            <MyPayslips />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Manager Routes */}
+      <Route
+        path="/manager/team-attendance"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.manager.team_attendance}>
+            <TeamAttendance />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/manager/team-requests"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.manager.team_requests}>
+            <TeamRequests />
           </ProtectedRoute>
         }
       />

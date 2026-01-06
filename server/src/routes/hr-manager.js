@@ -1,0 +1,628 @@
+import express from 'express';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import pool from '../config/database.js';
+
+const router = express.Router();
+
+/**
+ * Helper: Get team member IDs for a manager
+ */
+async function getTeamMemberIds(userId) {
+  // Get the hr_employee for this user
+  const managerEmployee = await pool.query(`
+    SELECT id FROM hr_employees WHERE profile_id = $1
+  `, [userId]);
+
+  if (managerEmployee.rows.length === 0) {
+    return [];
+  }
+
+  const managerId = managerEmployee.rows[0].id;
+
+  // Get all employees where this user is the manager
+  const team = await pool.query(`
+    SELECT id, profile_id FROM hr_employees
+    WHERE manager_id = $1 AND employment_status = 'active'
+  `, [managerId]);
+
+  return team.rows;
+}
+
+/**
+ * Get my team members
+ */
+router.get('/team',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+      const team = await pool.query(`
+        SELECT
+          e.*,
+          p.username,
+          p.email as profile_email,
+          s.name as segment_name,
+          -- Today's attendance
+          (SELECT clock_time FROM hr_attendance_records
+           WHERE employee_id = e.id AND status = 'check_in'
+           AND DATE(clock_time) = CURRENT_DATE
+           ORDER BY clock_time DESC LIMIT 1) as today_check_in,
+          (SELECT clock_time FROM hr_attendance_records
+           WHERE employee_id = e.id AND status = 'check_out'
+           AND DATE(clock_time) = CURRENT_DATE
+           ORDER BY clock_time DESC LIMIT 1) as today_check_out,
+          -- Leave info
+          (SELECT COUNT(*) FROM hr_leave_requests
+           WHERE employee_id = e.id AND status = 'approved'
+           AND CURRENT_DATE BETWEEN start_date AND end_date) as is_on_leave
+        FROM hr_employees e
+        LEFT JOIN profiles p ON e.profile_id = p.id
+        LEFT JOIN segments s ON e.segment_id = s.id
+        WHERE e.manager_id = (SELECT id FROM hr_employees WHERE profile_id = $1)
+        AND e.employment_status = 'active'
+        ORDER BY e.last_name, e.first_name
+      `, [userId]);
+
+      res.json({ success: true, data: team.rows });
+    } catch (error) {
+      console.error('Error fetching team:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get team attendance for a date range
+ */
+router.get('/team-attendance',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { start_date, end_date } = req.query;
+
+    try {
+      const teamMembers = await getTeamMemberIds(userId);
+      if (teamMembers.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      const employeeIds = teamMembers.map(t => t.id);
+
+      // Build query with team filter
+      let query = `
+        SELECT
+          ar.*,
+          e.first_name || ' ' || e.last_name as employee_name,
+          e.employee_number,
+          e.position
+        FROM hr_attendance_records ar
+        JOIN hr_employees e ON e.id = ar.employee_id
+        WHERE ar.employee_id = ANY($1::uuid[])
+      `;
+      const params = [employeeIds];
+      let paramCount = 2;
+
+      if (start_date) {
+        query += ` AND DATE(ar.clock_time) >= $${paramCount}`;
+        params.push(start_date);
+        paramCount++;
+      }
+
+      if (end_date) {
+        query += ` AND DATE(ar.clock_time) <= $${paramCount}`;
+        params.push(end_date);
+        paramCount++;
+      }
+
+      query += ' ORDER BY ar.clock_time DESC';
+
+      const result = await pool.query(query, params);
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching team attendance:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get team attendance summary (today)
+ */
+router.get('/team-attendance/today',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+      const summary = await pool.query(`
+        WITH team AS (
+          SELECT e.id, e.first_name, e.last_name, e.employee_number, e.position
+          FROM hr_employees e
+          WHERE e.manager_id = (SELECT id FROM hr_employees WHERE profile_id = $1)
+          AND e.employment_status = 'active'
+        ),
+        today_records AS (
+          SELECT
+            t.id,
+            t.first_name || ' ' || t.last_name as employee_name,
+            t.employee_number,
+            t.position,
+            (SELECT clock_time FROM hr_attendance_records
+             WHERE employee_id = t.id AND status = 'check_in'
+             AND DATE(clock_time) = CURRENT_DATE
+             ORDER BY clock_time ASC LIMIT 1) as first_check_in,
+            (SELECT clock_time FROM hr_attendance_records
+             WHERE employee_id = t.id AND status = 'check_out'
+             AND DATE(clock_time) = CURRENT_DATE
+             ORDER BY clock_time DESC LIMIT 1) as last_check_out,
+            (SELECT SUM(worked_minutes) FROM hr_attendance_records
+             WHERE employee_id = t.id
+             AND DATE(clock_time) = CURRENT_DATE) as worked_minutes
+          FROM team t
+        ),
+        on_leave AS (
+          SELECT lr.employee_id
+          FROM hr_leave_requests lr
+          WHERE lr.status = 'approved'
+          AND CURRENT_DATE BETWEEN lr.start_date AND lr.end_date
+        )
+        SELECT
+          tr.*,
+          CASE
+            WHEN tr.id IN (SELECT employee_id FROM on_leave) THEN 'on_leave'
+            WHEN tr.first_check_in IS NOT NULL AND tr.last_check_out IS NULL THEN 'present'
+            WHEN tr.first_check_in IS NOT NULL AND tr.last_check_out IS NOT NULL THEN 'completed'
+            ELSE 'absent'
+          END as status,
+          EXTRACT(HOUR FROM tr.first_check_in) * 60 + EXTRACT(MINUTE FROM tr.first_check_in) -
+            (8 * 60) as late_minutes
+        FROM today_records tr
+        ORDER BY tr.employee_name
+      `, [userId]);
+
+      // Calculate summary stats
+      const stats = {
+        total: summary.rows.length,
+        present: summary.rows.filter(r => r.status === 'present' || r.status === 'completed').length,
+        absent: summary.rows.filter(r => r.status === 'absent').length,
+        on_leave: summary.rows.filter(r => r.status === 'on_leave').length,
+        late: summary.rows.filter(r => r.late_minutes > 0).length
+      };
+
+      res.json({
+        success: true,
+        data: summary.rows,
+        stats
+      });
+    } catch (error) {
+      console.error('Error fetching team attendance today:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get team leave requests pending my approval
+ */
+router.get('/team-requests',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { status = 'pending', type } = req.query;
+
+    try {
+      const teamMembers = await getTeamMemberIds(userId);
+      if (teamMembers.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      const employeeIds = teamMembers.map(t => t.id);
+
+      let query = `
+        SELECT
+          lr.*,
+          e.first_name || ' ' || e.last_name as employee_name,
+          e.employee_number,
+          e.position,
+          lt.name as leave_type_name,
+          lt.requires_justification
+        FROM hr_leave_requests lr
+        JOIN hr_employees e ON e.id = lr.employee_id
+        LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
+        WHERE lr.employee_id = ANY($1::uuid[])
+      `;
+      const params = [employeeIds];
+      let paramCount = 2;
+
+      if (status) {
+        query += ` AND lr.status = $${paramCount}`;
+        params.push(status);
+        paramCount++;
+      }
+
+      if (type) {
+        query += ` AND lr.leave_type_id = $${paramCount}`;
+        params.push(type);
+        paramCount++;
+      }
+
+      query += ' ORDER BY lr.created_at DESC';
+
+      const result = await pool.query(query, params);
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching team requests:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get team overtime requests pending my approval
+ */
+router.get('/team-overtime',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { status = 'pending' } = req.query;
+
+    try {
+      const teamMembers = await getTeamMemberIds(userId);
+      if (teamMembers.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      const employeeIds = teamMembers.map(t => t.id);
+
+      // Check if hr_overtime_requests table exists
+      const tableExists = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_name = 'hr_overtime_requests'
+        )
+      `);
+
+      if (!tableExists.rows[0].exists) {
+        return res.json({ success: true, data: [], message: 'Overtime requests table not found' });
+      }
+
+      let query = `
+        SELECT
+          ot.*,
+          e.first_name || ' ' || e.last_name as employee_name,
+          e.employee_number,
+          e.position
+        FROM hr_overtime_requests ot
+        JOIN hr_employees e ON e.id = ot.employee_id
+        WHERE ot.employee_id = ANY($1::uuid[])
+      `;
+      const params = [employeeIds];
+      let paramCount = 2;
+
+      if (status) {
+        query += ` AND ot.status = $${paramCount}`;
+        params.push(status);
+        paramCount++;
+      }
+
+      query += ' ORDER BY ot.created_at DESC';
+
+      const result = await pool.query(query, params);
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching team overtime:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get team leave calendar (approved leaves)
+ */
+router.get('/team-calendar',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { start_date, end_date } = req.query;
+
+    try {
+      const teamMembers = await getTeamMemberIds(userId);
+      if (teamMembers.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      const employeeIds = teamMembers.map(t => t.id);
+
+      let query = `
+        SELECT
+          lr.id,
+          lr.employee_id,
+          e.first_name || ' ' || e.last_name as employee_name,
+          lr.start_date,
+          lr.end_date,
+          lr.days_requested,
+          lr.status,
+          lt.name as leave_type_name,
+          lt.color as leave_type_color
+        FROM hr_leave_requests lr
+        JOIN hr_employees e ON e.id = lr.employee_id
+        LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
+        WHERE lr.employee_id = ANY($1::uuid[])
+        AND lr.status IN ('approved', 'pending')
+      `;
+      const params = [employeeIds];
+      let paramCount = 2;
+
+      if (start_date) {
+        query += ` AND lr.end_date >= $${paramCount}`;
+        params.push(start_date);
+        paramCount++;
+      }
+
+      if (end_date) {
+        query += ` AND lr.start_date <= $${paramCount}`;
+        params.push(end_date);
+        paramCount++;
+      }
+
+      query += ' ORDER BY lr.start_date';
+
+      const result = await pool.query(query, params);
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching team calendar:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get team statistics for current month
+ */
+router.get('/team-stats',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+      const stats = await pool.query(`
+        WITH team AS (
+          SELECT e.id
+          FROM hr_employees e
+          WHERE e.manager_id = (SELECT id FROM hr_employees WHERE profile_id = $1)
+          AND e.employment_status = 'active'
+        ),
+        month_attendance AS (
+          SELECT
+            COUNT(DISTINCT DATE(clock_time)) as days_worked,
+            SUM(worked_minutes) as total_worked_minutes,
+            COUNT(CASE WHEN EXTRACT(HOUR FROM clock_time) * 60 + EXTRACT(MINUTE FROM clock_time) > 8 * 60 + 15 THEN 1 END) as late_count
+          FROM hr_attendance_records
+          WHERE employee_id IN (SELECT id FROM team)
+          AND DATE(clock_time) >= DATE_TRUNC('month', CURRENT_DATE)
+          AND status = 'check_in'
+        ),
+        month_leaves AS (
+          SELECT COALESCE(SUM(days_requested), 0) as leave_days
+          FROM hr_leave_requests
+          WHERE employee_id IN (SELECT id FROM team)
+          AND status = 'approved'
+          AND start_date >= DATE_TRUNC('month', CURRENT_DATE)
+        ),
+        pending_requests AS (
+          SELECT COUNT(*) as count
+          FROM hr_leave_requests
+          WHERE employee_id IN (SELECT id FROM team)
+          AND status = 'pending'
+        )
+        SELECT
+          (SELECT COUNT(*) FROM team) as team_size,
+          ma.days_worked,
+          ROUND(ma.total_worked_minutes::numeric / 60, 1) as total_hours_worked,
+          ma.late_count,
+          ml.leave_days,
+          pr.count as pending_requests
+        FROM month_attendance ma, month_leaves ml, pending_requests pr
+      `, [userId]);
+
+      res.json({ success: true, data: stats.rows[0] });
+    } catch (error) {
+      console.error('Error fetching team stats:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Approve a leave request (as manager)
+ */
+router.post('/requests/:id/approve',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { comment } = req.body;
+
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Verify request exists and is from team member
+      const request = await client.query(`
+        SELECT lr.*, e.manager_id
+        FROM hr_leave_requests lr
+        JOIN hr_employees e ON e.id = lr.employee_id
+        WHERE lr.id = $1
+      `, [id]);
+
+      if (request.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Request not found' });
+      }
+
+      const leaveRequest = request.rows[0];
+
+      // Check if user is the manager or has delegation
+      const managerEmployee = await client.query(`
+        SELECT id FROM hr_employees WHERE profile_id = $1
+      `, [userId]);
+
+      if (managerEmployee.rows.length === 0) {
+        return res.status(403).json({ success: false, error: 'Not an employee' });
+      }
+
+      const isManager = leaveRequest.manager_id === managerEmployee.rows[0].id;
+
+      let delegationId = null;
+      let approvedOnBehalfOf = null;
+
+      if (!isManager) {
+        // Check for delegation
+        const delegation = await client.query(`
+          SELECT d.id, d.delegator_id
+          FROM hr_approval_delegations d
+          JOIN hr_employees e ON e.profile_id = d.delegator_id
+          WHERE d.delegate_id = $1
+          AND e.id = $2
+          AND d.is_active = TRUE
+          AND CURRENT_DATE BETWEEN d.start_date AND d.end_date
+          AND (d.delegation_type = 'all' OR d.delegation_type = 'leaves')
+        `, [userId, leaveRequest.manager_id]);
+
+        if (delegation.rows.length === 0) {
+          return res.status(403).json({ success: false, error: 'Not authorized to approve this request' });
+        }
+
+        delegationId = delegation.rows[0].id;
+        approvedOnBehalfOf = delegation.rows[0].delegator_id;
+      }
+
+      // Update request status
+      const result = await client.query(`
+        UPDATE hr_leave_requests
+        SET status = 'approved',
+            approved_by = $1,
+            approved_at = NOW(),
+            approved_on_behalf_of = $2,
+            delegation_id = $3,
+            manager_comment = $4
+        WHERE id = $5
+        RETURNING *
+      `, [userId, approvedOnBehalfOf, delegationId, comment, id]);
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        data: result.rows[0],
+        delegation: delegationId ? { id: delegationId, on_behalf_of: approvedOnBehalfOf } : null
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error approving request:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+/**
+ * Reject a leave request (as manager)
+ */
+router.post('/requests/:id/reject',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { comment } = req.body;
+
+    if (!comment) {
+      return res.status(400).json({ success: false, error: 'Comment is required for rejection' });
+    }
+
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Verify request exists and is from team member
+      const request = await client.query(`
+        SELECT lr.*, e.manager_id
+        FROM hr_leave_requests lr
+        JOIN hr_employees e ON e.id = lr.employee_id
+        WHERE lr.id = $1
+      `, [id]);
+
+      if (request.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Request not found' });
+      }
+
+      const leaveRequest = request.rows[0];
+
+      // Check if user is the manager or has delegation (same logic as approve)
+      const managerEmployee = await client.query(`
+        SELECT id FROM hr_employees WHERE profile_id = $1
+      `, [userId]);
+
+      if (managerEmployee.rows.length === 0) {
+        return res.status(403).json({ success: false, error: 'Not an employee' });
+      }
+
+      const isManager = leaveRequest.manager_id === managerEmployee.rows[0].id;
+
+      let delegationId = null;
+      let approvedOnBehalfOf = null;
+
+      if (!isManager) {
+        const delegation = await client.query(`
+          SELECT d.id, d.delegator_id
+          FROM hr_approval_delegations d
+          JOIN hr_employees e ON e.profile_id = d.delegator_id
+          WHERE d.delegate_id = $1
+          AND e.id = $2
+          AND d.is_active = TRUE
+          AND CURRENT_DATE BETWEEN d.start_date AND d.end_date
+          AND (d.delegation_type = 'all' OR d.delegation_type = 'leaves')
+        `, [userId, leaveRequest.manager_id]);
+
+        if (delegation.rows.length === 0) {
+          return res.status(403).json({ success: false, error: 'Not authorized to reject this request' });
+        }
+
+        delegationId = delegation.rows[0].id;
+        approvedOnBehalfOf = delegation.rows[0].delegator_id;
+      }
+
+      // Update request status
+      const result = await client.query(`
+        UPDATE hr_leave_requests
+        SET status = 'rejected',
+            approved_by = $1,
+            approved_at = NOW(),
+            approved_on_behalf_of = $2,
+            delegation_id = $3,
+            manager_comment = $4
+        WHERE id = $5
+        RETURNING *
+      `, [userId, approvedOnBehalfOf, delegationId, comment, id]);
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        data: result.rows[0],
+        delegation: delegationId ? { id: delegationId, on_behalf_of: approvedOnBehalfOf } : null
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error rejecting request:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+export default router;

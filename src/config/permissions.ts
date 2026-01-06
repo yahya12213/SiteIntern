@@ -321,6 +321,25 @@ export const PERMISSIONS = {
       approve: 'hr.requests_validation.approve',
       reject: 'hr.requests_validation.reject',
     },
+    // Délégation d'approbation
+    delegation: {
+      view_page: 'hr.delegation.view_page',
+      create: 'hr.delegation.create',
+      manage_all: 'hr.delegation.manage_all',
+    },
+    // Manager - Vue équipe
+    manager: {
+      team_view: 'hr.manager.team_view',
+      team_attendance: 'hr.manager.team_attendance',
+      team_requests: 'hr.manager.team_requests',
+      approve_requests: 'hr.manager.approve_requests',
+    },
+    // Employé Self-Service
+    my: {
+      requests: 'hr.my.requests',
+      payslips: 'hr.my.payslips',
+      profile: 'hr.my.profile',
+    },
   },
 
   // ==================== COMMERCIALISATION MODULE ====================

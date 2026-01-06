@@ -29,6 +29,10 @@ import {
   CheckSquare,
   FolderKanban,
   Cloud,
+  ArrowRightLeft,
+  UserCheck,
+  Receipt,
+  Send,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -49,7 +53,7 @@ interface NavItem {
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const { hasPermission } = useAuth();
-  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation', 'ressources-humaines', 'commercialisation']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation', 'ressources-humaines', 'mon-equipe', 'mon-espace-rh', 'commercialisation']);
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev =>
@@ -100,6 +104,28 @@ export const Sidebar: React.FC = () => {
         { to: '/admin/hr/employee-portal', icon: Clock, label: 'Gestion Pointage', permission: PERMISSIONS.hr.employee_portal.view_page },
         { to: '/admin/hr/employees', icon: User, label: 'Dossier Employé', permission: PERMISSIONS.hr.employees.view_page },
         { to: '/admin/hr/requests-validation', icon: CheckSquare, label: 'Validation des Demandes', permission: PERMISSIONS.hr.requests_validation.view_page },
+        { to: '/admin/hr/delegations', icon: ArrowRightLeft, label: 'Délégations', permission: PERMISSIONS.hr.delegation.view_page },
+      ],
+    },
+    // Section Manager - Vue Équipe
+    {
+      id: 'mon-equipe',
+      title: 'Mon Équipe',
+      icon: UserCheck,
+      items: [
+        { to: '/manager/team-attendance', icon: Clock, label: 'Pointages équipe', permission: PERMISSIONS.hr.manager.team_attendance },
+        { to: '/manager/team-requests', icon: CheckSquare, label: 'Demandes équipe', permission: PERMISSIONS.hr.manager.team_requests },
+      ],
+    },
+    // Section Employé - Mon Espace RH
+    {
+      id: 'mon-espace-rh',
+      title: 'Mon Espace RH',
+      icon: User,
+      items: [
+        { to: '/employee/clocking', icon: Clock, label: 'Mon Pointage', permission: PERMISSIONS.hr.clocking.self },
+        { to: '/employee/requests', icon: Send, label: 'Mes Demandes', permission: PERMISSIONS.hr.my.requests },
+        { to: '/employee/payslips', icon: Receipt, label: 'Mes Bulletins', permission: PERMISSIONS.hr.my.payslips },
       ],
     },
     {

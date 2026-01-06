@@ -1,0 +1,590 @@
+import express from 'express';
+import { authenticateToken } from '../middleware/auth.js';
+import pool from '../config/database.js';
+
+const router = express.Router();
+
+/**
+ * Get my employee profile
+ */
+router.get('/profile',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+      const result = await pool.query(`
+        SELECT
+          e.*,
+          s.name as segment_name,
+          m.first_name || ' ' || m.last_name as manager_name,
+          c.contract_type,
+          c.start_date as contract_start_date,
+          c.end_date as contract_end_date,
+          c.salary_gross,
+          c.working_hours_per_week
+        FROM hr_employees e
+        LEFT JOIN segments s ON e.segment_id = s.id
+        LEFT JOIN hr_employees m ON e.manager_id = m.id
+        LEFT JOIN hr_contracts c ON c.employee_id = e.id AND c.status = 'active'
+        WHERE e.profile_id = $1
+      `, [userId]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Employee profile not found' });
+      }
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get my leave requests
+ */
+router.get('/requests',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { status, year } = req.query;
+
+    try {
+      // Get employee ID
+      const employee = await pool.query(
+        'SELECT id FROM hr_employees WHERE profile_id = $1',
+        [userId]
+      );
+
+      if (employee.rows.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      const employeeId = employee.rows[0].id;
+
+      let query = `
+        SELECT
+          lr.*,
+          lt.name as leave_type_name,
+          lt.color as leave_type_color,
+          lt.requires_justification,
+          p.first_name || ' ' || p.last_name as approved_by_name
+        FROM hr_leave_requests lr
+        LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
+        LEFT JOIN profiles p ON p.id = lr.approved_by
+        WHERE lr.employee_id = $1
+      `;
+      const params = [employeeId];
+      let paramCount = 2;
+
+      if (status) {
+        query += ` AND lr.status = $${paramCount}`;
+        params.push(status);
+        paramCount++;
+      }
+
+      if (year) {
+        query += ` AND EXTRACT(YEAR FROM lr.start_date) = $${paramCount}`;
+        params.push(parseInt(year));
+        paramCount++;
+      }
+
+      query += ' ORDER BY lr.created_at DESC';
+
+      const result = await pool.query(query, params);
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching my requests:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Submit a new leave request
+ */
+router.post('/requests',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const {
+      leave_type_id,
+      start_date,
+      end_date,
+      days_requested,
+      reason,
+      contact_during_leave,
+      interim_person_id,
+      justification_url
+    } = req.body;
+
+    try {
+      // Get employee ID
+      const employee = await pool.query(
+        'SELECT id FROM hr_employees WHERE profile_id = $1',
+        [userId]
+      );
+
+      if (employee.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Employee profile not found' });
+      }
+
+      const employeeId = employee.rows[0].id;
+
+      // Check leave type requirements
+      const leaveType = await pool.query(
+        'SELECT * FROM hr_leave_types WHERE id = $1',
+        [leave_type_id]
+      );
+
+      if (leaveType.rows.length === 0) {
+        return res.status(400).json({ success: false, error: 'Invalid leave type' });
+      }
+
+      if (leaveType.rows[0].requires_justification && !justification_url) {
+        return res.status(400).json({ success: false, error: 'Justification is required for this leave type' });
+      }
+
+      // Check for overlapping requests
+      const overlap = await pool.query(`
+        SELECT id FROM hr_leave_requests
+        WHERE employee_id = $1
+        AND status IN ('pending', 'approved')
+        AND (
+          ($2 BETWEEN start_date AND end_date) OR
+          ($3 BETWEEN start_date AND end_date) OR
+          (start_date BETWEEN $2 AND $3)
+        )
+      `, [employeeId, start_date, end_date]);
+
+      if (overlap.rows.length > 0) {
+        return res.status(400).json({ success: false, error: 'You already have a request for this period' });
+      }
+
+      // Get leave balance
+      const balance = await pool.query(`
+        SELECT
+          COALESCE(lb.total_days, 0) as total_days,
+          COALESCE(lb.used_days, 0) as used_days,
+          COALESCE(lb.total_days, 0) - COALESCE(lb.used_days, 0) as available_days
+        FROM hr_leave_balances lb
+        WHERE lb.employee_id = $1 AND lb.leave_type_id = $2 AND lb.year = EXTRACT(YEAR FROM $3::date)
+      `, [employeeId, leave_type_id, start_date]);
+
+      const availableDays = balance.rows[0]?.available_days || 0;
+      if (days_requested > availableDays && leaveType.rows[0].deducts_from_balance) {
+        return res.status(400).json({
+          success: false,
+          error: `Insufficient balance. Available: ${availableDays} days, Requested: ${days_requested} days`
+        });
+      }
+
+      // Create request
+      const result = await pool.query(`
+        INSERT INTO hr_leave_requests (
+          employee_id, leave_type_id, start_date, end_date, days_requested,
+          reason, contact_during_leave, interim_person_id, justification_url,
+          status, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10)
+        RETURNING *
+      `, [
+        employeeId, leave_type_id, start_date, end_date, days_requested,
+        reason, contact_during_leave, interim_person_id, justification_url, userId
+      ]);
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error creating request:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Cancel a pending request
+ */
+router.delete('/requests/:id',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    try {
+      // Get employee ID
+      const employee = await pool.query(
+        'SELECT id FROM hr_employees WHERE profile_id = $1',
+        [userId]
+      );
+
+      if (employee.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Employee profile not found' });
+      }
+
+      const result = await pool.query(`
+        UPDATE hr_leave_requests
+        SET status = 'cancelled', cancelled_at = NOW()
+        WHERE id = $1 AND employee_id = $2 AND status = 'pending'
+        RETURNING *
+      `, [id, employee.rows[0].id]);
+
+      if (result.rows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Request not found or cannot be cancelled'
+        });
+      }
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error cancelling request:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get my leave balances
+ */
+router.get('/leave-balances',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { year = new Date().getFullYear() } = req.query;
+
+    try {
+      const employee = await pool.query(
+        'SELECT id FROM hr_employees WHERE profile_id = $1',
+        [userId]
+      );
+
+      if (employee.rows.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      const result = await pool.query(`
+        SELECT
+          lb.*,
+          lt.name as leave_type_name,
+          lt.color as leave_type_color,
+          lb.total_days - lb.used_days as available_days
+        FROM hr_leave_balances lb
+        JOIN hr_leave_types lt ON lt.id = lb.leave_type_id
+        WHERE lb.employee_id = $1 AND lb.year = $2
+        ORDER BY lt.name
+      `, [employee.rows[0].id, parseInt(year)]);
+
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching leave balances:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get my payslips
+ */
+router.get('/payslips',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { year, limit = 12 } = req.query;
+
+    try {
+      const employee = await pool.query(
+        'SELECT id FROM hr_employees WHERE profile_id = $1',
+        [userId]
+      );
+
+      if (employee.rows.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      let query = `
+        SELECT
+          ps.id,
+          ps.period_id,
+          p.year,
+          p.month,
+          p.name as period_name,
+          ps.base_salary,
+          ps.gross_salary,
+          ps.net_salary,
+          ps.status,
+          ps.generated_at,
+          ps.validated_at,
+          ps.pdf_url
+        FROM hr_payslips ps
+        JOIN hr_payroll_periods p ON p.id = ps.period_id
+        WHERE ps.employee_id = $1 AND ps.status IN ('validated', 'paid')
+      `;
+      const params = [employee.rows[0].id];
+      let paramCount = 2;
+
+      if (year) {
+        query += ` AND p.year = $${paramCount}`;
+        params.push(parseInt(year));
+        paramCount++;
+      }
+
+      query += ` ORDER BY p.year DESC, p.month DESC LIMIT $${paramCount}`;
+      params.push(parseInt(limit));
+
+      const result = await pool.query(query, params);
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching payslips:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get single payslip details
+ */
+router.get('/payslips/:id',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    try {
+      const employee = await pool.query(
+        'SELECT id FROM hr_employees WHERE profile_id = $1',
+        [userId]
+      );
+
+      if (employee.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Employee profile not found' });
+      }
+
+      // Get payslip
+      const payslip = await pool.query(`
+        SELECT ps.*, p.year, p.month, p.name as period_name
+        FROM hr_payslips ps
+        JOIN hr_payroll_periods p ON p.id = ps.period_id
+        WHERE ps.id = $1 AND ps.employee_id = $2 AND ps.status IN ('validated', 'paid')
+      `, [id, employee.rows[0].id]);
+
+      if (payslip.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Payslip not found' });
+      }
+
+      // Get payslip lines
+      const lines = await pool.query(`
+        SELECT * FROM hr_payslip_lines
+        WHERE payslip_id = $1
+        ORDER BY display_order, line_type
+      `, [id]);
+
+      // Audit log
+      await pool.query(`
+        INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, performed_by)
+        VALUES ('payslip', $1, 'view', $2)
+      `, [id, userId]);
+
+      res.json({
+        success: true,
+        data: {
+          ...payslip.rows[0],
+          lines: lines.rows
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching payslip:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get my attendance history
+ */
+router.get('/attendance',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { start_date, end_date, limit = 30 } = req.query;
+
+    try {
+      const employee = await pool.query(
+        'SELECT id FROM hr_employees WHERE profile_id = $1',
+        [userId]
+      );
+
+      if (employee.rows.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      let query = `
+        SELECT
+          DATE(clock_time) as date,
+          MIN(CASE WHEN status = 'check_in' THEN clock_time END) as first_check_in,
+          MAX(CASE WHEN status = 'check_out' THEN clock_time END) as last_check_out,
+          SUM(worked_minutes) as worked_minutes,
+          COUNT(CASE WHEN status = 'check_in' THEN 1 END) as check_in_count,
+          COUNT(CASE WHEN status = 'check_out' THEN 1 END) as check_out_count
+        FROM hr_attendance_records
+        WHERE employee_id = $1
+      `;
+      const params = [employee.rows[0].id];
+      let paramCount = 2;
+
+      if (start_date) {
+        query += ` AND DATE(clock_time) >= $${paramCount}`;
+        params.push(start_date);
+        paramCount++;
+      }
+
+      if (end_date) {
+        query += ` AND DATE(clock_time) <= $${paramCount}`;
+        params.push(end_date);
+        paramCount++;
+      }
+
+      query += ` GROUP BY DATE(clock_time) ORDER BY DATE(clock_time) DESC LIMIT $${paramCount}`;
+      params.push(parseInt(limit));
+
+      const result = await pool.query(query, params);
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get my documents
+ */
+router.get('/documents',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+      const employee = await pool.query(
+        'SELECT id FROM hr_employees WHERE profile_id = $1',
+        [userId]
+      );
+
+      if (employee.rows.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      const result = await pool.query(`
+        SELECT *
+        FROM hr_employee_documents
+        WHERE employee_id = $1
+        ORDER BY uploaded_at DESC
+      `, [employee.rows[0].id]);
+
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get my contract
+ */
+router.get('/contract',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+      const employee = await pool.query(
+        'SELECT id FROM hr_employees WHERE profile_id = $1',
+        [userId]
+      );
+
+      if (employee.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Employee profile not found' });
+      }
+
+      const result = await pool.query(`
+        SELECT *
+        FROM hr_contracts
+        WHERE employee_id = $1
+        ORDER BY start_date DESC
+        LIMIT 1
+      `, [employee.rows[0].id]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'No contract found' });
+      }
+
+      // Hide sensitive salary info if needed
+      const contract = result.rows[0];
+      // contract.salary_gross = undefined; // Uncomment to hide
+
+      res.json({ success: true, data: contract });
+    } catch (error) {
+      console.error('Error fetching contract:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get available leave types
+ */
+router.get('/leave-types',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT id, name, description, color, requires_justification, max_days_per_request
+        FROM hr_leave_types
+        WHERE is_active = TRUE
+        ORDER BY name
+      `);
+
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching leave types:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get colleagues for interim selection
+ */
+router.get('/colleagues',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+      // Get colleagues (same department/segment)
+      const result = await pool.query(`
+        SELECT
+          e.id,
+          e.first_name || ' ' || e.last_name as name,
+          e.position,
+          e.department
+        FROM hr_employees e
+        WHERE e.profile_id != $1
+        AND e.employment_status = 'active'
+        AND (
+          e.department = (SELECT department FROM hr_employees WHERE profile_id = $1)
+          OR e.segment_id = (SELECT segment_id FROM hr_employees WHERE profile_id = $1)
+        )
+        ORDER BY e.last_name, e.first_name
+      `, [userId]);
+
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching colleagues:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+export default router;

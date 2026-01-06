@@ -1,0 +1,965 @@
+import express from 'express';
+import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import pool from '../config/database.js';
+
+const router = express.Router();
+
+// ===============================
+// PAYROLL PERIODS
+// ===============================
+
+/**
+ * Get all payroll periods
+ */
+router.get('/periods',
+  authenticateToken,
+  requirePermission('hr.payroll.view_page'),
+  async (req, res) => {
+    const { year, status } = req.query;
+
+    try {
+      let query = `
+        SELECT * FROM hr_payroll_periods
+        WHERE 1=1
+      `;
+      const params = [];
+      let paramCount = 1;
+
+      if (year) {
+        query += ` AND year = $${paramCount}`;
+        params.push(parseInt(year));
+        paramCount++;
+      }
+
+      if (status) {
+        query += ` AND status = $${paramCount}`;
+        params.push(status);
+        paramCount++;
+      }
+
+      query += ' ORDER BY year DESC, month DESC';
+
+      const result = await pool.query(query, params);
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching payroll periods:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get single payroll period with summary
+ */
+router.get('/periods/:id',
+  authenticateToken,
+  requirePermission('hr.payroll.view_page'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const result = await pool.query(`
+        SELECT p.*,
+          (SELECT COUNT(*) FROM hr_payslips WHERE period_id = p.id) as payslip_count,
+          (SELECT COUNT(*) FROM hr_payslips WHERE period_id = p.id AND status = 'validated') as validated_count
+        FROM hr_payroll_periods p
+        WHERE p.id = $1
+      `, [id]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Period not found' });
+      }
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error fetching payroll period:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Create a new payroll period
+ */
+router.post('/periods',
+  authenticateToken,
+  requirePermission('hr.payroll.periods.create'),
+  async (req, res) => {
+    const { year, month, start_date, end_date, pay_date, notes } = req.body;
+    const userId = req.user.id;
+
+    try {
+      // Check if period already exists
+      const existing = await pool.query(
+        'SELECT id FROM hr_payroll_periods WHERE year = $1 AND month = $2',
+        [year, month]
+      );
+
+      if (existing.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: `Une période de paie existe déjà pour ${month}/${year}`
+        });
+      }
+
+      const months = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+      const name = `${months[month]} ${year}`;
+
+      const result = await pool.query(`
+        INSERT INTO hr_payroll_periods
+        (name, year, month, start_date, end_date, pay_date, notes, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *
+      `, [name, year, month, start_date, end_date, pay_date, notes, userId]);
+
+      // Audit log
+      await pool.query(`
+        INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, new_values, performed_by)
+        VALUES ('period', $1, 'create', $2, $3)
+      `, [result.rows[0].id, JSON.stringify(result.rows[0]), userId]);
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error creating payroll period:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Update a payroll period
+ */
+router.put('/periods/:id',
+  authenticateToken,
+  requirePermission('hr.payroll.periods.create'),
+  async (req, res) => {
+    const { id } = req.params;
+    const { start_date, end_date, pay_date, notes } = req.body;
+    const userId = req.user.id;
+
+    try {
+      // Check period is not closed
+      const period = await pool.query('SELECT * FROM hr_payroll_periods WHERE id = $1', [id]);
+      if (period.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Period not found' });
+      }
+      if (period.rows[0].status === 'closed') {
+        return res.status(400).json({ success: false, error: 'Cannot modify a closed period' });
+      }
+
+      const result = await pool.query(`
+        UPDATE hr_payroll_periods
+        SET start_date = COALESCE($1, start_date),
+            end_date = COALESCE($2, end_date),
+            pay_date = COALESCE($3, pay_date),
+            notes = COALESCE($4, notes)
+        WHERE id = $5
+        RETURNING *
+      `, [start_date, end_date, pay_date, notes, id]);
+
+      // Audit log
+      await pool.query(`
+        INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, old_values, new_values, performed_by)
+        VALUES ('period', $1, 'update', $2, $3, $4)
+      `, [id, JSON.stringify(period.rows[0]), JSON.stringify(result.rows[0]), userId]);
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error updating payroll period:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Close a payroll period
+ */
+router.post('/periods/:id/close',
+  authenticateToken,
+  requirePermission('hr.payroll.periods.close'),
+  async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    try {
+      // Check all payslips are validated
+      const unvalidated = await pool.query(`
+        SELECT COUNT(*) FROM hr_payslips
+        WHERE period_id = $1 AND status != 'validated'
+      `, [id]);
+
+      if (parseInt(unvalidated.rows[0].count) > 0) {
+        return res.status(400).json({
+          success: false,
+          error: `${unvalidated.rows[0].count} bulletins ne sont pas encore validés`
+        });
+      }
+
+      const result = await pool.query(`
+        UPDATE hr_payroll_periods
+        SET status = 'closed', closed_at = NOW(), closed_by = $1
+        WHERE id = $2 AND status = 'validated'
+        RETURNING *
+      `, [userId, id]);
+
+      if (result.rows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Period must be validated before closing'
+        });
+      }
+
+      // Audit log
+      await pool.query(`
+        INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, performed_by)
+        VALUES ('period', $1, 'close', $2)
+      `, [id, userId]);
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error closing payroll period:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// ===============================
+// PAYROLL CALCULATION
+// ===============================
+
+/**
+ * Calculate payroll for a period
+ */
+router.post('/calculate/:period_id',
+  authenticateToken,
+  requirePermission('hr.payroll.calculate'),
+  async (req, res) => {
+    const { period_id } = req.params;
+    const userId = req.user.id;
+
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Get period info
+      const period = await client.query('SELECT * FROM hr_payroll_periods WHERE id = $1', [period_id]);
+      if (period.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Period not found' });
+      }
+
+      const periodData = period.rows[0];
+      if (periodData.status === 'closed') {
+        return res.status(400).json({ success: false, error: 'Cannot recalculate a closed period' });
+      }
+
+      // Update period status
+      await client.query(
+        'UPDATE hr_payroll_periods SET status = $1 WHERE id = $2',
+        ['calculating', period_id]
+      );
+
+      // Get payroll configuration
+      const configResult = await client.query('SELECT * FROM hr_payroll_config WHERE is_active = true');
+      const config = {};
+      configResult.rows.forEach(row => {
+        if (row.config_type === 'json') {
+          config[row.config_key] = JSON.parse(row.config_value);
+        } else if (row.config_type === 'number') {
+          config[row.config_key] = parseFloat(row.config_value);
+        } else if (row.config_type === 'boolean') {
+          config[row.config_key] = row.config_value === 'true';
+        } else {
+          config[row.config_key] = row.config_value;
+        }
+      });
+
+      // Get all active employees with contracts
+      const employees = await client.query(`
+        SELECT
+          e.*,
+          c.salary_gross as base_salary,
+          c.working_hours_per_week,
+          c.start_date as contract_start_date
+        FROM hr_employees e
+        LEFT JOIN hr_contracts c ON c.employee_id = e.id AND c.status = 'active'
+        WHERE e.employment_status = 'active'
+        ORDER BY e.last_name, e.first_name
+      `);
+
+      // Delete existing payslips for this period (if recalculating)
+      await client.query('DELETE FROM hr_payslips WHERE period_id = $1', [period_id]);
+
+      let totalGross = 0;
+      let totalNet = 0;
+      let totalCnssEmployee = 0;
+      let totalCnssEmployer = 0;
+      let totalAmo = 0;
+      let totalIgr = 0;
+
+      for (const emp of employees.rows) {
+        // Calculate payslip for each employee
+        const baseSalary = parseFloat(emp.base_salary) || 0;
+        const hourlyRate = baseSalary / (config.working_hours_monthly || 191);
+
+        // Get attendance data for this period
+        const attendance = await client.query(`
+          SELECT
+            SUM(CASE WHEN status = 'check_in' THEN 1 ELSE 0 END) as checkins,
+            SUM(worked_minutes) as total_worked_minutes
+          FROM hr_attendance_records
+          WHERE employee_id = $1
+          AND DATE(clock_time) BETWEEN $2 AND $3
+        `, [emp.id, periodData.start_date, periodData.end_date]);
+
+        const workedMinutes = parseInt(attendance.rows[0]?.total_worked_minutes) || 0;
+        const workedHours = workedMinutes / 60;
+
+        // Get approved overtime for this period
+        const overtime = await client.query(`
+          SELECT
+            COALESCE(SUM(CASE WHEN overtime_type = '25' THEN hours ELSE 0 END), 0) as hours_25,
+            COALESCE(SUM(CASE WHEN overtime_type = '50' THEN hours ELSE 0 END), 0) as hours_50,
+            COALESCE(SUM(CASE WHEN overtime_type = '100' THEN hours ELSE 0 END), 0) as hours_100
+          FROM hr_overtime_requests
+          WHERE employee_id = $1
+          AND status = 'approved'
+          AND DATE(overtime_date) BETWEEN $2 AND $3
+        `, [emp.id, periodData.start_date, periodData.end_date]);
+
+        const overtimeHours25 = parseFloat(overtime.rows[0]?.hours_25) || 0;
+        const overtimeHours50 = parseFloat(overtime.rows[0]?.hours_50) || 0;
+        const overtimeHours100 = parseFloat(overtime.rows[0]?.hours_100) || 0;
+
+        const overtimeAmount =
+          (overtimeHours25 * hourlyRate * (config.overtime_rate_25 || 1.25)) +
+          (overtimeHours50 * hourlyRate * (config.overtime_rate_50 || 1.50)) +
+          (overtimeHours100 * hourlyRate * (config.overtime_rate_100 || 2.00));
+
+        // Calculate seniority bonus
+        const hireDate = new Date(emp.hire_date);
+        const yearsOfService = Math.floor((new Date() - hireDate) / (365.25 * 24 * 60 * 60 * 1000));
+        let seniorityRate = 0;
+        const seniorityBonusRates = config.seniority_bonus_rates || [];
+        for (const bracket of seniorityBonusRates) {
+          if (yearsOfService >= bracket.years) {
+            seniorityRate = bracket.rate;
+          }
+        }
+        const seniorityBonus = baseSalary * (seniorityRate / 100);
+
+        // Gross salary
+        const grossSalary = baseSalary + overtimeAmount + seniorityBonus;
+
+        // CNSS calculation (capped at 6000 MAD)
+        const cnssBase = Math.min(grossSalary, config.cnss_ceiling || 6000);
+        const cnssEmployee = cnssBase * (config.cnss_employee_rate || 4.48) / 100;
+        const cnssEmployer = cnssBase * (config.cnss_employer_rate || 8.98) / 100;
+
+        // AMO calculation
+        const amoBase = grossSalary;
+        const amoEmployee = amoBase * (config.amo_employee_rate || 2.26) / 100;
+        const amoEmployer = amoBase * (config.amo_employer_rate || 4.11) / 100;
+
+        // IGR calculation (simplified - annual then monthly)
+        const annualGross = grossSalary * 12;
+        const professionalExpenses = Math.min(
+          annualGross * (config.igr_professional_expenses_rate || 20) / 100,
+          config.igr_professional_expenses_cap || 30000
+        );
+        const annualCnss = cnssEmployee * 12;
+        const annualAmo = amoEmployee * 12;
+        const taxableIncome = annualGross - professionalExpenses - annualCnss - annualAmo;
+
+        let annualIgr = 0;
+        const igrBrackets = config.igr_brackets || [];
+        for (const bracket of igrBrackets) {
+          if (taxableIncome > bracket.min) {
+            const max = bracket.max || Infinity;
+            if (taxableIncome <= max) {
+              annualIgr = (taxableIncome * bracket.rate / 100) - bracket.deduction;
+              break;
+            }
+          }
+        }
+        const monthlyIgr = Math.max(0, annualIgr / 12);
+
+        // Net salary
+        const totalDeductions = cnssEmployee + amoEmployee + monthlyIgr;
+        const netSalary = grossSalary - totalDeductions;
+
+        // Insert payslip
+        const payslipResult = await client.query(`
+          INSERT INTO hr_payslips (
+            period_id, employee_id, employee_number, employee_name, position, department, hire_date,
+            base_salary, hourly_rate, working_hours, worked_hours,
+            overtime_hours_25, overtime_hours_50, overtime_hours_100, overtime_amount,
+            gross_salary, gross_taxable,
+            cnss_base, cnss_employee, cnss_employer, amo_base, amo_employee, amo_employer,
+            igr_base, igr_amount, total_deductions, net_salary,
+            status, generated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7,
+            $8, $9, $10, $11,
+            $12, $13, $14, $15,
+            $16, $17,
+            $18, $19, $20, $21, $22, $23,
+            $24, $25, $26, $27,
+            'calculated', NOW()
+          ) RETURNING id
+        `, [
+          period_id, emp.id, emp.employee_number, `${emp.first_name} ${emp.last_name}`,
+          emp.position, emp.department, emp.hire_date,
+          baseSalary, hourlyRate, config.working_hours_monthly || 191, workedHours,
+          overtimeHours25, overtimeHours50, overtimeHours100, overtimeAmount,
+          grossSalary, taxableIncome / 12,
+          cnssBase, cnssEmployee, cnssEmployer, amoBase, amoEmployee, amoEmployer,
+          taxableIncome / 12, monthlyIgr, totalDeductions, netSalary
+        ]);
+
+        // Insert payslip lines
+        const payslipId = payslipResult.rows[0].id;
+
+        // Base salary line
+        await client.query(`
+          INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, amount, display_order)
+          VALUES ($1, 'earning', 'base_salary', 'SAL_BASE', 'Salaire de base', $2, 1)
+        `, [payslipId, baseSalary]);
+
+        // Seniority bonus line (if applicable)
+        if (seniorityBonus > 0) {
+          await client.query(`
+            INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, quantity, rate, amount, display_order)
+            VALUES ($1, 'earning', 'bonus', 'PRIME_ANC', 'Prime d''ancienneté', $2, $3, $4, 2)
+          `, [payslipId, yearsOfService, seniorityRate, seniorityBonus]);
+        }
+
+        // Overtime line (if applicable)
+        if (overtimeAmount > 0) {
+          await client.query(`
+            INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, quantity, rate, amount, display_order)
+            VALUES ($1, 'earning', 'overtime', 'HS', 'Heures supplémentaires', $2, $3, $4, 3)
+          `, [payslipId, overtimeHours25 + overtimeHours50 + overtimeHours100, hourlyRate, overtimeAmount]);
+        }
+
+        // CNSS line
+        await client.query(`
+          INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, base_amount, rate, amount, display_order)
+          VALUES ($1, 'deduction', 'cnss', 'CNSS', 'CNSS Salarié', $2, $3, $4, 10)
+        `, [payslipId, cnssBase, config.cnss_employee_rate || 4.48, cnssEmployee]);
+
+        // AMO line
+        await client.query(`
+          INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, base_amount, rate, amount, display_order)
+          VALUES ($1, 'deduction', 'amo', 'AMO', 'AMO Salarié', $2, $3, $4, 11)
+        `, [payslipId, amoBase, config.amo_employee_rate || 2.26, amoEmployee]);
+
+        // IGR line
+        await client.query(`
+          INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, base_amount, amount, display_order)
+          VALUES ($1, 'deduction', 'igr', 'IGR', 'Impôt sur le revenu', $2, $3, 12)
+        `, [payslipId, taxableIncome / 12, monthlyIgr]);
+
+        // Update totals
+        totalGross += grossSalary;
+        totalNet += netSalary;
+        totalCnssEmployee += cnssEmployee;
+        totalCnssEmployer += cnssEmployer;
+        totalAmo += amoEmployee + amoEmployer;
+        totalIgr += monthlyIgr;
+      }
+
+      // Update period with totals
+      await client.query(`
+        UPDATE hr_payroll_periods
+        SET status = 'calculated',
+            calculated_at = NOW(),
+            total_employees = $1,
+            total_gross = $2,
+            total_net = $3,
+            total_cnss_employee = $4,
+            total_cnss_employer = $5,
+            total_amo = $6,
+            total_igr = $7
+        WHERE id = $8
+      `, [employees.rows.length, totalGross, totalNet, totalCnssEmployee, totalCnssEmployer, totalAmo, totalIgr, period_id]);
+
+      // Audit log
+      await client.query(`
+        INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, new_values, performed_by)
+        VALUES ('period', $1, 'calculate', $2, $3)
+      `, [period_id, JSON.stringify({
+        employees: employees.rows.length,
+        total_gross: totalGross,
+        total_net: totalNet
+      }), userId]);
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        data: {
+          period_id,
+          employees_processed: employees.rows.length,
+          total_gross: totalGross,
+          total_net: totalNet,
+          total_cnss_employee: totalCnssEmployee,
+          total_cnss_employer: totalCnssEmployer,
+          total_amo: totalAmo,
+          total_igr: totalIgr
+        }
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error calculating payroll:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+// ===============================
+// PAYSLIPS
+// ===============================
+
+/**
+ * Get all payslips for a period
+ */
+router.get('/payslips',
+  authenticateToken,
+  requirePermission('hr.payroll.view_all_payslips'),
+  async (req, res) => {
+    const { period_id, employee_id, status } = req.query;
+
+    try {
+      let query = `
+        SELECT ps.*
+        FROM hr_payslips ps
+        WHERE 1=1
+      `;
+      const params = [];
+      let paramCount = 1;
+
+      if (period_id) {
+        query += ` AND ps.period_id = $${paramCount}`;
+        params.push(period_id);
+        paramCount++;
+      }
+
+      if (employee_id) {
+        query += ` AND ps.employee_id = $${paramCount}`;
+        params.push(employee_id);
+        paramCount++;
+      }
+
+      if (status) {
+        query += ` AND ps.status = $${paramCount}`;
+        params.push(status);
+        paramCount++;
+      }
+
+      query += ' ORDER BY ps.employee_name';
+
+      const result = await pool.query(query, params);
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching payslips:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get single payslip with lines
+ */
+router.get('/payslips/:id',
+  authenticateToken,
+  async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    try {
+      // Check permission: either view_all or own payslip
+      const payslip = await pool.query(`
+        SELECT ps.*, p.year, p.month, p.name as period_name,
+          e.profile_id
+        FROM hr_payslips ps
+        JOIN hr_payroll_periods p ON p.id = ps.period_id
+        JOIN hr_employees e ON e.id = ps.employee_id
+        WHERE ps.id = $1
+      `, [id]);
+
+      if (payslip.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Payslip not found' });
+      }
+
+      // Check if user can view this payslip
+      const isOwn = payslip.rows[0].profile_id === userId;
+      if (!isOwn) {
+        // Check for view_all permission
+        const hasPermission = await pool.query(`
+          SELECT 1 FROM user_permissions up
+          JOIN permissions p ON p.id = up.permission_id
+          WHERE up.user_id = $1 AND p.id = 'hr.payroll.view_all_payslips'
+        `, [userId]);
+
+        if (hasPermission.rows.length === 0) {
+          return res.status(403).json({ success: false, error: 'Access denied' });
+        }
+      }
+
+      // Get payslip lines
+      const lines = await pool.query(`
+        SELECT * FROM hr_payslip_lines
+        WHERE payslip_id = $1
+        ORDER BY display_order, line_type
+      `, [id]);
+
+      // Audit log for viewing
+      await pool.query(`
+        INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, performed_by)
+        VALUES ('payslip', $1, 'view', $2)
+      `, [id, userId]);
+
+      res.json({
+        success: true,
+        data: {
+          ...payslip.rows[0],
+          lines: lines.rows
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching payslip:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Validate a payslip
+ */
+router.post('/payslips/:id/validate',
+  authenticateToken,
+  requirePermission('hr.payroll.validate'),
+  async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    try {
+      const result = await pool.query(`
+        UPDATE hr_payslips
+        SET status = 'validated', validated_at = NOW(), validated_by = $1
+        WHERE id = $2 AND status = 'calculated'
+        RETURNING *
+      `, [userId, id]);
+
+      if (result.rows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Payslip must be in calculated status to validate'
+        });
+      }
+
+      // Check if all payslips for the period are validated
+      const period = await pool.query(`
+        SELECT period_id FROM hr_payslips WHERE id = $1
+      `, [id]);
+
+      const unvalidated = await pool.query(`
+        SELECT COUNT(*) FROM hr_payslips
+        WHERE period_id = $1 AND status != 'validated'
+      `, [period.rows[0].period_id]);
+
+      if (parseInt(unvalidated.rows[0].count) === 0) {
+        await pool.query(`
+          UPDATE hr_payroll_periods
+          SET status = 'validated', validated_at = NOW(), validated_by = $1
+          WHERE id = $2
+        `, [userId, period.rows[0].period_id]);
+      }
+
+      // Audit log
+      await pool.query(`
+        INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, performed_by)
+        VALUES ('payslip', $1, 'validate', $2)
+      `, [id, userId]);
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error validating payslip:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Validate all payslips for a period
+ */
+router.post('/periods/:id/validate-all',
+  authenticateToken,
+  requirePermission('hr.payroll.validate'),
+  async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    try {
+      // Update all calculated payslips
+      await pool.query(`
+        UPDATE hr_payslips
+        SET status = 'validated', validated_at = NOW(), validated_by = $1
+        WHERE period_id = $2 AND status = 'calculated'
+      `, [userId, id]);
+
+      // Update period status
+      await pool.query(`
+        UPDATE hr_payroll_periods
+        SET status = 'validated', validated_at = NOW(), validated_by = $1
+        WHERE id = $2
+      `, [userId, id]);
+
+      // Audit log
+      await pool.query(`
+        INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, performed_by)
+        VALUES ('period', $1, 'validate', $2)
+      `, [id, userId]);
+
+      res.json({ success: true, message: 'All payslips validated' });
+    } catch (error) {
+      console.error('Error validating payslips:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// ===============================
+// CONFIGURATION
+// ===============================
+
+/**
+ * Get payroll configuration
+ */
+router.get('/config',
+  authenticateToken,
+  requirePermission('hr.payroll.view_page'),
+  async (req, res) => {
+    const { category } = req.query;
+
+    try {
+      let query = 'SELECT * FROM hr_payroll_config WHERE is_active = true';
+      const params = [];
+
+      if (category) {
+        query += ' AND category = $1';
+        params.push(category);
+      }
+
+      query += ' ORDER BY category, config_key';
+
+      const result = await pool.query(query, params);
+
+      // Parse JSON values
+      const config = result.rows.map(row => ({
+        ...row,
+        parsed_value: row.config_type === 'json' ? JSON.parse(row.config_value) :
+          row.config_type === 'number' ? parseFloat(row.config_value) :
+            row.config_type === 'boolean' ? row.config_value === 'true' :
+              row.config_value
+      }));
+
+      res.json({ success: true, data: config });
+    } catch (error) {
+      console.error('Error fetching payroll config:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Update payroll configuration
+ */
+router.put('/config/:key',
+  authenticateToken,
+  requirePermission('hr.payroll.config'),
+  async (req, res) => {
+    const { key } = req.params;
+    const { value } = req.body;
+    const userId = req.user.id;
+
+    try {
+      // Get current value for audit
+      const current = await pool.query(
+        'SELECT * FROM hr_payroll_config WHERE config_key = $1',
+        [key]
+      );
+
+      if (current.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Config key not found' });
+      }
+
+      // Update config
+      const stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+      const result = await pool.query(`
+        UPDATE hr_payroll_config
+        SET config_value = $1, updated_by = $2, updated_at = NOW()
+        WHERE config_key = $3
+        RETURNING *
+      `, [stringValue, userId, key]);
+
+      // Audit log
+      await pool.query(`
+        INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, old_values, new_values, performed_by)
+        VALUES ('config', $1, 'update', $2, $3, $4)
+      `, [current.rows[0].id, JSON.stringify({ value: current.rows[0].config_value }), JSON.stringify({ value: stringValue }), userId]);
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error updating payroll config:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// ===============================
+// EXPORTS
+// ===============================
+
+/**
+ * Export CNSS declaration
+ */
+router.get('/export/cnss/:period_id',
+  authenticateToken,
+  requirePermission('hr.payroll.export'),
+  async (req, res) => {
+    const { period_id } = req.params;
+    const userId = req.user.id;
+
+    try {
+      const payslips = await pool.query(`
+        SELECT
+          ps.employee_number,
+          ps.employee_name,
+          e.cin,
+          e.cnss_number,
+          ps.cnss_base,
+          ps.cnss_employee,
+          ps.cnss_employer
+        FROM hr_payslips ps
+        JOIN hr_employees e ON e.id = ps.employee_id
+        WHERE ps.period_id = $1
+        ORDER BY ps.employee_name
+      `, [period_id]);
+
+      // Audit log
+      await pool.query(`
+        INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, performed_by)
+        VALUES ('period', $1, 'export', $2)
+      `, [period_id, userId]);
+
+      res.json({
+        success: true,
+        data: payslips.rows,
+        totals: {
+          total_cnss_base: payslips.rows.reduce((sum, p) => sum + parseFloat(p.cnss_base || 0), 0),
+          total_cnss_employee: payslips.rows.reduce((sum, p) => sum + parseFloat(p.cnss_employee || 0), 0),
+          total_cnss_employer: payslips.rows.reduce((sum, p) => sum + parseFloat(p.cnss_employer || 0), 0)
+        }
+      });
+    } catch (error) {
+      console.error('Error exporting CNSS:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Export bank transfer file
+ */
+router.get('/export/bank/:period_id',
+  authenticateToken,
+  requirePermission('hr.payroll.export'),
+  async (req, res) => {
+    const { period_id } = req.params;
+    const userId = req.user.id;
+
+    try {
+      const payslips = await pool.query(`
+        SELECT
+          ps.employee_number,
+          ps.employee_name,
+          e.rib,
+          e.bank_name,
+          ps.net_salary
+        FROM hr_payslips ps
+        JOIN hr_employees e ON e.id = ps.employee_id
+        WHERE ps.period_id = $1 AND ps.status = 'validated'
+        ORDER BY ps.employee_name
+      `, [period_id]);
+
+      // Audit log
+      await pool.query(`
+        INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, performed_by)
+        VALUES ('period', $1, 'export', $2)
+      `, [period_id, userId]);
+
+      res.json({
+        success: true,
+        data: payslips.rows,
+        total_amount: payslips.rows.reduce((sum, p) => sum + parseFloat(p.net_salary || 0), 0)
+      });
+    } catch (error) {
+      console.error('Error exporting bank file:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// ===============================
+// AUDIT LOGS
+// ===============================
+
+/**
+ * Get payroll audit logs
+ */
+router.get('/logs',
+  authenticateToken,
+  requirePermission('hr.payroll.view_page'),
+  async (req, res) => {
+    const { entity_type, entity_id, limit = 50 } = req.query;
+
+    try {
+      let query = `
+        SELECT l.*, p.first_name || ' ' || p.last_name as performed_by_name
+        FROM hr_payroll_audit_logs l
+        LEFT JOIN profiles p ON p.id = l.performed_by
+        WHERE 1=1
+      `;
+      const params = [];
+      let paramCount = 1;
+
+      if (entity_type) {
+        query += ` AND l.entity_type = $${paramCount}`;
+        params.push(entity_type);
+        paramCount++;
+      }
+
+      if (entity_id) {
+        query += ` AND l.entity_id = $${paramCount}`;
+        params.push(entity_id);
+        paramCount++;
+      }
+
+      query += ` ORDER BY l.performed_at DESC LIMIT $${paramCount}`;
+      params.push(parseInt(limit));
+
+      const result = await pool.query(query, params);
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+export default router;

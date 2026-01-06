@@ -14,7 +14,7 @@ import { useCreateProspect, useCountryCodes } from '@/hooks/useProspects';
 import { useSegments } from '@/hooks/useSegments';
 import { useCitiesBySegment } from '@/hooks/useCities';
 import { toast } from '@/hooks/use-toast';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface QuickAddProspectModalProps {
@@ -149,39 +149,38 @@ export function QuickAddProspectModal({ open, onClose }: QuickAddProspectModalPr
           {/* Segment */}
           <div className="space-y-2">
             <Label htmlFor="segment">Segment *</Label>
-            <Select value={segmentId} onValueChange={setSegmentId} disabled={segmentsLoading}>
-              <SelectTrigger id="segment">
-                <SelectValue placeholder="Sélectionnez un segment" />
-              </SelectTrigger>
-              <SelectContent>
-                {segments?.map((segment) => (
-                  <SelectItem key={segment.id} value={segment.id}>
-                    {segment.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              options={(segments || []).map((segment) => ({
+                value: segment.id,
+                label: segment.name,
+              }))}
+              value={segmentId}
+              onValueChange={(value) => {
+                setSegmentId(value);
+                setVilleId(''); // Reset ville when segment changes
+              }}
+              placeholder="Sélectionnez un segment"
+              searchPlaceholder="Rechercher un segment..."
+              disabled={segmentsLoading}
+              emptyMessage="Aucun segment trouvé"
+            />
           </div>
 
           {/* Ville */}
           <div className="space-y-2">
             <Label htmlFor="ville">Ville *</Label>
-            <Select
+            <SearchableSelect
+              options={(cities || []).map((city) => ({
+                value: city.id,
+                label: city.name,
+              }))}
               value={villeId}
               onValueChange={setVilleId}
+              placeholder="Sélectionnez une ville"
+              searchPlaceholder="Rechercher une ville..."
               disabled={!segmentId || citiesLoading}
-            >
-              <SelectTrigger id="ville">
-                <SelectValue placeholder="Sélectionnez une ville" />
-              </SelectTrigger>
-              <SelectContent>
-                {cities?.map((city) => (
-                  <SelectItem key={city.id} value={city.id}>
-                    {city.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              emptyMessage="Aucune ville trouvée"
+            />
             {!segmentId && (
               <p className="text-xs text-gray-500">
                 Sélectionnez d'abord un segment pour voir les villes disponibles
