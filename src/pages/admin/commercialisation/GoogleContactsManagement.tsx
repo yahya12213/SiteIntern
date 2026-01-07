@@ -617,8 +617,7 @@ export default function GoogleContactsManagement() {
                     </div>
                     {/* Bouton de réautorisation si token expiré (invalid_grant) */}
                     {!cityConfig.connectionStatus.success &&
-                      cityConfig.connectionStatus.message?.includes('invalid_grant') &&
-                      cityConfig.hasToken && (
+                      cityConfig.connectionStatus.message?.includes('invalid_grant') && (
                         <div className="flex items-center gap-2 p-2 bg-orange-50 rounded-lg border border-orange-200">
                           <AlertTriangle className="h-4 w-4 text-orange-600 flex-shrink-0" />
                           <span className="text-xs text-orange-700 flex-1">

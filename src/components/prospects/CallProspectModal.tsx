@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Phone, Clock, Calendar, MapPin, User, Globe, Layers } from 'lucide-react';
 import { useProspect, useStartCall, useEndCall } from '@/hooks/useProspects';
 import { useAllCities } from '@/hooks/useCities';
+import { useSegments } from '@/hooks/useSegments';
 import { toast } from '@/hooks/use-toast';
 
 // Fonction pour déterminer le style du RDV selon la date
@@ -127,6 +128,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
   const [callStartTime, setCallStartTime] = useState<Date | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [statutContact, setStatutContact] = useState<string>('');
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string>('');
   const [selectedVilleId, setSelectedVilleId] = useState<string>('');
   const [dateRdv, setDateRdv] = useState<string>('');
   const [heureRdv, setHeureRdv] = useState<string>('');
@@ -134,18 +136,14 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
 
   const { data: prospect, isLoading } = useProspect(prospectId || '');
   const { data: allCities = [] } = useAllCities();
+  const { data: allSegments = [] } = useSegments();
   const startCallMutation = useStartCall();
-
-  // Grouper les villes par segment pour l'affichage
-  const citiesBySegment = allCities.reduce((acc, city) => {
-    const segmentName = city.segment_name || 'Sans segment';
-    if (!acc[segmentName]) {
-      acc[segmentName] = [];
-    }
-    acc[segmentName].push(city);
-    return acc;
-  }, {} as Record<string, typeof allCities>);
   const endCallMutation = useEndCall();
+
+  // Filtrer les villes par segment sélectionné
+  const filteredCities = selectedSegmentId
+    ? allCities.filter(city => city.segment_id === selectedSegmentId)
+    : [];
 
   // Timer automatique
   useEffect(() => {
@@ -155,6 +153,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
       setCallStartTime(null);
       setElapsedSeconds(0);
       setStatutContact('');
+      setSelectedSegmentId('');
       setSelectedVilleId('');
       setDateRdv('');
       setHeureRdv('');
@@ -399,34 +398,75 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
             </div>
           </div>
 
-          {/* Sélection de la ville */}
-          <div className="space-y-2">
-            <Label htmlFor="ville" className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              Assigner à une ville
-            </Label>
-            <Select value={selectedVilleId} onValueChange={setSelectedVilleId}>
-              <SelectTrigger id="ville">
-                <SelectValue placeholder="Garder la ville actuelle" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                <SelectItem value="">Garder la ville actuelle</SelectItem>
-                {Object.entries(citiesBySegment).map(([segmentName, cities]) => (
-                  <div key={segmentName}>
-                    <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-100 sticky top-0">
-                      {segmentName}
-                    </div>
-                    {cities.map((city) => (
-                      <SelectItem key={city.id} value={city.id} className="pl-4">
-                        {city.name}
-                      </SelectItem>
-                    ))}
-                  </div>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Sélection du segment et de la ville */}
+          <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
+            <div className="flex items-center gap-2 text-gray-700 font-medium">
+              <MapPin className="h-5 w-5" />
+              Réassigner à une autre ville
+            </div>
+
+            {/* Sélection du segment */}
+            <div className="space-y-2">
+              <Label htmlFor="segment" className="flex items-center gap-2">
+                <Layers className="h-4 w-4" />
+                Segment
+              </Label>
+              <Select
+                value={selectedSegmentId}
+                onValueChange={(value) => {
+                  setSelectedSegmentId(value);
+                  setSelectedVilleId(''); // Reset ville quand le segment change
+                }}
+              >
+                <SelectTrigger id="segment">
+                  <SelectValue placeholder="Sélectionnez un segment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">-- Aucun (garder actuel) --</SelectItem>
+                  {allSegments.map((segment) => (
+                    <SelectItem key={segment.id} value={segment.id}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: segment.color || '#6b7280' }}
+                        />
+                        {segment.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Sélection de la ville (uniquement si segment sélectionné) */}
+            <div className="space-y-2">
+              <Label htmlFor="ville" className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Ville
+              </Label>
+              <Select
+                value={selectedVilleId}
+                onValueChange={setSelectedVilleId}
+                disabled={!selectedSegmentId}
+              >
+                <SelectTrigger id="ville">
+                  <SelectValue placeholder={selectedSegmentId ? "Sélectionnez une ville" : "Sélectionnez d'abord un segment"} />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {filteredCities.map((city) => (
+                    <SelectItem key={city.id} value={city.id}>
+                      {city.name} ({city.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedSegmentId && filteredCities.length === 0 && (
+                <p className="text-xs text-orange-600">Aucune ville dans ce segment</p>
+              )}
+            </div>
+
             <p className="text-xs text-gray-500">
-              Sélectionnez une ville pour réassigner ce prospect (toutes les villes de tous les segments)
+              Sélectionnez un segment puis une ville pour réassigner ce prospect
             </p>
           </div>
 
