@@ -133,6 +133,8 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
   const [dateRdv, setDateRdv] = useState<string>('');
   const [heureRdv, setHeureRdv] = useState<string>('');
   const [commentaire, setCommentaire] = useState<string>('');
+  const [editNom, setEditNom] = useState<string>('');
+  const [editPrenom, setEditPrenom] = useState<string>('');
 
   const { data: prospect, isLoading } = useProspect(prospectId || '');
   const { data: allCities = [] } = useAllCities();
@@ -144,6 +146,14 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
   const filteredCities = selectedSegmentId
     ? allCities.filter(city => city.segment_id === selectedSegmentId)
     : [];
+
+  // Initialiser nom/prénom quand le prospect est chargé
+  useEffect(() => {
+    if (prospect) {
+      setEditNom(prospect.nom || '');
+      setEditPrenom(prospect.prenom || '');
+    }
+  }, [prospect]);
 
   // Timer automatique
   useEffect(() => {
@@ -158,6 +168,8 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
       setDateRdv('');
       setHeureRdv('');
       setCommentaire('');
+      setEditNom('');
+      setEditPrenom('');
       return;
     }
 
@@ -240,6 +252,8 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
         ? `${dateRdv} ${heureRdv}:00`
         : undefined,
       commentaire: commentaire || undefined,
+      nom: editNom || undefined,
+      prenom: editPrenom || undefined,
     };
 
     endCallMutation.mutate(
@@ -274,7 +288,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Phone className="h-5 w-5" />
-              Appel en cours - {prospect.prenom} {prospect.nom}
+              Appel en cours - {editPrenom || prospect.prenom || ''} {editNom || prospect.nom || prospect.phone_international}
             </div>
             <div className="flex items-center gap-2 text-lg font-mono bg-green-100 text-green-700 px-4 py-2 rounded">
               <Clock className="h-5 w-5" />
@@ -286,21 +300,33 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
         <div className="flex-1 overflow-y-auto space-y-4 py-2">
           {/* Informations du prospect - Style amélioré */}
           <div className="bg-gray-50 p-5 rounded-lg space-y-4">
-            {/* Ligne 1: Nom, Prénom, Téléphone, Pays */}
+            {/* Ligne 1: Nom, Prénom (éditables), Téléphone, Pays */}
             <div className="grid grid-cols-4 gap-6">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-gray-400" />
-                <div>
-                  <span className="text-xs text-gray-500 block">Nom</span>
-                  <p className="font-medium">{prospect.nom || '-'}</p>
-                </div>
+              <div className="space-y-1">
+                <Label htmlFor="editNom" className="flex items-center gap-1 text-xs text-gray-500">
+                  <User className="h-3 w-3" />
+                  Nom
+                </Label>
+                <Input
+                  id="editNom"
+                  value={editNom}
+                  onChange={(e) => setEditNom(e.target.value)}
+                  placeholder="Saisir le nom..."
+                  className="h-9"
+                />
               </div>
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-gray-400" />
-                <div>
-                  <span className="text-xs text-gray-500 block">Prénom</span>
-                  <p className="font-medium">{prospect.prenom || '-'}</p>
-                </div>
+              <div className="space-y-1">
+                <Label htmlFor="editPrenom" className="flex items-center gap-1 text-xs text-gray-500">
+                  <User className="h-3 w-3" />
+                  Prénom
+                </Label>
+                <Input
+                  id="editPrenom"
+                  value={editPrenom}
+                  onChange={(e) => setEditPrenom(e.target.value)}
+                  placeholder="Saisir le prénom..."
+                  className="h-9"
+                />
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-gray-400" />
