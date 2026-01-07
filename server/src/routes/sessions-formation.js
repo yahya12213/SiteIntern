@@ -908,6 +908,7 @@ router.put('/:sessionId/etudiants/bulk-status',
   authenticateToken,
   requirePermission('training.sessions.edit_student'),
   injectUserScope,
+  requireRecordScope('sessions_formation', 'sessionId', 'segment_id', 'ville_id'),
   async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -1082,6 +1083,8 @@ router.get('/:sessionId/etudiants/:studentId/available-documents',
 router.put('/:sessionId/etudiants/:etudiantId',
   authenticateToken,
   requirePermission('training.sessions.edit_student'),
+  injectUserScope,
+  requireRecordScope('sessions_formation', 'sessionId', 'segment_id', 'ville_id'),
   async (req, res) => {
   try {
     const { sessionId, etudiantId } = req.params;
@@ -1256,6 +1259,8 @@ router.put('/:sessionId/etudiants/:etudiantId',
 router.delete('/:sessionId/etudiants/:etudiantId',
   authenticateToken,
   requirePermission('training.sessions.remove_student'),
+  injectUserScope,
+  requireRecordScope('sessions_formation', 'sessionId', 'segment_id', 'ville_id'),
   async (req, res) => {
   try {
     const { sessionId, etudiantId } = req.params;
@@ -1505,6 +1510,8 @@ router.delete('/fichiers/:fichierId',
 router.post('/:sessionId/etudiants/:studentId/paiements',
   authenticateToken,
   requirePermission('training.sessions.edit_student'),
+  injectUserScope,
+  requireRecordScope('sessions_formation', 'sessionId', 'segment_id', 'ville_id'),
   async (req, res) => {
   try {
     const { sessionId, studentId } = req.params;
@@ -1674,6 +1681,8 @@ router.get('/:sessionId/etudiants/:studentId/paiements',
 router.delete('/:sessionId/etudiants/:studentId/paiements/:paymentId',
   authenticateToken,
   requirePermission('training.sessions.delete_payment'),
+  injectUserScope,
+  requireRecordScope('sessions_formation', 'sessionId', 'segment_id', 'ville_id'),
   async (req, res) => {
   try {
     const { sessionId, studentId, paymentId } = req.params;
