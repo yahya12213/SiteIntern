@@ -540,6 +540,8 @@ export default function Prospects() {
                   <TableHead>Segment</TableHead>
                   <TableHead>Ajouté par</TableHead>
                   <TableHead>ID</TableHead>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Prénom</TableHead>
                   <TableHead>Téléphone</TableHead>
                   <TableHead>Ville</TableHead>
                   <TableHead>Assigné à</TableHead>
@@ -555,13 +557,13 @@ export default function Prospects() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={14} className="text-center py-8">
+                    <TableCell colSpan={16} className="text-center py-8">
                       Chargement...
                     </TableCell>
                   </TableRow>
                 ) : prospects.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={16} className="text-center py-8 text-muted-foreground">
                       Aucun prospect trouvé
                     </TableCell>
                   </TableRow>
@@ -577,6 +579,8 @@ export default function Prospects() {
                       <TableCell className="text-sm">{prospect.segment_name || '-'}</TableCell>
                       <TableCell className="text-sm">{prospect.created_by_name || '-'}</TableCell>
                       <TableCell className="font-mono text-sm">{prospect.id.substring(9, 15)}</TableCell>
+                      <TableCell className="text-sm">{prospect.nom || '-'}</TableCell>
+                      <TableCell className="text-sm">{prospect.prenom || '-'}</TableCell>
                       <TableCell className="font-mono">{prospect.phone_international}</TableCell>
                       <TableCell>
                         {prospect.ville_name || '-'}

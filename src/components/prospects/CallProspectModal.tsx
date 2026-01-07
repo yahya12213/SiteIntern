@@ -286,8 +286,22 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
         <div className="flex-1 overflow-y-auto space-y-4 py-2">
           {/* Informations du prospect - Style amélioré */}
           <div className="bg-gray-50 p-5 rounded-lg space-y-4">
-            {/* Ligne 1: Téléphone, Pays, Segment */}
-            <div className="grid grid-cols-3 gap-6">
+            {/* Ligne 1: Nom, Prénom, Téléphone, Pays */}
+            <div className="grid grid-cols-4 gap-6">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-gray-400" />
+                <div>
+                  <span className="text-xs text-gray-500 block">Nom</span>
+                  <p className="font-medium">{prospect.nom || '-'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-gray-400" />
+                <div>
+                  <span className="text-xs text-gray-500 block">Prénom</span>
+                  <p className="font-medium">{prospect.prenom || '-'}</p>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-gray-400" />
                 <div>
@@ -302,6 +316,10 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
                   <Badge variant="outline">{prospect.country || 'N/A'}</Badge>
                 </div>
               </div>
+            </div>
+
+            {/* Ligne 2: Segment */}
+            <div className="grid grid-cols-3 gap-6 pt-3 border-t">
               <div className="flex items-center gap-2">
                 <Layers className="h-4 w-4 text-gray-400" />
                 <div>
@@ -311,7 +329,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
               </div>
             </div>
 
-            {/* Ligne 2: Ville, Assigné à */}
+            {/* Ligne 3: Ville, Assigné à */}
             <div className="grid grid-cols-2 gap-6 pt-3 border-t">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-gray-400" />
@@ -336,7 +354,7 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
               </div>
             </div>
 
-            {/* Ligne 3: Statut et RDV */}
+            {/* Ligne 4: Statut et RDV */}
             <div className="grid grid-cols-2 gap-6 pt-3 border-t">
               {/* Statut actuel */}
               <div>
