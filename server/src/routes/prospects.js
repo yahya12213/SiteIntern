@@ -107,7 +107,7 @@ router.get('/',
             JOIN profiles pr ON pr.id = pc2.professor_id
             JOIN roles r ON pr.role_id = r.id
             WHERE pc2.city_id = p.ville_id
-              AND r.name = 'assistante'
+              AND (r.name ILIKE '%assistante%' OR r.name = 'assistante')
           ) as assistantes_ville
         FROM prospects p
         LEFT JOIN segments s ON s.id = p.segment_id
@@ -361,7 +361,7 @@ router.get('/:id',
             JOIN profiles pr ON pr.id = pc2.professor_id
             JOIN roles r ON pr.role_id = r.id
             WHERE pc2.city_id = p.ville_id
-              AND r.name = 'assistante'
+              AND (r.name ILIKE '%assistante%' OR r.name = 'assistante')
           ) as assistantes_ville
         FROM prospects p
         LEFT JOIN segments s ON s.id = p.segment_id

@@ -8,14 +8,15 @@ import { useAuth } from '@/contexts/AuthContext';
 export type { Segment, CreateSegmentInput, UpdateSegmentInput };
 
 // Récupérer tous les segments
+// Note: L'API applique automatiquement le filtrage SBAC (scope-based)
+// donc les utilisateurs ne voient que leurs segments assignés
 export const useSegments = () => {
-  const { hasPermission, user } = useAuth();
-  const canViewSegments = hasPermission('system.roles.view_segments');
+  const { user } = useAuth();
 
   return useQuery<Segment[]>({
     queryKey: ['segments', user?.id],
     queryFn: () => segmentsApi.getAll(),
-    enabled: canViewSegments,
+    enabled: !!user, // Enabled si l'utilisateur est connecté
   });
 };
 
