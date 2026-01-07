@@ -102,7 +102,8 @@
       "Bash(if not exist \"c:\\Users\\pc\\Desktop\\systeme de calcul\\src\\components\\admin\\students\" mkdir \"c:\\Users\\pc\\Desktop\\systeme de calcul\\src\\components\\admin\\students\")",
       "Bash(if not exist \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\public\\\\certificates-futurepro\" mkdir \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\public\\\\certificates-futurepro\")",
       "Bash(if not exist \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\public\\\\badges-futurepro\" mkdir \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\public\\\\badges-futurepro\")",
-      "Bash(if not exist \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\src\\\\pages\\\\manager\" mkdir \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\src\\\\pages\\\\manager\")"
+      "Bash(if not exist \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\src\\\\pages\\\\manager\" mkdir \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\src\\\\pages\\\\manager\")",
+      "Bash(en Ligne\" role\\) could not edit student enrollments.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n\\)\")"
     ],
     "deny": [],
     "ask": []
