@@ -188,7 +188,22 @@ router.get('/',
 
       const query = `
         SELECT
-          sf.*,
+          sf.id,
+          sf.titre,
+          sf.description,
+          sf.date_debut,
+          sf.date_fin,
+          sf.session_type,
+          sf.meeting_platform,
+          sf.meeting_link,
+          sf.ville_id,
+          sf.segment_id,
+          sf.corps_formation_id,
+          sf.statut,
+          sf.prix_total,
+          sf.nombre_places,
+          sf.created_at,
+          sf.updated_at,
           c.name as ville_name,
           s.name as segment_name,
           s.color as segment_color,
@@ -205,7 +220,10 @@ router.get('/',
         LEFT JOIN session_etudiants se ON se.session_id = sf.id
         LEFT JOIN session_professeurs sp ON sp.session_id = sf.id
         ${whereClause}
-        GROUP BY sf.id, c.name, s.name, s.color, cf.name, cf.description
+        GROUP BY sf.id, sf.titre, sf.description, sf.date_debut, sf.date_fin, sf.session_type,
+                 sf.meeting_platform, sf.meeting_link, sf.ville_id, sf.segment_id, sf.corps_formation_id,
+                 sf.statut, sf.prix_total, sf.nombre_places, sf.created_at, sf.updated_at,
+                 c.name, s.name, s.color, cf.name, cf.description
         ORDER BY sf.date_debut DESC NULLS LAST, sf.created_at DESC
       `;
 
@@ -243,7 +261,22 @@ router.get('/:id',
       // Session principale
       const sessionQuery = `
         SELECT
-          sf.*,
+          sf.id,
+          sf.titre,
+          sf.description,
+          sf.date_debut,
+          sf.date_fin,
+          sf.session_type,
+          sf.meeting_platform,
+          sf.meeting_link,
+          sf.ville_id,
+          sf.segment_id,
+          sf.corps_formation_id,
+          sf.statut,
+          sf.prix_total,
+          sf.nombre_places,
+          sf.created_at,
+          sf.updated_at,
           c.name as ville_name,
           s.name as segment_name,
           s.color as segment_color,
@@ -260,7 +293,10 @@ router.get('/:id',
         LEFT JOIN session_etudiants se ON se.session_id = sf.id
         LEFT JOIN session_professeurs sp ON sp.session_id = sf.id
         WHERE sf.id = $1
-        GROUP BY sf.id, c.name, s.name, s.color, cf.name, cf.description
+        GROUP BY sf.id, sf.titre, sf.description, sf.date_debut, sf.date_fin, sf.session_type,
+                 sf.meeting_platform, sf.meeting_link, sf.ville_id, sf.segment_id, sf.corps_formation_id,
+                 sf.statut, sf.prix_total, sf.nombre_places, sf.created_at, sf.updated_at,
+                 c.name, s.name, s.color, cf.name, cf.description
       `;
 
       const sessionResult = await pool.query(sessionQuery, [id]);
