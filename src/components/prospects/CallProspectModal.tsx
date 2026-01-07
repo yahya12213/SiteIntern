@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Phone, Clock, Calendar, MapPin, User, Globe, Layers } from 'lucide-react';
 import { useProspect, useStartCall, useEndCall } from '@/hooks/useProspects';
-import { useCitiesBySegment } from '@/hooks/useCities';
+import { useAllCities } from '@/hooks/useCities';
 import { toast } from '@/hooks/use-toast';
 
 // Fonction pour déterminer le style du RDV selon la date
@@ -133,8 +133,18 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
   const [commentaire, setCommentaire] = useState<string>('');
 
   const { data: prospect, isLoading } = useProspect(prospectId || '');
-  const { data: segmentCities = [] } = useCitiesBySegment(prospect?.segment_id || '');
+  const { data: allCities = [] } = useAllCities();
   const startCallMutation = useStartCall();
+
+  // Grouper les villes par segment pour l'affichage
+  const citiesBySegment = allCities.reduce((acc, city) => {
+    const segmentName = city.segment_name || 'Sans segment';
+    if (!acc[segmentName]) {
+      acc[segmentName] = [];
+    }
+    acc[segmentName].push(city);
+    return acc;
+  }, {} as Record<string, typeof allCities>);
   const endCallMutation = useEndCall();
 
   // Timer automatique
@@ -399,17 +409,24 @@ export function CallProspectModal({ open, onClose, prospectId }: CallProspectMod
               <SelectTrigger id="ville">
                 <SelectValue placeholder="Garder la ville actuelle" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-[300px]">
                 <SelectItem value="">Garder la ville actuelle</SelectItem>
-                {segmentCities.map((city) => (
-                  <SelectItem key={city.id} value={city.id}>
-                    {city.name}
-                  </SelectItem>
+                {Object.entries(citiesBySegment).map(([segmentName, cities]) => (
+                  <div key={segmentName}>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-100 sticky top-0">
+                      {segmentName}
+                    </div>
+                    {cities.map((city) => (
+                      <SelectItem key={city.id} value={city.id} className="pl-4">
+                        {city.name}
+                      </SelectItem>
+                    ))}
+                  </div>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-gray-500">
-              Sélectionnez une ville pour réassigner ce prospect
+              Sélectionnez une ville pour réassigner ce prospect (toutes les villes de tous les segments)
             </p>
           </div>
 

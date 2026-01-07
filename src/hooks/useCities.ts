@@ -8,14 +8,26 @@ import { useAuth } from '@/contexts/AuthContext';
 export type { City, CreateCityInput, UpdateCityInput };
 
 // Récupérer toutes les villes avec les informations du segment
+// Note: L'API applique automatiquement le filtrage SBAC (scope-based)
 export const useCities = () => {
-  const { hasPermission, user } = useAuth();
-  const canViewCities = hasPermission('system.roles.view_cities');
+  const { user } = useAuth();
 
   return useQuery<City[]>({
     queryKey: ['cities', user?.id],
     queryFn: () => citiesApi.getAll(),
-    enabled: canViewCities,
+    enabled: !!user,
+  });
+};
+
+// Récupérer TOUTES les villes du système (sans filtrage SBAC)
+// Utilisé pour la réassignation de prospects à d'autres villes/segments
+export const useAllCities = () => {
+  const { user } = useAuth();
+
+  return useQuery<City[]>({
+    queryKey: ['cities', 'all'],
+    queryFn: () => citiesApi.getAllUnfiltered(),
+    enabled: !!user,
   });
 };
 

@@ -28,10 +28,18 @@ export interface UpdateCityInput {
  */
 export const citiesApi = {
   /**
-   * Récupérer toutes les villes
+   * Récupérer toutes les villes (filtré par SBAC)
    */
   async getAll(): Promise<City[]> {
     return apiClient.get<City[]>('/cities');
+  },
+
+  /**
+   * Récupérer TOUTES les villes sans filtrage SBAC
+   * Utilisé pour la réassignation de prospects
+   */
+  async getAllUnfiltered(): Promise<City[]> {
+    return apiClient.get<City[]>('/cities/all');
   },
 
   /**

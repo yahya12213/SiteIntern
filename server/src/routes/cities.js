@@ -45,6 +45,31 @@ router.get('/',
 });
 
 /**
+ * GET TOUTES les villes (sans filtrage SBAC)
+ * Utilisé pour la réassignation de prospects à d'autres villes/segments
+ * Les utilisateurs peuvent réassigner un prospect à une ville hors de leur scope
+ */
+router.get('/all',
+  authenticateToken,
+  async (req, res) => {
+  try {
+    const query = `
+      SELECT c.id, c.name, c.code, c.segment_id, c.created_at,
+             s.name as segment_name, s.color as segment_color
+      FROM cities c
+      LEFT JOIN segments s ON c.segment_id = s.id
+      ORDER BY s.name, c.name
+    `;
+
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching all cities:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET villes par segment
  * Protected: SBAC only - filters by user's assigned cities within segment
  * Permission check removed to allow dropdown usage without view_page permission
