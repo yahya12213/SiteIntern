@@ -386,19 +386,20 @@ class GoogleContactsService {
 
       const people = google.people({ version: 'v1', auth });
 
-      // Essayer de récupérer les infos du compte
-      const response = await people.people.get({
+      // Tester en listant les contacts (fonctionne avec le scope 'contacts' seulement)
+      // On ne récupère qu'un seul contact pour minimiser la charge
+      const response = await people.people.connections.list({
         resourceName: 'people/me',
-        personFields: 'emailAddresses,names'
+        pageSize: 1,
+        personFields: 'names'
       });
 
-      const email = response.data.emailAddresses?.[0]?.value || 'inconnu';
-      const name = response.data.names?.[0]?.displayName || 'N/A';
+      const totalContacts = response.data.totalPeople || 0;
 
       return {
         success: true,
-        message: `Connecté à ${name}`,
-        email
+        message: `Connexion OK`,
+        email: `${totalContacts} contacts dans le compte`
       };
 
     } catch (error) {

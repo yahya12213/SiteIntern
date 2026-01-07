@@ -299,6 +299,7 @@ router.get('/reauthorize-url/:cityId',
       );
 
       // Générer l'URL d'autorisation
+      // Scope contacts: pour créer/modifier/lire les contacts
       const authUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline',
         prompt: 'consent',  // Force le consentement pour obtenir un nouveau refresh_token
@@ -392,7 +393,17 @@ router.post('/exchange-code/:cityId',
         [JSON.stringify(newTokenData), cityId]
       );
 
+      // Remettre les prospects "failed" en "pending" pour qu'ils soient re-synchronisés
+      const { rowCount } = await pool.query(
+        `UPDATE prospects SET google_sync_status = 'pending', google_sync_error = NULL
+         WHERE ville_id = $1 AND google_sync_status = 'failed'`,
+        [cityId]
+      );
+
       console.log(`✅ Google Reauthorize: Nouveau token sauvegardé pour ville ${city.name} (${cityId})`);
+      if (rowCount > 0) {
+        console.log(`📋 ${rowCount} prospects remis en attente de synchronisation`);
+      }
 
       res.json({
         success: true,
