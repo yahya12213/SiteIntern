@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Calendar, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
@@ -28,6 +28,10 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
   const createSession = useCreateSession();
   const updateSession = useUpdateSession();
 
+  // Debug: log session data to identify session_type issue
+  console.log('SessionFormModal - session prop:', session);
+  console.log('SessionFormModal - session.session_type:', session?.session_type);
+
   const [formData, setFormData] = useState({
     name: session?.titre || '',
     description: session?.description || '',
@@ -46,6 +50,29 @@ export const SessionFormModal: React.FC<SessionFormModalProps> = ({ session, onC
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Synchroniser formData quand session change (important pour le mode édition)
+  useEffect(() => {
+    if (session) {
+      console.log('useEffect - Syncing formData with session:', session);
+      console.log('useEffect - session.session_type:', session.session_type);
+      setFormData({
+        name: session.titre || '',
+        description: session.description || '',
+        corps_formation_id: session.corps_formation_id || '',
+        start_date: session.date_debut ? session.date_debut.split('T')[0] : '',
+        end_date: session.date_fin ? session.date_fin.split('T')[0] : '',
+        session_type: (session.session_type || 'presentielle') as 'presentielle' | 'en_ligne',
+        segment_id: session.segment_id || '',
+        city_id: session.ville_id || '',
+        meeting_platform: session.meeting_platform || '',
+        meeting_link: session.meeting_link || '',
+        instructor_id: '',
+        max_capacity: session.nombre_places?.toString() || '',
+        status: (session.statut ? mapBackendStatusToFrontend(session.statut) : 'planned') as 'planned' | 'active' | 'completed' | 'cancelled',
+      });
+    }
+  }, [session]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};

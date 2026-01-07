@@ -1094,6 +1094,30 @@ router.put('/:sessionId/etudiants/:etudiantId',
 
     // Si transfert vers une autre session
     if (new_session_id && new_session_id !== sessionId) {
+      // D'abord récupérer l'inscription pour avoir le vrai student_id
+      let inscriptionForTransfer = await pool.query(
+        'SELECT id, student_id FROM session_etudiants WHERE id = $1 AND session_id = $2',
+        [etudiantId, sessionId]
+      );
+
+      // Si pas trouvé par ID, essayer par student_id (compatibilité)
+      if (inscriptionForTransfer.rows.length === 0) {
+        inscriptionForTransfer = await pool.query(
+          'SELECT id, student_id FROM session_etudiants WHERE student_id = $1 AND session_id = $2',
+          [etudiantId, sessionId]
+        );
+      }
+
+      if (inscriptionForTransfer.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Inscription not found'
+        });
+      }
+
+      const inscriptionIdForTransfer = inscriptionForTransfer.rows[0].id;
+      const studentIdForTransfer = inscriptionForTransfer.rows[0].student_id;
+
       // Vérifier que la nouvelle session existe
       const newSessionCheck = await pool.query(
         'SELECT id FROM sessions_formation WHERE id = $1',
@@ -1109,7 +1133,7 @@ router.put('/:sessionId/etudiants/:etudiantId',
       // Vérifier que l'étudiant n'est pas déjà dans la nouvelle session
       const existingCheck = await pool.query(
         'SELECT id FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
-        [new_session_id, etudiantId]
+        [new_session_id, studentIdForTransfer]
       );
       if (existingCheck.rows.length > 0) {
         return res.status(400).json({
@@ -1122,9 +1146,9 @@ router.put('/:sessionId/etudiants/:etudiantId',
       const transferResult = await pool.query(
         `UPDATE session_etudiants
          SET session_id = $1, updated_at = $2
-         WHERE session_id = $3 AND student_id = $4
+         WHERE id = $3
          RETURNING *`,
-        [new_session_id, now, sessionId, etudiantId]
+        [new_session_id, now, inscriptionIdForTransfer]
       );
 
       if (transferResult.rows.length === 0) {
@@ -1143,10 +1167,24 @@ router.put('/:sessionId/etudiants/:etudiantId',
     }
 
     // Récupérer les données actuelles incluant formation_original_price
-    const currentResult = await pool.query(
-      'SELECT montant_total, discount_amount, discount_percentage, formation_original_price, montant_paye FROM session_etudiants WHERE session_id = $1 AND student_id = $2',
-      [sessionId, etudiantId]
+    // Note: etudiantId peut être soit l'ID de l'inscription (session_etudiants.id) soit le student_id
+    // On cherche d'abord par ID d'inscription, sinon par student_id pour compatibilité
+    let currentResult = await pool.query(
+      'SELECT id, student_id, montant_total, discount_amount, discount_percentage, formation_original_price, montant_paye FROM session_etudiants WHERE id = $1 AND session_id = $2',
+      [etudiantId, sessionId]
     );
+
+    // Si pas trouvé par ID, essayer par student_id (compatibilité)
+    if (currentResult.rows.length === 0) {
+      currentResult = await pool.query(
+        'SELECT id, student_id, montant_total, discount_amount, discount_percentage, formation_original_price, montant_paye FROM session_etudiants WHERE student_id = $1 AND session_id = $2',
+        [etudiantId, sessionId]
+      );
+    }
+
+    // Récupérer l'ID de l'inscription et le student_id pour les requêtes suivantes
+    const inscriptionId = currentResult.rows[0]?.id;
+    const studentId = currentResult.rows[0]?.student_id;
 
     if (currentResult.rows.length === 0) {
       return res.status(404).json({
@@ -1216,7 +1254,7 @@ router.put('/:sessionId/etudiants/:etudiantId',
         formation_id = COALESCE($8, formation_id),
         numero_bon = COALESCE($9, numero_bon),
         updated_at = $10
-      WHERE session_id = $11 AND student_id = $12
+      WHERE id = $11
       RETURNING *
     `;
 
@@ -1231,8 +1269,7 @@ router.put('/:sessionId/etudiants/:etudiantId',
       formation_id || null,
       numero_bon || null,
       now,
-      sessionId,
-      etudiantId
+      inscriptionId
     ];
     const result = await pool.query(query, values);
 
@@ -1265,10 +1302,19 @@ router.delete('/:sessionId/etudiants/:etudiantId',
   try {
     const { sessionId, etudiantId } = req.params;
 
-    const result = await pool.query(
-      'DELETE FROM session_etudiants WHERE session_id = $1 AND student_id = $2 RETURNING *',
-      [sessionId, etudiantId]
+    // D'abord essayer de supprimer par ID d'inscription
+    let result = await pool.query(
+      'DELETE FROM session_etudiants WHERE id = $1 AND session_id = $2 RETURNING *',
+      [etudiantId, sessionId]
     );
+
+    // Si pas trouvé par ID, essayer par student_id (compatibilité)
+    if (result.rows.length === 0) {
+      result = await pool.query(
+        'DELETE FROM session_etudiants WHERE student_id = $1 AND session_id = $2 RETURNING *',
+        [etudiantId, sessionId]
+      );
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({
