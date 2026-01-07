@@ -244,8 +244,23 @@ export default function GoogleContactsManagement() {
       setReauthorizeUrl(null);
       queryClient.invalidateQueries({ queryKey: ['google-contacts-stats'] });
       queryClient.invalidateQueries({ queryKey: ['google-config', selectedCity?.id] });
-      setOauthMessage({ type: 'success', text: 'Token mis à jour avec succès !' });
-      setTimeout(() => setOauthMessage(null), 5000);
+      setOauthMessage({ type: 'success', text: 'Token mis à jour ! Synchronisation en cours...' });
+
+      // Lancer automatiquement la synchronisation après la réautorisation
+      if (selectedCity) {
+        setTimeout(() => {
+          syncMutation.mutate(selectedCity.id, {
+            onSuccess: () => {
+              setOauthMessage({ type: 'success', text: 'Synchronisation terminée !' });
+              setTimeout(() => setOauthMessage(null), 5000);
+            },
+            onError: () => {
+              setOauthMessage({ type: 'error', text: 'Token OK mais erreur de synchronisation' });
+              setTimeout(() => setOauthMessage(null), 5000);
+            }
+          });
+        }, 500); // Petit délai pour laisser le temps à l'UI de se rafraîchir
+      }
     },
     onError: (error: any) => {
       console.error('Erreur échange code:', error);
