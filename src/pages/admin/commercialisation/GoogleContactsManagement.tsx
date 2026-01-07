@@ -3,7 +3,7 @@
  * Gestion Google Contacts
  * Configuration des tokens Google par ville pour la synchronisation automatique des prospects
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { apiClient } from '@/lib/api/client';
@@ -29,7 +29,13 @@ import {
   Users,
   Phone,
   Search,
-  Filter
+  Filter,
+  ExternalLink,
+  LogOut,
+  ChevronDown,
+  Key,
+  Copy,
+  AlertTriangle
 } from 'lucide-react';
 
 interface CityGoogleStats {
@@ -74,6 +80,44 @@ export default function GoogleContactsManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSegment, setFilterSegment] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [showManualToken, setShowManualToken] = useState(false);
+  const [oauthMessage, setOauthMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // État pour le modal de réautorisation
+  const [reauthorizeModalOpen, setReauthorizeModalOpen] = useState(false);
+  const [reauthorizeUrl, setReauthorizeUrl] = useState<string | null>(null);
+  const [authCode, setAuthCode] = useState('');
+
+  // Gérer les paramètres URL après retour OAuth
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthSuccess = urlParams.get('oauth_success');
+    const error = urlParams.get('error');
+    const cityId = urlParams.get('cityId');
+
+    if (oauthSuccess === 'true' && cityId) {
+      setOauthMessage({ type: 'success', text: 'Google connecté avec succès !' });
+      // Rafraîchir les données
+      queryClient.invalidateQueries({ queryKey: ['google-contacts-stats'] });
+      // Nettoyer l'URL
+      window.history.replaceState({}, '', window.location.pathname);
+      // Masquer le message après 5 secondes
+      setTimeout(() => setOauthMessage(null), 5000);
+    }
+
+    if (error) {
+      const errorMessages: Record<string, string> = {
+        'access_denied': 'Accès refusé par l\'utilisateur',
+        'invalid_state': 'Session expirée, veuillez réessayer',
+        'state_expired': 'Session expirée (15 min), veuillez réessayer',
+        'missing_params': 'Paramètres manquants dans la réponse',
+        'city_not_found': 'Ville non trouvée'
+      };
+      setOauthMessage({ type: 'error', text: errorMessages[error] || `Erreur: ${error}` });
+      window.history.replaceState({}, '', window.location.pathname);
+      setTimeout(() => setOauthMessage(null), 10000);
+    }
+  }, [queryClient]);
 
   // Récupérer les stats Google de toutes les villes
   const { data: citiesStats, isLoading, refetch } = useQuery<CityGoogleStats[]>({
@@ -128,11 +172,107 @@ export default function GoogleContactsManagement() {
     }
   });
 
+  // Mutation pour initier OAuth Google
+  const connectGoogleMutation = useMutation({
+    mutationFn: async (cityId: string) => {
+      const response = await apiClient.get<{ authUrl: string }>(`/google-oauth/authorize/${cityId}`);
+      return response;
+    },
+    onSuccess: (data: any) => {
+      // Rediriger vers Google
+      if (data?.authUrl) {
+        window.location.href = data.authUrl;
+      }
+    },
+    onError: (error: any) => {
+      console.error('Erreur connexion Google:', error);
+      setOauthMessage({ type: 'error', text: error.message || 'Erreur lors de la connexion Google' });
+    }
+  });
+
+  // Mutation pour déconnecter Google
+  const disconnectGoogleMutation = useMutation({
+    mutationFn: async (cityId: string) => {
+      return apiClient.delete(`/google-oauth/revoke/${cityId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['google-contacts-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['google-config', selectedCity?.id] });
+      setOauthMessage({ type: 'success', text: 'Google déconnecté' });
+      setTimeout(() => setOauthMessage(null), 3000);
+    }
+  });
+
+  // Vérifier si OAuth est configuré côté serveur
+  const { data: oauthStatus } = useQuery({
+    queryKey: ['google-oauth-status'],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get('/google-oauth/status');
+        return response as { configured: boolean; message: string };
+      } catch {
+        return { configured: false, message: 'Non configuré' };
+      }
+    }
+  });
+
+  // Mutation pour obtenir l'URL de réautorisation (utilise les credentials stockés)
+  const getReauthorizeUrlMutation = useMutation({
+    mutationFn: async (cityId: string) => {
+      const response = await apiClient.get(`/google-oauth/reauthorize-url/${cityId}`);
+      return response as { authUrl: string; cityName: string; message: string };
+    },
+    onSuccess: (data) => {
+      setReauthorizeUrl(data.authUrl);
+      setReauthorizeModalOpen(true);
+    },
+    onError: (error: any) => {
+      console.error('Erreur réautorisation:', error);
+      setOauthMessage({ type: 'error', text: error.message || 'Erreur lors de la réautorisation' });
+    }
+  });
+
+  // Mutation pour échanger le code contre un nouveau token
+  const exchangeCodeMutation = useMutation({
+    mutationFn: async ({ cityId, code }: { cityId: string; code: string }) => {
+      const response = await apiClient.post(`/google-oauth/exchange-code/${cityId}`, { code });
+      return response as { success: boolean; message: string };
+    },
+    onSuccess: () => {
+      setReauthorizeModalOpen(false);
+      setAuthCode('');
+      setReauthorizeUrl(null);
+      queryClient.invalidateQueries({ queryKey: ['google-contacts-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['google-config', selectedCity?.id] });
+      setOauthMessage({ type: 'success', text: 'Token mis à jour avec succès !' });
+      setTimeout(() => setOauthMessage(null), 5000);
+    },
+    onError: (error: any) => {
+      console.error('Erreur échange code:', error);
+      setOauthMessage({ type: 'error', text: error.message || 'Code invalide ou expiré' });
+    }
+  });
+
+  // Fonction pour ouvrir l'URL de réautorisation dans un nouvel onglet
+  const handleOpenAuthUrl = () => {
+    if (reauthorizeUrl) {
+      window.open(reauthorizeUrl, '_blank');
+    }
+  };
+
+  // Fonction pour soumettre le code d'autorisation
+  const handleSubmitAuthCode = () => {
+    if (selectedCity && authCode.trim()) {
+      exchangeCodeMutation.mutate({ cityId: selectedCity.id, code: authCode.trim() });
+    }
+  };
+
   // Ouvrir le modal de configuration
   const openConfigModal = (city: CityGoogleStats) => {
     setSelectedCity(city);
     setSyncEnabled(city.google_sync_enabled);
     setTokenInput('');
+    setShowManualToken(false);
     setConfigModalOpen(true);
   };
 
@@ -173,6 +313,30 @@ export default function GoogleContactsManagement() {
   return (
     <AppLayout title="Gestion G-Contacte" subtitle="Configuration de la synchronisation Google Contacts par ville">
       <div className="space-y-6">
+        {/* Message de notification OAuth */}
+        {oauthMessage && (
+          <div className={`p-4 rounded-lg flex items-center gap-3 ${
+            oauthMessage.type === 'success'
+              ? 'bg-green-50 border border-green-200 text-green-800'
+              : 'bg-red-50 border border-red-200 text-red-800'
+          }`}>
+            {oauthMessage.type === 'success' ? (
+              <CheckCircle className="h-5 w-5 flex-shrink-0" />
+            ) : (
+              <XCircle className="h-5 w-5 flex-shrink-0" />
+            )}
+            <span>{oauthMessage.text}</span>
+            <button
+              type="button"
+              title="Fermer"
+              onClick={() => setOauthMessage(null)}
+              className="ml-auto text-gray-500 hover:text-gray-700"
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {/* Stats globales */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
@@ -393,11 +557,13 @@ export default function GoogleContactsManagement() {
           <h3 className="font-medium text-blue-900 mb-2">Comment configurer Google Contacts ?</h3>
           <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
             <li>Cliquez sur <strong>Config</strong> pour une ville</li>
-            <li>Collez le contenu du fichier <code className="bg-blue-100 px-1 rounded">token.json</code> correspondant</li>
-            <li>Activez la synchronisation</li>
-            <li>Testez la connexion pour vérifier que tout fonctionne</li>
+            <li>Cliquez sur <strong>Connecter avec Google</strong> et autorisez l'accès</li>
+            <li>Activez la synchronisation si ce n'est pas déjà fait</li>
             <li>Les nouveaux prospects seront automatiquement synchronisés</li>
           </ol>
+          <p className="text-xs text-blue-600 mt-2">
+            Note: Si le bouton "Connecter avec Google" n'apparaît pas, contactez l'administrateur pour configurer les credentials OAuth sur le serveur.
+          </p>
         </div>
       </div>
 
@@ -434,19 +600,46 @@ export default function GoogleContactsManagement() {
                 </div>
 
                 {cityConfig.connectionStatus && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Connexion</span>
-                    {cityConfig.connectionStatus.success ? (
-                      <span className="flex items-center gap-1 text-green-600 text-sm">
-                        <CheckCircle className="h-4 w-4" />
-                        {cityConfig.connectionStatus.email || cityConfig.connectionStatus.message}
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-red-600 text-sm">
-                        <XCircle className="h-4 w-4" />
-                        {cityConfig.connectionStatus.message}
-                      </span>
-                    )}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Connexion</span>
+                      {cityConfig.connectionStatus.success ? (
+                        <span className="flex items-center gap-1 text-green-600 text-sm">
+                          <CheckCircle className="h-4 w-4" />
+                          {cityConfig.connectionStatus.email || cityConfig.connectionStatus.message}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-red-600 text-sm">
+                          <XCircle className="h-4 w-4" />
+                          {cityConfig.connectionStatus.message}
+                        </span>
+                      )}
+                    </div>
+                    {/* Bouton de réautorisation si token expiré (invalid_grant) */}
+                    {!cityConfig.connectionStatus.success &&
+                      cityConfig.connectionStatus.message?.includes('invalid_grant') &&
+                      cityConfig.hasToken && (
+                        <div className="flex items-center gap-2 p-2 bg-orange-50 rounded-lg border border-orange-200">
+                          <AlertTriangle className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                          <span className="text-xs text-orange-700 flex-1">
+                            Le token a expiré. Cliquez pour réautoriser.
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => getReauthorizeUrlMutation.mutate(selectedCity!.id)}
+                            disabled={getReauthorizeUrlMutation.isPending}
+                            className="text-orange-600 border-orange-300 hover:bg-orange-100"
+                          >
+                            {getReauthorizeUrlMutation.isPending ? (
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Key className="h-3 w-3" />
+                            )}
+                            <span className="ml-1">Réautoriser</span>
+                          </Button>
+                        </div>
+                      )}
                   </div>
                 )}
 
@@ -488,21 +681,99 @@ export default function GoogleContactsManagement() {
               </label>
             </div>
 
-            {/* Input token */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Token Google OAuth (contenu de token.json)
-              </label>
-              <textarea
-                value={tokenInput}
-                onChange={(e) => setTokenInput(e.target.value)}
-                placeholder='{"token": "ya29...", "refresh_token": "1//...", "client_id": "...", "client_secret": "..."}'
-                rows={6}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Collez le contenu JSON complet du fichier token.json. Le token doit contenir refresh_token et client_id.
-              </p>
+            {/* Connexion OAuth Google */}
+            <div className="space-y-3">
+              {cityConfig?.hasToken && cityConfig?.connectionStatus?.success ? (
+                // Compte Google connecté
+                <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex items-center gap-3 text-green-700">
+                    <CheckCircle className="h-5 w-5" />
+                    <div>
+                      <p className="font-medium">Compte Google connecté</p>
+                      {cityConfig.connectionStatus?.email && (
+                        <p className="text-sm">{cityConfig.connectionStatus.email}</p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => disconnectGoogleMutation.mutate(selectedCity!.id)}
+                    disabled={disconnectGoogleMutation.isPending}
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                  >
+                    {disconnectGoogleMutation.isPending ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <LogOut className="h-4 w-4" />
+                    )}
+                    <span className="ml-2">Déconnecter</span>
+                  </Button>
+                </div>
+              ) : oauthStatus?.configured ? (
+                // OAuth configuré côté serveur - afficher bouton de connexion
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-800 mb-3">
+                    Connectez le compte Google pour synchroniser automatiquement les prospects vers Google Contacts.
+                  </p>
+                  <Button
+                    onClick={() => connectGoogleMutation.mutate(selectedCity!.id)}
+                    disabled={connectGoogleMutation.isPending}
+                    className="w-full flex items-center justify-center gap-2"
+                  >
+                    {connectGoogleMutation.isPending ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        Redirection vers Google...
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="h-4 w-4" />
+                        Connecter avec Google
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                // OAuth non configuré - afficher avertissement
+                <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-sm text-yellow-800">
+                    <strong>OAuth non configuré:</strong> Les variables GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET doivent être configurées sur le serveur pour utiliser la connexion automatique.
+                  </p>
+                  <p className="text-sm text-yellow-700 mt-2">
+                    Utilisez la configuration manuelle ci-dessous en attendant.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Configuration manuelle (collapsible) */}
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowManualToken(!showManualToken)}
+                className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+              >
+                <span className="text-sm font-medium text-gray-700">Configuration manuelle (avancée)</span>
+                <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${showManualToken ? 'rotate-180' : ''}`} />
+              </button>
+              {showManualToken && (
+                <div className="p-4 border-t border-gray-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Token Google OAuth (contenu de token.json)
+                  </label>
+                  <textarea
+                    value={tokenInput}
+                    onChange={(e) => setTokenInput(e.target.value)}
+                    placeholder='{"token": "ya29...", "refresh_token": "1//...", "client_id": "...", "client_secret": "..."}'
+                    rows={6}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Collez le contenu JSON complet du fichier token.json. Le token doit contenir refresh_token et client_id.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Bouton test */}
@@ -562,6 +833,109 @@ export default function GoogleContactsManagement() {
                 <>
                   <Upload className="h-4 w-4 mr-2" />
                   Enregistrer
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de réautorisation */}
+      <Dialog open={reauthorizeModalOpen} onOpenChange={setReauthorizeModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5 text-orange-600" />
+              Réautoriser Google Contacts
+            </DialogTitle>
+            <DialogDescription>
+              {selectedCity?.name} - Le token a expiré. Suivez les étapes ci-dessous pour le renouveler.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Étape 1: Ouvrir l'URL */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-sm font-medium">1</span>
+                <span className="font-medium">Ouvrir la page d'autorisation Google</span>
+              </div>
+              <p className="text-sm text-gray-500 ml-8">
+                Cliquez sur le bouton ci-dessous pour ouvrir Google dans un nouvel onglet et autoriser l'accès.
+              </p>
+              <div className="ml-8">
+                <Button
+                  onClick={handleOpenAuthUrl}
+                  disabled={!reauthorizeUrl}
+                  className="w-full"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Ouvrir Google (nouvel onglet)
+                </Button>
+              </div>
+            </div>
+
+            {/* Étape 2: Copier le code */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-sm font-medium">2</span>
+                <span className="font-medium">Copier le code affiché</span>
+              </div>
+              <p className="text-sm text-gray-500 ml-8">
+                Après avoir autorisé l'accès, Google affichera un code. Copiez-le et collez-le ci-dessous.
+              </p>
+            </div>
+
+            {/* Étape 3: Coller le code */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-sm font-medium">3</span>
+                <span className="font-medium">Coller le code d'autorisation</span>
+              </div>
+              <div className="ml-8">
+                <input
+                  type="text"
+                  value={authCode}
+                  onChange={(e) => setAuthCode(e.target.value)}
+                  placeholder="4/0A... (code de Google)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/40 font-mono text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Message d'erreur */}
+            {exchangeCodeMutation.isError && (
+              <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2">
+                <XCircle className="h-4 w-4 flex-shrink-0" />
+                {(exchangeCodeMutation.error as any)?.message || 'Erreur lors de l\'échange du code'}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setReauthorizeModalOpen(false);
+                setAuthCode('');
+                setReauthorizeUrl(null);
+              }}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSubmitAuthCode}
+              disabled={!authCode.trim() || exchangeCodeMutation.isPending}
+            >
+              {exchangeCodeMutation.isPending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Validation...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Valider le code
                 </>
               )}
             </Button>

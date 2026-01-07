@@ -171,6 +171,7 @@ import migration102Router from './routes/migration-102-hr-payroll.js';
 import migration103Router from './routes/migration-103-hr-delegation.js';
 import debugTemplateDateformatRouter from './routes/debug-template-dateformat.js';
 import visitsRouter from './routes/visits.js';
+import googleOAuthRouter from './routes/google-oauth.js';
 
 const app = express();
 
@@ -272,6 +273,10 @@ app.use('/api/prospects', authenticateToken, prospectsRouter);
 app.use('/api/visits', authenticateToken, visitsRouter);
 app.use('/api/projects', authenticateToken, projectsRouter);
 app.use('/api/migration-projects', authenticateToken, migrationProjectsRouter);
+
+// Google OAuth routes - callback is public (Google redirects there), other routes require auth
+// The router handles authentication internally per-route
+app.use('/api/google-oauth', googleOAuthRouter);
 
 // ============================================================
 // ADMIN-ONLY: Setup and Migration Routes (Protected)

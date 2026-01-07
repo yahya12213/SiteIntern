@@ -38,10 +38,16 @@ class GoogleContactsService {
 
       const tokenData = JSON.parse(rows[0].google_token);
 
+      // Utiliser les credentials d'environnement en priorité, sinon ceux du token stocké
+      const redirectUri = process.env.GOOGLE_REDIRECT_URI ||
+        (process.env.NODE_ENV === 'production'
+          ? 'https://spectacular-enthusiasm-production.up.railway.app/api/google-oauth/callback'
+          : 'http://localhost:3001/api/google-oauth/callback');
+
       const oauth2Client = new google.auth.OAuth2(
-        tokenData.client_id,
-        tokenData.client_secret,
-        'http://localhost'
+        process.env.GOOGLE_CLIENT_ID || tokenData.client_id,
+        process.env.GOOGLE_CLIENT_SECRET || tokenData.client_secret,
+        redirectUri
       );
 
       oauth2Client.setCredentials({
