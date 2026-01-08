@@ -135,7 +135,7 @@ export const SessionDetail: React.FC = () => {
     }
   };
 
-  // Charger les templates communs pour la génération en masse
+  // Charger TOUS les templates pour la génération en masse (groupés par formation)
   const loadBulkTemplates = async () => {
     if (selectedStudents.size === 0) {
       alert('Veuillez sélectionner au moins un étudiant');
@@ -153,37 +153,56 @@ export const SessionDetail: React.FC = () => {
         return;
       }
 
-      // Récupérer les formation_ids uniques
-      const formationIds = [...new Set(selectedEtudiants.map((e: any) => e.formation_id))];
+      // Récupérer les formation_ids uniques avec leur nom
+      const formationsMap = new Map<string, string>();
+      selectedEtudiants.forEach((e: any) => {
+        if (!formationsMap.has(e.formation_id)) {
+          formationsMap.set(e.formation_id, e.formation_name || 'Formation inconnue');
+        }
+      });
 
       // Charger les templates pour chaque formation
-      const templatesMap: Record<string, any[]> = {};
-      for (const formationId of formationIds) {
+      const allTemplates: any[] = [];
+      const seenTemplates = new Set<string>(); // Pour éviter les doublons
+
+      for (const [formationId, formationName] of formationsMap) {
         const studentForFormation = selectedEtudiants.find((e: any) => e.formation_id === formationId);
         if (studentForFormation) {
           const response = await apiClient.get(`/sessions-formation/${id}/etudiants/${studentForFormation.student_id}/available-documents`) as { templates: any[] };
-          templatesMap[formationId] = response.templates || [];
+          const templates = response.templates || [];
+
+          // Ajouter chaque template avec les infos de formation
+          templates.forEach((template: any) => {
+            // Clé unique: template_id + formation_id
+            const uniqueKey = `${template.template_id}_${formationId}`;
+            if (!seenTemplates.has(uniqueKey)) {
+              seenTemplates.add(uniqueKey);
+              allTemplates.push({
+                ...template,
+                formation_id: formationId,
+                formation_name: formationName,
+                // Nombre d'étudiants concernés par ce template
+                student_count: selectedEtudiants.filter((e: any) => e.formation_id === formationId).length
+              });
+            }
+          });
         }
       }
 
-      // Trouver les templates communs à toutes les formations
-      let commonTemplates: any[] = [];
-      const allTemplateArrays = Object.values(templatesMap);
-
-      if (allTemplateArrays.length > 0) {
-        commonTemplates = allTemplateArrays[0];
-        for (let i = 1; i < allTemplateArrays.length; i++) {
-          const currentTemplateIds = new Set(allTemplateArrays[i].map((t: any) => t.template_id));
-          commonTemplates = commonTemplates.filter((t: any) => currentTemplateIds.has(t.template_id));
-        }
-      }
-
-      if (commonTemplates.length === 0) {
-        alert('Aucun template commun trouvé pour les formations sélectionnées');
+      if (allTemplates.length === 0) {
+        alert('Aucun template trouvé pour les formations sélectionnées');
         return;
       }
 
-      setBulkTemplates(commonTemplates);
+      // Trier par formation puis par nom de template
+      allTemplates.sort((a, b) => {
+        if (a.formation_name !== b.formation_name) {
+          return a.formation_name.localeCompare(b.formation_name);
+        }
+        return a.template_name.localeCompare(b.template_name);
+      });
+
+      setBulkTemplates(allTemplates);
       setShowBulkDocumentModal(true);
     } catch (error: any) {
       console.error('Error loading bulk templates:', error);
@@ -191,25 +210,28 @@ export const SessionDetail: React.FC = () => {
     }
   };
 
-  // Toggle template selection
-  const toggleTemplateSelection = (templateId: string) => {
+  // Toggle template selection (utilise clé unique: template_id_formation_id)
+  const toggleTemplateSelection = (uniqueKey: string) => {
     setSelectedTemplates(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(templateId)) {
-        newSet.delete(templateId);
+      if (newSet.has(uniqueKey)) {
+        newSet.delete(uniqueKey);
       } else {
-        newSet.add(templateId);
+        newSet.add(uniqueKey);
       }
       return newSet;
     });
   };
+
+  // Générer la clé unique pour un template
+  const getTemplateUniqueKey = (template: any) => `${template.template_id}_${template.formation_id}`;
 
   // Select/deselect all templates
   const toggleAllTemplates = () => {
     if (selectedTemplates.size === bulkTemplates.length) {
       setSelectedTemplates(new Set());
     } else {
-      setSelectedTemplates(new Set(bulkTemplates.map((t: any) => t.template_id)));
+      setSelectedTemplates(new Set(bulkTemplates.map((t: any) => getTemplateUniqueKey(t))));
     }
   };
 
@@ -220,7 +242,8 @@ export const SessionDetail: React.FC = () => {
       return;
     }
 
-    const templatesToGenerate = bulkTemplates.filter((t: any) => selectedTemplates.has(t.template_id));
+    // Filtrer les templates sélectionnés en utilisant la clé unique
+    const templatesToGenerate = bulkTemplates.filter((t: any) => selectedTemplates.has(getTemplateUniqueKey(t)));
     const selectedEtudiants = session?.etudiants?.filter(
       (e: any) => selectedStudents.has(e.student_id) && e.student_status !== 'abandonne'
     ) || [];
@@ -232,21 +255,33 @@ export const SessionDetail: React.FC = () => {
 
     setGeneratingBulkDocuments(true);
     let totalSaved = 0;
+    let totalSkipped = 0;
 
     try {
       for (let templateIndex = 0; templateIndex < templatesToGenerate.length; templateIndex++) {
         const template = templatesToGenerate[templateIndex];
+
+        // Filtrer les étudiants qui appartiennent à la formation de ce template
+        const etudiantsForTemplate = selectedEtudiants.filter(
+          (e: any) => e.formation_id === template.formation_id
+        );
+
+        if (etudiantsForTemplate.length === 0) {
+          console.log(`⏭️ Aucun étudiant pour ${template.template_name} (${template.formation_name})`);
+          continue;
+        }
+
         setBulkGenerationProgress({
           current: 0,
-          total: selectedEtudiants.length,
-          templateName: template.template_name,
+          total: etudiantsForTemplate.length,
+          templateName: `${template.template_name} (${template.formation_name})`,
           templateIndex: templateIndex + 1,
           totalTemplates: templatesToGenerate.length
         });
 
         // Enregistrer chaque certificat en base de données
-        for (let i = 0; i < selectedEtudiants.length; i++) {
-          const etudiant = selectedEtudiants[i];
+        for (let i = 0; i < etudiantsForTemplate.length; i++) {
+          const etudiant = etudiantsForTemplate[i];
           setBulkGenerationProgress(prev => ({ ...prev, current: i + 1 }));
 
           try {
@@ -262,7 +297,7 @@ export const SessionDetail: React.FC = () => {
               replace_existing: true // Permet de régénérer les documents existants
             };
 
-            console.log(`📤 Génération document: ${template.template_name} pour ${etudiant.student_name}, template_id: ${template.template_id}`);
+            console.log(`📤 Génération document: ${template.template_name} pour ${etudiant.student_name}, formation: ${template.formation_name}`);
             const response = await apiClient.post('/certificates/generate', requestData) as { success: boolean; error?: string };
 
             if (response.success) {
@@ -281,7 +316,7 @@ export const SessionDetail: React.FC = () => {
 
       setShowBulkDocumentModal(false);
       setSelectedTemplates(new Set());
-      alert(`${totalSaved} document(s) généré(s) avec succès!\n\n${templatesToGenerate.length} type(s) de document × ${selectedEtudiants.length} étudiant(s)`);
+      alert(`${totalSaved} document(s) généré(s) avec succès!`);
 
       // Rafraîchir la page pour voir les nouveaux documents
       window.location.reload();
@@ -1231,34 +1266,62 @@ export const SessionDetail: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Liste des templates avec checkboxes */}
-                    <div className="max-h-72 overflow-y-auto space-y-2">
-                      {bulkTemplates.map((template: any) => (
-                        <label
-                          key={template.template_id}
-                          className={`w-full p-4 border rounded-lg cursor-pointer transition-colors flex items-center gap-3 ${
-                            selectedTemplates.has(template.template_id)
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedTemplates.has(template.template_id)}
-                            onChange={() => toggleTemplateSelection(template.template_id)}
-                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900">
-                              {template.template_name}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              {template.document_type}
-                            </p>
+                    {/* Liste des templates groupés par formation */}
+                    <div className="max-h-96 overflow-y-auto space-y-4">
+                      {/* Grouper par formation */}
+                      {(() => {
+                        const formationGroups: Record<string, any[]> = {};
+                        bulkTemplates.forEach((t: any) => {
+                          const key = t.formation_name || 'Autre';
+                          if (!formationGroups[key]) formationGroups[key] = [];
+                          formationGroups[key].push(t);
+                        });
+
+                        return Object.entries(formationGroups).map(([formationName, templates]) => (
+                          <div key={formationName} className="space-y-2">
+                            {/* En-tête de formation */}
+                            <div className="sticky top-0 bg-gray-100 px-3 py-2 rounded-lg flex items-center justify-between">
+                              <span className="text-sm font-semibold text-gray-700">
+                                📚 {formationName}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {templates[0]?.student_count || 0} étudiant(s)
+                              </span>
+                            </div>
+
+                            {/* Templates de cette formation */}
+                            {templates.map((template: any) => {
+                              const uniqueKey = getTemplateUniqueKey(template);
+                              return (
+                                <label
+                                  key={uniqueKey}
+                                  className={`w-full p-4 border rounded-lg cursor-pointer transition-colors flex items-center gap-3 ${
+                                    selectedTemplates.has(uniqueKey)
+                                      ? 'border-blue-500 bg-blue-50'
+                                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedTemplates.has(uniqueKey)}
+                                    onChange={() => toggleTemplateSelection(uniqueKey)}
+                                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                  <div className="flex-1">
+                                    <p className="font-medium text-gray-900">
+                                      {template.template_name}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      {template.document_type}
+                                    </p>
+                                  </div>
+                                  <FileDown className={`h-5 w-5 ${selectedTemplates.has(uniqueKey) ? 'text-blue-600' : 'text-gray-400'}`} />
+                                </label>
+                              );
+                            })}
                           </div>
-                          <FileDown className={`h-5 w-5 ${selectedTemplates.has(template.template_id) ? 'text-blue-600' : 'text-gray-400'}`} />
-                        </label>
-                      ))}
+                        ));
+                      })()}
                     </div>
                   </>
                 )}
@@ -1269,12 +1332,18 @@ export const SessionDetail: React.FC = () => {
               <p className="text-sm text-gray-600">
                 {selectedTemplates.size > 0 && !generatingBulkDocuments && (
                   <>
-                    <span className="font-medium text-blue-600">{selectedTemplates.size * selectedStudents.size}</span> document(s) seront générés
+                    <span className="font-medium text-blue-600">
+                      {/* Calculer le nombre exact de documents à générer */}
+                      {bulkTemplates
+                        .filter((t: any) => selectedTemplates.has(getTemplateUniqueKey(t)))
+                        .reduce((sum: number, t: any) => sum + (t.student_count || 0), 0)}
+                    </span> document(s) seront générés
                   </>
                 )}
               </p>
               <div className="flex gap-3">
                 <button
+                  type="button"
                   onClick={() => {
                     setShowBulkDocumentModal(false);
                     setSelectedTemplates(new Set());
@@ -1285,6 +1354,7 @@ export const SessionDetail: React.FC = () => {
                   Annuler
                 </button>
                 <button
+                  type="button"
                   onClick={handleBulkDocumentGenerationAll}
                   disabled={generatingBulkDocuments || selectedTemplates.size === 0}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"

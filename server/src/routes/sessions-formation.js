@@ -424,7 +424,10 @@ router.post('/',
         corps_formation_id,
         statut = 'planifiee',
         prix_total = 0,
-        nombre_places = 0
+        nombre_places = 0,
+        session_type = 'presentielle',
+        meeting_platform,
+        meeting_link
       } = req.body;
 
       // Validation
@@ -460,16 +463,20 @@ router.post('/',
         INSERT INTO sessions_formation (
           id, titre, description, date_debut, date_fin,
           ville_id, segment_id, corps_formation_id, statut,
-          prix_total, nombre_places, created_at, updated_at
+          prix_total, nombre_places,
+          session_type, meeting_platform, meeting_link,
+          created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         RETURNING *
       `;
 
       const values = [
         id, titre, description, date_debut, date_fin,
         ville_id, segment_id, corps_formation_id, statut,
-        prix_total, nombre_places, now, now
+        prix_total, nombre_places,
+        session_type, meeting_platform || null, meeting_link || null,
+        now, now
       ];
 
       const result = await pool.query(query, values);
@@ -643,7 +650,10 @@ router.put('/:id',
         corps_formation_id,
         statut,
         prix_total,
-        nombre_places
+        nombre_places,
+        session_type,
+        meeting_platform,
+        meeting_link
       } = req.body;
 
       // SCOPE VALIDATION: Si l'utilisateur modifie segment_id ou ville_id, vérifier qu'ils sont dans son scope
@@ -679,15 +689,20 @@ router.put('/:id',
           statut = COALESCE($8, statut),
           prix_total = COALESCE($9, prix_total),
           nombre_places = COALESCE($10, nombre_places),
-          updated_at = $11
-        WHERE id = $12
+          session_type = COALESCE($11, session_type),
+          meeting_platform = COALESCE($12, meeting_platform),
+          meeting_link = COALESCE($13, meeting_link),
+          updated_at = $14
+        WHERE id = $15
         RETURNING *
       `;
 
       const values = [
         titre, description, date_debut, date_fin,
         ville_id, segment_id, corps_formation_id, statut,
-        prix_total, nombre_places, now, id
+        prix_total, nombre_places,
+        session_type, meeting_platform, meeting_link,
+        now, id
       ];
 
       const result = await pool.query(query, values);
