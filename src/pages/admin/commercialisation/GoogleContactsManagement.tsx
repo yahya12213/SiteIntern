@@ -772,20 +772,45 @@ export default function GoogleContactsManagement() {
                 <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${showManualToken ? 'rotate-180' : ''}`} />
               </button>
               {showManualToken && (
-                <div className="p-4 border-t border-gray-200">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Token Google OAuth (contenu de token.json)
-                  </label>
-                  <textarea
-                    value={tokenInput}
-                    onChange={(e) => setTokenInput(e.target.value)}
-                    placeholder='{"token": "ya29...", "refresh_token": "1//...", "client_id": "...", "client_secret": "..."}'
-                    rows={6}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Collez le contenu JSON complet du fichier token.json. Le token doit contenir refresh_token et client_id.
-                  </p>
+                <div className="p-4 border-t border-gray-200 space-y-4">
+                  {/* Bouton pour reconnecter manuellement avec code OAuth */}
+                  <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <Key className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                    <span className="text-sm text-blue-700 flex-1">
+                      Générez un nouveau code d'autorisation Google
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => getReauthorizeUrlMutation.mutate(selectedCity!.id)}
+                      disabled={getReauthorizeUrlMutation.isPending}
+                      className="text-blue-600 border-blue-300 hover:bg-blue-100"
+                    >
+                      {getReauthorizeUrlMutation.isPending ? (
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Key className="h-3 w-3" />
+                      )}
+                      <span className="ml-1">Obtenir le code</span>
+                    </Button>
+                  </div>
+
+                  {/* Textarea pour coller le token JSON complet */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Ou collez le token JSON complet (token.json)
+                    </label>
+                    <textarea
+                      value={tokenInput}
+                      onChange={(e) => setTokenInput(e.target.value)}
+                      placeholder='{"token": "ya29...", "refresh_token": "1//...", "client_id": "...", "client_secret": "..."}'
+                      rows={6}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Collez le contenu JSON complet du fichier token.json. Le token doit contenir refresh_token et client_id.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
