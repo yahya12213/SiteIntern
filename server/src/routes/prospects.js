@@ -16,6 +16,31 @@ import { googleContactsService } from '../services/googleContactsService.js';
 const router = express.Router();
 
 // ============================================================
+// Fonction pour générer un ID prospect unique de 8 chiffres
+// ============================================================
+async function generateUniqueProspectId() {
+  let attempts = 0;
+  const maxAttempts = 10;
+
+  while (attempts < maxAttempts) {
+    // Générer un nombre aléatoire de 8 chiffres (10000000 - 99999999)
+    const prospectId = Math.floor(10000000 + Math.random() * 90000000).toString();
+
+    // Vérifier si l'ID existe déjà
+    const { rows } = await pool.query('SELECT id FROM prospects WHERE id = $1', [prospectId]);
+
+    if (rows.length === 0) {
+      return prospectId;
+    }
+
+    attempts++;
+  }
+
+  // En dernier recours, utiliser timestamp + random pour garantir l'unicité
+  return Date.now().toString().slice(-8);
+}
+
+// ============================================================
 // GET /api/prospects/country-codes - Liste des pays supportés
 // IMPORTANT: Doit être AVANT les routes /:id pour éviter conflits
 // ============================================================
@@ -285,8 +310,8 @@ router.post('/',
         }
       }
 
-      // Créer le prospect (sans assigned_to - filtrage par ville)
-      const prospectId = `prospect-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      // Créer le prospect avec un ID unique de 8 chiffres
+      const prospectId = await generateUniqueProspectId();
 
       const insertQuery = `
         INSERT INTO prospects (
@@ -532,8 +557,8 @@ router.post('/import',
           continue;
         }
 
-        // Créer le prospect (sans assigned_to - filtrage par ville)
-        const prospectId = `prospect-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // Créer le prospect avec un ID unique de 8 chiffres
+        const prospectId = await generateUniqueProspectId();
 
         await pool.query(`
           INSERT INTO prospects (

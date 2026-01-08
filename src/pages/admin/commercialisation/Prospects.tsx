@@ -578,7 +578,7 @@ export default function Prospects() {
                       </TableCell>
                       <TableCell className="text-sm">{prospect.segment_name || '-'}</TableCell>
                       <TableCell className="text-sm">{prospect.created_by_name || '-'}</TableCell>
-                      <TableCell className="font-mono text-sm">{prospect.id.split('-').slice(-1)[0].substring(0, 6)}</TableCell>
+                      <TableCell className="font-mono text-sm">{prospect.id}</TableCell>
                       <TableCell className="text-sm">{prospect.nom || '-'}</TableCell>
                       <TableCell className="text-sm">{prospect.prenom || '-'}</TableCell>
                       <TableCell className="font-mono">{prospect.phone_international}</TableCell>
