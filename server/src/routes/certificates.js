@@ -287,16 +287,21 @@ router.post('/generate',
       ? JSON.parse(certificate.metadata || '{}')
       : (certificate.metadata || {});
 
+    // Convertir NOM, PRÉNOM et CIN en majuscules pour les documents
+    const nomUpperCase = (student.nom || '').toUpperCase();
+    const prenomUpperCase = (student.prenom || '').toUpperCase();
+    const cinUpperCase = (student.cin || '').toUpperCase();
+
     const certData = {
       ...certificate,
-      student_name: `${student.prenom} ${student.nom}`,
+      student_name: `${prenomUpperCase} ${nomUpperCase}`,
       formation_title: formation.title,
       duration_hours: formation.duration_hours,
       metadata: {
         ...existingMetadata,
-        prenom: student.prenom,
-        nom: student.nom,
-        cin: student.cin,
+        prenom: prenomUpperCase,
+        nom: nomUpperCase,
+        cin: cinUpperCase,
         // Session data
         ...(sessionData ? {
           session_title: sessionData.titre,
@@ -926,12 +931,17 @@ router.get('/:certificateId/regenerate-data',
 
       const template = templateResult.rows[0];
 
+      // Convertir NOM, PRÉNOM et CIN en majuscules pour les documents
+      const firstNameUpper = (cert.student_first_name || '').toUpperCase();
+      const lastNameUpper = (cert.student_last_name || '').toUpperCase();
+      const cinUpper = (cert.student_cin || '').toUpperCase();
+
       // Construire les données pour CertificateTemplateEngine
       const certificateData = {
         id: cert.id,
         student_id: cert.student_id,
         formation_id: cert.formation_id,
-        student_name: `${cert.student_first_name || ''} ${cert.student_last_name || ''}`.trim(),
+        student_name: `${firstNameUpper} ${lastNameUpper}`.trim(),
         student_email: cert.student_email || '',
         formation_title: cert.formation_title || '',
         formation_description: cert.formation_description || '',
@@ -942,9 +952,9 @@ router.get('/:certificateId/regenerate-data',
         grade: cert.grade,
         metadata: {
           ...(typeof cert.metadata === 'object' ? cert.metadata : {}),
-          student_first_name: cert.student_first_name || '',
-          student_last_name: cert.student_last_name || '',
-          cin: cert.student_cin || '',
+          student_first_name: firstNameUpper,
+          student_last_name: lastNameUpper,
+          cin: cinUpper,
           phone: cert.student_phone || '',
           whatsapp: cert.student_whatsapp || '',
           date_naissance: cert.student_birth_date || '',

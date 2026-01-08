@@ -273,7 +273,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                 </label>
                 <Input
                   value={formData.nom}
-                  onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, nom: e.target.value.toUpperCase() })}
                   placeholder="Nom"
                   className={errors.nom ? 'border-red-300' : ''}
                 />
@@ -286,7 +286,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                 </label>
                 <Input
                   value={formData.prenom}
-                  onChange={(e) => setFormData({ ...formData, prenom: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, prenom: e.target.value.toUpperCase() })}
                   placeholder="Prénom"
                   className={errors.prenom ? 'border-red-300' : ''}
                 />
@@ -299,7 +299,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                 </label>
                 <Input
                   value={formData.cin}
-                  onChange={(e) => setFormData({ ...formData, cin: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, cin: e.target.value.toUpperCase() })}
                   placeholder="CIN"
                   className={errors.cin ? 'border-red-300' : ''}
                 />
