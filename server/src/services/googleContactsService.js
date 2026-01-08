@@ -106,9 +106,9 @@ class GoogleContactsService {
 
       const people = google.people({ version: 'v1', auth });
 
-      // Construire le nom du contact : Ville + ID_court + Segment + (Nom Prénom si disponible)
-      // Exemple: "Beni Mellal 176641 Prolean" ou "Beni Mellal 176641 Prolean ahmed benali"
-      const idShort = prospect.id.substring(9, 15); // Extraire une partie de l'ID (ex: 176641)
+      // Construire le nom du contact : Ville + ID + Segment + (Nom Prénom si disponible)
+      // Exemple: "Beni Mellal 21438174 Prolean" ou "Beni Mellal 21438174 Prolean ahmed benali"
+      const idShort = prospect.id; // ID complet de 8 chiffres (ex: 21438174)
       const villeName = prospect.ville_name || 'Inconnu';
       const segmentName = prospect.segment_name || '';
 
