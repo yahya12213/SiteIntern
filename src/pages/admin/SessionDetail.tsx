@@ -157,7 +157,8 @@ export const SessionDetail: React.FC = () => {
       const formationsMap = new Map<string, string>();
       selectedEtudiants.forEach((e: any) => {
         if (!formationsMap.has(e.formation_id)) {
-          formationsMap.set(e.formation_id, e.formation_name || 'Formation inconnue');
+          // L'API retourne formation_title (pas formation_name)
+          formationsMap.set(e.formation_id, e.formation_title || e.formation_name || 'Formation inconnue');
         }
       });
 
@@ -255,7 +256,6 @@ export const SessionDetail: React.FC = () => {
 
     setGeneratingBulkDocuments(true);
     let totalSaved = 0;
-    let totalSkipped = 0;
 
     try {
       for (let templateIndex = 0; templateIndex < templatesToGenerate.length; templateIndex++) {
