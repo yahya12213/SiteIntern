@@ -590,4 +590,18 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📊 API endpoints available at http://localhost:${PORT}/api`);
+
+  // Auto-retry failed Google Contacts syncs every 10 minutes
+  import('./services/googleContactsService.js').then(({ googleContactsService }) => {
+    setInterval(async () => {
+      try {
+        await googleContactsService.retryFailedProspects();
+      } catch (err) {
+        console.error('Auto-retry Google sync error:', err.message);
+      }
+    }, 10 * 60 * 1000); // 10 minutes
+    console.log('📲 Google Contacts auto-retry enabled (every 10 minutes)');
+  }).catch(err => {
+    console.error('Failed to load googleContactsService for auto-retry:', err.message);
+  });
 });

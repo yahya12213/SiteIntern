@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import {
   Users,
@@ -42,7 +51,12 @@ import {
   Cloud,
   CloudOff,
   AlertCircle,
+  Key,
+  ExternalLink,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
+import { apiClient } from '@/lib/api/client';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useProspects, useDeleteProspect } from '@/hooks/useProspects';
 import { useSegments } from '@/hooks/useSegments';
@@ -118,6 +132,7 @@ const getRdvStyle = (dateRdv: string | null) => {
 
 export default function Prospects() {
   const { commercialisation } = usePermission();
+  const queryClient = useQueryClient();
 
   // Filtres
   const [filters, setFilters] = useState<ProspectFilters>({
@@ -141,8 +156,69 @@ export default function Prospects() {
   const [showVisitsModal, setShowVisitsModal] = useState(false);
   const [selectedProspectForVisits, setSelectedProspectForVisits] = useState<any>(null);
 
+  // Modal de réautorisation Google
+  const [reauthorizeModalOpen, setReauthorizeModalOpen] = useState(false);
+  const [reauthorizeUrl, setReauthorizeUrl] = useState<string | null>(null);
+  const [authCode, setAuthCode] = useState('');
+  const [selectedProspectForReauth, setSelectedProspectForReauth] = useState<any>(null);
+
   // Selection multiple
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Mutation pour obtenir l'URL de réautorisation
+  const getReauthorizeUrlMutation = useMutation({
+    mutationFn: async (cityId: string) => {
+      const response = await apiClient.get(`/google-oauth/reauthorize-url/${cityId}`);
+      return response as { authUrl: string; cityName: string; message: string };
+    },
+    onSuccess: (data) => {
+      setReauthorizeUrl(data.authUrl);
+      setReauthorizeModalOpen(true);
+    },
+    onError: (error: any) => {
+      console.error('Erreur réautorisation:', error);
+      alert(error.message || 'Erreur lors de la réautorisation');
+    }
+  });
+
+  // Mutation pour échanger le code contre un nouveau token
+  const exchangeCodeMutation = useMutation({
+    mutationFn: async ({ cityId, code }: { cityId: string; code: string }) => {
+      const response = await apiClient.post(`/google-oauth/exchange-code/${cityId}`, { code });
+      return response as { success: boolean; message: string };
+    },
+    onSuccess: () => {
+      setReauthorizeModalOpen(false);
+      setAuthCode('');
+      setReauthorizeUrl(null);
+      setSelectedProspectForReauth(null);
+      // Rafraîchir la liste des prospects
+      refetch();
+      alert('Token Google mis à jour ! Les prospects seront re-synchronisés automatiquement.');
+    },
+    onError: (error: any) => {
+      console.error('Erreur échange code:', error);
+      alert(error.message || 'Code invalide ou expiré');
+    }
+  });
+
+  // Handlers pour la réautorisation
+  const handleOpenReauthModal = (prospect: any) => {
+    setSelectedProspectForReauth(prospect);
+    getReauthorizeUrlMutation.mutate(prospect.ville_id);
+  };
+
+  const handleOpenAuthUrl = () => {
+    if (reauthorizeUrl) {
+      window.open(reauthorizeUrl, '_blank');
+    }
+  };
+
+  const handleSubmitAuthCode = () => {
+    if (selectedProspectForReauth && authCode.trim()) {
+      exchangeCodeMutation.mutate({ cityId: selectedProspectForReauth.ville_id, code: authCode.trim() });
+    }
+  };
 
   const prospects = data?.prospects || [];
   const stats = data?.stats || {
@@ -646,10 +722,15 @@ export default function Prospects() {
                             <span className="text-xs">Sync</span>
                           </div>
                         ) : prospect.google_sync_status === 'failed' ? (
-                          <div className="flex items-center gap-1 text-red-600" title={prospect.google_sync_error || 'Échec de synchronisation'}>
-                            <AlertCircle className="h-4 w-4" />
-                            <span className="text-xs">Échec</span>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenReauthModal(prospect)}
+                            className="flex items-center gap-1 text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                            title={`${prospect.google_sync_error || 'Échec de synchronisation'} - Cliquez pour réautoriser`}
+                          >
+                            <Key className="h-4 w-4" />
+                            <span className="text-xs font-medium">Obtenir le code</span>
+                          </button>
                         ) : (
                           <div className="flex items-center gap-1 text-gray-400" title="En attente de synchronisation">
                             <CloudOff className="h-4 w-4" />
@@ -739,6 +820,110 @@ export default function Prospects() {
           }}
           prospect={selectedProspectForVisits}
         />
+
+        {/* Modal de réautorisation Google */}
+        <Dialog open={reauthorizeModalOpen} onOpenChange={setReauthorizeModalOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Key className="h-5 w-5 text-orange-600" />
+                Réautoriser Google Contacts
+              </DialogTitle>
+              <DialogDescription>
+                {selectedProspectForReauth?.ville_name} - Suivez les étapes ci-dessous pour renouveler le token Google.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              {/* Étape 1: Ouvrir l'URL */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-sm font-medium">1</span>
+                  <span className="font-medium">Ouvrir la page d'autorisation Google</span>
+                </div>
+                <p className="text-sm text-gray-500 ml-8">
+                  Cliquez sur le bouton ci-dessous pour ouvrir Google dans un nouvel onglet et autoriser l'accès.
+                </p>
+                <div className="ml-8">
+                  <Button
+                    onClick={handleOpenAuthUrl}
+                    disabled={!reauthorizeUrl}
+                    className="w-full"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Ouvrir Google (nouvel onglet)
+                  </Button>
+                </div>
+              </div>
+
+              {/* Étape 2: Copier le code */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-sm font-medium">2</span>
+                  <span className="font-medium">Copier le code affiché</span>
+                </div>
+                <p className="text-sm text-gray-500 ml-8">
+                  Après avoir autorisé l'accès, Google affichera un code. Copiez-le et collez-le ci-dessous.
+                </p>
+              </div>
+
+              {/* Étape 3: Coller le code */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-sm font-medium">3</span>
+                  <span className="font-medium">Coller le code d'autorisation</span>
+                </div>
+                <div className="ml-8">
+                  <input
+                    type="text"
+                    value={authCode}
+                    onChange={(e) => setAuthCode(e.target.value)}
+                    placeholder="4/0A... (code de Google)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/40 font-mono text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Message d'erreur */}
+              {exchangeCodeMutation.isError && (
+                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2">
+                  <XCircle className="h-4 w-4 flex-shrink-0" />
+                  {(exchangeCodeMutation.error as any)?.message || 'Erreur lors de l\'échange du code'}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setReauthorizeModalOpen(false);
+                  setAuthCode('');
+                  setReauthorizeUrl(null);
+                  setSelectedProspectForReauth(null);
+                }}
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={handleSubmitAuthCode}
+                disabled={!authCode.trim() || exchangeCodeMutation.isPending}
+              >
+                {exchangeCodeMutation.isPending ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Validation...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Valider le code
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );

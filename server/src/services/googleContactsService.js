@@ -180,6 +180,19 @@ class GoogleContactsService {
       if (!contactId) {
         const existing = await this.findByPhone(auth, prospect.phone_international);
         if (existing) {
+          // Si le prospect avait un ancien contact différent, le supprimer
+          if (prospect.google_contact_id && prospect.google_contact_id !== existing.resourceName) {
+            try {
+              await people.people.deleteContact({ resourceName: prospect.google_contact_id });
+              console.log(`🗑️ Ancien contact supprimé: ${prospect.google_contact_id} (remplacé par ${existing.resourceName})`);
+            } catch (deleteErr) {
+              // Ignorer si déjà supprimé (404)
+              if (deleteErr.code !== 404) {
+                console.error('Erreur suppression ancien contact:', deleteErr.message);
+              }
+            }
+          }
+
           // Mettre à jour le contact existant
           const existingContact = await people.people.get({
             resourceName: existing.resourceName,
@@ -433,6 +446,63 @@ class GoogleContactsService {
     } catch (error) {
       console.error(`❌ getStatsForCity error:`, error.message);
       return { total: 0, synced: 0, pending: 0, failed: 0, skipped: 0 };
+    }
+  }
+
+  /**
+   * Retry automatique des prospects en erreur après 10 minutes
+   * Récupère les prospects 'failed' dont le dernier sync date de plus de 10 minutes
+   * et les re-synchronise
+   * @returns {Promise<{retried: number, synced: number, failed: number}>}
+   */
+  async retryFailedProspects() {
+    const stats = { retried: 0, synced: 0, failed: 0 };
+
+    try {
+      // Récupérer les prospects failed depuis plus de 10 minutes
+      // pour les villes avec sync activé
+      const { rows: failedProspects } = await pool.query(`
+        SELECT p.id, p.phone_international, p.nom, p.prenom, p.ville_id,
+               p.google_contact_id, c.name as ville_name, s.name as segment_name
+        FROM prospects p
+        JOIN cities c ON c.id = p.ville_id
+        LEFT JOIN segments s ON s.id = p.segment_id
+        WHERE p.google_sync_status = 'failed'
+          AND c.google_sync_enabled = true
+          AND p.google_last_sync < NOW() - INTERVAL '10 minutes'
+        ORDER BY p.google_last_sync ASC
+        LIMIT 100
+      `);
+
+      if (failedProspects.length === 0) {
+        return stats;
+      }
+
+      console.log(`🔄 Auto-retry: ${failedProspects.length} prospects en erreur à re-synchroniser`);
+      stats.retried = failedProspects.length;
+
+      for (const prospect of failedProspects) {
+        try {
+          const result = await this.syncProspect(prospect);
+          if (result.success) {
+            stats.synced++;
+          } else {
+            stats.failed++;
+          }
+          // Pause de 100ms entre chaque sync pour respecter les quotas Google
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (err) {
+          stats.failed++;
+          console.error(`❌ Auto-retry error for prospect ${prospect.id}:`, err.message);
+        }
+      }
+
+      console.log(`✅ Auto-retry terminé: ${stats.synced} réussis, ${stats.failed} échoués`);
+      return stats;
+
+    } catch (error) {
+      console.error(`❌ retryFailedProspects error:`, error.message);
+      return stats;
     }
   }
 }
