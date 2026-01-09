@@ -546,10 +546,9 @@ router.put('/:id/managers',
 
     await client.query('BEGIN');
 
-    // Deactivate all existing managers for this employee
+    // Delete all existing managers for this employee (will be replaced)
     await client.query(`
-      UPDATE hr_employee_managers
-      SET is_active = false, updated_at = NOW()
+      DELETE FROM hr_employee_managers
       WHERE employee_id = $1
     `, [id]);
 
