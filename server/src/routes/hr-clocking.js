@@ -233,18 +233,54 @@ const calculateOvertimeMinutes = (clockTime, scheduledEnd) => {
   return Math.max(0, diffMinutes);
 };
 
-// Helper: Calculate worked minutes for a day
-const calculateWorkedMinutes = (records, breakRules) => {
+// Helper: Convert time string (HH:MM) to minutes from midnight
+const timeToMinutes = (timeStr) => {
+  if (!timeStr) return null;
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+// Helper: Calculate worked minutes for a day (capped to schedule)
+const calculateWorkedMinutes = (records, breakRules, schedule = null, date = null) => {
   if (records.length === 0) return 0;
   if (records.length % 2 !== 0) return null; // Incomplete (odd number of records)
+
+  // Get scheduled times for the day if schedule provided
+  let scheduledStartMinutes = null;
+  let scheduledEndMinutes = null;
+
+  if (schedule && date) {
+    const scheduledTimes = getScheduledTimesForDate(schedule, date);
+    if (scheduledTimes && scheduledTimes.isWorkingDay) {
+      scheduledStartMinutes = timeToMinutes(scheduledTimes.scheduledStart);
+      scheduledEndMinutes = timeToMinutes(scheduledTimes.scheduledEnd);
+    }
+  }
 
   let totalMinutes = 0;
 
   // Process pairs: check_in -> check_out
   for (let i = 0; i < records.length; i += 2) {
-    const checkIn = new Date(records[i].clock_time);
-    const checkOut = new Date(records[i + 1].clock_time);
-    const minutes = Math.floor((checkOut - checkIn) / 1000 / 60);
+    const checkInTime = new Date(records[i].clock_time);
+    const checkOutTime = new Date(records[i + 1].clock_time);
+
+    // Get actual times in minutes from midnight
+    let checkInMinutes = checkInTime.getHours() * 60 + checkInTime.getMinutes();
+    let checkOutMinutes = checkOutTime.getHours() * 60 + checkOutTime.getMinutes();
+
+    // Cap to schedule if available
+    if (scheduledStartMinutes !== null && scheduledEndMinutes !== null) {
+      // If check-in is before scheduled start, use scheduled start
+      if (checkInMinutes < scheduledStartMinutes) {
+        checkInMinutes = scheduledStartMinutes;
+      }
+      // If check-out is after scheduled end, use scheduled end
+      if (checkOutMinutes > scheduledEndMinutes) {
+        checkOutMinutes = scheduledEndMinutes;
+      }
+    }
+
+    const minutes = Math.max(0, checkOutMinutes - checkInMinutes);
     totalMinutes += minutes;
   }
 
@@ -487,7 +523,7 @@ router.post('/check-out', authenticateToken, async (req, res) => {
     const workedMinutes = calculateWorkedMinutes(todayRecords.rows, {
       deduct_break_automatically: true,
       default_break_minutes: breakMinutes
-    });
+    }, schedule, today);
 
     // Déterminer le statut final de la journée
     let dayStatus = 'present';
@@ -603,6 +639,9 @@ router.get('/my-today', authenticateToken, async (req, res) => {
 
     const today = new Date().toISOString().split('T')[0];
 
+    // Get active schedule for capped calculation
+    const schedule = await getActiveSchedule(pool);
+
     // Get all records for today (with try/catch for missing table)
     let records = { rows: [] };
     try {
@@ -620,9 +659,9 @@ router.get('/my-today', authenticateToken, async (req, res) => {
     // Get last action
     const lastAction = records.rows.length > 0 ? records.rows[records.rows.length - 1] : null;
 
-    // Calculate worked minutes
+    // Calculate worked minutes (capped to schedule)
     const breakRules = await getBreakRules(pool);
-    const workedMinutes = calculateWorkedMinutes(records.rows, breakRules);
+    const workedMinutes = calculateWorkedMinutes(records.rows, breakRules, schedule, today);
 
     res.json({
       success: true,
@@ -636,7 +675,7 @@ router.get('/my-today', authenticateToken, async (req, res) => {
         records: records.rows,
         last_action: lastAction,
         can_check_in: !lastAction || lastAction.status === 'check_out',
-        can_check_out: lastAction && lastAction.status === 'check_in',
+        can_check_out: lastAction && ['check_in', 'late', 'weekend'].includes(lastAction.status),
         worked_minutes: workedMinutes,
         is_complete: records.rows.length % 2 === 0
       }
@@ -719,12 +758,13 @@ router.get('/my-records', authenticateToken, async (req, res) => {
 
     const result = await pool.query(query, params);
 
-    // Get break rules
+    // Get break rules and active schedule
     const breakRules = await getBreakRules(pool);
+    const schedule = await getActiveSchedule(pool);
 
-    // Calculate worked minutes for each day
+    // Calculate worked minutes for each day (capped to schedule)
     const recordsWithCalculations = result.rows.map(day => {
-      const workedMinutes = calculateWorkedMinutes(day.records, breakRules);
+      const workedMinutes = calculateWorkedMinutes(day.records, breakRules, schedule, day.date);
       return {
         date: day.date,
         records: day.records,
