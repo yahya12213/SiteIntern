@@ -321,20 +321,20 @@ router.post('/check-in', authenticateToken, async (req, res) => {
     const schedule = await getActiveSchedule(pool);
     const scheduledTimes = schedule ? getScheduledTimesForDate(schedule, today) : null;
 
-    const lastAction = await pool.query(`
-      SELECT clock_time, status
-      FROM hr_attendance_records
+    // Vérifier si déjà pointé entrée aujourd'hui (1 seul pointage autorisé)
+    const existingCheckIn = await pool.query(`
+      SELECT id, clock_time FROM hr_attendance_records
       WHERE employee_id = $1
         AND DATE(clock_time) = $2
-      ORDER BY clock_time DESC
+        AND status IN ('check_in', 'late', 'weekend')
       LIMIT 1
     `, [employee.id, today]);
 
-    if (lastAction.rows.length > 0 && lastAction.rows[0].status === 'check_in') {
+    if (existingCheckIn.rows.length > 0) {
       return res.status(400).json({
         success: false,
-        error: 'Vous avez déjà pointé l\'entrée. Veuillez pointer la sortie.',
-        last_action: lastAction.rows[0]
+        error: 'Vous avez déjà pointé l\'entrée aujourd\'hui. Pour corriger, faites une demande de correction.',
+        existing_check_in: existingCheckIn.rows[0].clock_time
       });
     }
 
@@ -438,27 +438,28 @@ router.post('/check-out', authenticateToken, async (req, res) => {
       LIMIT 1
     `, [employee.id, today]);
 
-    const lastAction = await pool.query(`
-      SELECT clock_time, status
-      FROM hr_attendance_records
-      WHERE employee_id = $1
-        AND DATE(clock_time) = $2
-      ORDER BY clock_time DESC
-      LIMIT 1
-    `, [employee.id, today]);
-
-    if (lastAction.rows.length === 0) {
+    // Vérifier qu'il y a un pointage d'entrée
+    if (checkInRecord.rows.length === 0) {
       return res.status(400).json({
         success: false,
         error: 'Vous devez d\'abord pointer l\'entrée'
       });
     }
 
-    if (lastAction.rows[0].status === 'check_out') {
+    // Vérifier si déjà pointé sortie aujourd'hui (1 seul pointage autorisé)
+    const existingCheckOut = await pool.query(`
+      SELECT id, clock_time FROM hr_attendance_records
+      WHERE employee_id = $1
+        AND DATE(clock_time) = $2
+        AND status = 'check_out'
+      LIMIT 1
+    `, [employee.id, today]);
+
+    if (existingCheckOut.rows.length > 0) {
       return res.status(400).json({
         success: false,
-        error: 'Vous avez déjà pointé la sortie. Veuillez pointer l\'entrée si vous revenez.',
-        last_action: lastAction.rows[0]
+        error: 'Vous avez déjà pointé la sortie aujourd\'hui. Pour corriger, faites une demande de correction.',
+        existing_check_out: existingCheckOut.rows[0].clock_time
       });
     }
 
@@ -659,6 +660,10 @@ router.get('/my-today', authenticateToken, async (req, res) => {
     // Get last action
     const lastAction = records.rows.length > 0 ? records.rows[records.rows.length - 1] : null;
 
+    // Compter les pointages du jour (1 seul entrée et 1 seul sortie autorisés)
+    const hasCheckIn = records.rows.some(r => ['check_in', 'late', 'weekend'].includes(r.status));
+    const hasCheckOut = records.rows.some(r => r.status === 'check_out');
+
     // Calculate worked minutes (capped to schedule)
     const breakRules = await getBreakRules(pool);
     const workedMinutes = calculateWorkedMinutes(records.rows, breakRules, schedule, today);
@@ -674,10 +679,10 @@ router.get('/my-today', authenticateToken, async (req, res) => {
         date: today,
         records: records.rows,
         last_action: lastAction,
-        can_check_in: !lastAction || lastAction.status === 'check_out',
-        can_check_out: lastAction && ['check_in', 'late', 'weekend'].includes(lastAction.status),
+        can_check_in: !hasCheckIn,
+        can_check_out: hasCheckIn && !hasCheckOut,
         worked_minutes: workedMinutes,
-        is_complete: records.rows.length % 2 === 0
+        is_complete: hasCheckIn && hasCheckOut
       }
     });
 
