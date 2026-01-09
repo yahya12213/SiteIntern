@@ -455,4 +455,194 @@ router.get('/meta/departments',
   }
 });
 
+// === MULTI-MANAGERS ===
+
+/**
+ * Get all managers for an employee
+ * Protected: Requires hr.employees.view_page permission
+ */
+router.get('/:id/managers',
+  authenticateToken,
+  requirePermission('hr.employees.view_page'),
+  async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(`
+      SELECT
+        em.id,
+        em.employee_id,
+        em.manager_id,
+        em.rank,
+        em.is_active,
+        em.created_at,
+        m.first_name || ' ' || m.last_name as manager_name,
+        m.position as manager_position,
+        m.employee_number as manager_employee_number
+      FROM hr_employee_managers em
+      JOIN hr_employees m ON em.manager_id = m.id
+      WHERE em.employee_id = $1 AND em.is_active = true
+      ORDER BY em.rank ASC
+    `, [id]);
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching employee managers:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Update managers for an employee (replace all)
+ * Protected: Requires hr.employees.update permission
+ *
+ * Body: { managers: [{ manager_id: uuid, rank: number }, ...] }
+ * - Rank 0 (N) = direct manager (required)
+ * - Rank 1 (N+1) = superior manager
+ * - Rank 2+ (N+2, N+3...) = higher levels
+ */
+router.put('/:id/managers',
+  authenticateToken,
+  requirePermission('hr.employees.update'),
+  async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params;
+    const { managers } = req.body;
+
+    if (!Array.isArray(managers)) {
+      return res.status(400).json({
+        success: false,
+        error: 'managers must be an array'
+      });
+    }
+
+    // Validate: at least one manager at rank 0 (N)
+    const hasDirectManager = managers.some(m => m.rank === 0);
+    if (managers.length > 0 && !hasDirectManager) {
+      return res.status(400).json({
+        success: false,
+        error: 'Un manager direct (rang N) est obligatoire'
+      });
+    }
+
+    // Validate: no duplicate ranks
+    const ranks = managers.map(m => m.rank);
+    if (new Set(ranks).size !== ranks.length) {
+      return res.status(400).json({
+        success: false,
+        error: 'Chaque rang ne peut avoir qu\'un seul manager'
+      });
+    }
+
+    // Validate: employee cannot be their own manager
+    if (managers.some(m => m.manager_id === id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Un employé ne peut pas être son propre manager'
+      });
+    }
+
+    await client.query('BEGIN');
+
+    // Deactivate all existing managers for this employee
+    await client.query(`
+      UPDATE hr_employee_managers
+      SET is_active = false, updated_at = NOW()
+      WHERE employee_id = $1
+    `, [id]);
+
+    // Insert new managers
+    for (const manager of managers) {
+      await client.query(`
+        INSERT INTO hr_employee_managers (employee_id, manager_id, rank, is_active)
+        VALUES ($1, $2, $3, true)
+        ON CONFLICT (employee_id, manager_id)
+        DO UPDATE SET rank = $3, is_active = true, updated_at = NOW()
+      `, [id, manager.manager_id, manager.rank]);
+    }
+
+    // Also update the legacy manager_id field with the direct manager (rank 0)
+    const directManager = managers.find(m => m.rank === 0);
+    if (directManager) {
+      await client.query(`
+        UPDATE hr_employees SET manager_id = $1, updated_at = NOW() WHERE id = $2
+      `, [directManager.manager_id, id]);
+    } else {
+      await client.query(`
+        UPDATE hr_employees SET manager_id = NULL, updated_at = NOW() WHERE id = $1
+      `, [id]);
+    }
+
+    await client.query('COMMIT');
+
+    // Fetch the updated managers list
+    const result = await pool.query(`
+      SELECT
+        em.id,
+        em.employee_id,
+        em.manager_id,
+        em.rank,
+        em.is_active,
+        m.first_name || ' ' || m.last_name as manager_name,
+        m.position as manager_position
+      FROM hr_employee_managers em
+      JOIN hr_employees m ON em.manager_id = m.id
+      WHERE em.employee_id = $1 AND em.is_active = true
+      ORDER BY em.rank ASC
+    `, [id]);
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error updating employee managers:', error);
+
+    if (error.code === '23503') {
+      res.status(400).json({ success: false, error: 'Manager not found' });
+    } else if (error.code === '23505') {
+      res.status(400).json({ success: false, error: 'Duplicate manager or rank' });
+    } else {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * Get the approval chain for an employee (all active managers in order)
+ * Protected: Requires hr.employees.view_page permission
+ */
+router.get('/:id/approval-chain',
+  authenticateToken,
+  requirePermission('hr.employees.view_page'),
+  async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(`
+      SELECT
+        em.rank,
+        em.manager_id,
+        m.first_name || ' ' || m.last_name as manager_name,
+        m.email as manager_email,
+        m.position as manager_position
+      FROM hr_employee_managers em
+      JOIN hr_employees m ON em.manager_id = m.id
+      WHERE em.employee_id = $1 AND em.is_active = true
+      ORDER BY em.rank ASC
+    `, [id]);
+
+    res.json({
+      success: true,
+      data: result.rows,
+      approval_levels: result.rows.length
+    });
+  } catch (error) {
+    console.error('Error fetching approval chain:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;

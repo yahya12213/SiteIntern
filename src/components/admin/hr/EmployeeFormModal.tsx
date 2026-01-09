@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
-import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle } from 'lucide-react';
+import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle, Plus, Trash2, Users } from 'lucide-react';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { apiClient } from '@/lib/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSegments } from '@/hooks/useSegments';
+
+interface ManagerEntry {
+  manager_id: string;
+  rank: number;
+  manager_name?: string;
+}
 
 interface EmployeeFormModalProps {
   employeeId: string | null;
@@ -30,7 +36,6 @@ interface Employee {
   employment_status: 'active' | 'terminated' | 'suspended' | 'on_leave';
   employment_type?: 'full_time' | 'part_time' | 'intern' | 'freelance' | 'temporary';
   position?: string;
-  department?: string;
   segment_id?: string;
   manager_id?: string;
   notes?: string;
@@ -58,7 +63,6 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     employment_status: 'active',
     employment_type: 'full_time',
     position: '',
-    department: '',
     segment_id: '',
     manager_id: '',
     notes: '',
@@ -80,16 +84,6 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
 
   // Fetch segments for dropdown
   const { data: segments = [] } = useSegments();
-
-  // Fetch departments for dropdown
-  const { data: departmentsData } = useQuery({
-    queryKey: ['hr-departments'],
-    queryFn: async () => {
-      const response = await apiClient.get('/hr/employees/meta/departments');
-      return (response as any).data as string[];
-    },
-  });
-  const departments = departmentsData || [];
 
   // Fetch potential managers (active employees)
   const { data: managersData } = useQuery({
@@ -123,7 +117,6 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         employment_status: employeeData.employment_status || 'active',
         employment_type: employeeData.employment_type || 'full_time',
         position: employeeData.position || '',
-        department: employeeData.department || '',
         segment_id: employeeData.segment_id || '',
         manager_id: employeeData.manager_id || '',
         notes: employeeData.notes || '',
@@ -514,26 +507,6 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                   placeholder="Ex: Développeur"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-              </div>
-
-              {/* Département */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Département
-                </label>
-                <input
-                  type="text"
-                  list="departments-list"
-                  value={formData.department}
-                  onChange={(e) => handleChange('department', e.target.value)}
-                  placeholder="Ex: IT"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <datalist id="departments-list">
-                  {departments.map((dept: string) => (
-                    <option key={dept} value={dept} />
-                  ))}
-                </datalist>
               </div>
 
               {/* Segment */}

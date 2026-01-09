@@ -37,12 +37,37 @@ router.get('/team',
     const userId = req.user.id;
 
     try {
+      // D'abord vérifier si l'utilisateur a un employé HR associé
+      const managerCheck = await pool.query(
+        'SELECT id FROM hr_employees WHERE profile_id = $1',
+        [userId]
+      );
+
+      if (managerCheck.rows.length === 0) {
+        // L'utilisateur n'est pas un employé HR, retourner tableau vide
+        console.log(`Manager team: User ${userId} has no hr_employee record`);
+        return res.json({ success: true, members: [] });
+      }
+
+      const managerId = managerCheck.rows[0].id;
+
       const team = await pool.query(`
         SELECT
-          e.*,
+          e.id,
+          e.id as employee_id,
+          e.first_name || ' ' || e.last_name as full_name,
+          e.first_name,
+          e.last_name,
+          e.email,
+          e.position,
+          e.employee_number,
+          e.profile_id,
           p.username,
           p.email as profile_email,
           s.name as segment_name,
+          e.hire_date,
+          e.contract_type,
+          e.employment_status = 'active' as is_active,
           -- Today's attendance
           (SELECT clock_time FROM hr_attendance_records
            WHERE employee_id = e.id AND status = 'check_in'
@@ -59,10 +84,10 @@ router.get('/team',
         FROM hr_employees e
         LEFT JOIN profiles p ON e.profile_id = p.id
         LEFT JOIN segments s ON e.segment_id = s.id
-        WHERE e.manager_id = (SELECT id FROM hr_employees WHERE profile_id = $1)
+        WHERE e.manager_id = $1
         AND e.employment_status = 'active'
         ORDER BY e.last_name, e.first_name
-      `, [userId]);
+      `, [managerId]);
 
       res.json({ success: true, members: team.rows });
     } catch (error) {
