@@ -1,15 +1,9 @@
 import { useState, useEffect } from 'react';
-import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle, Plus, Trash2, Users } from 'lucide-react';
+import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle } from 'lucide-react';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { apiClient } from '@/lib/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSegments } from '@/hooks/useSegments';
-
-interface ManagerEntry {
-  manager_id: string;
-  rank: number;
-  manager_name?: string;
-}
 
 interface EmployeeFormModalProps {
   employeeId: string | null;
@@ -64,10 +58,12 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     employment_type: 'full_time',
     position: '',
     segment_id: '',
-    manager_id: '',
     notes: '',
     requires_clocking: false,
   });
+
+  // State pour les managers multiples avec rangs
+  const [employeeManagers, setEmployeeManagers] = useState<ManagerEntry[]>([]);
 
   const isEdit = !!employeeId;
 
@@ -95,6 +91,17 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
   });
   const managers = managersData || [];
 
+  // Fetch existing managers for this employee (when editing)
+  const { data: existingManagersData } = useQuery({
+    queryKey: ['hr-employee-managers', employeeId],
+    queryFn: async () => {
+      if (!employeeId) return [];
+      const response = await apiClient.get(`/hr/employees/${employeeId}/managers`);
+      return (response as any).data as Array<{ manager_id: string; rank: number; manager_name: string }>;
+    },
+    enabled: !!employeeId,
+  });
+
   // Load employee data when editing
   useEffect(() => {
     if (employeeData) {
@@ -118,12 +125,36 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         employment_type: employeeData.employment_type || 'full_time',
         position: employeeData.position || '',
         segment_id: employeeData.segment_id || '',
-        manager_id: employeeData.manager_id || '',
         notes: employeeData.notes || '',
         requires_clocking: employeeData.requires_clocking || false,
       });
     }
   }, [employeeData]);
+
+  // Load existing managers when editing
+  useEffect(() => {
+    if (existingManagersData && existingManagersData.length > 0) {
+      setEmployeeManagers(
+        existingManagersData.map(m => ({
+          manager_id: m.manager_id,
+          rank: m.rank,
+          manager_name: m.manager_name
+        }))
+      );
+    }
+  }, [existingManagersData]);
+
+  // Mutation pour sauvegarder les managers d'un employé
+  const saveManagers = async (empId: string) => {
+    if (employeeManagers.length > 0) {
+      await apiClient.put(`/hr/employees/${empId}/managers`, {
+        managers: employeeManagers.map(m => ({
+          manager_id: m.manager_id,
+          rank: m.rank
+        }))
+      });
+    }
+  };
 
   // Create mutation
   const createEmployee = useMutation({
@@ -131,7 +162,15 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
       const response = await apiClient.post('/hr/employees', data);
       return (response as any).data as Employee;
     },
-    onSuccess: () => {
+    onSuccess: async (newEmployee) => {
+      // Sauvegarder les managers après création
+      if (employeeManagers.length > 0) {
+        try {
+          await saveManagers(newEmployee.id);
+        } catch (error) {
+          console.error('Erreur lors de la sauvegarde des managers:', error);
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ['hr-employees'] });
       queryClient.invalidateQueries({ queryKey: ['hr-potential-managers'] });
       onClose();
@@ -144,9 +183,16 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
       const response = await apiClient.put(`/hr/employees/${employeeId}`, data);
       return (response as any).data as Employee;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Sauvegarder les managers après mise à jour
+      try {
+        await saveManagers(employeeId!);
+      } catch (error) {
+        console.error('Erreur lors de la sauvegarde des managers:', error);
+      }
       queryClient.invalidateQueries({ queryKey: ['hr-employees'] });
       queryClient.invalidateQueries({ queryKey: ['hr-employee', employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['hr-employee-managers', employeeId] });
       queryClient.invalidateQueries({ queryKey: ['hr-potential-managers'] });
       onClose();
     },
@@ -158,6 +204,12 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     // Validation
     if (!formData.first_name.trim() || !formData.last_name.trim() || !formData.employee_number.trim() || !formData.hire_date) {
       alert('Veuillez remplir tous les champs obligatoires (Matricule, Prénom, Nom, Date d\'embauche)');
+      return;
+    }
+
+    // Validation des managers: si des managers sont définis, le rang 0 (N) est obligatoire
+    if (employeeManagers.length > 0 && !employeeManagers.some(m => m.rank === 0)) {
+      alert('Un manager direct (rang N) est obligatoire');
       return;
     }
 
@@ -528,25 +580,98 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                 </select>
               </div>
 
-              {/* Manager */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Manager
-                </label>
-                <select
-                  value={formData.manager_id}
-                  onChange={(e) => handleChange('manager_id', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Aucun manager</option>
-                  {managers
-                    .filter((m: Employee) => m.id !== employeeId) // Ne pas se sélectionner soi-même
-                    .map((manager: Employee) => (
-                      <option key={manager.id} value={manager.id}>
-                        {manager.first_name} {manager.last_name} - {manager.position || 'N/A'}
-                      </option>
-                    ))}
-                </select>
+              {/* Managers multiples avec rangs */}
+              <div className="md:col-span-3">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <Users className="w-4 h-4 text-blue-600" />
+                    Chaîne hiérarchique
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Trouver le prochain rang disponible
+                      const existingRanks = employeeManagers.map(m => m.rank);
+                      let nextRank = 0;
+                      while (existingRanks.includes(nextRank)) {
+                        nextRank++;
+                      }
+                      setEmployeeManagers([...employeeManagers, { manager_id: '', rank: nextRank }]);
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Ajouter un niveau
+                  </button>
+                </div>
+
+                {employeeManagers.length === 0 ? (
+                  <div className="text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                    <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-500">Aucun manager configuré</p>
+                    <p className="text-xs text-gray-400 mt-1">Cliquez sur "Ajouter un niveau" pour configurer la chaîne hiérarchique</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {employeeManagers
+                      .sort((a, b) => a.rank - b.rank)
+                      .map((entry, index) => (
+                        <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                          {/* Badge du rang */}
+                          <div className="flex-shrink-0 w-16 text-center">
+                            <span className={`inline-block px-2 py-1 text-xs font-semibold rounded ${
+                              entry.rank === 0
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-gray-200 text-gray-700'
+                            }`}>
+                              N{entry.rank === 0 ? '' : `+${entry.rank}`}
+                            </span>
+                          </div>
+
+                          {/* Select du manager */}
+                          <select
+                            value={entry.manager_id}
+                            onChange={(e) => {
+                              const newManagers = [...employeeManagers];
+                              newManagers[index] = { ...entry, manager_id: e.target.value };
+                              setEmployeeManagers(newManagers);
+                            }}
+                            title={`Manager niveau N${entry.rank === 0 ? '' : `+${entry.rank}`}`}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                          >
+                            <option value="">Sélectionner un manager</option>
+                            {managers
+                              .filter((m: Employee) =>
+                                m.id !== employeeId && // Ne pas se sélectionner soi-même
+                                !employeeManagers.some(em => em.manager_id === m.id && em !== entry) // Ne pas avoir le même manager 2 fois
+                              )
+                              .map((manager: Employee) => (
+                                <option key={manager.id} value={manager.id}>
+                                  {manager.first_name} {manager.last_name} - {manager.position || 'N/A'}
+                                </option>
+                              ))}
+                          </select>
+
+                          {/* Bouton supprimer */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEmployeeManagers(employeeManagers.filter((_, i) => i !== index));
+                            }}
+                            className="flex-shrink-0 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer ce niveau"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+
+                    <p className="text-xs text-gray-500 mt-2">
+                      <strong>N</strong> = Manager direct (obligatoire), <strong>N+1</strong> = Supérieur du manager, <strong>N+2, N+3...</strong> = Niveaux supérieurs.
+                      Les demandes suivent cette chaîne séquentiellement.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Date de fin (si terminé) */}

@@ -11,6 +11,46 @@ const getPool = () => new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
+/**
+ * Récupère la chaîne d'approbation d'un employé depuis hr_employee_managers
+ * Retourne les managers dans l'ordre du rang (N=0, N+1=1, N+2=2, ...)
+ */
+async function getApprovalChain(pool, employeeId) {
+  const result = await pool.query(`
+    SELECT
+      em.rank,
+      em.manager_id,
+      m.first_name || ' ' || m.last_name as manager_name,
+      me.id as manager_employee_id,
+      me.profile_id as manager_profile_id
+    FROM hr_employee_managers em
+    JOIN hr_employees m ON em.manager_id = m.id
+    LEFT JOIN hr_employees me ON me.id = em.manager_id
+    WHERE em.employee_id = $1 AND em.is_active = true
+    ORDER BY em.rank ASC
+  `, [employeeId]);
+
+  return result.rows;
+}
+
+/**
+ * Détermine le niveau d'approbation actuel basé sur le status de la demande
+ * et les approbateurs précédents
+ */
+function getCurrentApprovalLevel(request) {
+  // pending = attente N (rang 0)
+  // approved_n1 = attente N+1 (rang 1)
+  // approved_n2 = attente N+2 (rang 2)
+  // etc.
+  if (request.status === 'pending') return 0;
+  if (request.status === 'approved_n1') return 1;
+  if (request.status === 'approved_n2') return 2;
+  // Pour les statuts dynamiques comme approved_n3, approved_n4, etc.
+  const match = request.status?.match(/approved_n(\d+)/);
+  if (match) return parseInt(match[1]);
+  return 0;
+}
+
 // GET /api/hr/requests-validation/pending - Get pending requests for current approver
 router.get('/pending', authenticateToken, requirePermission('hr.leaves.approve'), async (req, res) => {
   const pool = getPool();
@@ -19,7 +59,14 @@ router.get('/pending', authenticateToken, requirePermission('hr.leaves.approve')
     const { type } = req.query;
     const userId = req.user.id;
 
-    // Get pending leave requests
+    // D'abord, trouver l'employé HR correspondant à l'utilisateur connecté
+    const currentEmployeeResult = await pool.query(`
+      SELECT id FROM hr_employees WHERE profile_id = $1
+    `, [userId]);
+
+    const currentEmployeeId = currentEmployeeResult.rows[0]?.id;
+
+    // Get pending leave requests avec informations sur la chaîne d'approbation
     let leaveQuery = `
       SELECT
         lr.id,
@@ -35,21 +82,13 @@ router.get('/pending', authenticateToken, requirePermission('hr.leaves.approve')
         lr.reason as motif,
         lr.status,
         lr.created_at as date_soumission,
-        CASE
-          WHEN lr.status = 'pending' THEN 1
-          WHEN lr.status = 'approved_n1' THEN 2
-          ELSE 1
-        END as etape_actuelle,
-        CASE
-          WHEN lt.requires_n2_approval THEN 2
-          ELSE 1
-        END as etape_totale,
         lr.n1_approver_id,
-        lr.n2_approver_id
+        lr.n2_approver_id,
+        lr.current_approver_level
       FROM hr_leave_requests lr
       JOIN hr_leave_types lt ON lr.leave_type_id = lt.id
       JOIN hr_employees e ON lr.employee_id = e.id
-      WHERE lr.status IN ('pending', 'approved_n1')
+      WHERE lr.status IN ('pending', 'approved_n1', 'approved_n2', 'approved_n3', 'approved_n4', 'approved_n5')
       ORDER BY lr.created_at DESC
     `;
 
@@ -68,9 +107,7 @@ router.get('/pending', authenticateToken, requirePermission('hr.leaves.approve')
         ot.estimated_hours as days_requested,
         ot.reason as motif,
         ot.status,
-        ot.created_at as date_soumission,
-        1 as etape_actuelle,
-        1 as etape_totale
+        ot.created_at as date_soumission
       FROM hr_overtime_requests ot
       JOIN hr_employees e ON ot.employee_id = e.id
       WHERE ot.status = 'pending'
@@ -82,8 +119,56 @@ router.get('/pending', authenticateToken, requirePermission('hr.leaves.approve')
       pool.query(overtimeQuery)
     ]);
 
+    // Pour chaque demande de congé, vérifier si l'utilisateur connecté est le prochain approbateur
+    const filteredLeaveRequests = [];
+    for (const request of leaveResults.rows) {
+      // Récupérer la chaîne d'approbation pour cet employé
+      const approvalChain = await getApprovalChain(pool, request.employee_id);
+      const currentLevel = getCurrentApprovalLevel(request);
+
+      // Trouver le manager actuel dans la chaîne
+      const currentApprover = approvalChain.find(m => m.rank === currentLevel);
+
+      // Vérifier si l'utilisateur connecté est le prochain approbateur
+      const isNextApprover = currentApprover && currentApprover.manager_id === currentEmployeeId;
+
+      // Calculer l'étape actuelle et totale
+      const etapeActuelle = currentLevel + 1;
+      const etapeTotale = approvalChain.length;
+
+      if (isNextApprover || !currentEmployeeId) {
+        // Si pas d'employé HR trouvé pour l'utilisateur, montrer toutes les demandes (admin)
+        filteredLeaveRequests.push({
+          ...request,
+          etape_actuelle: etapeActuelle,
+          etape_totale: etapeTotale,
+          approval_chain: approvalChain,
+          next_approver_name: currentApprover?.manager_name || null,
+          is_next_approver: isNextApprover
+        });
+      }
+    }
+
+    // Pour les heures sup, vérifier aussi la chaîne d'approbation
+    const filteredOvertimeRequests = [];
+    for (const request of overtimeResults.rows) {
+      const approvalChain = await getApprovalChain(pool, request.employee_id);
+      const directManager = approvalChain.find(m => m.rank === 0);
+
+      const isNextApprover = directManager && directManager.manager_id === currentEmployeeId;
+
+      if (isNextApprover || !currentEmployeeId) {
+        filteredOvertimeRequests.push({
+          ...request,
+          etape_actuelle: 1,
+          etape_totale: 1,
+          is_next_approver: isNextApprover
+        });
+      }
+    }
+
     // Combine and filter by type if specified
-    let allRequests = [...leaveResults.rows, ...overtimeResults.rows];
+    let allRequests = [...filteredLeaveRequests, ...filteredOvertimeRequests];
 
     if (type && type !== 'all') {
       allRequests = allRequests.filter(r => r.type_code === type);
