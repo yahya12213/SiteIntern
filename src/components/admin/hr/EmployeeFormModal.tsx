@@ -108,6 +108,15 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     enabled: !!employeeId,
   });
 
+  // Helper to format date for input type="date" (YYYY-MM-DD)
+  const formatDateForInput = (dateValue: string | null | undefined): string => {
+    if (!dateValue) return '';
+    // Handle ISO date strings like "2024-01-15T00:00:00.000Z"
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[0];
+  };
+
   // Load employee data when editing
   useEffect(() => {
     if (employeeData) {
@@ -116,7 +125,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         first_name: employeeData.first_name || '',
         last_name: employeeData.last_name || '',
         cin: employeeData.cin || '',
-        birth_date: employeeData.birth_date || '',
+        birth_date: formatDateForInput(employeeData.birth_date),
         birth_place: employeeData.birth_place || '',
         email: employeeData.email || '',
         phone: employeeData.phone || '',
@@ -125,8 +134,8 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         city: employeeData.city || '',
         emergency_contact_name: employeeData.emergency_contact_name || '',
         emergency_contact_phone: employeeData.emergency_contact_phone || '',
-        hire_date: employeeData.hire_date || '',
-        termination_date: employeeData.termination_date || '',
+        hire_date: formatDateForInput(employeeData.hire_date),
+        termination_date: formatDateForInput(employeeData.termination_date),
         employment_status: employeeData.employment_status || 'active',
         employment_type: employeeData.employment_type || 'full_time',
         position: employeeData.position || '',
