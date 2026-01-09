@@ -264,16 +264,67 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       }
     });
 
+    // Calculate worked minutes for each record (capped to schedule)
+    const recordsWithWorkedMinutes = records.rows.map(r => {
+      if (!r.check_in || !r.check_out) {
+        return {
+          date: r.date,
+          check_in: r.check_in ? new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-',
+          check_out: r.check_out ? new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-',
+          status: r.check_ins > 0 ? 'present' : 'absent',
+          worked_minutes: null
+        };
+      }
+
+      const checkIn = new Date(r.check_in);
+      const checkOut = new Date(r.check_out);
+      const recordDate = new Date(r.date);
+      const dayOfWeek = recordDate.getDay();
+
+      // Get day-specific schedule
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[dayOfWeek];
+      const scheduledStart = schedule[`${dayName}_start`];
+      const scheduledEnd = schedule[`${dayName}_end`];
+
+      let checkInMinutes = checkIn.getHours() * 60 + checkIn.getMinutes();
+      let checkOutMinutes = checkOut.getHours() * 60 + checkOut.getMinutes();
+
+      // Cap to schedule if available
+      if (scheduledStart && scheduledEnd) {
+        const [startH, startM] = scheduledStart.split(':').map(Number);
+        const [endH, endM] = scheduledEnd.split(':').map(Number);
+        const schedStartMinutes = startH * 60 + startM;
+        const schedEndMinutes = endH * 60 + endM;
+
+        if (checkInMinutes < schedStartMinutes) checkInMinutes = schedStartMinutes;
+        if (checkOutMinutes > schedEndMinutes) checkOutMinutes = schedEndMinutes;
+      }
+
+      let workedMinutes = Math.max(0, checkOutMinutes - checkInMinutes);
+
+      // Deduct break time if worked >= 4 hours
+      if (workedMinutes >= 240 && schedule.break_start && schedule.break_end) {
+        const [breakStartH, breakStartM] = schedule.break_start.split(':').map(Number);
+        const [breakEndH, breakEndM] = schedule.break_end.split(':').map(Number);
+        const breakDuration = (breakEndH * 60 + breakEndM) - (breakStartH * 60 + breakStartM);
+        workedMinutes -= Math.max(0, breakDuration);
+      }
+
+      return {
+        date: r.date,
+        check_in: new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        check_out: new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        status: r.check_ins > 0 ? 'present' : 'absent',
+        worked_minutes: Math.max(0, workedMinutes)
+      };
+    });
+
     res.json({
       success: true,
       year: parseInt(targetYear),
       month: parseInt(targetMonth),
-      records: records.rows.map(r => ({
-        date: r.date,
-        check_in: r.check_in ? new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-',
-        check_out: r.check_out ? new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-',
-        status: r.check_ins > 0 ? 'present' : 'absent'
-      })),
+      records: recordsWithWorkedMinutes,
       leaves: leaves.rows,
       holidays: holidays.rows,
       stats: {

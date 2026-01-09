@@ -42,6 +42,7 @@ export interface AttendanceRecord {
   check_in: string;
   check_out: string;
   status: 'present' | 'absent' | 'leave' | 'holiday';
+  worked_minutes?: number | null;
 }
 
 export interface AttendanceStats {

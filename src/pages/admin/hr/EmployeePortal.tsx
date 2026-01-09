@@ -355,12 +355,13 @@ export default function EmployeePortal() {
                         <TableHead>Entree</TableHead>
                         <TableHead>Sortie</TableHead>
                         <TableHead>Statut</TableHead>
+                        <TableHead>Heures travaillees</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {attendanceData?.records?.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                          <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                             Aucun pointage pour cette periode
                           </TableCell>
                         </TableRow>
@@ -383,6 +384,11 @@ export default function EmployeePortal() {
                                  record.status === 'leave' ? 'Conge' :
                                  record.status === 'holiday' ? 'Ferie' : 'Absent'}
                               </Badge>
+                            </TableCell>
+                            <TableCell className="font-medium text-blue-600">
+                              {record.worked_minutes != null
+                                ? `${Math.floor(record.worked_minutes / 60)}h ${(record.worked_minutes % 60).toString().padStart(2, '0')}min`
+                                : '-'}
                             </TableCell>
                           </TableRow>
                         ))
