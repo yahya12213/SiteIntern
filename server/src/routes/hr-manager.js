@@ -64,7 +64,7 @@ router.get('/team',
         ORDER BY e.last_name, e.first_name
       `, [userId]);
 
-      res.json({ success: true, data: team.rows });
+      res.json({ success: true, members: team.rows });
     } catch (error) {
       console.error('Error fetching team:', error);
       res.status(500).json({ success: false, error: error.message });
@@ -118,7 +118,7 @@ router.get('/team-attendance',
       query += ' ORDER BY ar.clock_time DESC';
 
       const result = await pool.query(query, params);
-      res.json({ success: true, data: result.rows });
+      res.json({ success: true, records: result.rows });
     } catch (error) {
       console.error('Error fetching team attendance:', error);
       res.status(500).json({ success: false, error: error.message });
@@ -393,22 +393,26 @@ router.get('/team-stats',
           WHERE e.manager_id = (SELECT id FROM hr_employees WHERE profile_id = $1)
           AND e.employment_status = 'active'
         ),
-        month_attendance AS (
-          SELECT
-            COUNT(DISTINCT DATE(clock_time)) as days_worked,
-            SUM(worked_minutes) as total_worked_minutes,
-            COUNT(CASE WHEN EXTRACT(HOUR FROM clock_time) * 60 + EXTRACT(MINUTE FROM clock_time) > 8 * 60 + 15 THEN 1 END) as late_count
+        today_present AS (
+          SELECT COUNT(DISTINCT employee_id) as count
           FROM hr_attendance_records
           WHERE employee_id IN (SELECT id FROM team)
-          AND DATE(clock_time) >= DATE_TRUNC('month', CURRENT_DATE)
-          AND status = 'check_in'
+          AND DATE(clock_time) = CURRENT_DATE
+          AND status IN ('check_in', 'late', 'weekend')
         ),
-        month_leaves AS (
-          SELECT COALESCE(SUM(days_requested), 0) as leave_days
+        today_on_leave AS (
+          SELECT COUNT(DISTINCT employee_id) as count
           FROM hr_leave_requests
           WHERE employee_id IN (SELECT id FROM team)
           AND status = 'approved'
-          AND start_date >= DATE_TRUNC('month', CURRENT_DATE)
+          AND CURRENT_DATE BETWEEN start_date AND end_date
+        ),
+        month_late AS (
+          SELECT COUNT(*) as count
+          FROM hr_attendance_records
+          WHERE employee_id IN (SELECT id FROM team)
+          AND DATE(clock_time) >= DATE_TRUNC('month', CURRENT_DATE)
+          AND late_minutes > 0
         ),
         pending_requests AS (
           SELECT COUNT(*) as count
@@ -417,16 +421,30 @@ router.get('/team-stats',
           AND status = 'pending'
         )
         SELECT
-          (SELECT COUNT(*) FROM team) as team_size,
-          ma.days_worked,
-          ROUND(ma.total_worked_minutes::numeric / 60, 1) as total_hours_worked,
-          ma.late_count,
-          ml.leave_days,
-          pr.count as pending_requests
-        FROM month_attendance ma, month_leaves ml, pending_requests pr
+          (SELECT COUNT(*) FROM team) as total_members,
+          (SELECT count FROM today_present) as present_today,
+          (SELECT count FROM today_on_leave) as on_leave_today,
+          (SELECT count FROM month_late) as late_count_month,
+          (SELECT count FROM pending_requests) as pending_requests
       `, [userId]);
 
-      res.json({ success: true, data: stats.rows[0] });
+      // Calculate attendance rate
+      const row = stats.rows[0] || { total_members: 0, present_today: 0, on_leave_today: 0, late_count_month: 0, pending_requests: 0 };
+      const totalMembers = parseInt(row.total_members) || 0;
+      const presentToday = parseInt(row.present_today) || 0;
+      const attendanceRate = totalMembers > 0 ? Math.round((presentToday / totalMembers) * 100) : 0;
+
+      res.json({
+        success: true,
+        stats: {
+          total_members: totalMembers,
+          present_today: presentToday,
+          on_leave_today: parseInt(row.on_leave_today) || 0,
+          late_count_month: parseInt(row.late_count_month) || 0,
+          pending_requests: parseInt(row.pending_requests) || 0,
+          attendance_rate: attendanceRate
+        }
+      });
     } catch (error) {
       console.error('Error fetching team stats:', error);
       res.status(500).json({ success: false, error: error.message });
