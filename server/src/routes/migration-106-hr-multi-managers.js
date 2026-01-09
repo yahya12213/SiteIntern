@@ -107,7 +107,7 @@ export async function runMigration106() {
 }
 
 // Route pour exécuter la migration
-router.get('/run', async (req, res) => {
+router.post('/run', async (req, res) => {
   try {
     const result = await runMigration106();
     res.json(result);
