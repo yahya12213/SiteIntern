@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
-import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle } from 'lucide-react';
+import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle, Plus, Trash2, Users } from 'lucide-react';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { apiClient } from '@/lib/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSegments } from '@/hooks/useSegments';
+
+interface ManagerEntry {
+  manager_id: string;
+  rank: number;
+  manager_name?: string;
+}
 
 interface EmployeeFormModalProps {
   employeeId: string | null;

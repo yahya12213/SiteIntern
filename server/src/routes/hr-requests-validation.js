@@ -273,27 +273,95 @@ router.post('/:id/approve', authenticateToken, requirePermission('hr.leaves.appr
     const userId = req.user.id;
 
     if (request_type === 'leave') {
-      // Update leave request
-      await pool.query(`
-        UPDATE hr_leave_requests
-        SET
-          status = 'approved',
-          n1_approver_id = $2,
-          n1_approved_at = NOW(),
-          n1_comment = $3,
-          updated_at = NOW()
-        WHERE id = $1
-      `, [id, userId, comment || '']);
-
-      // Update leave balance
+      // Récupérer la demande actuelle
       const leaveRequest = await pool.query(`
-        SELECT employee_id, leave_type_id, days_requested
-        FROM hr_leave_requests
-        WHERE id = $1
+        SELECT lr.*, e.id as employee_id
+        FROM hr_leave_requests lr
+        JOIN hr_employees e ON lr.employee_id = e.id
+        WHERE lr.id = $1
       `, [id]);
 
-      if (leaveRequest.rows.length > 0) {
-        const { employee_id, leave_type_id, days_requested } = leaveRequest.rows[0];
+      if (leaveRequest.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Demande non trouvée' });
+      }
+
+      const request = leaveRequest.rows[0];
+      const currentLevel = getCurrentApprovalLevel(request);
+
+      // Récupérer la chaîne d'approbation
+      const approvalChain = await getApprovalChain(pool, request.employee_id);
+
+      // Vérifier s'il y a un niveau suivant
+      const nextLevel = currentLevel + 1;
+      const hasNextApprover = approvalChain.some(m => m.rank === nextLevel);
+
+      let newStatus;
+      let updateFields;
+
+      if (hasNextApprover) {
+        // Passer au niveau suivant (approved_n1, approved_n2, etc.)
+        newStatus = `approved_n${nextLevel}`;
+        updateFields = `
+          status = '${newStatus}',
+          current_approver_level = '${nextLevel}',
+          updated_at = NOW()
+        `;
+
+        // Enregistrer l'approbation du niveau actuel
+        if (currentLevel === 0) {
+          updateFields = `
+            status = '${newStatus}',
+            current_approver_level = '${nextLevel}',
+            n1_approver_id = $2,
+            n1_approved_at = NOW(),
+            n1_comment = $3,
+            updated_at = NOW()
+          `;
+        } else if (currentLevel === 1) {
+          updateFields = `
+            status = '${newStatus}',
+            current_approver_level = '${nextLevel}',
+            n2_approver_id = $2,
+            n2_approved_at = NOW(),
+            n2_comment = $3,
+            updated_at = NOW()
+          `;
+        }
+      } else {
+        // C'est le dernier niveau - approbation finale
+        newStatus = 'approved';
+        if (currentLevel === 0) {
+          updateFields = `
+            status = 'approved',
+            current_approver_level = 'completed',
+            n1_approver_id = $2,
+            n1_approved_at = NOW(),
+            n1_comment = $3,
+            updated_at = NOW()
+          `;
+        } else if (currentLevel === 1) {
+          updateFields = `
+            status = 'approved',
+            current_approver_level = 'completed',
+            n2_approver_id = $2,
+            n2_approved_at = NOW(),
+            n2_comment = $3,
+            updated_at = NOW()
+          `;
+        } else {
+          // Pour les niveaux supérieurs, mettre à jour le HR approver
+          updateFields = `
+            status = 'approved',
+            current_approver_level = 'completed',
+            hr_approver_id = $2,
+            hr_approved_at = NOW(),
+            hr_comment = $3,
+            updated_at = NOW()
+          `;
+        }
+
+        // Update leave balance seulement si c'est l'approbation finale
+        const { employee_id, leave_type_id, days_requested } = request;
         await pool.query(`
           UPDATE hr_leave_balances
           SET taken = taken + $3, updated_at = NOW()
@@ -301,8 +369,23 @@ router.post('/:id/approve', authenticateToken, requirePermission('hr.leaves.appr
         `, [employee_id, leave_type_id, days_requested]);
       }
 
+      await pool.query(`
+        UPDATE hr_leave_requests
+        SET ${updateFields}
+        WHERE id = $1
+      `, [id, userId, comment || '']);
+
+      res.json({
+        success: true,
+        message: hasNextApprover
+          ? `Demande approuvée. En attente de validation niveau N+${nextLevel}`
+          : 'Demande approuvée définitivement',
+        next_level: hasNextApprover ? nextLevel : null,
+        is_final: !hasNextApprover
+      });
+
     } else if (request_type === 'overtime') {
-      // Update overtime request
+      // Pour les heures sup, une seule approbation suffit (manager direct)
       await pool.query(`
         UPDATE hr_overtime_requests
         SET
@@ -313,12 +396,17 @@ router.post('/:id/approve', authenticateToken, requirePermission('hr.leaves.appr
           updated_at = NOW()
         WHERE id = $1
       `, [id, userId, comment || '']);
-    }
 
-    res.json({
-      success: true,
-      message: 'Demande approuvee avec succes'
-    });
+      res.json({
+        success: true,
+        message: 'Demande d\'heures supplémentaires approuvée'
+      });
+    } else {
+      res.json({
+        success: true,
+        message: 'Demande approuvee avec succes'
+      });
+    }
 
   } catch (error) {
     console.error('Error in approve:', error);
