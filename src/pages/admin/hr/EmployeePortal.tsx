@@ -35,6 +35,8 @@ import {
   LogOut,
   Download,
   Loader2,
+  FileEdit,
+  X,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -45,6 +47,8 @@ import {
   useCheckIn,
   useCheckOut,
 } from '@/hooks/useEmployeePortal';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api/client';
 
 // Tabs
 type TabType = 'pointage' | 'demandes';
@@ -70,6 +74,7 @@ const MOIS = [
 
 export default function EmployeePortal() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('pointage');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString());
@@ -79,6 +84,15 @@ export default function EmployeePortal() {
     date_debut: '',
     date_fin: '',
     description: '',
+  });
+
+  // State pour la modale de correction de pointage
+  const [showCorrectionModal, setShowCorrectionModal] = useState(false);
+  const [correctionData, setCorrectionData] = useState({
+    date: '',
+    check_in: '',
+    check_out: '',
+    reason: '',
   });
 
   // Queries
@@ -93,6 +107,65 @@ export default function EmployeePortal() {
   const checkInMutation = useCheckIn();
   const checkOutMutation = useCheckOut();
   const createRequestMutation = useCreateRequest();
+
+  // Mutation pour demande de correction de pointage
+  const correctionMutation = useMutation({
+    mutationFn: async (data: { request_date: string; requested_check_in: string; requested_check_out: string; reason: string }) => {
+      const response = await apiClient.post('/hr/my/correction-requests', data);
+      return (response as any).data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee-attendance'] });
+      setShowCorrectionModal(false);
+      setCorrectionData({ date: '', check_in: '', check_out: '', reason: '' });
+      toast({
+        title: 'Demande soumise',
+        description: 'Votre demande de correction a ete soumise avec succes.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erreur',
+        description: error.response?.data?.error || 'Erreur lors de la soumission',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const handleOpenCorrectionModal = (date: string, existingCheckIn?: string, existingCheckOut?: string) => {
+    setCorrectionData({
+      date,
+      check_in: existingCheckIn || '',
+      check_out: existingCheckOut || '',
+      reason: '',
+    });
+    setShowCorrectionModal(true);
+  };
+
+  const handleSubmitCorrection = () => {
+    if (!correctionData.reason.trim()) {
+      toast({
+        title: 'Motif requis',
+        description: 'Veuillez indiquer le motif de votre demande',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!correctionData.check_in && !correctionData.check_out) {
+      toast({
+        title: 'Heure requise',
+        description: 'Veuillez indiquer au moins une heure (entree ou sortie)',
+        variant: 'destructive',
+      });
+      return;
+    }
+    correctionMutation.mutate({
+      request_date: correctionData.date,
+      requested_check_in: correctionData.check_in,
+      requested_check_out: correctionData.check_out,
+      reason: correctionData.reason,
+    });
+  };
 
   const handleCheckIn = async () => {
     try {
@@ -332,6 +405,7 @@ export default function EmployeePortal() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="2026">2026</SelectItem>
                       <SelectItem value="2025">2025</SelectItem>
                       <SelectItem value="2024">2024</SelectItem>
                     </SelectContent>
@@ -356,42 +430,65 @@ export default function EmployeePortal() {
                         <TableHead>Sortie</TableHead>
                         <TableHead>Statut</TableHead>
                         <TableHead>Heures travaillees</TableHead>
+                        <TableHead>Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {attendanceData?.records?.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                          <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                             Aucun pointage pour cette periode
                           </TableCell>
                         </TableRow>
                       ) : (
-                        attendanceData?.records?.map((record, idx) => (
-                          <TableRow key={idx}>
-                            <TableCell className="font-medium">
-                              {new Date(record.date).toLocaleDateString('fr-FR')}
-                            </TableCell>
-                            <TableCell>{record.check_in}</TableCell>
-                            <TableCell>{record.check_out}</TableCell>
-                            <TableCell>
-                              <Badge className={
-                                record.status === 'present' ? 'bg-green-100 text-green-800' :
-                                record.status === 'leave' ? 'bg-blue-100 text-blue-800' :
-                                record.status === 'holiday' ? 'bg-purple-100 text-purple-800' :
-                                'bg-red-100 text-red-800'
-                              }>
-                                {record.status === 'present' ? 'Present' :
-                                 record.status === 'leave' ? 'Conge' :
-                                 record.status === 'holiday' ? 'Ferie' : 'Absent'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="font-medium text-blue-600">
-                              {record.worked_minutes != null
-                                ? `${Math.floor(record.worked_minutes / 60)}h ${(record.worked_minutes % 60).toString().padStart(2, '0')}min`
-                                : '-'}
-                            </TableCell>
-                          </TableRow>
-                        ))
+                        attendanceData?.records?.map((record, idx) => {
+                          // Detecter si c'est un pointage incomplet (anomalie)
+                          const hasAnomaly = record.status === 'absent' && (record.check_in === '-' || record.check_out === '-');
+
+                          return (
+                            <TableRow key={idx}>
+                              <TableCell className="font-medium">
+                                {new Date(record.date).toLocaleDateString('fr-FR')}
+                              </TableCell>
+                              <TableCell>{record.check_in}</TableCell>
+                              <TableCell>{record.check_out}</TableCell>
+                              <TableCell>
+                                <Badge className={
+                                  record.status === 'present' ? 'bg-green-100 text-green-800' :
+                                  record.status === 'leave' ? 'bg-blue-100 text-blue-800' :
+                                  record.status === 'holiday' ? 'bg-purple-100 text-purple-800' :
+                                  'bg-red-100 text-red-800'
+                                }>
+                                  {record.status === 'present' ? 'Present' :
+                                   record.status === 'leave' ? 'Conge' :
+                                   record.status === 'holiday' ? 'Ferie' : 'Absent'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="font-medium text-blue-600">
+                                {record.worked_minutes != null
+                                  ? `${Math.floor(record.worked_minutes / 60)}h ${(record.worked_minutes % 60).toString().padStart(2, '0')}min`
+                                  : '-'}
+                              </TableCell>
+                              <TableCell>
+                                {hasAnomaly && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                                    onClick={() => handleOpenCorrectionModal(
+                                      record.date,
+                                      record.check_in !== '-' ? record.check_in : '',
+                                      record.check_out !== '-' ? record.check_out : ''
+                                    )}
+                                  >
+                                    <FileEdit className="h-3 w-3 mr-1" />
+                                    Demande
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                       )}
                     </TableBody>
                   </Table>
@@ -575,6 +672,79 @@ export default function EmployeePortal() {
                 disabled={createRequestMutation.isPending}
               >
                 {createRequestMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Soumettre
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal demande de correction de pointage */}
+        <Dialog open={showCorrectionModal} onOpenChange={setShowCorrectionModal}>
+          <DialogContent className="w-[95vw] sm:w-[450px] max-w-[95vw]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileEdit className="h-5 w-5 text-blue-600" />
+                Demande de correction de pointage
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input
+                  type="text"
+                  value={correctionData.date ? new Date(correctionData.date).toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  }) : ''}
+                  disabled
+                  className="bg-gray-100"
+                />
+              </div>
+
+              <div className="grid gap-4 grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Heure d'entree</Label>
+                  <Input
+                    type="time"
+                    value={correctionData.check_in}
+                    onChange={e => setCorrectionData({ ...correctionData, check_in: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Heure de sortie</Label>
+                  <Input
+                    type="time"
+                    value={correctionData.check_out}
+                    onChange={e => setCorrectionData({ ...correctionData, check_out: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Motif *</Label>
+                <Textarea
+                  value={correctionData.reason}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCorrectionData({ ...correctionData, reason: e.target.value })}
+                  placeholder="Expliquez la raison de cette demande de correction..."
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCorrectionModal(false)}>
+                Annuler
+              </Button>
+              <Button
+                onClick={handleSubmitCorrection}
+                disabled={correctionMutation.isPending || !correctionData.reason.trim() || (!correctionData.check_in && !correctionData.check_out)}
+              >
+                {correctionMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : null}
                 Soumettre
