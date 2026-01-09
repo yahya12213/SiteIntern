@@ -213,8 +213,18 @@ router.put('/:id',
       return res.status(400).json({ success: false, error: 'No fields to update' });
     }
 
+    // Champs de type date qui doivent être null si vides
+    const dateFields = ['birth_date', 'hire_date', 'termination_date', 'start_date', 'end_date', 'trial_period_end'];
+
     const setClause = fields.map((field, i) => `${field} = $${i + 2}`).join(', ');
-    const values = fields.map(f => updates[f]);
+    const values = fields.map(f => {
+      const val = updates[f];
+      // Convertir les chaînes vides en null pour les champs date
+      if (dateFields.includes(f) && val === '') {
+        return null;
+      }
+      return val;
+    });
 
     const result = await pool.query(
       `UPDATE hr_employees SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`,

@@ -170,6 +170,7 @@ import migration101Router from './routes/migration-101-remove-certificate-number
 import migration102Router from './routes/migration-102-hr-payroll.js';
 import migration103Router from './routes/migration-103-hr-delegation.js';
 import migration104Router from './routes/migration-104-fix-hr-schedules-constraints.js';
+import migration105Router from './routes/migration-105-assign-team-manager.js';
 import debugTemplateDateformatRouter from './routes/debug-template-dateformat.js';
 import visitsRouter from './routes/visits.js';
 import googleOAuthRouter from './routes/google-oauth.js';
