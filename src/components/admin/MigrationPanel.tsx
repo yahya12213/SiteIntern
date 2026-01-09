@@ -353,6 +353,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 104: Fix Création Horaires RH',
     description: '🔧 FIX CRITIQUE: Rend les colonnes start_time et end_time nullable dans hr_work_schedules - Corrige erreur "Erreur lors de la sauvegarde de l\'horaire"',
     endpoint: '/migration-104-fix-hr-schedules-constraints'
+  },
+  {
+    id: 'migration-106',
+    name: 'Migration 106: Multi-Managers RH',
+    description: '👥 Système multi-managers pour employés RH - Table hr_employee_managers avec rangs (N, N+1, N+2...), validation séquentielle des demandes',
+    endpoint: '/migration-106-hr-multi-managers'
   }
 ];
 
