@@ -215,12 +215,14 @@ router.put('/:id',
 
     // Champs de type date qui doivent être null si vides
     const dateFields = ['birth_date', 'hire_date', 'termination_date', 'start_date', 'end_date', 'trial_period_end'];
+    // Champs de type UUID/foreign key qui doivent être null si vides
+    const fkFields = ['segment_id', 'ville_id', 'manager_id', 'department_id', 'user_id'];
 
     const setClause = fields.map((field, i) => `${field} = $${i + 2}`).join(', ');
     const values = fields.map(f => {
       const val = updates[f];
-      // Convertir les chaînes vides en null pour les champs date
-      if (dateFields.includes(f) && val === '') {
+      // Convertir les chaînes vides en null pour les champs date et FK
+      if ((dateFields.includes(f) || fkFields.includes(f)) && val === '') {
         return null;
       }
       return val;
