@@ -347,6 +347,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Fix: Corriger Format de Date dans Templates',
     description: '📅 FIX DATE: Applique le format "En lettres" (01 Janvier 2026) à tous les éléments de date dans tous les templates de certificats',
     endpoint: '/debug-template-dateformat/fix-all'
+  },
+  {
+    id: 'migration-104',
+    name: 'Migration 104: Fix Création Horaires RH',
+    description: '🔧 FIX CRITIQUE: Rend les colonnes start_time et end_time nullable dans hr_work_schedules - Corrige erreur "Erreur lors de la sauvegarde de l\'horaire"',
+    endpoint: '/migration-104-fix-hr-schedules-constraints'
   }
 ];
 
