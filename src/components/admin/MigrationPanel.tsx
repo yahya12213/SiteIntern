@@ -359,6 +359,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 106: Multi-Managers RH',
     description: '👥 Système multi-managers pour employés RH - Table hr_employee_managers avec rangs (N, N+1, N+2...), validation séquentielle des demandes',
     endpoint: '/migration-106-hr-multi-managers'
+  },
+  {
+    id: 'migration-107',
+    name: 'Migration 107: Demandes de Correction Pointage',
+    description: '📝 Table hr_attendance_correction_requests - Permet aux employés de demander des corrections de pointage avec validation multi-niveaux (N -> N+1 -> N+2...)',
+    endpoint: '/migration-107-hr-correction-requests'
   }
 ];
 

@@ -1,8 +1,131 @@
 import { useState } from 'react';
-import { Clock, LogIn, LogOut, Calendar, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+import { Clock, LogIn, LogOut, Calendar, TrendingUp, AlertCircle, CheckCircle, FileEdit, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import { AppLayout } from '@/components/layout/AppLayout';
+
+// Modale de demande de correction de pointage
+interface CorrectionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  date: string;
+  onSubmit: (data: { request_date: string; requested_check_in: string; requested_check_out: string; reason: string }) => void;
+  isSubmitting: boolean;
+}
+
+function CorrectionModal({ isOpen, onClose, date, onSubmit, isSubmitting }: CorrectionModalProps) {
+  const [checkIn, setCheckIn] = useState('');
+  const [checkOut, setCheckOut] = useState('');
+  const [reason, setReason] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      request_date: date,
+      requested_check_in: checkIn || '',
+      requested_check_out: checkOut || '',
+      reason
+    });
+  };
+
+  const formatDateDisplay = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+        <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <FileEdit className="h-5 w-5 text-blue-600" />
+              Demande de pointage
+            </h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <input
+                type="text"
+                value={formatDateDisplay(date)}
+                disabled
+                className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-gray-600"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Heure d'entree
+                </label>
+                <input
+                  type="time"
+                  value={checkIn}
+                  onChange={(e) => setCheckIn(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Heure de sortie
+                </label>
+                <input
+                  type="time"
+                  value={checkOut}
+                  onChange={(e) => setCheckOut(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Motif <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                required
+                rows={3}
+                placeholder="Expliquez la raison de cette demande de correction..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || !reason.trim() || (!checkIn && !checkOut)}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Envoi...' : 'Soumettre'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface ClockRecord {
   id: string;
@@ -32,6 +155,8 @@ interface DayRecord {
 function Clocking() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [correctionModalOpen, setCorrectionModalOpen] = useState(false);
+  const [selectedDateForCorrection, setSelectedDateForCorrection] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Get today's status
@@ -89,6 +214,28 @@ function Clocking() {
       alert(error.response?.data?.error || 'Erreur lors de l\'enregistrement de la sortie');
     }
   });
+
+  // Mutation pour soumettre une demande de correction
+  const correctionMutation = useMutation({
+    mutationFn: async (data: { request_date: string; requested_check_in: string; requested_check_out: string; reason: string }) => {
+      const response = await apiClient.post('/hr/my/correction-requests', data);
+      return (response as any).data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clocking-history'] });
+      setCorrectionModalOpen(false);
+      setSelectedDateForCorrection(null);
+      alert('Demande de correction soumise avec succes !');
+    },
+    onError: (error: any) => {
+      alert(error.response?.data?.error || 'Erreur lors de la soumission de la demande');
+    }
+  });
+
+  const handleOpenCorrectionModal = (date: string) => {
+    setSelectedDateForCorrection(date);
+    setCorrectionModalOpen(true);
+  };
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -326,11 +473,22 @@ function Clocking() {
                       <div className="font-semibold text-gray-900">
                         {formatDate(day.date)}
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
                         {day.has_anomaly && (
-                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">
-                            ⚠️ Anomalie
-                          </span>
+                          <>
+                            <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">
+                              Anomalie
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCorrectionModal(day.date)}
+                              className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full font-medium transition-colors"
+                              title="Soumettre une demande de correction de pointage"
+                            >
+                              <FileEdit className="h-3 w-3" />
+                              Demande de pointage
+                            </button>
+                          </>
                         )}
                         <div className="text-sm font-bold text-blue-600">
                           {formatWorkedTime(day.worked_minutes)}
@@ -368,6 +526,20 @@ function Clocking() {
           </div>
         </div>
       </div>
+
+      {/* Modale de demande de correction */}
+      {selectedDateForCorrection && (
+        <CorrectionModal
+          isOpen={correctionModalOpen}
+          onClose={() => {
+            setCorrectionModalOpen(false);
+            setSelectedDateForCorrection(null);
+          }}
+          date={selectedDateForCorrection}
+          onSubmit={(data) => correctionMutation.mutate(data)}
+          isSubmitting={correctionMutation.isPending}
+        />
+      )}
     </AppLayout>
   );
 }

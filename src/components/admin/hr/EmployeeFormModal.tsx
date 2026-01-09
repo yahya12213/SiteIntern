@@ -257,10 +257,12 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">
-                {isEdit ? 'Modifier l\'employé' : 'Nouvel employé'}
+                {isEdit
+                  ? `${employeeData?.first_name || ''} ${employeeData?.last_name || ''}`.trim() || 'Modifier l\'employé'
+                  : 'Nouvel employé'}
               </h2>
               <p className="text-sm text-gray-500">
-                {isEdit ? 'Modifiez les informations de l\'employé' : 'Ajoutez un nouvel employé au système RH'}
+                {isEdit ? 'Modifier les informations de l\'employé' : 'Ajoutez un nouvel employé au système RH'}
               </p>
             </div>
           </div>
