@@ -342,8 +342,8 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       if (!r.check_in || !r.check_out) {
         return {
           date: r.date,
-          check_in: r.check_in ? new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-',
-          check_out: r.check_out ? new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-',
+          check_in: r.check_in ? new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }) : '-',
+          check_out: r.check_out ? new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }) : '-',
           status: r.check_ins > 0 ? 'present' : 'absent',
           worked_minutes: null,
           has_anomaly: hasAnomaly,
@@ -388,8 +388,8 @@ router.get('/attendance', authenticateToken, async (req, res) => {
 
       return {
         date: r.date,
-        check_in: new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        check_out: new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        check_in: new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }),
+        check_out: new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }),
         status: r.check_ins > 0 ? 'present' : 'absent',
         worked_minutes: Math.max(0, workedMinutes),
         has_anomaly: hasAnomaly,
