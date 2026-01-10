@@ -864,4 +864,62 @@ router.get('/my-records', authenticateToken, async (req, res) => {
   }
 });
 
+// DELETE /api/hr/clocking/admin/delete - Supprimer les pointages d'un employe pour une date (admin only)
+router.delete('/admin/delete', authenticateToken, async (req, res) => {
+  const pool = getPool();
+
+  try {
+    const { employee_id, date } = req.query;
+
+    if (!employee_id || !date) {
+      return res.status(400).json({
+        success: false,
+        error: 'employee_id et date sont requis'
+      });
+    }
+
+    // Verifier que l'utilisateur a les droits admin
+    const adminCheck = await pool.query(`
+      SELECT 1 FROM profiles p
+      INNER JOIN user_roles ur ON p.id = ur.user_id
+      INNER JOIN role_permissions rp ON ur.role_id = rp.role_id
+      INNER JOIN permissions perm ON rp.permission_id = perm.id
+      WHERE p.id = $1 AND perm.code IN ('hr.admin', 'hr.attendance.manage', 'admin')
+      LIMIT 1
+    `, [req.user.id]);
+
+    if (adminCheck.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'Permission refusee - Droits admin requis'
+      });
+    }
+
+    // Supprimer les pointages pour cette date
+    const deleteResult = await pool.query(`
+      DELETE FROM hr_attendance_records
+      WHERE employee_id = $1 AND DATE(clock_time) = $2
+      RETURNING id
+    `, [employee_id, date]);
+
+    const deletedCount = deleteResult.rowCount;
+
+    res.json({
+      success: true,
+      message: `${deletedCount} pointage(s) supprime(s) pour le ${date}`,
+      deleted_count: deletedCount
+    });
+
+  } catch (error) {
+    console.error('Error deleting attendance records:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la suppression',
+      details: error.message
+    });
+  } finally {
+    await pool.end();
+  }
+});
+
 export default router;

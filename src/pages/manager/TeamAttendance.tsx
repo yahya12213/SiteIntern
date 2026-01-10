@@ -19,7 +19,8 @@ import {
   TrendingUp,
   ChevronLeft,
   ChevronRight,
-  Eye
+  Eye,
+  Trash2
 } from 'lucide-react';
 import { format, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -62,6 +63,8 @@ import {
 } from '@/components/ui/tooltip';
 
 import { useTeam, useTeamAttendance, useTeamStats, useExportTeamAttendance } from '@/hooks/useManagerTeam';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api/client';
 import type { TeamAttendanceRecord } from '@/lib/api/manager';
 
 // ============================================================
@@ -204,6 +207,7 @@ function AttendanceDetailModal({ record, open, onOpenChange }: AttendanceDetailM
 
 export default function TeamAttendance() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Date state
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -211,6 +215,27 @@ export default function TeamAttendance() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [detailRecord, setDetailRecord] = useState<TeamAttendanceRecord | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ employeeId: string; date: string; name: string } | null>(null);
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async ({ employeeId, date }: { employeeId: string; date: string }) => {
+      const response = await apiClient.delete(`/hr/clocking/admin/delete?employee_id=${employeeId}&date=${date}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-attendance'] });
+      toast({ title: 'Succes', description: 'Pointage(s) supprime(s)' });
+      setDeleteConfirm(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erreur',
+        description: error.response?.data?.error || 'Erreur lors de la suppression',
+        variant: 'destructive'
+      });
+    }
+  });
 
   // Computed date range
   const dateRange = useMemo(() => {
@@ -548,13 +573,27 @@ export default function TeamAttendance() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleViewDetail(record)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleViewDetail(record)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => setDeleteConfirm({
+                              employeeId: record.employee_id,
+                              date: record.date,
+                              name: record.employee_name
+                            })}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -571,6 +610,46 @@ export default function TeamAttendance() {
         open={detailModalOpen}
         onOpenChange={setDetailModalOpen}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              Confirmer la suppression
+            </DialogTitle>
+            <DialogDescription>
+              Voulez-vous vraiment supprimer les pointages de{' '}
+              <strong>{deleteConfirm?.name}</strong> pour le{' '}
+              <strong>{deleteConfirm?.date ? format(parseISO(deleteConfirm.date), 'd MMMM yyyy', { locale: fr }) : ''}</strong> ?
+              <br />
+              <span className="text-red-500 text-sm mt-2 block">
+                Cette action est irreversible.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (deleteConfirm) {
+                  deleteMutation.mutate({
+                    employeeId: deleteConfirm.employeeId,
+                    date: deleteConfirm.date
+                  });
+                }
+              }}
+            >
+              {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
