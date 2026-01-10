@@ -123,9 +123,9 @@ router.get('/attendance', authenticateToken, async (req, res) => {
         SELECT
           attendance_date as date,
           MIN(CASE WHEN status IN ('check_in', 'late', 'weekend') THEN clock_time END) as check_in,
-          MAX(CASE WHEN status = 'check_out' THEN clock_time END) as check_out,
+          MAX(CASE WHEN status IN ('check_out', 'weekend') THEN clock_time END) as check_out,
           COUNT(CASE WHEN status IN ('check_in', 'late', 'weekend') THEN 1 END) as check_ins,
-          COUNT(CASE WHEN status = 'check_out' THEN 1 END) as check_outs
+          COUNT(CASE WHEN status IN ('check_out', 'weekend') THEN 1 END) as check_outs
         FROM hr_attendance_records
         WHERE employee_id = $1
           AND EXTRACT(YEAR FROM attendance_date) = $2
