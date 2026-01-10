@@ -37,6 +37,15 @@ export interface Contract {
   working_hours_per_week: number;
 }
 
+export interface CorrectionRequestInfo {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  requested_check_in: string | null;
+  requested_check_out: string | null;
+  reason: string;
+  created_at: string;
+}
+
 export interface AttendanceRecord {
   date: string;
   check_in: string;
@@ -44,6 +53,7 @@ export interface AttendanceRecord {
   status: 'present' | 'absent' | 'leave' | 'holiday';
   worked_minutes?: number | null;
   has_anomaly?: boolean;
+  correction_request?: CorrectionRequestInfo | null;
 }
 
 export interface AttendanceStats {

@@ -48,6 +48,36 @@ import {
 } from '@/hooks/useEmployeePortal';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
+import type { CorrectionRequestInfo } from '@/lib/api/employee-portal';
+
+// Badge de statut de correction de pointage
+function CorrectionStatusBadge({ correction }: { correction: CorrectionRequestInfo }) {
+  const statusConfig = {
+    pending: {
+      label: 'Correction en attente',
+      className: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    },
+    approved: {
+      label: 'Correction approuvee',
+      className: 'bg-green-100 text-green-800 border-green-300',
+    },
+    rejected: {
+      label: 'Correction refusee',
+      className: 'bg-red-100 text-red-800 border-red-300',
+    }
+  };
+
+  const config = statusConfig[correction.status] || statusConfig.pending;
+
+  return (
+    <span
+      className={`inline-flex items-center text-xs px-2 py-1 rounded-full font-medium border ${config.className}`}
+      title={`Motif: ${correction.reason}`}
+    >
+      {config.label}
+    </span>
+  );
+}
 
 // Tabs
 type TabType = 'pointage' | 'demandes';
@@ -469,7 +499,9 @@ export default function EmployeePortal() {
                                   : '-'}
                               </TableCell>
                               <TableCell>
-                                {hasAnomaly && (
+                                {record.correction_request ? (
+                                  <CorrectionStatusBadge correction={record.correction_request} />
+                                ) : hasAnomaly && (
                                   <Button
                                     variant="outline"
                                     size="sm"

@@ -264,15 +264,52 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       }
     });
 
+    // Get correction requests for this employee in the month
+    let correctionRequests = [];
+    try {
+      const correctionResult = await pool.query(`
+        SELECT id, request_date, requested_check_in, requested_check_out, reason, status, created_at
+        FROM hr_attendance_correction_requests
+        WHERE employee_id = $1
+          AND EXTRACT(YEAR FROM request_date) = $2
+          AND EXTRACT(MONTH FROM request_date) = $3
+      `, [employee.id, targetYear, targetMonth]);
+      correctionRequests = correctionResult.rows;
+    } catch (err) {
+      console.log('Warning: Could not fetch correction requests:', err.message);
+    }
+
+    // Create a map of correction requests by date
+    const correctionsByDate = {};
+    correctionRequests.forEach(cr => {
+      const dateKey = cr.request_date instanceof Date
+        ? cr.request_date.toISOString().split('T')[0]
+        : cr.request_date;
+      correctionsByDate[dateKey] = {
+        id: cr.id,
+        status: cr.status,
+        requested_check_in: cr.requested_check_in,
+        requested_check_out: cr.requested_check_out,
+        reason: cr.reason,
+        created_at: cr.created_at
+      };
+    });
+
     // Calculate worked minutes for each record (capped to schedule)
     const recordsWithWorkedMinutes = records.rows.map(r => {
+      const dateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : r.date;
+      const correctionRequest = correctionsByDate[dateStr] || null;
+      const hasAnomaly = r.check_ins > 0 && (!r.check_out || r.check_outs === 0);
+
       if (!r.check_in || !r.check_out) {
         return {
           date: r.date,
           check_in: r.check_in ? new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-',
           check_out: r.check_out ? new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-',
           status: r.check_ins > 0 ? 'present' : 'absent',
-          worked_minutes: null
+          worked_minutes: null,
+          has_anomaly: hasAnomaly,
+          correction_request: correctionRequest
         };
       }
 
@@ -316,7 +353,9 @@ router.get('/attendance', authenticateToken, async (req, res) => {
         check_in: new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         check_out: new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         status: r.check_ins > 0 ? 'present' : 'absent',
-        worked_minutes: Math.max(0, workedMinutes)
+        worked_minutes: Math.max(0, workedMinutes),
+        has_anomaly: hasAnomaly,
+        correction_request: correctionRequest
       };
     });
 
