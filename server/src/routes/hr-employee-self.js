@@ -43,13 +43,14 @@ router.get('/profile',
 );
 
 /**
- * Get my leave requests
+ * Get my requests (leave + correction)
+ * Unified endpoint that returns all request types
  */
 router.get('/requests',
   authenticateToken,
   async (req, res) => {
     const userId = req.user.id;
-    const { status, year } = req.query;
+    const { status, year, type } = req.query;
 
     try {
       // Get employee ID
@@ -64,34 +65,78 @@ router.get('/requests',
 
       const employeeId = employee.rows[0].id;
 
+      // Build unified query with UNION ALL for all request types
       let query = `
-        SELECT
-          lr.*,
-          lt.name as leave_type_name,
-          lt.color as leave_type_color,
-          lt.requires_justification,
-          p.first_name || ' ' || p.last_name as approved_by_name
-        FROM hr_leave_requests lr
-        LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
-        LEFT JOIN profiles p ON p.id = lr.approved_by
-        WHERE lr.employee_id = $1
+        WITH all_requests AS (
+          -- Leave requests
+          SELECT
+            lr.id,
+            'leave' as request_type,
+            lt.name as request_subtype,
+            lr.start_date,
+            lr.end_date,
+            lr.days_requested as duration_days,
+            NULL::numeric as duration_hours,
+            lr.reason,
+            lr.status,
+            lr.created_at,
+            lr.updated_at,
+            lt.name as leave_type_name,
+            lt.color as leave_type_color,
+            lt.requires_justification,
+            p.full_name as approved_by_name
+          FROM hr_leave_requests lr
+          LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
+          LEFT JOIN profiles p ON p.id = lr.approved_by
+          WHERE lr.employee_id = $1
+
+          UNION ALL
+
+          -- Correction requests
+          SELECT
+            cr.id,
+            'correction' as request_type,
+            'Correction pointage' as request_subtype,
+            cr.request_date as start_date,
+            cr.request_date as end_date,
+            NULL as duration_days,
+            NULL as duration_hours,
+            cr.reason,
+            cr.status,
+            cr.created_at,
+            cr.updated_at,
+            NULL as leave_type_name,
+            NULL as leave_type_color,
+            false as requires_justification,
+            NULL as approved_by_name
+          FROM hr_attendance_correction_requests cr
+          WHERE cr.employee_id = $1
+        )
+        SELECT * FROM all_requests
+        WHERE 1=1
       `;
       const params = [employeeId];
       let paramCount = 2;
 
       if (status) {
-        query += ` AND lr.status = $${paramCount}`;
+        query += ` AND status = $${paramCount}`;
         params.push(status);
         paramCount++;
       }
 
       if (year) {
-        query += ` AND EXTRACT(YEAR FROM lr.start_date) = $${paramCount}`;
+        query += ` AND EXTRACT(YEAR FROM start_date) = $${paramCount}`;
         params.push(parseInt(year));
         paramCount++;
       }
 
-      query += ' ORDER BY lr.created_at DESC';
+      if (type) {
+        query += ` AND request_type = $${paramCount}`;
+        params.push(type);
+        paramCount++;
+      }
+
+      query += ' ORDER BY created_at DESC';
 
       const result = await pool.query(query, params);
       res.json({ success: true, data: result.rows });
