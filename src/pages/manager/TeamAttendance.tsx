@@ -220,7 +220,9 @@ export default function TeamAttendance() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async ({ employeeId, date }: { employeeId: string; date: string }) => {
-      const response = await apiClient.delete(`/hr/clocking/admin/delete?employee_id=${employeeId}&date=${date}`);
+      // Format date to yyyy-MM-dd (remove time part if present)
+      const formattedDate = date.includes('T') ? date.split('T')[0] : date;
+      const response = await apiClient.delete(`/hr/clocking/admin/delete?employee_id=${employeeId}&date=${formattedDate}`);
       return response;
     },
     onSuccess: () => {

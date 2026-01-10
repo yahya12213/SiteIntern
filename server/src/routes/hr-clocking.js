@@ -878,21 +878,26 @@ router.delete('/admin/delete', authenticateToken, async (req, res) => {
       });
     }
 
-    // Verifier que l'utilisateur a les droits admin
-    const adminCheck = await pool.query(`
-      SELECT 1 FROM profiles p
-      INNER JOIN user_roles ur ON p.id = ur.user_id
-      INNER JOIN role_permissions rp ON ur.role_id = rp.role_id
-      INNER JOIN permissions perm ON rp.permission_id = perm.id
-      WHERE p.id = $1 AND perm.code IN ('hr.admin', 'hr.attendance.manage', 'admin')
-      LIMIT 1
-    `, [req.user.id]);
+    // Verifier que l'utilisateur est admin (par role ou par permission)
+    const isAdmin = req.user.role === 'admin';
 
-    if (adminCheck.rows.length === 0) {
-      return res.status(403).json({
-        success: false,
-        error: 'Permission refusee - Droits admin requis'
-      });
+    if (!isAdmin) {
+      // Verifier aussi les permissions specifiques
+      const permCheck = await pool.query(`
+        SELECT 1 FROM profiles p
+        INNER JOIN user_roles ur ON p.id = ur.user_id
+        INNER JOIN role_permissions rp ON ur.role_id = rp.role_id
+        INNER JOIN permissions perm ON rp.permission_id = perm.id
+        WHERE p.id = $1 AND perm.code IN ('hr.attendance.edit', 'hr.settings.edit', 'admin.manage_system')
+        LIMIT 1
+      `, [req.user.id]);
+
+      if (permCheck.rows.length === 0) {
+        return res.status(403).json({
+          success: false,
+          error: 'Permission refusee - Droits admin requis'
+        });
+      }
     }
 
     // Supprimer les pointages pour cette date

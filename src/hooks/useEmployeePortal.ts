@@ -89,7 +89,8 @@ export const useCheckIn = () => {
     mutationFn: () => employeePortalApi.checkIn(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee-portal', 'today-clocking'] });
-      queryClient.invalidateQueries({ queryKey: ['employee-portal', 'attendance'] });
+      // Refetch pour mise à jour immédiate du tableau
+      queryClient.refetchQueries({ queryKey: ['employee-portal', 'attendance'] });
     },
   });
 };
@@ -104,7 +105,8 @@ export const useCheckOut = () => {
     mutationFn: () => employeePortalApi.checkOut(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee-portal', 'today-clocking'] });
-      queryClient.invalidateQueries({ queryKey: ['employee-portal', 'attendance'] });
+      // Refetch pour mise à jour immédiate du tableau
+      queryClient.refetchQueries({ queryKey: ['employee-portal', 'attendance'] });
     },
   });
 };
