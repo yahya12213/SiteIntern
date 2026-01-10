@@ -779,17 +779,33 @@ export default function EmployeePortal() {
                 <div className="space-y-2">
                   <Label>Heure d'entree</Label>
                   <Input
-                    type="time"
+                    type="text"
+                    placeholder="HH:MM"
+                    pattern="[0-2][0-9]:[0-5][0-9]"
                     value={correctionData.check_in}
-                    onChange={e => setCorrectionData({ ...correctionData, check_in: e.target.value })}
+                    onChange={e => {
+                      let val = e.target.value.replace(/[^0-9:]/g, '');
+                      if (val.length === 2 && !val.includes(':')) val += ':';
+                      if (val.length > 5) val = val.slice(0, 5);
+                      setCorrectionData({ ...correctionData, check_in: val });
+                    }}
+                    maxLength={5}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Heure de sortie</Label>
                   <Input
-                    type="time"
+                    type="text"
+                    placeholder="HH:MM"
+                    pattern="[0-2][0-9]:[0-5][0-9]"
                     value={correctionData.check_out}
-                    onChange={e => setCorrectionData({ ...correctionData, check_out: e.target.value })}
+                    onChange={e => {
+                      let val = e.target.value.replace(/[^0-9:]/g, '');
+                      if (val.length === 2 && !val.includes(':')) val += ':';
+                      if (val.length > 5) val = val.slice(0, 5);
+                      setCorrectionData({ ...correctionData, check_out: val });
+                    }}
+                    maxLength={5}
                   />
                 </div>
               </div>
