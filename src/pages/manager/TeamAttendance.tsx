@@ -535,7 +535,7 @@ export default function TeamAttendance() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">
-                            {format(recordDate, 'EEE d', { locale: fr })}
+                            {format(recordDate, 'dd/MM/yyyy')}
                           </span>
                           {isRecordToday && (
                             <Badge variant="outline" className="text-xs">Aujourd'hui</Badge>
