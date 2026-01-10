@@ -66,6 +66,9 @@ router.get('/pending', authenticateToken, requirePermission('hr.leaves.approve')
 
     const currentEmployeeId = currentEmployeeResult.rows[0]?.id;
 
+    // Vérifier si l'utilisateur est admin (peut voir toutes les demandes)
+    const isAdmin = req.user.role === 'admin';
+
     // Get pending leave requests avec informations sur la chaîne d'approbation
     let leaveQuery = `
       SELECT
@@ -136,8 +139,8 @@ router.get('/pending', authenticateToken, requirePermission('hr.leaves.approve')
       const etapeActuelle = currentLevel + 1;
       const etapeTotale = approvalChain.length;
 
-      if (isNextApprover || !currentEmployeeId) {
-        // Si pas d'employé HR trouvé pour l'utilisateur, montrer toutes les demandes (admin)
+      if (isAdmin || isNextApprover || !currentEmployeeId) {
+        // Admin voit tout, ou si l'utilisateur est le prochain approbateur, ou si pas d'employé HR trouvé
         filteredLeaveRequests.push({
           ...request,
           etape_actuelle: etapeActuelle,
@@ -157,7 +160,7 @@ router.get('/pending', authenticateToken, requirePermission('hr.leaves.approve')
 
       const isNextApprover = directManager && directManager.manager_id === currentEmployeeId;
 
-      if (isNextApprover || !currentEmployeeId) {
+      if (isAdmin || isNextApprover || !currentEmployeeId) {
         filteredOvertimeRequests.push({
           ...request,
           etape_actuelle: 1,

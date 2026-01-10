@@ -43,6 +43,7 @@ export interface AttendanceRecord {
   check_out: string;
   status: 'present' | 'absent' | 'leave' | 'holiday';
   worked_minutes?: number | null;
+  has_anomaly?: boolean;
 }
 
 export interface AttendanceStats {
