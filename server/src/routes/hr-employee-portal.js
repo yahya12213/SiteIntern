@@ -279,6 +279,37 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       console.log('Warning: Could not fetch correction requests:', err.message);
     }
 
+    // Helper to get current approval level from status
+    const getCurrentApprovalLevel = (status) => {
+      if (status === 'pending') return 0;
+      if (status === 'approved_n1') return 1;
+      if (status === 'approved_n2') return 2;
+      const match = status?.match(/approved_n(\d+)/);
+      if (match) return parseInt(match[1]);
+      return 0;
+    };
+
+    // For each correction request, get the current approver's name
+    for (const cr of correctionRequests) {
+      if (cr.status !== 'approved' && cr.status !== 'rejected') {
+        const currentLevel = getCurrentApprovalLevel(cr.status);
+        try {
+          const approverResult = await pool.query(`
+            SELECT m.first_name || ' ' || m.last_name as approver_name
+            FROM hr_employee_managers em
+            JOIN hr_employees m ON em.manager_id = m.id
+            WHERE em.employee_id = $1 AND em.rank = $2 AND em.is_active = true
+          `, [employee.id, currentLevel]);
+          cr.current_approver_name = approverResult.rows[0]?.approver_name || null;
+        } catch (err) {
+          console.log('Warning: Could not fetch approver name:', err.message);
+          cr.current_approver_name = null;
+        }
+      } else {
+        cr.current_approver_name = null;
+      }
+    }
+
     // Create a map of correction requests by date
     const correctionsByDate = {};
     correctionRequests.forEach(cr => {
@@ -291,7 +322,8 @@ router.get('/attendance', authenticateToken, async (req, res) => {
         requested_check_in: cr.requested_check_in,
         requested_check_out: cr.requested_check_out,
         reason: cr.reason,
-        created_at: cr.created_at
+        created_at: cr.created_at,
+        current_approver_name: cr.current_approver_name
       };
     });
 

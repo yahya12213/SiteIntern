@@ -54,7 +54,7 @@ import type { CorrectionRequestInfo } from '@/lib/api/employee-portal';
 function CorrectionStatusBadge({ correction }: { correction: CorrectionRequestInfo }) {
   const statusConfig = {
     pending: {
-      label: 'Correction en attente',
+      label: 'En attente',
       className: 'bg-yellow-100 text-yellow-800 border-yellow-300',
     },
     approved: {
@@ -68,6 +68,8 @@ function CorrectionStatusBadge({ correction }: { correction: CorrectionRequestIn
   };
 
   const config = statusConfig[correction.status] || statusConfig.pending;
+  const isPending = correction.status === 'pending' || correction.status?.startsWith('approved_n');
+  const approverName = correction.current_approver_name;
 
   return (
     <span
@@ -75,6 +77,9 @@ function CorrectionStatusBadge({ correction }: { correction: CorrectionRequestIn
       title={`Motif: ${correction.reason}`}
     >
       {config.label}
+      {isPending && approverName && (
+        <span className="ml-1 font-normal">chez {approverName}</span>
+      )}
     </span>
   );
 }

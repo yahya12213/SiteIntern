@@ -44,6 +44,7 @@ export interface CorrectionRequestInfo {
   requested_check_out: string | null;
   reason: string;
   created_at: string;
+  current_approver_name?: string | null;
 }
 
 export interface AttendanceRecord {
