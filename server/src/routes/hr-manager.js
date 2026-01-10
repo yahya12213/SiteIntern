@@ -73,7 +73,7 @@ router.get('/team',
           p.username,
           s.name as segment_name,
           e.hire_date,
-          e.contract_type,
+          e.employment_type,
           e.employment_status = 'active' as is_active,
           -- Today's attendance
           (SELECT clock_time FROM hr_attendance_records
