@@ -45,6 +45,49 @@ router.get('/team',
     const userId = req.user.id;
 
     try {
+      // 🔧 FIX: Admin voit tous les employés
+      const isAdmin = req.user.role === 'admin';
+
+      if (isAdmin) {
+        const team = await pool.query(`
+          SELECT
+            e.id,
+            e.id as employee_id,
+            e.first_name || ' ' || e.last_name as full_name,
+            e.first_name,
+            e.last_name,
+            e.email,
+            e.position,
+            e.employee_number,
+            e.profile_id,
+            p.username,
+            s.name as segment_name,
+            e.hire_date,
+            e.employment_type,
+            e.employment_status = 'active' as is_active,
+            -- Today's attendance
+            (SELECT clock_time FROM hr_attendance_records
+             WHERE employee_id = e.id AND status = 'check_in'
+             AND DATE(clock_time) = CURRENT_DATE
+             ORDER BY clock_time DESC LIMIT 1) as today_check_in,
+            (SELECT clock_time FROM hr_attendance_records
+             WHERE employee_id = e.id AND status = 'check_out'
+             AND DATE(clock_time) = CURRENT_DATE
+             ORDER BY clock_time DESC LIMIT 1) as today_check_out,
+            -- Leave info
+            (SELECT COUNT(*) FROM hr_leave_requests
+             WHERE employee_id = e.id AND status = 'approved'
+             AND CURRENT_DATE BETWEEN start_date AND end_date) as is_on_leave
+          FROM hr_employees e
+          LEFT JOIN profiles p ON e.profile_id = p.id
+          LEFT JOIN segments s ON e.segment_id = s.id
+          WHERE e.employment_status = 'active'
+          ORDER BY e.last_name, e.first_name
+        `);
+        return res.json({ success: true, members: team.rows });
+      }
+
+      // Non-admin: logique existante
       // D'abord vérifier si l'utilisateur a un employé HR associé
       const managerCheck = await pool.query(
         'SELECT id FROM hr_employees WHERE profile_id = $1',
@@ -288,6 +331,46 @@ router.get('/team-requests',
     const { status = 'pending', type } = req.query;
 
     try {
+      // 🔧 FIX: Admin voit toutes les demandes, pas seulement son équipe
+      const isAdmin = req.user.role === 'admin';
+
+      if (isAdmin) {
+        // Admin: retourner TOUTES les demandes en attente
+        let query = `
+          SELECT
+            lr.*,
+            e.first_name || ' ' || e.last_name as employee_name,
+            e.employee_number,
+            e.position,
+            lt.name as leave_type_name,
+            lt.requires_justification
+          FROM hr_leave_requests lr
+          JOIN hr_employees e ON e.id = lr.employee_id
+          LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
+          WHERE 1=1
+        `;
+        const params = [];
+        let paramCount = 1;
+
+        if (status) {
+          query += ` AND lr.status = $${paramCount}`;
+          params.push(status);
+          paramCount++;
+        }
+
+        if (type) {
+          query += ` AND lr.leave_type_id = $${paramCount}`;
+          params.push(type);
+          paramCount++;
+        }
+
+        query += ' ORDER BY lr.created_at DESC';
+
+        const result = await pool.query(query, params);
+        return res.json({ success: true, data: result.rows });
+      }
+
+      // Non-admin: logique existante (équipe seulement)
       const teamMembers = await getTeamMemberIds(userId);
       if (teamMembers.length === 0) {
         return res.json({ success: true, data: [] });
@@ -344,13 +427,6 @@ router.get('/team-overtime',
     const { status = 'pending' } = req.query;
 
     try {
-      const teamMembers = await getTeamMemberIds(userId);
-      if (teamMembers.length === 0) {
-        return res.json({ success: true, data: [] });
-      }
-
-      const employeeIds = teamMembers.map(t => t.id);
-
       // Check if hr_overtime_requests table exists
       const tableExists = await pool.query(`
         SELECT EXISTS (
@@ -362,6 +438,43 @@ router.get('/team-overtime',
       if (!tableExists.rows[0].exists) {
         return res.json({ success: true, data: [], message: 'Overtime requests table not found' });
       }
+
+      // 🔧 FIX: Admin voit toutes les demandes d'heures sup
+      const isAdmin = req.user.role === 'admin';
+
+      if (isAdmin) {
+        let query = `
+          SELECT
+            ot.*,
+            e.first_name || ' ' || e.last_name as employee_name,
+            e.employee_number,
+            e.position
+          FROM hr_overtime_requests ot
+          JOIN hr_employees e ON e.id = ot.employee_id
+          WHERE 1=1
+        `;
+        const params = [];
+        let paramCount = 1;
+
+        if (status) {
+          query += ` AND ot.status = $${paramCount}`;
+          params.push(status);
+          paramCount++;
+        }
+
+        query += ' ORDER BY ot.created_at DESC';
+
+        const result = await pool.query(query, params);
+        return res.json({ success: true, data: result.rows });
+      }
+
+      // Non-admin: logique existante (équipe seulement)
+      const teamMembers = await getTeamMemberIds(userId);
+      if (teamMembers.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      const employeeIds = teamMembers.map(t => t.id);
 
       let query = `
         SELECT
