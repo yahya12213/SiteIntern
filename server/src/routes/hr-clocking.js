@@ -665,7 +665,9 @@ router.get('/my-today', authenticateToken, async (req, res) => {
 
     // Compter les pointages du jour (1 seul entrée et 1 seul sortie autorisés)
     const hasCheckIn = records.rows.some(r => ['check_in', 'late', 'weekend'].includes(r.status));
-    const hasCheckOut = records.rows.some(r => r.status === 'check_out');
+    // Pour les weekends, 2 records 'weekend' = check-in + check-out
+    const weekendRecords = records.rows.filter(r => r.status === 'weekend');
+    const hasCheckOut = records.rows.some(r => r.status === 'check_out') || weekendRecords.length >= 2;
 
     // Calculate worked minutes (capped to schedule)
     const breakRules = await getBreakRules(pool);
