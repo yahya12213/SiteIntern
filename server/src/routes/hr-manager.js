@@ -217,6 +217,7 @@ router.get('/team-attendance',
           dr.clock_out,
           ROUND(dr.total_worked_minutes / 60.0, 2) as worked_hours,
           CASE
+            WHEN EXTRACT(DOW FROM dr.record_date) IN (0, 6) THEN 'weekend'
             WHEN ol.employee_id IS NOT NULL THEN 'leave'
             WHEN dr.clock_in IS NULL THEN 'absent'
             WHEN dr.clock_out IS NULL THEN 'partial'
@@ -224,6 +225,7 @@ router.get('/team-attendance',
             ELSE 'present'
           END as status,
           CASE
+            WHEN EXTRACT(DOW FROM dr.record_date) IN (0, 6) THEN 0
             WHEN dr.clock_in IS NOT NULL AND EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) > 8 * 60
             THEN (EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) - 8 * 60)::integer
             ELSE 0

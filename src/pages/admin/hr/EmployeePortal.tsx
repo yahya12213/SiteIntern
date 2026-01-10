@@ -542,7 +542,7 @@ export default function EmployeePortal() {
                               <TableCell>
                                 {record.correction_request ? (
                                   <CorrectionStatusBadge correction={record.correction_request} />
-                                ) : hasAnomaly && (
+                                ) : !['weekend', 'holiday'].includes(record.status) && (
                                   <Button
                                     variant="outline"
                                     size="sm"

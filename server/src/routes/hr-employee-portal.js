@@ -339,22 +339,38 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       const correctionRequest = correctionsByDate[dateStr] || null;
       const hasAnomaly = r.check_ins > 0 && (!r.check_out || r.check_outs === 0);
 
+      // Check if weekend (Sunday = 0, Saturday = 6)
+      const recordDate = new Date(r.date);
+      const dayOfWeek = recordDate.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
       if (!r.check_in || !r.check_out) {
         return {
           date: r.date,
           check_in: r.check_in ? new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }) : '-',
           check_out: r.check_out ? new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }) : '-',
-          status: r.check_ins > 0 ? 'present' : 'absent',
-          worked_minutes: null,
-          has_anomaly: hasAnomaly,
+          status: isWeekend ? 'weekend' : (r.check_ins > 0 ? 'present' : 'absent'),
+          worked_minutes: isWeekend ? 0 : null,
+          has_anomaly: isWeekend ? false : hasAnomaly,
           correction_request: correctionRequest
         };
       }
 
       const checkIn = new Date(r.check_in);
       const checkOut = new Date(r.check_out);
-      const recordDate = new Date(r.date);
-      const dayOfWeek = recordDate.getDay();
+
+      // Weekend already handled above, this is for weekdays with check_in and check_out
+      if (isWeekend) {
+        return {
+          date: r.date,
+          check_in: new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }),
+          check_out: new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }),
+          status: 'weekend',
+          worked_minutes: 0,
+          has_anomaly: false,
+          correction_request: correctionRequest
+        };
+      }
 
       // Get day-specific schedule
       const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
