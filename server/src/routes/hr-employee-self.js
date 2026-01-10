@@ -587,4 +587,135 @@ router.get('/colleagues',
   }
 );
 
+// ============================================================
+// CORRECTION REQUESTS - Demandes de correction de pointage
+// ============================================================
+
+/**
+ * Submit a correction request for incomplete clocking
+ * POST /api/hr/my/correction-requests
+ */
+router.post('/correction-requests',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { request_date, requested_check_in, requested_check_out, reason } = req.body;
+
+    try {
+      // Validation
+      if (!request_date || !reason) {
+        return res.status(400).json({
+          success: false,
+          error: 'La date et le motif sont obligatoires'
+        });
+      }
+
+      if (!requested_check_in && !requested_check_out) {
+        return res.status(400).json({
+          success: false,
+          error: 'Veuillez spécifier au moins une heure (entrée ou sortie)'
+        });
+      }
+
+      // Find HR employee linked to this user
+      const employeeResult = await pool.query(`
+        SELECT id FROM hr_employees WHERE profile_id = $1
+      `, [userId]);
+
+      if (employeeResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Employé non trouvé'
+        });
+      }
+
+      const employeeId = employeeResult.rows[0].id;
+
+      // Check if a request already exists for this date
+      const existingRequest = await pool.query(`
+        SELECT id FROM hr_attendance_correction_requests
+        WHERE employee_id = $1 AND request_date = $2 AND status NOT IN ('rejected', 'cancelled')
+      `, [employeeId, request_date]);
+
+      if (existingRequest.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Une demande de correction existe déjà pour cette date'
+        });
+      }
+
+      // Create the request
+      const result = await pool.query(`
+        INSERT INTO hr_attendance_correction_requests
+          (employee_id, request_date, requested_check_in, requested_check_out, reason, status)
+        VALUES ($1, $2, $3, $4, $5, 'pending')
+        RETURNING *
+      `, [employeeId, request_date, requested_check_in || null, requested_check_out || null, reason]);
+
+      res.json({
+        success: true,
+        message: 'Demande de correction soumise avec succès',
+        request: result.rows[0]
+      });
+
+    } catch (error) {
+      console.error('Error creating correction request:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erreur lors de la création de la demande',
+        details: error.message
+      });
+    }
+  }
+);
+
+/**
+ * Get my correction requests
+ * GET /api/hr/my/correction-requests
+ */
+router.get('/correction-requests',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+
+    try {
+      // Find HR employee
+      const employeeResult = await pool.query(`
+        SELECT id FROM hr_employees WHERE profile_id = $1
+      `, [userId]);
+
+      if (employeeResult.rows.length === 0) {
+        return res.json({ success: true, requests: [] });
+      }
+
+      const employeeId = employeeResult.rows[0].id;
+
+      const result = await pool.query(`
+        SELECT
+          cr.*,
+          n1.first_name || ' ' || n1.last_name as n1_approver_name,
+          n2.first_name || ' ' || n2.last_name as n2_approver_name
+        FROM hr_attendance_correction_requests cr
+        LEFT JOIN hr_employees n1 ON cr.n1_approver_id = n1.id
+        LEFT JOIN hr_employees n2 ON cr.n2_approver_id = n2.id
+        WHERE cr.employee_id = $1
+        ORDER BY cr.created_at DESC
+      `, [employeeId]);
+
+      res.json({
+        success: true,
+        requests: result.rows
+      });
+
+    } catch (error) {
+      console.error('Error fetching my correction requests:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erreur lors de la récupération des demandes',
+        details: error.message
+      });
+    }
+  }
+);
+
 export default router;
