@@ -6,6 +6,7 @@ const router = express.Router();
 
 /**
  * Helper: Get team member IDs for a manager
+ * Includes both direct reports (manager_id) and indirect reports (hr_employee_managers)
  */
 async function getTeamMemberIds(userId) {
   // Get the hr_employee for this user
@@ -19,10 +20,17 @@ async function getTeamMemberIds(userId) {
 
   const managerId = managerEmployee.rows[0].id;
 
-  // Get all employees where this user is the manager
+  // Get all employees where this user is manager (direct or via hr_employee_managers)
   const team = await pool.query(`
-    SELECT id, profile_id FROM hr_employees
-    WHERE manager_id = $1 AND employment_status = 'active'
+    SELECT DISTINCT id, profile_id FROM hr_employees
+    WHERE (
+      manager_id = $1
+      OR id IN (
+        SELECT employee_id FROM hr_employee_managers
+        WHERE manager_id = $1 AND is_active = true
+      )
+    )
+    AND employment_status = 'active'
   `, [managerId]);
 
   return team.rows;
@@ -83,7 +91,13 @@ router.get('/team',
         FROM hr_employees e
         LEFT JOIN profiles p ON e.profile_id = p.id
         LEFT JOIN segments s ON e.segment_id = s.id
-        WHERE e.manager_id = $1
+        WHERE (
+          e.manager_id = $1
+          OR e.id IN (
+            SELECT employee_id FROM hr_employee_managers
+            WHERE manager_id = $1 AND is_active = true
+          )
+        )
         AND e.employment_status = 'active'
         ORDER BY e.last_name, e.first_name
       `, [managerId]);
