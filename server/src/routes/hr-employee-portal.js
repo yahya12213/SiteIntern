@@ -121,17 +121,17 @@ router.get('/attendance', authenticateToken, async (req, res) => {
     try {
       records = await pool.query(`
         SELECT
-          DATE(clock_time) as date,
+          attendance_date as date,
           MIN(CASE WHEN status IN ('check_in', 'late') THEN clock_time END) as check_in,
           MAX(CASE WHEN status = 'check_out' THEN clock_time END) as check_out,
           COUNT(CASE WHEN status IN ('check_in', 'late') THEN 1 END) as check_ins,
           COUNT(CASE WHEN status = 'check_out' THEN 1 END) as check_outs
         FROM hr_attendance_records
         WHERE employee_id = $1
-          AND EXTRACT(YEAR FROM clock_time) = $2
-          AND EXTRACT(MONTH FROM clock_time) = $3
-        GROUP BY DATE(clock_time)
-        ORDER BY DATE(clock_time) DESC
+          AND EXTRACT(YEAR FROM attendance_date) = $2
+          AND EXTRACT(MONTH FROM attendance_date) = $3
+        GROUP BY attendance_date
+        ORDER BY attendance_date DESC
       `, [employee.id, targetYear, targetMonth]);
     } catch (err) {
       console.log('Warning: hr_attendance_records table issue:', err.message);
