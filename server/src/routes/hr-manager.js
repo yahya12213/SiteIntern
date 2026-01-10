@@ -176,9 +176,9 @@ router.get('/team-attendance',
         WITH daily_records AS (
           SELECT
             ar.employee_id,
-            DATE(ar.clock_time) as record_date,
-            MIN(CASE WHEN ar.status = 'check_in' THEN ar.clock_time END) as clock_in,
-            MAX(CASE WHEN ar.status = 'check_out' THEN ar.clock_time END) as clock_out,
+            ar.attendance_date as record_date,
+            MIN(CASE WHEN ar.status IN ('check_in', 'late', 'weekend') THEN ar.clock_time END) as clock_in,
+            MAX(CASE WHEN ar.status IN ('check_out', 'weekend') THEN ar.clock_time END) as clock_out,
             SUM(COALESCE(ar.worked_minutes, 0)) as total_worked_minutes
           FROM hr_attendance_records ar
           WHERE ar.employee_id = ANY($1::uuid[])
@@ -187,19 +187,19 @@ router.get('/team-attendance',
       let paramCount = 2;
 
       if (start_date) {
-        query += ` AND DATE(ar.clock_time) >= $${paramCount}`;
+        query += ` AND ar.attendance_date >= $${paramCount}`;
         params.push(start_date);
         paramCount++;
       }
 
       if (end_date) {
-        query += ` AND DATE(ar.clock_time) <= $${paramCount}`;
+        query += ` AND ar.attendance_date <= $${paramCount}`;
         params.push(end_date);
         paramCount++;
       }
 
       query += `
-          GROUP BY ar.employee_id, DATE(ar.clock_time)
+          GROUP BY ar.employee_id, ar.attendance_date
         ),
         on_leave AS (
           SELECT lr.employee_id, lr.start_date, lr.end_date, lt.name as leave_type
