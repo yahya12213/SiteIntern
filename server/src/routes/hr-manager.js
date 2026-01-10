@@ -339,11 +339,14 @@ router.get('/team-requests',
         let query = `
           SELECT
             lr.*,
+            'leave' as request_type,
+            lt.name as request_subtype,
             e.first_name || ' ' || e.last_name as employee_name,
             e.employee_number,
             e.position,
             lt.name as leave_type_name,
-            lt.requires_justification
+            lt.requires_justification,
+            lr.days_requested as duration_days
           FROM hr_leave_requests lr
           JOIN hr_employees e ON e.id = lr.employee_id
           LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
@@ -381,11 +384,14 @@ router.get('/team-requests',
       let query = `
         SELECT
           lr.*,
+          'leave' as request_type,
+          lt.name as request_subtype,
           e.first_name || ' ' || e.last_name as employee_name,
           e.employee_number,
           e.position,
           lt.name as leave_type_name,
-          lt.requires_justification
+          lt.requires_justification,
+          lr.days_requested as duration_days
         FROM hr_leave_requests lr
         JOIN hr_employees e ON e.id = lr.employee_id
         LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
@@ -446,9 +452,11 @@ router.get('/team-overtime',
         let query = `
           SELECT
             ot.*,
+            'overtime' as request_type,
             e.first_name || ' ' || e.last_name as employee_name,
             e.employee_number,
-            e.position
+            e.position,
+            ot.estimated_hours as duration_hours
           FROM hr_overtime_requests ot
           JOIN hr_employees e ON e.id = ot.employee_id
           WHERE 1=1
@@ -479,9 +487,11 @@ router.get('/team-overtime',
       let query = `
         SELECT
           ot.*,
+          'overtime' as request_type,
           e.first_name || ' ' || e.last_name as employee_name,
           e.employee_number,
-          e.position
+          e.position,
+          ot.estimated_hours as duration_hours
         FROM hr_overtime_requests ot
         JOIN hr_employees e ON e.id = ot.employee_id
         WHERE ot.employee_id = ANY($1::uuid[])
