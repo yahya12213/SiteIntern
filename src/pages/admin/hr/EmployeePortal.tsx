@@ -441,8 +441,8 @@ export default function EmployeePortal() {
                         </TableRow>
                       ) : (
                         attendanceData?.records?.map((record, idx) => {
-                          // Detecter si c'est un pointage incomplet (anomalie)
-                          const hasAnomaly = record.status === 'absent' && (record.check_in === '-' || record.check_out === '-');
+                          // Utiliser has_anomaly du backend (check_in existe mais pas check_out)
+                          const hasAnomaly = record.has_anomaly || (record.check_in !== '-' && record.check_out === '-');
 
                           return (
                             <TableRow key={idx}>

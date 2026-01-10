@@ -446,6 +446,12 @@ router.get('/payslips/:id',
 
 /**
  * Get my attendance history
+ * Returns formatted data for display:
+ * - check_in: formatted time string (HH:MI) or '-'
+ * - check_out: formatted time string (HH:MI) or '-'
+ * - status: 'present' if check_in exists, 'absent' otherwise
+ * - worked_minutes: calculated from check_in to check_out
+ * - has_anomaly: true if check_in exists but no check_out
  */
 router.get('/attendance',
   authenticateToken,
@@ -466,11 +472,27 @@ router.get('/attendance',
       let query = `
         SELECT
           DATE(clock_time) as date,
-          MIN(CASE WHEN status = 'check_in' THEN clock_time END) as first_check_in,
-          MAX(CASE WHEN status = 'check_out' THEN clock_time END) as last_check_out,
-          SUM(worked_minutes) as worked_minutes,
-          COUNT(CASE WHEN status = 'check_in' THEN 1 END) as check_in_count,
-          COUNT(CASE WHEN status = 'check_out' THEN 1 END) as check_out_count
+          TO_CHAR(MIN(CASE WHEN status IN ('check_in', 'late') THEN clock_time END), 'HH24:MI') as check_in,
+          TO_CHAR(MAX(CASE WHEN status = 'check_out' THEN clock_time END), 'HH24:MI') as check_out,
+          CASE
+            WHEN COUNT(CASE WHEN status IN ('check_in', 'late') THEN 1 END) > 0 THEN 'present'
+            ELSE 'absent'
+          END as status,
+          CASE
+            WHEN MAX(CASE WHEN status = 'check_out' THEN clock_time END) IS NOT NULL
+             AND MIN(CASE WHEN status IN ('check_in', 'late') THEN clock_time END) IS NOT NULL
+            THEN EXTRACT(EPOCH FROM (
+              MAX(CASE WHEN status = 'check_out' THEN clock_time END) -
+              MIN(CASE WHEN status IN ('check_in', 'late') THEN clock_time END)
+            ))::int / 60
+            ELSE NULL
+          END as worked_minutes,
+          CASE
+            WHEN COUNT(CASE WHEN status IN ('check_in', 'late') THEN 1 END) > 0
+             AND COUNT(CASE WHEN status = 'check_out' THEN 1 END) = 0
+            THEN true
+            ELSE false
+          END as has_anomaly
         FROM hr_attendance_records
         WHERE employee_id = $1
       `;
@@ -493,7 +515,15 @@ router.get('/attendance',
       params.push(parseInt(limit));
 
       const result = await pool.query(query, params);
-      res.json({ success: true, data: result.rows });
+
+      // Format results: replace null with '-' for display
+      const formattedData = result.rows.map(row => ({
+        ...row,
+        check_in: row.check_in || '-',
+        check_out: row.check_out || '-'
+      }));
+
+      res.json({ success: true, data: formattedData });
     } catch (error) {
       console.error('Error fetching attendance:', error);
       res.status(500).json({ success: false, error: error.message });
