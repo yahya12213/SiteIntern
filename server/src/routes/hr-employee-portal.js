@@ -133,6 +133,12 @@ router.get('/attendance', authenticateToken, async (req, res) => {
         GROUP BY attendance_date
         ORDER BY attendance_date DESC
       `, [employee.id, targetYear, targetMonth]);
+
+      // DEBUG LOG - À supprimer après diagnostic
+      console.log(`📊 ATTENDANCE DEBUG: employee_id=${employee.id}, year=${targetYear}, month=${targetMonth}, records_count=${records.rows.length}`);
+      if (records.rows.length > 0) {
+        console.log(`📊 ATTENDANCE DATES:`, records.rows.map(r => r.date));
+      }
     } catch (err) {
       console.log('Warning: hr_attendance_records table issue:', err.message);
     }

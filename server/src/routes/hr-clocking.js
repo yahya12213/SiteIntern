@@ -374,8 +374,11 @@ router.post('/check-in', authenticateToken, async (req, res) => {
         late_minutes,
         created_at
       ) VALUES ($1, CURRENT_DATE, NOW(), $2, 'self_service', $3, $4, NOW())
-      RETURNING id, clock_time, status, late_minutes, scheduled_start
+      RETURNING id, attendance_date, clock_time, status, late_minutes, scheduled_start
     `, [employee.id, initialStatus, scheduledStart, lateMinutes]);
+
+    // DEBUG LOG - À supprimer après diagnostic
+    console.log(`📅 CHECK-IN DEBUG: employee_id=${employee.id}, attendance_date=${result.rows[0].attendance_date}, clock_time=${result.rows[0].clock_time}, js_today=${today}`);
 
     res.json({
       success: true,
