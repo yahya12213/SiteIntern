@@ -144,12 +144,55 @@ interface TodayStatus {
   is_complete: boolean;
 }
 
+interface CorrectionRequestInfo {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  requested_check_in: string | null;
+  requested_check_out: string | null;
+  reason: string;
+  created_at: string;
+}
+
 interface DayRecord {
   date: string;
   records: ClockRecord[];
   worked_minutes: number | null;
   is_complete: boolean;
   has_anomaly: boolean;
+  correction_request: CorrectionRequestInfo | null;
+}
+
+// Badge de statut de correction
+function CorrectionStatusBadge({ correction }: { correction: CorrectionRequestInfo }) {
+  const statusConfig = {
+    pending: {
+      label: 'Correction en attente',
+      className: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+      icon: '🟡'
+    },
+    approved: {
+      label: 'Correction approuvee',
+      className: 'bg-green-100 text-green-800 border-green-300',
+      icon: '🟢'
+    },
+    rejected: {
+      label: 'Correction refusee',
+      className: 'bg-red-100 text-red-800 border-red-300',
+      icon: '🔴'
+    }
+  };
+
+  const config = statusConfig[correction.status] || statusConfig.pending;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium border ${config.className}`}
+      title={`Motif: ${correction.reason}`}
+    >
+      <span>{config.icon}</span>
+      {config.label}
+    </span>
+  );
 }
 
 function Clocking() {
@@ -473,8 +516,11 @@ function Clocking() {
                       <div className="font-semibold text-gray-900">
                         {formatDate(day.date)}
                       </div>
-                      <div className="flex items-center gap-3">
-                        {day.has_anomaly && (
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {/* Afficher le badge de correction si une demande existe */}
+                        {day.correction_request ? (
+                          <CorrectionStatusBadge correction={day.correction_request} />
+                        ) : day.has_anomaly && (
                           <>
                             <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">
                               Anomalie

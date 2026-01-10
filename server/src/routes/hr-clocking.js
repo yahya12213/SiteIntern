@@ -767,15 +767,65 @@ router.get('/my-records', authenticateToken, async (req, res) => {
     const breakRules = await getBreakRules(pool);
     const schedule = await getActiveSchedule(pool);
 
+    // Get correction requests for this employee in the date range
+    let correctionRequests = [];
+    try {
+      let correctionQuery = `
+        SELECT id, request_date, requested_check_in, requested_check_out, reason, status, created_at
+        FROM hr_attendance_correction_requests
+        WHERE employee_id = $1
+      `;
+      const correctionParams = [employee.id];
+      let correctionParamIndex = 2;
+
+      if (start_date) {
+        correctionQuery += ` AND request_date >= $${correctionParamIndex}`;
+        correctionParams.push(start_date);
+        correctionParamIndex++;
+      }
+      if (end_date) {
+        correctionQuery += ` AND request_date <= $${correctionParamIndex}`;
+        correctionParams.push(end_date);
+        correctionParamIndex++;
+      }
+
+      const correctionResult = await pool.query(correctionQuery, correctionParams);
+      correctionRequests = correctionResult.rows;
+    } catch (err) {
+      console.log('Warning: Could not fetch correction requests:', err.message);
+    }
+
+    // Create a map of correction requests by date
+    const correctionsByDate = {};
+    correctionRequests.forEach(cr => {
+      const dateKey = cr.request_date instanceof Date
+        ? cr.request_date.toISOString().split('T')[0]
+        : cr.request_date;
+      correctionsByDate[dateKey] = {
+        id: cr.id,
+        status: cr.status,
+        requested_check_in: cr.requested_check_in,
+        requested_check_out: cr.requested_check_out,
+        reason: cr.reason,
+        created_at: cr.created_at
+      };
+    });
+
     // Calculate worked minutes for each day (capped to schedule)
     const recordsWithCalculations = result.rows.map(day => {
+      const dateStr = day.date instanceof Date
+        ? day.date.toISOString().split('T')[0]
+        : day.date;
       const workedMinutes = calculateWorkedMinutes(day.records, breakRules, schedule, day.date);
+      const correctionRequest = correctionsByDate[dateStr] || null;
+
       return {
         date: day.date,
         records: day.records,
         worked_minutes: workedMinutes,
         is_complete: day.records.length % 2 === 0,
-        has_anomaly: day.records.length % 2 !== 0
+        has_anomaly: day.records.length % 2 !== 0,
+        correction_request: correctionRequest
       };
     });
 
