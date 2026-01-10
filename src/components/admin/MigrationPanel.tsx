@@ -349,6 +349,12 @@ const MIGRATIONS: Migration[] = [
     endpoint: '/debug-template-dateformat/fix-all'
   },
   {
+    id: 'migration-103',
+    name: 'Migration 103: Délégation RH',
+    description: '🔄 Système de délégation RH - Table hr_approval_delegations pour déléguer les approbations de congés et demandes',
+    endpoint: '/migration-103-hr-delegation'
+  },
+  {
     id: 'migration-104',
     name: 'Migration 104: Fix Création Horaires RH',
     description: '🔧 FIX CRITIQUE: Rend les colonnes start_time et end_time nullable dans hr_work_schedules - Corrige erreur "Erreur lors de la sauvegarde de l\'horaire"',
