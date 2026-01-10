@@ -367,13 +367,13 @@ router.get('/team-requests',
         query += ' ORDER BY lr.created_at DESC';
 
         const result = await pool.query(query, params);
-        return res.json({ success: true, data: result.rows });
+        return res.json({ success: true, requests: result.rows });
       }
 
       // Non-admin: logique existante (équipe seulement)
       const teamMembers = await getTeamMemberIds(userId);
       if (teamMembers.length === 0) {
-        return res.json({ success: true, data: [] });
+        return res.json({ success: true, requests: [] });
       }
 
       const employeeIds = teamMembers.map(t => t.id);
@@ -409,7 +409,7 @@ router.get('/team-requests',
       query += ' ORDER BY lr.created_at DESC';
 
       const result = await pool.query(query, params);
-      res.json({ success: true, data: result.rows });
+      res.json({ success: true, requests: result.rows });
     } catch (error) {
       console.error('Error fetching team requests:', error);
       res.status(500).json({ success: false, error: error.message });
@@ -436,7 +436,7 @@ router.get('/team-overtime',
       `);
 
       if (!tableExists.rows[0].exists) {
-        return res.json({ success: true, data: [], message: 'Overtime requests table not found' });
+        return res.json({ success: true, requests: [], message: 'Overtime requests table not found' });
       }
 
       // 🔧 FIX: Admin voit toutes les demandes d'heures sup
@@ -465,13 +465,13 @@ router.get('/team-overtime',
         query += ' ORDER BY ot.created_at DESC';
 
         const result = await pool.query(query, params);
-        return res.json({ success: true, data: result.rows });
+        return res.json({ success: true, requests: result.rows });
       }
 
       // Non-admin: logique existante (équipe seulement)
       const teamMembers = await getTeamMemberIds(userId);
       if (teamMembers.length === 0) {
-        return res.json({ success: true, data: [] });
+        return res.json({ success: true, requests: [] });
       }
 
       const employeeIds = teamMembers.map(t => t.id);
@@ -498,7 +498,7 @@ router.get('/team-overtime',
       query += ' ORDER BY ot.created_at DESC';
 
       const result = await pool.query(query, params);
-      res.json({ success: true, data: result.rows });
+      res.json({ success: true, requests: result.rows });
     } catch (error) {
       console.error('Error fetching team overtime:', error);
       res.status(500).json({ success: false, error: error.message });
