@@ -112,6 +112,7 @@ router.get('/team',
 
 /**
  * Get team attendance for a date range
+ * Returns aggregated daily records per employee matching TeamAttendanceRecord interface
  */
 router.get('/team-attendance',
   authenticateToken,
@@ -122,21 +123,22 @@ router.get('/team-attendance',
     try {
       const teamMembers = await getTeamMemberIds(userId);
       if (teamMembers.length === 0) {
-        return res.json({ success: true, data: [] });
+        return res.json({ success: true, records: [] });
       }
 
       const employeeIds = teamMembers.map(t => t.id);
 
-      // Build query with team filter
+      // Build query that returns data matching TeamAttendanceRecord interface
       let query = `
-        SELECT
-          ar.*,
-          e.first_name || ' ' || e.last_name as employee_name,
-          e.employee_number,
-          e.position
-        FROM hr_attendance_records ar
-        JOIN hr_employees e ON e.id = ar.employee_id
-        WHERE ar.employee_id = ANY($1::uuid[])
+        WITH daily_records AS (
+          SELECT
+            ar.employee_id,
+            DATE(ar.clock_time) as record_date,
+            MIN(CASE WHEN ar.status = 'check_in' THEN ar.clock_time END) as clock_in,
+            MAX(CASE WHEN ar.status = 'check_out' THEN ar.clock_time END) as clock_out,
+            SUM(COALESCE(ar.worked_minutes, 0)) as total_worked_minutes
+          FROM hr_attendance_records ar
+          WHERE ar.employee_id = ANY($1::uuid[])
       `;
       const params = [employeeIds];
       let paramCount = 2;
@@ -153,7 +155,43 @@ router.get('/team-attendance',
         paramCount++;
       }
 
-      query += ' ORDER BY ar.clock_time DESC';
+      query += `
+          GROUP BY ar.employee_id, DATE(ar.clock_time)
+        ),
+        on_leave AS (
+          SELECT lr.employee_id, lr.start_date, lr.end_date, lt.name as leave_type
+          FROM hr_leave_requests lr
+          LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
+          WHERE lr.status = 'approved'
+        )
+        SELECT
+          dr.employee_id || '-' || dr.record_date as id,
+          dr.employee_id,
+          e.first_name || ' ' || e.last_name as employee_name,
+          dr.record_date as date,
+          dr.clock_in,
+          dr.clock_out,
+          ROUND(dr.total_worked_minutes / 60.0, 2) as worked_hours,
+          CASE
+            WHEN ol.employee_id IS NOT NULL THEN 'leave'
+            WHEN dr.clock_in IS NULL THEN 'absent'
+            WHEN dr.clock_out IS NULL THEN 'partial'
+            WHEN EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) > 8 * 60 + 15 THEN 'late'
+            ELSE 'present'
+          END as status,
+          CASE
+            WHEN dr.clock_in IS NOT NULL AND EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) > 8 * 60
+            THEN (EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) - 8 * 60)::integer
+            ELSE 0
+          END as late_minutes,
+          ol.leave_type,
+          NULL as notes
+        FROM daily_records dr
+        JOIN hr_employees e ON e.id = dr.employee_id
+        LEFT JOIN on_leave ol ON ol.employee_id = dr.employee_id
+          AND dr.record_date BETWEEN ol.start_date AND ol.end_date
+        ORDER BY dr.record_date DESC, e.last_name, e.first_name
+      `;
 
       const result = await pool.query(query, params);
       res.json({ success: true, records: result.rows });
