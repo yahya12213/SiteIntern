@@ -71,12 +71,21 @@ import type { TeamAttendanceRecord } from '@/lib/api/manager';
 // CONSTANTS
 // ============================================================
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; className: string; icon: any }> = {
   present: { label: 'Présent', className: 'bg-green-100 text-green-800', icon: CheckCircle2 },
-  absent: { label: 'Absent', className: 'bg-red-100 text-red-800', icon: XCircle },
+  absent: { label: 'Absent', className: 'bg-gray-100 text-gray-800', icon: XCircle },
   late: { label: 'En retard', className: 'bg-orange-100 text-orange-800', icon: AlertTriangle },
-  leave: { label: 'Congé', className: 'bg-blue-100 text-blue-800', icon: Calendar },
+  early_leave: { label: 'Départ anticipé', className: 'bg-yellow-100 text-yellow-800', icon: Clock },
+  late_early: { label: 'Retard + Départ ant.', className: 'bg-red-100 text-red-800', icon: AlertTriangle },
+  half_day: { label: 'Demi-journée', className: 'bg-blue-100 text-blue-800', icon: Clock },
+  incomplete: { label: 'Incomplet', className: 'bg-red-100 text-red-800', icon: AlertTriangle },
+  weekend: { label: 'Week-end', className: 'bg-slate-100 text-slate-600', icon: Calendar },
+  holiday: { label: 'Jour férié', className: 'bg-purple-100 text-purple-800', icon: Calendar },
+  leave: { label: 'Congé', className: 'bg-teal-100 text-teal-800', icon: Calendar },
+  mission: { label: 'Mission', className: 'bg-indigo-100 text-indigo-800', icon: TrendingUp },
   partial: { label: 'Partiel', className: 'bg-yellow-100 text-yellow-800', icon: Clock },
+  check_in: { label: 'Pointé entrée', className: 'bg-blue-100 text-blue-800', icon: Clock },
+  check_out: { label: 'Pointé sortie', className: 'bg-green-100 text-green-800', icon: CheckCircle2 },
 };
 
 // ============================================================

@@ -905,7 +905,16 @@ router.delete('/admin/delete', authenticateToken, async (req, res) => {
       }
     }
 
-    // Supprimer les pointages pour cette date
+    // Suppression en cascade: d'abord les demandes de correction associées
+    const deleteCorrectionResult = await pool.query(`
+      DELETE FROM hr_attendance_correction_requests
+      WHERE employee_id = $1 AND request_date = $2
+      RETURNING id
+    `, [employee_id, date]);
+
+    const deletedCorrectionCount = deleteCorrectionResult.rowCount || 0;
+
+    // Ensuite supprimer les pointages pour cette date
     const deleteResult = await pool.query(`
       DELETE FROM hr_attendance_records
       WHERE employee_id = $1 AND DATE(clock_time) = $2
@@ -916,8 +925,9 @@ router.delete('/admin/delete', authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      message: `${deletedCount} pointage(s) supprime(s) pour le ${date}`,
-      deleted_count: deletedCount
+      message: `${deletedCount} pointage(s) et ${deletedCorrectionCount} demande(s) de correction supprimé(s) pour le ${date}`,
+      deleted_count: deletedCount,
+      deleted_corrections_count: deletedCorrectionCount
     });
 
   } catch (error) {

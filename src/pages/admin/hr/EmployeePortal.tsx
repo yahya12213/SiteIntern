@@ -52,22 +52,44 @@ import type { CorrectionRequestInfo } from '@/lib/api/employee-portal';
 
 // Badge de statut de correction de pointage
 function CorrectionStatusBadge({ correction }: { correction: CorrectionRequestInfo }) {
-  const statusConfig = {
+  const statusConfig: Record<string, { label: string; className: string }> = {
     pending: {
-      label: 'En attente',
+      label: 'En attente (N)',
       className: 'bg-yellow-100 text-yellow-800 border-yellow-300',
     },
+    approved_n1: {
+      label: 'Approuvé N, attente N+1',
+      className: 'bg-blue-100 text-blue-800 border-blue-300',
+    },
+    approved_n2: {
+      label: 'Approuvé N+1, attente N+2',
+      className: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+    },
     approved: {
-      label: 'Correction approuvee',
+      label: 'Correction approuvée',
       className: 'bg-green-100 text-green-800 border-green-300',
     },
     rejected: {
-      label: 'Correction refusee',
+      label: 'Correction refusée',
       className: 'bg-red-100 text-red-800 border-red-300',
+    },
+    cancelled: {
+      label: 'Annulée',
+      className: 'bg-gray-100 text-gray-800 border-gray-300',
     }
   };
 
-  const config = statusConfig[correction.status] || statusConfig.pending;
+  // Pour les statuts dynamiques comme approved_n3, approved_n4, etc.
+  let config = statusConfig[correction.status];
+  if (!config && correction.status?.startsWith('approved_n')) {
+    const level = correction.status.match(/approved_n(\d+)/)?.[1];
+    config = {
+      label: `Approuvé N+${parseInt(level || '0') - 1}, attente N+${level}`,
+      className: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+    };
+  }
+  if (!config) config = statusConfig.pending;
+
   const isPending = correction.status === 'pending' || correction.status?.startsWith('approved_n');
   const approverName = correction.current_approver_name;
 
@@ -489,13 +511,27 @@ export default function EmployeePortal() {
                               <TableCell>
                                 <Badge className={
                                   record.status === 'present' ? 'bg-green-100 text-green-800' :
-                                  record.status === 'leave' ? 'bg-blue-100 text-blue-800' :
+                                  record.status === 'late' ? 'bg-orange-100 text-orange-800' :
+                                  record.status === 'early_leave' ? 'bg-yellow-100 text-yellow-800' :
+                                  record.status === 'late_early' ? 'bg-red-100 text-red-800' :
+                                  record.status === 'half_day' ? 'bg-blue-100 text-blue-800' :
+                                  record.status === 'incomplete' ? 'bg-red-100 text-red-800' :
+                                  record.status === 'leave' ? 'bg-teal-100 text-teal-800' :
                                   record.status === 'holiday' ? 'bg-purple-100 text-purple-800' :
-                                  'bg-red-100 text-red-800'
+                                  record.status === 'weekend' ? 'bg-slate-100 text-slate-600' :
+                                  record.status === 'mission' ? 'bg-indigo-100 text-indigo-800' :
+                                  'bg-gray-100 text-gray-800'
                                 }>
-                                  {record.status === 'present' ? 'Present' :
-                                   record.status === 'leave' ? 'Conge' :
-                                   record.status === 'holiday' ? 'Ferie' : 'Absent'}
+                                  {record.status === 'present' ? 'Présent' :
+                                   record.status === 'late' ? 'En retard' :
+                                   record.status === 'early_leave' ? 'Départ anticipé' :
+                                   record.status === 'late_early' ? 'Retard + Départ ant.' :
+                                   record.status === 'half_day' ? 'Demi-journée' :
+                                   record.status === 'incomplete' ? 'Incomplet' :
+                                   record.status === 'leave' ? 'Congé' :
+                                   record.status === 'holiday' ? 'Jour férié' :
+                                   record.status === 'weekend' ? 'Week-end' :
+                                   record.status === 'mission' ? 'Mission' : 'Absent'}
                                 </Badge>
                               </TableCell>
                               <TableCell className="font-medium text-blue-600">

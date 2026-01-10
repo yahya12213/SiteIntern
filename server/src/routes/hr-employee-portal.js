@@ -605,16 +605,32 @@ router.post('/requests', authenticateToken, async (req, res) => {
 
     } else {
       // Generic HR request - store as leave request with special type
+      // First, ensure the 'OTHER' leave type exists
+      let otherTypeId;
+      const otherTypeResult = await pool.query(`
+        SELECT id FROM hr_leave_types WHERE code = 'OTHER' LIMIT 1
+      `);
+
+      if (otherTypeResult.rows.length === 0) {
+        // Create the 'OTHER' type if it doesn't exist
+        const createOther = await pool.query(`
+          INSERT INTO hr_leave_types (code, name, is_paid, max_days_per_year, is_active)
+          VALUES ('OTHER', 'Autre demande', false, 0, true)
+          RETURNING id
+        `);
+        otherTypeId = createOther.rows[0].id;
+      } else {
+        otherTypeId = otherTypeResult.rows[0].id;
+      }
+
       const result = await pool.query(`
         INSERT INTO hr_leave_requests (
           employee_id, leave_type_id, start_date, end_date,
           days_requested, reason, status, created_at
-        ) VALUES ($1,
-          (SELECT id FROM hr_leave_types WHERE code = 'OTHER' LIMIT 1),
-          COALESCE($2, CURRENT_DATE), COALESCE($3, CURRENT_DATE),
-          0, $4, 'pending', NOW())
+        ) VALUES ($1, $2, COALESCE($3, CURRENT_DATE), COALESCE($4, CURRENT_DATE),
+          0, $5, 'pending', NOW())
         RETURNING id
-      `, [employee.id, start_date, end_date, `[${type}] ${description}`]);
+      `, [employee.id, otherTypeId, start_date, end_date, `[${type}] ${description}`]);
 
       res.json({
         success: true,

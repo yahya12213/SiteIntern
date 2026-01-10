@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
+import { ApprovalService, REQUEST_TYPES } from '../services/approval-service.js';
 
 const router = express.Router();
 
@@ -653,191 +654,82 @@ router.get('/team-stats',
 
 /**
  * Approve a leave request (as manager)
+ * Uses ApprovalService for multi-level approval chain
  */
 router.post('/requests/:id/approve',
   authenticateToken,
   async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
-    const { comment } = req.body;
+    const { comment, request_type = 'leave' } = req.body;
 
-    const client = await pool.connect();
+    const approvalService = new ApprovalService(pool);
 
     try {
-      await client.query('BEGIN');
+      // Use the unified ApprovalService
+      const result = await approvalService.approve(
+        request_type === 'overtime' ? REQUEST_TYPES.OVERTIME :
+        request_type === 'correction' ? REQUEST_TYPES.CORRECTION :
+        REQUEST_TYPES.LEAVE,
+        id,
+        userId,
+        comment || ''
+      );
 
-      // Verify request exists and is from team member
-      const request = await client.query(`
-        SELECT lr.*, e.manager_id
-        FROM hr_leave_requests lr
-        JOIN hr_employees e ON e.id = lr.employee_id
-        WHERE lr.id = $1
-      `, [id]);
-
-      if (request.rows.length === 0) {
-        return res.status(404).json({ success: false, error: 'Request not found' });
+      if (!result.success) {
+        return res.status(400).json(result);
       }
-
-      const leaveRequest = request.rows[0];
-
-      // Check if user is the manager or has delegation
-      const managerEmployee = await client.query(`
-        SELECT id FROM hr_employees WHERE profile_id = $1
-      `, [userId]);
-
-      if (managerEmployee.rows.length === 0) {
-        return res.status(403).json({ success: false, error: 'Not an employee' });
-      }
-
-      const isManager = leaveRequest.manager_id === managerEmployee.rows[0].id;
-
-      let delegationId = null;
-      let approvedOnBehalfOf = null;
-
-      if (!isManager) {
-        // Check for delegation
-        const delegation = await client.query(`
-          SELECT d.id, d.delegator_id
-          FROM hr_approval_delegations d
-          JOIN hr_employees e ON e.profile_id = d.delegator_id
-          WHERE d.delegate_id = $1
-          AND e.id = $2
-          AND d.is_active = TRUE
-          AND CURRENT_DATE BETWEEN d.start_date AND d.end_date
-          AND (d.delegation_type = 'all' OR d.delegation_type = 'leaves')
-        `, [userId, leaveRequest.manager_id]);
-
-        if (delegation.rows.length === 0) {
-          return res.status(403).json({ success: false, error: 'Not authorized to approve this request' });
-        }
-
-        delegationId = delegation.rows[0].id;
-        approvedOnBehalfOf = delegation.rows[0].delegator_id;
-      }
-
-      // Update request status
-      const result = await client.query(`
-        UPDATE hr_leave_requests
-        SET status = 'approved',
-            approved_by = $1,
-            approved_at = NOW(),
-            approved_on_behalf_of = $2,
-            delegation_id = $3,
-            manager_comment = $4
-        WHERE id = $5
-        RETURNING *
-      `, [userId, approvedOnBehalfOf, delegationId, comment, id]);
-
-      await client.query('COMMIT');
 
       res.json({
         success: true,
-        data: result.rows[0],
-        delegation: delegationId ? { id: delegationId, on_behalf_of: approvedOnBehalfOf } : null
+        data: result.request,
+        message: result.message,
+        is_final: result.is_final,
+        next_level: result.next_level
       });
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('Error approving request:', error);
       res.status(500).json({ success: false, error: error.message });
-    } finally {
-      client.release();
     }
   }
 );
 
 /**
  * Reject a leave request (as manager)
+ * Uses ApprovalService for consistent rejection handling
  */
 router.post('/requests/:id/reject',
   authenticateToken,
   async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
-    const { comment } = req.body;
+    const { comment, request_type = 'leave' } = req.body;
 
-    if (!comment) {
-      return res.status(400).json({ success: false, error: 'Comment is required for rejection' });
-    }
-
-    const client = await pool.connect();
+    const approvalService = new ApprovalService(pool);
 
     try {
-      await client.query('BEGIN');
+      // Use the unified ApprovalService
+      const result = await approvalService.rejectRequest(
+        request_type === 'overtime' ? REQUEST_TYPES.OVERTIME :
+        request_type === 'correction' ? REQUEST_TYPES.CORRECTION :
+        REQUEST_TYPES.LEAVE,
+        id,
+        userId,
+        comment
+      );
 
-      // Verify request exists and is from team member
-      const request = await client.query(`
-        SELECT lr.*, e.manager_id
-        FROM hr_leave_requests lr
-        JOIN hr_employees e ON e.id = lr.employee_id
-        WHERE lr.id = $1
-      `, [id]);
-
-      if (request.rows.length === 0) {
-        return res.status(404).json({ success: false, error: 'Request not found' });
+      if (!result.success) {
+        return res.status(400).json(result);
       }
-
-      const leaveRequest = request.rows[0];
-
-      // Check if user is the manager or has delegation (same logic as approve)
-      const managerEmployee = await client.query(`
-        SELECT id FROM hr_employees WHERE profile_id = $1
-      `, [userId]);
-
-      if (managerEmployee.rows.length === 0) {
-        return res.status(403).json({ success: false, error: 'Not an employee' });
-      }
-
-      const isManager = leaveRequest.manager_id === managerEmployee.rows[0].id;
-
-      let delegationId = null;
-      let approvedOnBehalfOf = null;
-
-      if (!isManager) {
-        const delegation = await client.query(`
-          SELECT d.id, d.delegator_id
-          FROM hr_approval_delegations d
-          JOIN hr_employees e ON e.profile_id = d.delegator_id
-          WHERE d.delegate_id = $1
-          AND e.id = $2
-          AND d.is_active = TRUE
-          AND CURRENT_DATE BETWEEN d.start_date AND d.end_date
-          AND (d.delegation_type = 'all' OR d.delegation_type = 'leaves')
-        `, [userId, leaveRequest.manager_id]);
-
-        if (delegation.rows.length === 0) {
-          return res.status(403).json({ success: false, error: 'Not authorized to reject this request' });
-        }
-
-        delegationId = delegation.rows[0].id;
-        approvedOnBehalfOf = delegation.rows[0].delegator_id;
-      }
-
-      // Update request status
-      const result = await client.query(`
-        UPDATE hr_leave_requests
-        SET status = 'rejected',
-            approved_by = $1,
-            approved_at = NOW(),
-            approved_on_behalf_of = $2,
-            delegation_id = $3,
-            manager_comment = $4
-        WHERE id = $5
-        RETURNING *
-      `, [userId, approvedOnBehalfOf, delegationId, comment, id]);
-
-      await client.query('COMMIT');
 
       res.json({
         success: true,
-        data: result.rows[0],
-        delegation: delegationId ? { id: delegationId, on_behalf_of: approvedOnBehalfOf } : null
+        data: result.request,
+        message: result.message
       });
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('Error rejecting request:', error);
       res.status(500).json({ success: false, error: error.message });
-    } finally {
-      client.release();
     }
   }
 );
