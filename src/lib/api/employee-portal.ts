@@ -47,11 +47,26 @@ export interface CorrectionRequestInfo {
   current_approver_name?: string | null;
 }
 
+export type AttendanceStatus =
+  | 'present'
+  | 'absent'
+  | 'late'
+  | 'early_leave'
+  | 'late_early'
+  | 'half_day'
+  | 'incomplete'
+  | 'weekend'
+  | 'holiday'
+  | 'leave'
+  | 'mission'
+  | 'check_in'
+  | 'check_out';
+
 export interface AttendanceRecord {
   date: string;
   check_in: string;
   check_out: string;
-  status: 'present' | 'absent' | 'leave' | 'holiday';
+  status: AttendanceStatus;
   worked_minutes?: number | null;
   has_anomaly?: boolean;
   correction_request?: CorrectionRequestInfo | null;

@@ -22,6 +22,22 @@ export interface TeamMember {
   is_active: boolean;
 }
 
+export type TeamAttendanceStatus =
+  | 'present'
+  | 'absent'
+  | 'late'
+  | 'early_leave'
+  | 'late_early'
+  | 'half_day'
+  | 'incomplete'
+  | 'weekend'
+  | 'holiday'
+  | 'leave'
+  | 'mission'
+  | 'partial'
+  | 'check_in'
+  | 'check_out';
+
 export interface TeamAttendanceRecord {
   id: string;
   employee_id: string;
@@ -30,7 +46,7 @@ export interface TeamAttendanceRecord {
   clock_in?: string;
   clock_out?: string;
   worked_hours?: number;
-  status: 'present' | 'absent' | 'late' | 'leave' | 'partial';
+  status: TeamAttendanceStatus;
   late_minutes?: number;
   leave_type?: string;
   notes?: string;
