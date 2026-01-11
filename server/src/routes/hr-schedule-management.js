@@ -740,13 +740,11 @@ router.get('/overtime-periods', authenticateToken, requirePermission('hr.attenda
     let query = `
       SELECT
         op.*,
-        p.email as declared_by_email,
         (SELECT COALESCE(e.first_name, '') || ' ' || COALESCE(e.last_name, '')
          FROM hr_employees e WHERE e.profile_id::text = op.declared_by::text LIMIT 1) as declared_by_name,
         COALESCE((SELECT COUNT(*)::integer FROM hr_overtime_records otr WHERE otr.period_id = op.id), 0) as employee_count,
         COALESCE((SELECT SUM(otr2.actual_minutes) FROM hr_overtime_records otr2 WHERE otr2.period_id = op.id), 0) as total_minutes
       FROM hr_overtime_periods op
-      LEFT JOIN profiles p ON p.id::text = op.declared_by::text
       WHERE 1=1
     `;
     const params = [];
