@@ -316,16 +316,16 @@ router.post('/calculate/:period_id',
         const workedMinutes = parseInt(attendance.rows[0]?.total_worked_minutes) || 0;
         const workedHours = workedMinutes / 60;
 
-        // Get approved overtime for this period
+        // Get approved overtime for this period from hr_overtime_records (periods declared by manager)
         const overtime = await client.query(`
           SELECT
-            COALESCE(SUM(CASE WHEN overtime_type = '25' THEN hours ELSE 0 END), 0) as hours_25,
-            COALESCE(SUM(CASE WHEN overtime_type = '50' THEN hours ELSE 0 END), 0) as hours_50,
-            COALESCE(SUM(CASE WHEN overtime_type = '100' THEN hours ELSE 0 END), 0) as hours_100
-          FROM hr_overtime_requests
+            COALESCE(SUM(CASE WHEN rate_type = 'normal' THEN actual_minutes ELSE 0 END), 0) / 60.0 as hours_25,
+            COALESCE(SUM(CASE WHEN rate_type = 'extended' THEN actual_minutes ELSE 0 END), 0) / 60.0 as hours_50,
+            COALESCE(SUM(CASE WHEN rate_type IN ('special', 'night', 'weekend', 'holiday') THEN actual_minutes ELSE 0 END), 0) / 60.0 as hours_100
+          FROM hr_overtime_records
           WHERE employee_id = $1
-          AND status = 'approved'
-          AND DATE(overtime_date) BETWEEN $2 AND $3
+          AND validated_for_payroll = true
+          AND overtime_date BETWEEN $2 AND $3
         `, [emp.id, periodData.start_date, periodData.end_date]);
 
         const overtimeHours25 = parseFloat(overtime.rows[0]?.hours_25) || 0;

@@ -371,6 +371,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 107: Demandes de Correction Pointage',
     description: '📝 Table hr_attendance_correction_requests - Permet aux employés de demander des corrections de pointage avec validation multi-niveaux (N -> N+1 -> N+2...)',
     endpoint: '/migration-107-hr-correction-requests'
+  },
+  {
+    id: 'migration-108',
+    name: 'Migration 108: Périodes Heures Supplémentaires',
+    description: '⏰ Tables hr_overtime_periods et hr_overtime_config - Déclaration des périodes HS par les managers, calcul automatique basé sur pointage, taux 25%/50%/100%',
+    endpoint: '/migration-108-hr-overtime-periods'
   }
 ];
 

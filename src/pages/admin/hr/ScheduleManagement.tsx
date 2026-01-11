@@ -44,6 +44,8 @@ import {
   Timer,
   Loader2,
   AlertCircle,
+  RefreshCw,
+  Settings,
 } from 'lucide-react';
 
 // Hooks
@@ -58,19 +60,32 @@ import {
   useOvertimeDeclarations,
   useApproveOvertime,
   useRejectOvertime,
+  useOvertimePeriods,
+  useCreateOvertimePeriod,
+  useDeleteOvertimePeriod,
+  useRecalculateOvertimePeriod,
+  useOvertimeConfig,
+  useUpdateOvertimeConfig,
 } from '@/hooks/useScheduleManagement';
 
 // Types
-import type { WorkSchedule, PublicHoliday } from '@/lib/api/schedule-management';
+import type { WorkSchedule, PublicHoliday, OvertimePeriod, OvertimeConfig } from '@/lib/api/schedule-management';
 
 // Tabs
-type TabType = 'modeles' | 'feries' | 'conges' | 'heures-sup';
+type TabType = 'modeles' | 'feries' | 'conges' | 'heures-sup' | 'config-hs';
 
 const TABS: { id: TabType; label: string; icon: React.ElementType }[] = [
   { id: 'modeles', label: 'Modèles d\'Horaires', icon: Clock },
   { id: 'feries', label: 'Jours Fériés', icon: CalendarDays },
   { id: 'conges', label: 'Congés Validés', icon: Calendar },
   { id: 'heures-sup', label: 'Heures Supplémentaires', icon: Timer },
+  { id: 'config-hs', label: 'Config HS', icon: Settings },
+];
+
+const RATE_TYPES = [
+  { value: 'normal', label: 'Taux 25%', color: 'bg-green-100 text-green-800' },
+  { value: 'extended', label: 'Taux 50%', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'special', label: 'Taux 100%', color: 'bg-red-100 text-red-800' },
 ];
 
 const JOURS_SEMAINE = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -83,6 +98,7 @@ export default function ScheduleManagement() {
   // State for modals
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [showOvertimePeriodModal, setShowOvertimePeriodModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<WorkSchedule | null>(null);
   const [editingHoliday, setEditingHoliday] = useState<PublicHoliday | null>(null);
 
@@ -94,11 +110,25 @@ export default function ScheduleManagement() {
     description: '',
   });
 
+  // Overtime period form
+  const [overtimePeriodForm, setOvertimePeriodForm] = useState({
+    period_date: new Date().toISOString().split('T')[0],
+    start_time: '17:00',
+    end_time: '21:00',
+    rate_type: 'normal' as 'normal' | 'extended' | 'special',
+    reason: '',
+  });
+
+  // Overtime config form
+  const [overtimeConfigForm, setOvertimeConfigForm] = useState<Partial<OvertimeConfig>>({});
+
   // Queries
   const { data: schedulesData, isLoading: schedulesLoading, error: schedulesError } = useWorkSchedules();
   const { data: holidaysData, isLoading: holidaysLoading, error: holidaysError } = usePublicHolidays(currentYear);
   const { data: leavesData, isLoading: leavesLoading, error: leavesError } = useApprovedLeaves(currentYear);
   const { data: overtimeData, isLoading: overtimeLoading, error: overtimeError } = useOvertimeDeclarations();
+  const { data: overtimePeriodsData, isLoading: periodsLoading, error: periodsError } = useOvertimePeriods();
+  const { data: overtimeConfigData, isLoading: configLoading } = useOvertimeConfig();
 
   // Mutations
   const deleteSchedule = useDeleteSchedule();
@@ -107,12 +137,18 @@ export default function ScheduleManagement() {
   const deleteHoliday = useDeleteHoliday();
   const approveOvertime = useApproveOvertime();
   const rejectOvertime = useRejectOvertime();
+  const createOvertimePeriod = useCreateOvertimePeriod();
+  const deleteOvertimePeriod = useDeleteOvertimePeriod();
+  const recalculateOvertimePeriod = useRecalculateOvertimePeriod();
+  const updateOvertimeConfig = useUpdateOvertimeConfig();
 
   // Data
   const modeles = schedulesData?.schedules || [];
   const joursFeries = holidaysData?.holidays || [];
   const congesValides = leavesData?.leaves || [];
   const declarationsHS = overtimeData?.overtime || [];
+  const overtimePeriods = overtimePeriodsData?.periods || [];
+  const overtimeConfig = overtimeConfigData?.config;
 
   // Handlers - Schedules
   const handleOpenScheduleModal = (schedule?: WorkSchedule) => {
@@ -201,6 +237,86 @@ export default function ScheduleManagement() {
       toast({ title: 'Erreur', description: error.message || 'Erreur lors du refus', variant: 'destructive' });
     }
   };
+
+  // Handlers - Overtime Periods
+  const handleCreateOvertimePeriod = async () => {
+    if (!overtimePeriodForm.period_date || !overtimePeriodForm.start_time || !overtimePeriodForm.end_time) {
+      toast({ title: 'Erreur', description: 'Date et horaires requis', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      await createOvertimePeriod.mutateAsync(overtimePeriodForm);
+      toast({ title: 'Succès', description: 'Période HS déclarée avec succès' });
+      setShowOvertimePeriodModal(false);
+      // Reset form
+      setOvertimePeriodForm({
+        period_date: new Date().toISOString().split('T')[0],
+        start_time: '17:00',
+        end_time: '21:00',
+        rate_type: 'normal',
+        reason: '',
+      });
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors de la création', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteOvertimePeriod = async (id: string) => {
+    if (!confirm('Supprimer cette période d\'heures supplémentaires ?')) return;
+    try {
+      await deleteOvertimePeriod.mutateAsync(id);
+      toast({ title: 'Succès', description: 'Période supprimée' });
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors de la suppression', variant: 'destructive' });
+    }
+  };
+
+  const handleRecalculatePeriod = async (id: string) => {
+    try {
+      await recalculateOvertimePeriod.mutateAsync(id);
+      toast({ title: 'Succès', description: 'Heures recalculées' });
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors du recalcul', variant: 'destructive' });
+    }
+  };
+
+  // Handlers - Overtime Config
+  const handleSaveOvertimeConfig = async () => {
+    try {
+      await updateOvertimeConfig.mutateAsync(overtimeConfigForm);
+      toast({ title: 'Succès', description: 'Configuration sauvegardée' });
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors de la sauvegarde', variant: 'destructive' });
+    }
+  };
+
+  // Initialize config form when data loads
+  const initConfigForm = () => {
+    if (overtimeConfig && Object.keys(overtimeConfigForm).length === 0) {
+      setOvertimeConfigForm({
+        daily_threshold_hours: overtimeConfig.daily_threshold_hours,
+        weekly_threshold_hours: overtimeConfig.weekly_threshold_hours,
+        monthly_max_hours: overtimeConfig.monthly_max_hours,
+        rate_25_multiplier: overtimeConfig.rate_25_multiplier,
+        rate_50_multiplier: overtimeConfig.rate_50_multiplier,
+        rate_100_multiplier: overtimeConfig.rate_100_multiplier,
+        rate_25_threshold_hours: overtimeConfig.rate_25_threshold_hours,
+        rate_50_threshold_hours: overtimeConfig.rate_50_threshold_hours,
+        night_start: overtimeConfig.night_start,
+        night_end: overtimeConfig.night_end,
+        apply_100_for_night: overtimeConfig.apply_100_for_night,
+        apply_100_for_weekend: overtimeConfig.apply_100_for_weekend,
+        apply_100_for_holiday: overtimeConfig.apply_100_for_holiday,
+        requires_prior_approval: overtimeConfig.requires_prior_approval,
+      });
+    }
+  };
+
+  // Call initConfigForm when switching to config tab
+  if (activeTab === 'config-hs' && overtimeConfig && Object.keys(overtimeConfigForm).length === 0) {
+    initConfigForm();
+  }
 
   // Render loading/error states
   const renderLoadingOrError = (loading: boolean, error: any, tabName: string) => {
@@ -441,82 +557,383 @@ export default function ScheduleManagement() {
         );
 
       case 'heures-sup':
-        const overtimeState = renderLoadingOrError(overtimeLoading, overtimeError, 'heures sup');
+        const overtimeState = renderLoadingOrError(overtimeLoading || periodsLoading, overtimeError || periodsError, 'heures sup');
         if (overtimeState) return overtimeState;
 
         return (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Timer className="h-5 w-5" />
-                Déclarations d'Heures Supplémentaires
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {declarationsHS.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  Aucune déclaration d'heures supplémentaires.
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Employé</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Heures demandées</TableHead>
-                      <TableHead>Motif</TableHead>
-                      <TableHead>Statut</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {declarationsHS.map(decl => (
-                      <TableRow key={decl.id}>
-                        <TableCell className="font-medium">{decl.employe_nom}</TableCell>
-                        <TableCell>{new Date(decl.request_date).toLocaleDateString('fr-FR')}</TableCell>
-                        <TableCell>{decl.heures_demandees}h</TableCell>
-                        <TableCell className="max-w-xs truncate">{decl.motif || '-'}</TableCell>
-                        <TableCell>
-                          <Badge className={
-                            decl.statut === 'approved' ? 'bg-green-100 text-green-800' :
-                            decl.statut === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }>
-                            {decl.statut === 'approved' ? 'Approuvé' :
-                             decl.statut === 'pending' ? 'En attente' : 'Refusé'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {decl.statut === 'pending' && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-green-600"
-                                onClick={() => handleApproveOvertime(decl.id, decl.heures_demandees)}
-                                disabled={approveOvertime.isPending}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-red-600"
-                                onClick={() => handleRejectOvertime(decl.id)}
-                                disabled={rejectOvertime.isPending}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </TableCell>
+          <div className="space-y-6">
+            {/* Périodes HS déclarées par le manager */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Timer className="h-5 w-5" />
+                  Périodes d'Heures Supplémentaires (Manager)
+                </CardTitle>
+                <Button size="sm" onClick={() => setShowOvertimePeriodModal(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Déclarer une période HS
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {overtimePeriods.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Aucune période d'heures supplémentaires déclarée.
+                    <br />
+                    <span className="text-sm">Cliquez sur "Déclarer une période HS" pour créer une période.</span>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Horaire</TableHead>
+                        <TableHead>Taux</TableHead>
+                        <TableHead>Employés</TableHead>
+                        <TableHead>Heures totales</TableHead>
+                        <TableHead>Motif</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {overtimePeriods.map((period: OvertimePeriod) => {
+                        const rateInfo = RATE_TYPES.find(r => r.value === period.rate_type) || RATE_TYPES[0];
+                        return (
+                          <TableRow key={period.id}>
+                            <TableCell className="font-medium">
+                              {new Date(period.period_date).toLocaleDateString('fr-FR', {
+                                weekday: 'short',
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric'
+                              })}
+                            </TableCell>
+                            <TableCell>
+                              {period.start_time?.slice(0, 5)} - {period.end_time?.slice(0, 5)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={rateInfo.color}>{rateInfo.label}</Badge>
+                            </TableCell>
+                            <TableCell>{period.employee_count || 0}</TableCell>
+                            <TableCell>{period.total_minutes ? Math.round(period.total_minutes / 60 * 100) / 100 : 0}h</TableCell>
+                            <TableCell className="max-w-xs truncate">{period.reason || '-'}</TableCell>
+                            <TableCell>
+                              <Badge className={period.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                                {period.status === 'active' ? 'Actif' : 'Annulé'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRecalculatePeriod(period.id)}
+                                disabled={recalculateOvertimePeriod.isPending}
+                                title="Recalculer les heures"
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteOvertimePeriod(period.id)}
+                                disabled={deleteOvertimePeriod.isPending}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Déclarations HS individuelles (ancien système) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Demandes individuelles d'Heures Supplémentaires
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {declarationsHS.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Aucune demande individuelle d'heures supplémentaires.
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Employé</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Heures demandées</TableHead>
+                        <TableHead>Motif</TableHead>
+                        <TableHead>Statut</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {declarationsHS.map(decl => (
+                        <TableRow key={decl.id}>
+                          <TableCell className="font-medium">{decl.employe_nom}</TableCell>
+                          <TableCell>{new Date(decl.request_date).toLocaleDateString('fr-FR')}</TableCell>
+                          <TableCell>{decl.heures_demandees}h</TableCell>
+                          <TableCell className="max-w-xs truncate">{decl.motif || '-'}</TableCell>
+                          <TableCell>
+                            <Badge className={
+                              decl.statut === 'approved' ? 'bg-green-100 text-green-800' :
+                              decl.statut === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }>
+                              {decl.statut === 'approved' ? 'Approuvé' :
+                               decl.statut === 'pending' ? 'En attente' : 'Refusé'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {decl.statut === 'pending' && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-green-600"
+                                  onClick={() => handleApproveOvertime(decl.id, decl.heures_demandees)}
+                                  disabled={approveOvertime.isPending}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600"
+                                  onClick={() => handleRejectOvertime(decl.id)}
+                                  disabled={rejectOvertime.isPending}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case 'config-hs':
+        if (configLoading) {
+          return (
+            <Card>
+              <CardContent className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                <span className="ml-2 text-gray-500">Chargement de la configuration...</span>
+              </CardContent>
+            </Card>
+          );
+        }
+
+        return (
+          <div className="space-y-6">
+            {/* Seuils */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Seuils Heures Supplémentaires
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Seuil quotidien (heures)</Label>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={overtimeConfigForm.daily_threshold_hours ?? 8}
+                      onChange={(e) => setOvertimeConfigForm({ ...overtimeConfigForm, daily_threshold_hours: parseFloat(e.target.value) })}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Heures normales par jour avant HS</p>
+                  </div>
+                  <div>
+                    <Label>Seuil hebdomadaire (heures)</Label>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={overtimeConfigForm.weekly_threshold_hours ?? 44}
+                      onChange={(e) => setOvertimeConfigForm({ ...overtimeConfigForm, weekly_threshold_hours: parseFloat(e.target.value) })}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Heures normales par semaine avant HS</p>
+                  </div>
+                  <div>
+                    <Label>Maximum mensuel HS (heures)</Label>
+                    <Input
+                      type="number"
+                      step="0.5"
+                      value={overtimeConfigForm.monthly_max_hours ?? 40}
+                      onChange={(e) => setOvertimeConfigForm({ ...overtimeConfigForm, monthly_max_hours: parseFloat(e.target.value) })}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Maximum heures sup par mois</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Taux de majoration */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Taux de Majoration</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 border rounded-lg bg-green-50">
+                    <Label className="text-green-700">Taux 25%</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-sm text-gray-600">Multiplicateur:</span>
+                      <Input
+                        type="number"
+                        step="0.05"
+                        className="w-24"
+                        value={overtimeConfigForm.rate_25_multiplier ?? 1.25}
+                        onChange={(e) => setOvertimeConfigForm({ ...overtimeConfigForm, rate_25_multiplier: parseFloat(e.target.value) })}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-sm text-gray-600">Jusqu'à:</span>
+                      <Input
+                        type="number"
+                        step="0.5"
+                        className="w-24"
+                        value={overtimeConfigForm.rate_25_threshold_hours ?? 8}
+                        onChange={(e) => setOvertimeConfigForm({ ...overtimeConfigForm, rate_25_threshold_hours: parseFloat(e.target.value) })}
+                      />
+                      <span className="text-sm text-gray-600">h HS</span>
+                    </div>
+                  </div>
+                  <div className="p-4 border rounded-lg bg-yellow-50">
+                    <Label className="text-yellow-700">Taux 50%</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-sm text-gray-600">Multiplicateur:</span>
+                      <Input
+                        type="number"
+                        step="0.05"
+                        className="w-24"
+                        value={overtimeConfigForm.rate_50_multiplier ?? 1.50}
+                        onChange={(e) => setOvertimeConfigForm({ ...overtimeConfigForm, rate_50_multiplier: parseFloat(e.target.value) })}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-sm text-gray-600">Jusqu'à:</span>
+                      <Input
+                        type="number"
+                        step="0.5"
+                        className="w-24"
+                        value={overtimeConfigForm.rate_50_threshold_hours ?? 16}
+                        onChange={(e) => setOvertimeConfigForm({ ...overtimeConfigForm, rate_50_threshold_hours: parseFloat(e.target.value) })}
+                      />
+                      <span className="text-sm text-gray-600">h HS</span>
+                    </div>
+                  </div>
+                  <div className="p-4 border rounded-lg bg-red-50">
+                    <Label className="text-red-700">Taux 100%</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-sm text-gray-600">Multiplicateur:</span>
+                      <Input
+                        type="number"
+                        step="0.05"
+                        className="w-24"
+                        value={overtimeConfigForm.rate_100_multiplier ?? 2.00}
+                        onChange={(e) => setOvertimeConfigForm({ ...overtimeConfigForm, rate_100_multiplier: parseFloat(e.target.value) })}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">Au-delà du seuil 50%</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Plage horaire nuit */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Plage Horaire de Nuit (Taux 100%)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Début de nuit</Label>
+                    <Input
+                      type="time"
+                      value={overtimeConfigForm.night_start ?? '21:00'}
+                      onChange={(e) => setOvertimeConfigForm({ ...overtimeConfigForm, night_start: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Fin de nuit</Label>
+                    <Input
+                      type="time"
+                      value={overtimeConfigForm.night_end ?? '06:00'}
+                      onChange={(e) => setOvertimeConfigForm({ ...overtimeConfigForm, night_end: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={overtimeConfigForm.apply_100_for_night ?? true}
+                      onCheckedChange={(checked) => setOvertimeConfigForm({ ...overtimeConfigForm, apply_100_for_night: !!checked })}
+                    />
+                    <Label>Appliquer taux 100% pour travail de nuit</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={overtimeConfigForm.apply_100_for_weekend ?? true}
+                      onCheckedChange={(checked) => setOvertimeConfigForm({ ...overtimeConfigForm, apply_100_for_weekend: !!checked })}
+                    />
+                    <Label>Appliquer taux 100% pour le weekend</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={overtimeConfigForm.apply_100_for_holiday ?? true}
+                      onCheckedChange={(checked) => setOvertimeConfigForm({ ...overtimeConfigForm, apply_100_for_holiday: !!checked })}
+                    />
+                    <Label>Appliquer taux 100% pour les jours fériés</Label>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Options */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Options</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={overtimeConfigForm.requires_prior_approval ?? false}
+                    onCheckedChange={(checked) => setOvertimeConfigForm({ ...overtimeConfigForm, requires_prior_approval: !!checked })}
+                  />
+                  <Label>Approbation préalable obligatoire pour les heures supplémentaires</Label>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Save Button */}
+            <div className="flex justify-end">
+              <Button
+                onClick={handleSaveOvertimeConfig}
+                disabled={updateOvertimeConfig.isPending}
+              >
+                {updateOvertimeConfig.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Enregistrer la configuration
+              </Button>
+            </div>
+          </div>
         );
     }
   };
@@ -626,6 +1043,92 @@ export default function ScheduleManagement() {
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
               {editingHoliday ? 'Mettre à jour' : 'Ajouter'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Overtime Period Modal */}
+      <Dialog open={showOvertimePeriodModal} onOpenChange={setShowOvertimePeriodModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Timer className="h-5 w-5" />
+              Déclarer une période d'heures supplémentaires
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Date *</Label>
+              <Input
+                type="date"
+                value={overtimePeriodForm.period_date}
+                onChange={(e) => setOvertimePeriodForm({ ...overtimePeriodForm, period_date: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Heure début *</Label>
+                <Input
+                  type="time"
+                  value={overtimePeriodForm.start_time}
+                  onChange={(e) => setOvertimePeriodForm({ ...overtimePeriodForm, start_time: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Heure fin *</Label>
+                <Input
+                  type="time"
+                  value={overtimePeriodForm.end_time}
+                  onChange={(e) => setOvertimePeriodForm({ ...overtimePeriodForm, end_time: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Taux de majoration</Label>
+              <Select
+                value={overtimePeriodForm.rate_type}
+                onValueChange={(value: 'normal' | 'extended' | 'special') =>
+                  setOvertimePeriodForm({ ...overtimePeriodForm, rate_type: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RATE_TYPES.map(rate => (
+                    <SelectItem key={rate.value} value={rate.value}>
+                      {rate.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Motif (optionnel)</Label>
+              <Textarea
+                value={overtimePeriodForm.reason}
+                onChange={(e) => setOvertimePeriodForm({ ...overtimePeriodForm, reason: e.target.value })}
+                placeholder="Ex: Projet urgent, inventaire..."
+              />
+            </div>
+            <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-700">
+              <p className="font-medium">Comment ça marche ?</p>
+              <p className="mt-1">Les employés ayant pointé pendant cette période auront automatiquement leurs heures supplémentaires calculées et ajoutées à la paie.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOvertimePeriodModal(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleCreateOvertimePeriod}
+              disabled={createOvertimePeriod.isPending}
+            >
+              {createOvertimePeriod.isPending && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              Déclarer
             </Button>
           </DialogFooter>
         </DialogContent>
