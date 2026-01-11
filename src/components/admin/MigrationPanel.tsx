@@ -377,6 +377,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 108: Périodes Heures Supplémentaires',
     description: '⏰ Tables hr_overtime_periods et hr_overtime_config - Déclaration des périodes HS par les managers, calcul automatique basé sur pointage, taux 25%/50%/100%',
     endpoint: '/migration-108-hr-overtime-periods'
+  },
+  {
+    id: 'migration-109',
+    name: 'Migration 109: Refactorisation Permissions Français',
+    description: '🇫🇷 Refactorisation complète des permissions en français - Structure hiérarchique (section.sous_menu.onglet.action), ~150 nouvelles permissions alignées avec le menu latéral',
+    endpoint: '/migration-109-refactor-permissions-french'
   }
 ];
 

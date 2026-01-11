@@ -1,1243 +1,1444 @@
 /**
- * PERMISSIONS MASTER - Source Unique de Vérité
+ * PERMISSIONS MASTER - Source Unique de Verite
  *
- * Ce fichier définit TOUTES les permissions du système avec leurs labels et descriptions en français.
- * Format: module.menu.action
+ * Ce fichier definit TOUTES les permissions du systeme avec leurs labels et descriptions en francais.
+ * Format: section.sous_menu.{onglet?}.action
  *
- * Modules:
- * - accounting: Gestion Comptable
- * - training: Formation en Ligne
- * - hr: Ressources Humaines
+ * Sections:
+ * - gestion_comptable: Gestion Comptable
+ * - formation: Formation
+ * - ressources_humaines: Ressources Humaines
+ * - mon_equipe: Mon Equipe
+ * - mon_espace_rh: Mon Espace RH
  * - commercialisation: Commercialisation
- * - system: Système
  */
 
 export const PERMISSIONS_MASTER = {
   // ============================================================
-  // MODULE 1: GESTION COMPTABLE
+  // SECTION 1: GESTION COMPTABLE
   // ============================================================
-  accounting: {
-    dashboard: [
+  gestion_comptable: {
+    // Permission d'acces a la section
+    _section: [
       {
-        action: 'view_page',
+        action: 'acces',
+        label: 'Acces Gestion Comptable',
+        description: 'Permet d\'acceder a la section Gestion Comptable',
+        sort_order: 0
+      }
+    ],
+
+    tableau_de_bord: [
+      {
+        action: 'voir',
         label: 'Voir le tableau de bord',
-        description: 'Permet d\'accéder au tableau de bord principal avec les statistiques générales',
+        description: 'Permet d\'acceder au tableau de bord principal avec les statistiques generales',
         sort_order: 1
       }
     ],
 
     segments: [
       {
-        action: 'view_page',
-        label: 'Voir la page des segments',
-        description: 'Permet d\'accéder à la liste des segments',
+        action: 'voir',
+        label: 'Voir les segments',
+        description: 'Permet d\'acceder a la liste des segments',
         sort_order: 1
       },
       {
-        action: 'create',
-        label: 'Créer un segment',
-        description: 'Permet de créer un nouveau segment de formation',
+        action: 'creer',
+        label: 'Creer un segment',
+        description: 'Permet de creer un nouveau segment de formation',
         sort_order: 2
       },
       {
-        action: 'update',
+        action: 'modifier',
         label: 'Modifier un segment',
         description: 'Permet de modifier les informations d\'un segment existant',
         sort_order: 3
       },
       {
-        action: 'delete',
+        action: 'supprimer',
         label: 'Supprimer un segment',
-        description: 'Permet de supprimer définitivement un segment',
+        description: 'Permet de supprimer definitivement un segment',
         sort_order: 4
+      },
+      {
+        action: 'importer_villes',
+        label: 'Importer des villes',
+        description: 'Permet d\'importer des villes dans un segment',
+        sort_order: 5
       }
     ],
 
-    cities: [
+    villes: [
       {
-        action: 'view_page',
-        label: 'Voir la page des villes',
-        description: 'Permet d\'accéder à la liste des villes',
+        action: 'voir',
+        label: 'Voir les villes',
+        description: 'Permet d\'acceder a la liste des villes',
         sort_order: 1
       },
       {
-        action: 'create',
-        label: 'Créer une ville',
-        description: 'Permet d\'ajouter une nouvelle ville au système',
+        action: 'creer',
+        label: 'Creer une ville',
+        description: 'Permet d\'ajouter une nouvelle ville au systeme',
         sort_order: 2
       },
       {
-        action: 'update',
+        action: 'modifier',
         label: 'Modifier une ville',
         description: 'Permet de modifier les informations d\'une ville',
         sort_order: 3
       },
       {
-        action: 'delete',
+        action: 'supprimer',
         label: 'Supprimer une ville',
-        description: 'Permet de supprimer une ville du système',
+        description: 'Permet de supprimer une ville du systeme',
         sort_order: 4
       },
       {
-        action: 'bulk_delete',
+        action: 'supprimer_masse',
         label: 'Suppression en masse',
         description: 'Permet de supprimer plusieurs villes en une seule action',
         sort_order: 5
       }
     ],
 
-    users: [
+    utilisateurs: [
       {
-        action: 'view_page',
-        label: 'Voir la page des utilisateurs',
-        description: 'Permet d\'accéder à la liste des utilisateurs du système',
+        action: 'voir',
+        label: 'Voir les utilisateurs',
+        description: 'Permet d\'acceder a la liste des utilisateurs du systeme',
         sort_order: 1
       },
       {
-        action: 'create',
-        label: 'Créer un utilisateur',
-        description: 'Permet de créer un nouveau compte utilisateur',
+        action: 'creer',
+        label: 'Creer un utilisateur',
+        description: 'Permet de creer un nouveau compte utilisateur',
         sort_order: 2
       },
       {
-        action: 'update',
+        action: 'modifier',
         label: 'Modifier un utilisateur',
         description: 'Permet de modifier les informations d\'un utilisateur',
         sort_order: 3
       },
       {
-        action: 'delete',
+        action: 'supprimer',
         label: 'Supprimer un utilisateur',
         description: 'Permet de supprimer un compte utilisateur',
         sort_order: 4
       },
       {
-        action: 'assign_segments',
+        action: 'assigner_segments',
         label: 'Assigner des segments',
-        description: 'Permet d\'attribuer des segments à un utilisateur pour limiter son accès',
+        description: 'Permet d\'assigner des segments a un utilisateur',
         sort_order: 5
       },
       {
-        action: 'assign_cities',
+        action: 'assigner_villes',
         label: 'Assigner des villes',
-        description: 'Permet d\'attribuer des villes à un utilisateur pour limiter son accès',
+        description: 'Permet d\'assigner des villes a un utilisateur',
         sort_order: 6
+      },
+      {
+        action: 'assigner_roles',
+        label: 'Assigner des roles',
+        description: 'Permet d\'assigner un role a un utilisateur',
+        sort_order: 7
       }
     ],
 
-    calculation_sheets: [
+    roles_permissions: [
       {
-        action: 'view_page',
-        label: 'Voir la page des fiches',
-        description: 'Permet d\'accéder à la liste des fiches de calcul',
+        action: 'voir',
+        label: 'Voir les roles et permissions',
+        description: 'Permet d\'acceder a la gestion des roles et permissions',
         sort_order: 1
       },
       {
-        action: 'view',
-        label: 'Voir les détails',
-        description: 'Permet de consulter le contenu d\'une fiche de calcul',
+        action: 'creer',
+        label: 'Creer un role',
+        description: 'Permet de creer un nouveau role',
         sort_order: 2
       },
       {
-        action: 'create',
-        label: 'Créer une fiche',
-        description: 'Permet de créer une nouvelle fiche de calcul',
+        action: 'modifier',
+        label: 'Modifier un role',
+        description: 'Permet de modifier les permissions d\'un role',
         sort_order: 3
       },
       {
-        action: 'update',
+        action: 'supprimer',
+        label: 'Supprimer un role',
+        description: 'Permet de supprimer un role (sauf roles systeme)',
+        sort_order: 4
+      }
+    ],
+
+    fiches_calcul: [
+      {
+        action: 'voir',
+        label: 'Voir les fiches de calcul',
+        description: 'Permet d\'acceder aux fiches de calcul',
+        sort_order: 1
+      },
+      {
+        action: 'creer',
+        label: 'Creer une fiche',
+        description: 'Permet de creer une nouvelle fiche de calcul',
+        sort_order: 2
+      },
+      {
+        action: 'modifier',
         label: 'Modifier une fiche',
-        description: 'Permet de modifier les métadonnées d\'une fiche',
+        description: 'Permet de modifier une fiche de calcul existante',
+        sort_order: 3
+      },
+      {
+        action: 'supprimer',
+        label: 'Supprimer une fiche',
+        description: 'Permet de supprimer une fiche de calcul',
         sort_order: 4
       },
       {
-        action: 'edit',
-        label: 'Éditer le contenu',
-        description: 'Permet d\'éditer les cellules et formules de la fiche',
+        action: 'publier',
+        label: 'Publier une fiche',
+        description: 'Permet de publier une fiche pour les professeurs',
         sort_order: 5
       },
       {
-        action: 'delete',
-        label: 'Supprimer une fiche',
-        description: 'Permet de supprimer définitivement une fiche de calcul',
+        action: 'dupliquer',
+        label: 'Dupliquer une fiche',
+        description: 'Permet de dupliquer une fiche existante',
         sort_order: 6
       },
       {
-        action: 'publish',
-        label: 'Publier une fiche',
-        description: 'Permet de publier une fiche pour qu\'elle soit accessible aux professeurs',
+        action: 'exporter',
+        label: 'Exporter une fiche',
+        description: 'Permet d\'exporter une fiche en PDF ou Excel',
         sort_order: 7
       },
       {
-        action: 'duplicate',
-        label: 'Dupliquer une fiche',
-        description: 'Permet de créer une copie d\'une fiche existante',
+        action: 'parametres',
+        label: 'Parametres des fiches',
+        description: 'Permet d\'acceder aux parametres des fiches de calcul',
         sort_order: 8
-      },
-      {
-        action: 'export',
-        label: 'Exporter une fiche',
-        description: 'Permet d\'exporter les données au format Excel',
-        sort_order: 9
       }
     ],
 
     declarations: [
       {
-        action: 'view_page',
-        label: 'Voir la page des déclarations',
-        description: 'Permet d\'accéder à la liste des déclarations',
+        action: 'voir',
+        label: 'Voir les declarations',
+        description: 'Permet de voir ses propres declarations',
         sort_order: 1
       },
       {
-        action: 'view_all',
-        label: 'Voir toutes les déclarations',
-        description: 'Permet de voir les déclarations de tous les utilisateurs',
+        action: 'voir_toutes',
+        label: 'Voir toutes les declarations',
+        description: 'Permet de voir les declarations de tous les utilisateurs',
         sort_order: 2
       },
       {
-        action: 'create',
-        label: 'Créer une déclaration',
-        description: 'Permet de créer une nouvelle déclaration',
+        action: 'creer',
+        label: 'Creer une declaration',
+        description: 'Permet de creer une nouvelle declaration',
         sort_order: 3
       },
       {
-        action: 'fill_data',
-        label: 'Remplir les données',
-        description: 'Permet de saisir les données dans une déclaration',
+        action: 'remplir',
+        label: 'Remplir une declaration',
+        description: 'Permet de remplir les donnees d\'une declaration',
         sort_order: 4
       },
       {
-        action: 'edit_metadata',
-        label: 'Modifier les métadonnées',
-        description: 'Permet de modifier les informations générales de la déclaration',
+        action: 'modifier_metadata',
+        label: 'Modifier les metadonnees',
+        description: 'Permet de modifier les metadonnees d\'une declaration',
         sort_order: 5
       },
       {
-        action: 'delete',
-        label: 'Supprimer une déclaration',
-        description: 'Permet de supprimer définitivement une déclaration',
+        action: 'supprimer',
+        label: 'Supprimer une declaration',
+        description: 'Permet de supprimer une declaration',
         sort_order: 6
       },
       {
-        action: 'submit',
-        label: 'Soumettre une déclaration',
-        description: 'Permet de soumettre une déclaration pour approbation',
+        action: 'approuver',
+        label: 'Approuver une declaration',
+        description: 'Permet d\'approuver une declaration soumise',
         sort_order: 7
       },
       {
-        action: 'approve',
-        label: 'Approuver une déclaration',
-        description: 'Permet d\'approuver une déclaration soumise',
+        action: 'rejeter',
+        label: 'Rejeter une declaration',
+        description: 'Permet de rejeter une declaration',
         sort_order: 8
       },
       {
-        action: 'reject',
-        label: 'Rejeter une déclaration',
-        description: 'Permet de rejeter une déclaration avec un commentaire',
+        action: 'soumettre',
+        label: 'Soumettre une declaration',
+        description: 'Permet de soumettre une declaration pour validation',
         sort_order: 9
       }
     ],
 
-    projects: [
+    gestion_projet: [
       {
-        action: 'view_page',
-        label: 'Voir la page des projets',
-        description: 'Permet d\'accéder à la liste des projets',
+        action: 'voir',
+        label: 'Voir les projets',
+        description: 'Permet d\'acceder a la gestion de projet',
         sort_order: 1
       },
       {
-        action: 'create',
-        label: 'Créer un projet',
-        description: 'Permet de créer un nouveau projet',
+        action: 'creer',
+        label: 'Creer un projet',
+        description: 'Permet de creer un nouveau projet',
         sort_order: 2
       },
       {
-        action: 'update',
+        action: 'modifier',
         label: 'Modifier un projet',
-        description: 'Permet de modifier les informations d\'un projet',
+        description: 'Permet de modifier un projet existant',
         sort_order: 3
       },
       {
-        action: 'delete',
+        action: 'supprimer',
         label: 'Supprimer un projet',
         description: 'Permet de supprimer un projet',
         sort_order: 4
       },
       {
-        action: 'export',
+        action: 'exporter',
         label: 'Exporter les projets',
-        description: 'Permet d\'exporter la liste des projets',
+        description: 'Permet d\'exporter les donnees des projets',
         sort_order: 5
       }
     ]
   },
 
   // ============================================================
-  // MODULE 2: FORMATION EN LIGNE
+  // SECTION 2: FORMATION
   // ============================================================
-  training: {
-    formations: [
+  formation: {
+    _section: [
       {
-        action: 'view_page',
-        label: 'Voir la page des formations',
-        description: 'Permet d\'accéder à la liste des formations',
+        action: 'acces',
+        label: 'Acces Formation',
+        description: 'Permet d\'acceder a la section Formation',
+        sort_order: 0
+      }
+    ],
+
+    gestion_formations: [
+      {
+        action: 'voir',
+        label: 'Voir les formations',
+        description: 'Permet d\'acceder a la liste des formations',
         sort_order: 1
       },
       {
-        action: 'create',
-        label: 'Créer une formation',
-        description: 'Permet de créer une nouvelle formation',
+        action: 'creer',
+        label: 'Creer une formation',
+        description: 'Permet de creer une nouvelle formation',
         sort_order: 2
       },
       {
-        action: 'update',
+        action: 'modifier',
         label: 'Modifier une formation',
-        description: 'Permet de modifier les informations d\'une formation',
+        description: 'Permet de modifier une formation existante',
         sort_order: 3
       },
       {
-        action: 'delete',
+        action: 'supprimer',
         label: 'Supprimer une formation',
-        description: 'Permet de supprimer une formation et son contenu',
+        description: 'Permet de supprimer une formation',
         sort_order: 4
       },
       {
-        action: 'duplicate',
+        action: 'dupliquer',
         label: 'Dupliquer une formation',
-        description: 'Permet de créer une copie d\'une formation existante',
+        description: 'Permet de dupliquer une formation existante',
         sort_order: 5
       },
       {
-        action: 'create_pack',
-        label: 'Créer un pack',
-        description: 'Permet de regrouper plusieurs formations en un pack',
+        action: 'creer_pack',
+        label: 'Creer un pack',
+        description: 'Permet de creer un pack de formations',
         sort_order: 6
       },
       {
-        action: 'edit_content',
-        label: 'Éditer le contenu',
-        description: 'Permet d\'ajouter/modifier des modules, vidéos et tests',
+        action: 'editer_contenu',
+        label: 'Editer le contenu',
+        description: 'Permet d\'editer le contenu d\'une formation',
         sort_order: 7
       }
     ],
 
-    corps: [
+    sessions_formation: [
       {
-        action: 'view_page',
-        label: 'Voir les corps de formation',
-        description: 'Permet de voir les catégories de formations',
+        action: 'voir',
+        label: 'Voir les sessions',
+        description: 'Permet d\'acceder a la liste des sessions de formation',
         sort_order: 1
       },
       {
-        action: 'create',
-        label: 'Créer un corps',
-        description: 'Permet de créer une nouvelle catégorie de formations',
+        action: 'creer',
+        label: 'Creer une session',
+        description: 'Permet de creer une nouvelle session',
         sort_order: 2
       },
       {
-        action: 'update',
-        label: 'Modifier un corps',
-        description: 'Permet de modifier une catégorie de formations',
-        sort_order: 3
-      },
-      {
-        action: 'delete',
-        label: 'Supprimer un corps',
-        description: 'Permet de supprimer une catégorie (formations incluses)',
-        sort_order: 4
-      },
-      {
-        action: 'duplicate',
-        label: 'Dupliquer un corps',
-        description: 'Permet de dupliquer une catégorie avec ses formations',
-        sort_order: 5
-      }
-    ],
-
-    sessions: [
-      {
-        action: 'view_page',
-        label: 'Voir la page des sessions',
-        description: 'Permet d\'accéder à la liste des sessions de formation',
-        sort_order: 1
-      },
-      {
-        action: 'create',
-        label: 'Créer une session',
-        description: 'Permet de créer une nouvelle session de formation',
-        sort_order: 2
-      },
-      {
-        action: 'update',
+        action: 'modifier',
         label: 'Modifier une session',
-        description: 'Permet de modifier les informations d\'une session',
+        description: 'Permet de modifier une session existante',
         sort_order: 3
       },
       {
-        action: 'delete',
+        action: 'supprimer',
         label: 'Supprimer une session',
-        description: 'Permet de supprimer une session et ses inscriptions',
+        description: 'Permet de supprimer une session',
         sort_order: 4
       },
       {
-        action: 'add_student',
-        label: 'Ajouter un étudiant',
-        description: 'Permet d\'inscrire un étudiant à la session',
+        action: 'ajouter_etudiant',
+        label: 'Ajouter un etudiant',
+        description: 'Permet d\'ajouter un etudiant a une session',
         sort_order: 5
       },
       {
-        action: 'edit_student',
-        label: 'Modifier un étudiant',
-        description: 'Permet de modifier l\'inscription d\'un étudiant',
+        action: 'modifier_etudiant',
+        label: 'Modifier un etudiant',
+        description: 'Permet de modifier un etudiant dans une session',
         sort_order: 6
-      },
-      {
-        action: 'remove_student',
-        label: 'Retirer un étudiant',
-        description: 'Permet de retirer un étudiant inscrit à une session',
-        sort_order: 7
-      },
-      {
-        action: 'delete_payment',
-        label: 'Supprimer un paiement',
-        description: 'Permet de supprimer un paiement enregistré (opération sensible)',
-        sort_order: 8
       }
     ],
 
     analytics: [
       {
-        action: 'view_page',
-        label: 'Voir la page analytics',
-        description: 'Permet d\'accéder aux statistiques de formation',
+        action: 'voir',
+        label: 'Voir les analytics',
+        description: 'Permet d\'acceder aux statistiques de formation',
         sort_order: 1
       },
       {
-        action: 'export',
+        action: 'exporter',
         label: 'Exporter les analytics',
-        description: 'Permet d\'exporter les statistiques au format Excel',
+        description: 'Permet d\'exporter les statistiques',
         sort_order: 2
+      },
+      {
+        action: 'changer_periode',
+        label: 'Changer la periode',
+        description: 'Permet de changer la periode d\'analyse',
+        sort_order: 3
       }
     ],
 
-    student_reports: [
+    rapports_etudiants: [
       {
-        action: 'view_page',
+        action: 'voir',
         label: 'Voir les rapports',
-        description: 'Permet d\'accéder aux rapports de progression des étudiants',
+        description: 'Permet d\'acceder aux rapports des etudiants',
         sort_order: 1
       },
       {
-        action: 'export',
-        label: 'Exporter les rapports',
-        description: 'Permet d\'exporter les rapports étudiants',
-        sort_order: 2
-      }
-    ],
-
-    certificates: [
-      {
-        action: 'view_page',
-        label: 'Voir la page des certificats',
-        description: 'Permet d\'accéder à la liste des certificats générés',
-        sort_order: 1
-      },
-      {
-        action: 'view',
-        label: 'Voir un certificat',
-        description: 'Permet de visualiser un certificat spécifique',
+        action: 'rechercher',
+        label: 'Rechercher',
+        description: 'Permet de rechercher dans les rapports',
         sort_order: 2
       },
       {
-        action: 'generate',
-        label: 'Générer un certificat',
-        description: 'Permet de générer un certificat pour un étudiant',
+        action: 'exporter_csv',
+        label: 'Exporter en CSV',
+        description: 'Permet d\'exporter les rapports en CSV',
         sort_order: 3
       },
       {
-        action: 'update',
-        label: 'Modifier un certificat',
-        description: 'Permet de modifier les informations d\'un certificat',
+        action: 'exporter_pdf',
+        label: 'Exporter en PDF',
+        description: 'Permet d\'exporter les rapports en PDF',
         sort_order: 4
-      },
-      {
-        action: 'download',
-        label: 'Télécharger un certificat',
-        description: 'Permet de télécharger le PDF du certificat',
-        sort_order: 5
-      },
-      {
-        action: 'delete',
-        label: 'Supprimer un certificat',
-        description: 'Permet de révoquer/supprimer un certificat',
-        sort_order: 6
       }
     ],
 
-    certificate_templates: [
+    liste_etudiants: [
       {
-        action: 'view_page',
-        label: 'Voir la page des templates',
-        description: 'Permet d\'accéder à la liste des modèles de certificats',
+        action: 'voir',
+        label: 'Voir les etudiants',
+        description: 'Permet d\'acceder a la liste des etudiants',
         sort_order: 1
       },
       {
-        action: 'create',
-        label: 'Créer un template',
-        description: 'Permet de créer un nouveau modèle de certificat',
+        action: 'creer',
+        label: 'Creer un etudiant',
+        description: 'Permet de creer un nouvel etudiant',
         sort_order: 2
       },
       {
-        action: 'create_folder',
-        label: 'Créer un dossier',
-        description: 'Permet de créer un dossier pour organiser les templates',
+        action: 'modifier',
+        label: 'Modifier un etudiant',
+        description: 'Permet de modifier un etudiant',
         sort_order: 3
       },
       {
-        action: 'update',
-        label: 'Modifier un template',
-        description: 'Permet de modifier un modèle de certificat',
+        action: 'supprimer',
+        label: 'Supprimer un etudiant',
+        description: 'Permet de supprimer un etudiant',
+        sort_order: 4
+      }
+    ],
+
+    templates_certificats: [
+      {
+        action: 'voir',
+        label: 'Voir les templates',
+        description: 'Permet d\'acceder aux templates de certificats',
+        sort_order: 1
+      },
+      {
+        action: 'creer_dossier',
+        label: 'Creer un dossier',
+        description: 'Permet de creer un dossier pour organiser les templates',
+        sort_order: 2
+      },
+      {
+        action: 'creer_template',
+        label: 'Creer un template',
+        description: 'Permet de creer un nouveau template de certificat',
+        sort_order: 3
+      },
+      {
+        action: 'renommer',
+        label: 'Renommer',
+        description: 'Permet de renommer un template ou dossier',
         sort_order: 4
       },
       {
-        action: 'delete_template',
-        label: 'Supprimer un template',
-        description: 'Permet de supprimer un modèle de certificat',
+        action: 'supprimer',
+        label: 'Supprimer',
+        description: 'Permet de supprimer un template ou dossier',
         sort_order: 5
       },
       {
-        action: 'delete_folder',
-        label: 'Supprimer un dossier',
-        description: 'Permet de supprimer un dossier de templates',
+        action: 'dupliquer',
+        label: 'Dupliquer',
+        description: 'Permet de dupliquer un template',
         sort_order: 6
       },
       {
-        action: 'duplicate',
-        label: 'Dupliquer un template',
-        description: 'Permet de créer une copie d\'un modèle',
+        action: 'editer_canvas',
+        label: 'Editer le canvas',
+        description: 'Permet d\'editer le design du certificat',
         sort_order: 7
-      },
-      {
-        action: 'edit_canvas',
-        label: 'Éditer le design',
-        description: 'Permet d\'utiliser l\'éditeur visuel pour personnaliser le certificat',
-        sort_order: 8
-      },
-      {
-        action: 'organize',
-        label: 'Organiser les templates',
-        description: 'Permet de déplacer les templates entre dossiers',
-        sort_order: 9
       }
     ],
 
     forums: [
       {
-        action: 'view_page',
-        label: 'Voir la page des forums',
-        description: 'Permet d\'accéder à la modération des forums',
+        action: 'voir',
+        label: 'Voir les forums',
+        description: 'Permet d\'acceder aux forums de discussion',
         sort_order: 1
       },
       {
-        action: 'view',
-        label: 'Voir les discussions',
-        description: 'Permet de lire les discussions des forums',
+        action: 'creer_discussion',
+        label: 'Creer une discussion',
+        description: 'Permet de creer une nouvelle discussion',
         sort_order: 2
       },
       {
-        action: 'create_thread',
-        label: 'Créer une discussion',
-        description: 'Permet de créer une nouvelle discussion',
+        action: 'repondre',
+        label: 'Repondre',
+        description: 'Permet de repondre a une discussion',
         sort_order: 3
       },
       {
-        action: 'reply',
-        label: 'Répondre',
-        description: 'Permet de répondre aux discussions',
+        action: 'reagir',
+        label: 'Reagir',
+        description: 'Permet de reagir a un message',
         sort_order: 4
       },
       {
-        action: 'delete',
+        action: 'supprimer',
         label: 'Supprimer',
-        description: 'Permet de supprimer des messages ou discussions',
+        description: 'Permet de supprimer une discussion ou reponse',
         sort_order: 5
       },
       {
-        action: 'manage',
-        label: 'Gérer les forums',
-        description: 'Permet d\'épingler/verrouiller des discussions',
+        action: 'epingler',
+        label: 'Epingler',
+        description: 'Permet d\'epingler une discussion',
         sort_order: 6
       },
       {
-        action: 'moderate',
-        label: 'Modérer',
-        description: 'Permet de modérer le contenu des forums',
+        action: 'verrouiller',
+        label: 'Verrouiller',
+        description: 'Permet de verrouiller une discussion',
         sort_order: 7
-      }
-    ],
-
-    professors: [
-      {
-        action: 'view_page',
-        label: 'Voir la page des professeurs',
-        description: 'Permet d\'accéder à la liste des professeurs',
-        sort_order: 1
       },
       {
-        action: 'create',
-        label: 'Créer un professeur',
-        description: 'Permet de créer un nouveau compte professeur',
-        sort_order: 2
-      },
-      {
-        action: 'update',
-        label: 'Modifier un professeur',
-        description: 'Permet de modifier les informations d\'un professeur',
-        sort_order: 3
-      },
-      {
-        action: 'delete',
-        label: 'Supprimer un professeur',
-        description: 'Permet de supprimer un compte professeur',
-        sort_order: 4
-      },
-      {
-        action: 'assign_segments',
-        label: 'Affecter des segments',
-        description: 'Permet d\'assigner des segments à un professeur',
-        sort_order: 5
-      },
-      {
-        action: 'assign_cities',
-        label: 'Affecter des villes',
-        description: 'Permet d\'assigner des villes à un professeur',
-        sort_order: 6
+        action: 'moderer',
+        label: 'Moderer',
+        description: 'Permet de moderer les discussions',
+        sort_order: 8
       }
     ]
   },
 
   // ============================================================
-  // MODULE 3: RESSOURCES HUMAINES
+  // SECTION 3: RESSOURCES HUMAINES
   // ============================================================
-  hr: {
-    validation_workflows: [
+  ressources_humaines: {
+    _section: [
       {
-        action: 'view_page',
-        label: 'Voir la page des boucles',
-        description: 'Permet d\'accéder à la gestion des workflows de validation',
+        action: 'acces',
+        label: 'Acces Ressources Humaines',
+        description: 'Permet d\'acceder a la section Ressources Humaines',
+        sort_order: 0
+      }
+    ],
+
+    boucles_validation: [
+      {
+        action: 'voir',
+        label: 'Voir les boucles de validation',
+        description: 'Permet d\'acceder a la gestion des workflows de validation',
         sort_order: 1
       },
       {
-        action: 'create',
-        label: 'Créer une boucle',
-        description: 'Permet de créer un nouveau workflow de validation',
+        action: 'creer',
+        label: 'Creer une boucle',
+        description: 'Permet de creer un nouveau workflow de validation',
         sort_order: 2
       },
       {
-        action: 'update',
+        action: 'modifier',
         label: 'Modifier une boucle',
-        description: 'Permet de modifier les étapes d\'un workflow',
+        description: 'Permet de modifier un workflow existant',
         sort_order: 3
       },
       {
-        action: 'delete',
+        action: 'supprimer',
         label: 'Supprimer une boucle',
-        description: 'Permet de supprimer un workflow de validation',
+        description: 'Permet de supprimer un workflow',
         sort_order: 4
       }
     ],
 
-    schedules: [
+    gestion_horaires: [
       {
-        action: 'view_page',
-        label: 'Voir la page des horaires',
-        description: 'Permet d\'accéder à la gestion des plannings',
+        action: 'voir',
+        label: 'Voir la gestion des horaires',
+        description: 'Permet d\'acceder a la gestion des horaires',
         sort_order: 1
       },
+      // Onglet Modeles
       {
-        action: 'manage_models',
-        label: 'Gérer les modèles',
-        description: 'Permet de créer/modifier des modèles d\'horaires',
-        sort_order: 2
+        action: 'modeles.creer',
+        label: 'Creer un modele d\'horaire',
+        description: 'Permet de creer un nouveau modele d\'horaire',
+        sort_order: 10
       },
       {
-        action: 'manage_holidays',
-        label: 'Gérer les jours fériés',
-        description: 'Permet de définir les jours fériés',
-        sort_order: 3
+        action: 'modeles.modifier',
+        label: 'Modifier un modele',
+        description: 'Permet de modifier un modele d\'horaire',
+        sort_order: 11
       },
       {
-        action: 'view_validated_leaves',
-        label: 'Voir les congés validés',
-        description: 'Permet de consulter le calendrier des congés approuvés',
-        sort_order: 4
+        action: 'modeles.supprimer',
+        label: 'Supprimer un modele',
+        description: 'Permet de supprimer un modele d\'horaire',
+        sort_order: 12
+      },
+      // Onglet Jours Feries
+      {
+        action: 'jours_feries.creer',
+        label: 'Creer un jour ferie',
+        description: 'Permet de creer un jour ferie',
+        sort_order: 20
       },
       {
-        action: 'manage_overtime',
-        label: 'Gérer les heures sup',
-        description: 'Permet de gérer les demandes d\'heures supplémentaires',
-        sort_order: 5
+        action: 'jours_feries.modifier',
+        label: 'Modifier un jour ferie',
+        description: 'Permet de modifier un jour ferie',
+        sort_order: 21
+      },
+      {
+        action: 'jours_feries.supprimer',
+        label: 'Supprimer un jour ferie',
+        description: 'Permet de supprimer un jour ferie',
+        sort_order: 22
+      },
+      // Onglet Conges Valides
+      {
+        action: 'conges_valides.voir',
+        label: 'Voir les conges valides',
+        description: 'Permet de voir les conges valides',
+        sort_order: 30
+      },
+      // Onglet Heures Supplementaires
+      {
+        action: 'heures_sup.voir',
+        label: 'Voir les heures supplementaires',
+        description: 'Permet de voir les heures supplementaires',
+        sort_order: 40
+      },
+      {
+        action: 'heures_sup.approuver',
+        label: 'Approuver les heures sup',
+        description: 'Permet d\'approuver les heures supplementaires',
+        sort_order: 41
+      },
+      {
+        action: 'heures_sup.rejeter',
+        label: 'Rejeter les heures sup',
+        description: 'Permet de rejeter les heures supplementaires',
+        sort_order: 42
+      },
+      {
+        action: 'heures_sup.creer_periode',
+        label: 'Creer une periode HS',
+        description: 'Permet de creer une periode d\'heures supplementaires',
+        sort_order: 43
+      },
+      {
+        action: 'heures_sup.supprimer_periode',
+        label: 'Supprimer une periode HS',
+        description: 'Permet de supprimer une periode d\'heures supplementaires',
+        sort_order: 44
+      },
+      {
+        action: 'heures_sup.recalculer',
+        label: 'Recalculer les heures sup',
+        description: 'Permet de recalculer les heures supplementaires',
+        sort_order: 45
+      },
+      // Onglet Config HS
+      {
+        action: 'config_hs.voir',
+        label: 'Voir la config HS',
+        description: 'Permet de voir la configuration des heures supplementaires',
+        sort_order: 50
+      },
+      {
+        action: 'config_hs.modifier',
+        label: 'Modifier la config HS',
+        description: 'Permet de modifier la configuration des heures supplementaires',
+        sort_order: 51
       }
     ],
 
-    payroll: [
+    gestion_paie: [
       {
-        action: 'view_page',
-        label: 'Voir la page de paie',
-        description: 'Permet d\'accéder au module de gestion de la paie',
+        action: 'voir',
+        label: 'Voir la gestion de paie',
+        description: 'Permet d\'acceder a la gestion de paie',
         sort_order: 1
       },
+      // Onglet Periodes
       {
-        action: 'manage_periods',
-        label: 'Gérer les périodes',
-        description: 'Permet de créer/clôturer des périodes de paie',
-        sort_order: 2
+        action: 'periodes.creer',
+        label: 'Creer une periode de paie',
+        description: 'Permet de creer une nouvelle periode de paie',
+        sort_order: 10
       },
       {
-        action: 'calculate',
+        action: 'periodes.ouvrir',
+        label: 'Ouvrir une periode',
+        description: 'Permet d\'ouvrir une periode de paie',
+        sort_order: 11
+      },
+      {
+        action: 'periodes.fermer',
+        label: 'Fermer une periode',
+        description: 'Permet de fermer une periode de paie',
+        sort_order: 12
+      },
+      {
+        action: 'periodes.supprimer',
+        label: 'Supprimer une periode',
+        description: 'Permet de supprimer une periode de paie',
+        sort_order: 13
+      },
+      // Onglet Calculs
+      {
+        action: 'calculs.calculer',
         label: 'Calculer la paie',
-        description: 'Permet de lancer le calcul des salaires',
-        sort_order: 3
+        description: 'Permet de lancer le calcul de la paie',
+        sort_order: 20
+      },
+      // Onglet Bulletins
+      {
+        action: 'bulletins.voir',
+        label: 'Voir les bulletins',
+        description: 'Permet de voir les bulletins de paie',
+        sort_order: 30
       },
       {
-        action: 'view_payslips',
-        label: 'Voir les fiches de paie',
-        description: 'Permet de consulter les bulletins de salaire',
-        sort_order: 4
+        action: 'bulletins.valider',
+        label: 'Valider un bulletin',
+        description: 'Permet de valider un bulletin de paie',
+        sort_order: 31
       },
       {
-        action: 'generate_payslips',
-        label: 'Générer les fiches',
-        description: 'Permet de générer les bulletins de salaire PDF',
-        sort_order: 5
+        action: 'bulletins.valider_tous',
+        label: 'Valider tous les bulletins',
+        description: 'Permet de valider tous les bulletins en une fois',
+        sort_order: 32
       },
       {
-        action: 'manage_config',
-        label: 'Configurer la paie',
-        description: 'Permet de configurer les règles de calcul de paie',
-        sort_order: 6
+        action: 'bulletins.telecharger',
+        label: 'Telecharger un bulletin',
+        description: 'Permet de telecharger un bulletin en PDF',
+        sort_order: 33
+      },
+      {
+        action: 'bulletins.exporter_cnss',
+        label: 'Exporter CNSS',
+        description: 'Permet d\'exporter les donnees CNSS',
+        sort_order: 34
+      },
+      {
+        action: 'bulletins.exporter_virements',
+        label: 'Exporter virements',
+        description: 'Permet d\'exporter les virements bancaires',
+        sort_order: 35
+      },
+      // Onglet Tests
+      {
+        action: 'tests.voir',
+        label: 'Voir les tests et logs',
+        description: 'Permet de voir les tests et logs de paie',
+        sort_order: 40
+      },
+      // Onglet Automatisation
+      {
+        action: 'automatisation.voir',
+        label: 'Voir l\'automatisation',
+        description: 'Permet de voir les taches automatisees',
+        sort_order: 50
+      },
+      {
+        action: 'automatisation.configurer',
+        label: 'Configurer l\'automatisation',
+        description: 'Permet de configurer les taches automatisees',
+        sort_order: 51
+      },
+      // Onglet Configuration
+      {
+        action: 'configuration.voir',
+        label: 'Voir la configuration paie',
+        description: 'Permet de voir la configuration de paie',
+        sort_order: 60
+      },
+      {
+        action: 'configuration.modifier',
+        label: 'Modifier la configuration paie',
+        description: 'Permet de modifier la configuration de paie',
+        sort_order: 61
       }
     ],
 
-    employee_portal: [
+    gestion_pointage: [
       {
-        action: 'view_page',
-        label: 'Voir la page de pointage',
-        description: 'Permet d\'accéder à la gestion des pointages',
+        action: 'voir',
+        label: 'Voir le pointage',
+        description: 'Permet d\'acceder a la gestion du pointage',
         sort_order: 1
       },
       {
-        action: 'clock_in_out',
+        action: 'pointer',
         label: 'Pointer',
-        description: 'Permet d\'enregistrer les entrées/sorties',
+        description: 'Permet de pointer pour un employe',
         sort_order: 2
       },
       {
-        action: 'submit_requests',
-        label: 'Soumettre des demandes',
-        description: 'Permet de faire des demandes de congés/absences',
+        action: 'corriger',
+        label: 'Corriger le pointage',
+        description: 'Permet de corriger les enregistrements de pointage',
         sort_order: 3
       },
       {
-        action: 'view_history',
-        label: 'Voir l\'historique',
-        description: 'Permet de consulter l\'historique des pointages',
-        sort_order: 4
-      }
-    ],
-
-    attendance: [
-      {
-        action: 'view_page',
-        label: 'Voir la page de présence',
-        description: 'Permet d\'accéder à la gestion des présences',
-        sort_order: 1
-      },
-      {
-        action: 'view_all',
-        label: 'Voir toutes les présences',
-        description: 'Permet de voir les pointages de tous les employés',
-        sort_order: 2
-      },
-      {
-        action: 'edit',
-        label: 'Modifier les présences',
-        description: 'Permet de corriger les enregistrements de présence',
-        sort_order: 3
-      },
-      {
-        action: 'edit_anomalies',
-        label: 'Traiter les anomalies',
-        description: 'Permet de résoudre les anomalies de pointage',
+        action: 'importer',
+        label: 'Importer le pointage',
+        description: 'Permet d\'importer des donnees de pointage',
         sort_order: 4
       },
       {
-        action: 'validate',
-        label: 'Valider les présences',
-        description: 'Permet de valider les pointages du mois',
+        action: 'exporter',
+        label: 'Exporter le pointage',
+        description: 'Permet d\'exporter les donnees de pointage',
         sort_order: 5
       },
       {
-        action: 'export',
-        label: 'Exporter les présences',
-        description: 'Permet d\'exporter les données de présence',
+        action: 'valider',
+        label: 'Valider le pointage',
+        description: 'Permet de valider les pointages',
         sort_order: 6
-      },
-      {
-        action: 'approve_overtime',
-        label: 'Approuver heures supplémentaires',
-        description: 'Permet d\'approuver les demandes d\'heures supplémentaires',
-        sort_order: 7
-      },
-      {
-        action: 'reject_overtime',
-        label: 'Rejeter heures supplémentaires',
-        description: 'Permet de rejeter les demandes d\'heures supplémentaires',
-        sort_order: 8
       }
     ],
 
-    employees: [
+    dossier_employe: [
       {
-        action: 'view_page',
-        label: 'Voir la page des employés',
-        description: 'Permet d\'accéder aux dossiers des employés',
+        action: 'voir',
+        label: 'Voir les dossiers employes',
+        description: 'Permet d\'acceder aux dossiers des employes',
         sort_order: 1
       },
       {
-        action: 'create',
-        label: 'Créer un employé',
-        description: 'Permet de créer un nouveau dossier employé',
+        action: 'creer',
+        label: 'Creer un dossier',
+        description: 'Permet de creer un nouveau dossier employe',
         sort_order: 2
       },
       {
-        action: 'update',
-        label: 'Modifier un employé',
-        description: 'Permet de modifier les informations d\'un employé',
+        action: 'modifier',
+        label: 'Modifier un dossier',
+        description: 'Permet de modifier un dossier employe',
         sort_order: 3
       },
       {
-        action: 'delete',
-        label: 'Supprimer un employé',
-        description: 'Permet de supprimer un dossier employé',
+        action: 'supprimer',
+        label: 'Supprimer un dossier',
+        description: 'Permet de supprimer un dossier employe',
         sort_order: 4
       },
       {
-        action: 'view_salary',
+        action: 'voir_salaire',
         label: 'Voir le salaire',
-        description: 'Permet de consulter les informations salariales',
+        description: 'Permet de voir les informations salariales',
         sort_order: 5
       },
       {
-        action: 'manage_contracts',
-        label: 'Gérer les contrats',
-        description: 'Permet de gérer les contrats de travail',
+        action: 'gerer_contrats',
+        label: 'Gerer les contrats',
+        description: 'Permet de gerer les contrats de travail',
         sort_order: 6
       },
       {
-        action: 'manage_documents',
-        label: 'Gérer les documents',
-        description: 'Permet de gérer les documents de l\'employé',
+        action: 'gerer_documents',
+        label: 'Gerer les documents',
+        description: 'Permet de gerer les documents employe',
         sort_order: 7
       },
       {
-        action: 'manage_discipline',
-        label: 'Gérer la discipline',
-        description: 'Permet de gérer les dossiers disciplinaires',
+        action: 'gerer_discipline',
+        label: 'Gerer la discipline',
+        description: 'Permet de gerer les actions disciplinaires',
         sort_order: 8
       }
     ],
 
-    holidays: [
+    validation_demandes: [
       {
-        action: 'view_page',
-        label: 'Voir les jours fériés',
-        description: 'Permet de consulter la liste des jours fériés',
+        action: 'voir',
+        label: 'Voir les demandes a valider',
+        description: 'Permet de voir les demandes en attente de validation',
         sort_order: 1
       },
       {
-        action: 'manage',
-        label: 'Gérer les jours fériés',
-        description: 'Permet de créer, modifier et supprimer des jours fériés',
-        sort_order: 2
-      }
-    ],
-
-    requests_validation: [
-      {
-        action: 'view_page',
-        label: 'Voir la page de validation',
-        description: 'Permet d\'accéder aux demandes à valider',
-        sort_order: 1
-      },
-      {
-        action: 'approve',
+        action: 'approuver',
         label: 'Approuver une demande',
-        description: 'Permet d\'approuver les demandes de congés/absences',
+        description: 'Permet d\'approuver une demande',
         sort_order: 2
       },
       {
-        action: 'reject',
+        action: 'rejeter',
         label: 'Rejeter une demande',
-        description: 'Permet de rejeter une demande avec motif',
+        description: 'Permet de rejeter une demande',
         sort_order: 3
       }
     ],
 
-    leaves: [
+    delegations: [
       {
-        action: 'view_page',
-        label: 'Voir les congés',
-        description: 'Permet de consulter les demandes de congés',
+        action: 'voir',
+        label: 'Voir les delegations',
+        description: 'Permet de voir les delegations d\'approbation',
         sort_order: 1
       },
       {
-        action: 'request',
-        label: 'Demander un congé',
-        description: 'Permet de soumettre une demande de congé',
+        action: 'creer',
+        label: 'Creer une delegation',
+        description: 'Permet de creer une delegation d\'approbation',
         sort_order: 2
       },
       {
-        action: 'approve_n1',
-        label: 'Approuver (N+1)',
-        description: 'Permet au manager direct d\'approuver',
+        action: 'gerer_toutes',
+        label: 'Gerer toutes les delegations',
+        description: 'Permet de gerer toutes les delegations du systeme',
         sort_order: 3
-      },
-      {
-        action: 'approve_n2',
-        label: 'Approuver (N+2)',
-        description: 'Permet au manager supérieur d\'approuver',
-        sort_order: 4
-      },
-      {
-        action: 'approve_hr',
-        label: 'Approuver (RH)',
-        description: 'Permet aux RH de valider définitivement',
-        sort_order: 5
-      },
-      {
-        action: 'manage_balances',
-        label: 'Gérer les soldes',
-        description: 'Permet de modifier les soldes de congés',
-        sort_order: 6
-      },
-      {
-        action: 'export',
-        label: 'Exporter les congés',
-        description: 'Permet d\'exporter les données de congés',
-        sort_order: 7
       }
     ]
   },
 
   // ============================================================
-  // MODULE 4: COMMERCIALISATION
+  // SECTION 4: MON EQUIPE
+  // ============================================================
+  mon_equipe: {
+    _section: [
+      {
+        action: 'acces',
+        label: 'Acces Mon Equipe',
+        description: 'Permet d\'acceder a la section Mon Equipe',
+        sort_order: 0
+      }
+    ],
+
+    pointages_equipe: [
+      {
+        action: 'voir',
+        label: 'Voir les pointages de l\'equipe',
+        description: 'Permet de voir les pointages des membres de son equipe',
+        sort_order: 1
+      },
+      {
+        action: 'supprimer',
+        label: 'Supprimer un pointage',
+        description: 'Permet de supprimer un pointage de l\'equipe',
+        sort_order: 2
+      }
+    ],
+
+    demandes_equipe: [
+      {
+        action: 'voir',
+        label: 'Voir les demandes de l\'equipe',
+        description: 'Permet de voir les demandes des membres de son equipe',
+        sort_order: 1
+      },
+      {
+        action: 'approuver',
+        label: 'Approuver une demande',
+        description: 'Permet d\'approuver une demande de l\'equipe',
+        sort_order: 2
+      },
+      {
+        action: 'rejeter',
+        label: 'Rejeter une demande',
+        description: 'Permet de rejeter une demande de l\'equipe',
+        sort_order: 3
+      }
+    ]
+  },
+
+  // ============================================================
+  // SECTION 5: MON ESPACE RH
+  // ============================================================
+  mon_espace_rh: {
+    _section: [
+      {
+        action: 'acces',
+        label: 'Acces Mon Espace RH',
+        description: 'Permet d\'acceder a la section Mon Espace RH',
+        sort_order: 0
+      }
+    ],
+
+    mon_pointage: [
+      {
+        action: 'voir',
+        label: 'Voir mon pointage',
+        description: 'Permet de voir son propre pointage',
+        sort_order: 1
+      },
+      {
+        action: 'pointer',
+        label: 'Pointer',
+        description: 'Permet de pointer (entree/sortie)',
+        sort_order: 2
+      }
+    ],
+
+    mes_demandes: [
+      {
+        action: 'voir',
+        label: 'Voir mes demandes',
+        description: 'Permet de voir ses propres demandes',
+        sort_order: 1
+      },
+      {
+        action: 'creer',
+        label: 'Creer une demande',
+        description: 'Permet de creer une nouvelle demande (conge, absence, etc.)',
+        sort_order: 2
+      },
+      {
+        action: 'annuler',
+        label: 'Annuler une demande',
+        description: 'Permet d\'annuler une demande en attente',
+        sort_order: 3
+      }
+    ],
+
+    mes_bulletins: [
+      {
+        action: 'voir',
+        label: 'Voir mes bulletins',
+        description: 'Permet de voir ses bulletins de paie',
+        sort_order: 1
+      },
+      {
+        action: 'telecharger',
+        label: 'Telecharger un bulletin',
+        description: 'Permet de telecharger un bulletin en PDF',
+        sort_order: 2
+      }
+    ]
+  },
+
+  // ============================================================
+  // SECTION 6: COMMERCIALISATION
   // ============================================================
   commercialisation: {
-    dashboard: [
+    _section: [
       {
-        action: 'view_page',
-        label: 'Voir le tableau de bord',
-        description: 'Permet d\'accéder aux statistiques commerciales',
-        sort_order: 1
-      },
-      {
-        action: 'view_stats',
-        label: 'Voir les statistiques',
-        description: 'Permet de consulter les KPIs commerciaux',
-        sort_order: 2
-      },
-      {
-        action: 'export',
-        label: 'Exporter le dashboard',
-        description: 'Permet d\'exporter les statistiques',
-        sort_order: 3
+        action: 'acces',
+        label: 'Acces Commercialisation',
+        description: 'Permet d\'acceder a la section Commercialisation',
+        sort_order: 0
       }
     ],
 
-    clients: [
+    tableau_de_bord: [
       {
-        action: 'view_page',
-        label: 'Voir la page des clients',
-        description: 'Permet d\'accéder à la liste des clients',
+        action: 'voir',
+        label: 'Voir le tableau de bord',
+        description: 'Permet d\'acceder au tableau de bord commercial',
         sort_order: 1
       },
       {
-        action: 'view',
-        label: 'Voir un client',
-        description: 'Permet de consulter la fiche d\'un client',
+        action: 'voir_stats',
+        label: 'Voir les statistiques',
+        description: 'Permet de voir les statistiques detaillees',
         sort_order: 2
       },
       {
-        action: 'create',
-        label: 'Créer un client',
-        description: 'Permet de créer une nouvelle fiche client',
+        action: 'exporter',
+        label: 'Exporter',
+        description: 'Permet d\'exporter les donnees du tableau de bord',
         sort_order: 3
-      },
-      {
-        action: 'edit',
-        label: 'Modifier un client',
-        description: 'Permet de modifier les informations d\'un client',
-        sort_order: 4
-      },
-      {
-        action: 'delete',
-        label: 'Supprimer un client',
-        description: 'Permet de supprimer un client',
-        sort_order: 5
-      },
-      {
-        action: 'export',
-        label: 'Exporter les clients',
-        description: 'Permet d\'exporter la liste des clients',
-        sort_order: 6
       }
     ],
 
     prospects: [
       {
-        action: 'view_page',
-        label: 'Voir la page des prospects',
-        description: 'Permet d\'accéder à la liste des prospects',
+        action: 'voir',
+        label: 'Voir les prospects',
+        description: 'Permet de voir ses prospects assignes',
         sort_order: 1
       },
       {
-        action: 'view',
-        label: 'Voir un prospect',
-        description: 'Permet de consulter la fiche d\'un prospect',
+        action: 'voir_tous',
+        label: 'Voir tous les prospects',
+        description: 'Permet de voir tous les prospects du systeme',
         sort_order: 2
       },
       {
-        action: 'view_all',
-        label: 'Voir tous les prospects',
-        description: 'Permet de voir les prospects de tous les commerciaux',
+        action: 'creer',
+        label: 'Creer un prospect',
+        description: 'Permet de creer un nouveau prospect',
         sort_order: 3
       },
       {
-        action: 'create',
-        label: 'Créer un prospect',
-        description: 'Permet d\'ajouter un nouveau prospect',
+        action: 'modifier',
+        label: 'Modifier un prospect',
+        description: 'Permet de modifier un prospect',
         sort_order: 4
       },
       {
-        action: 'edit',
-        label: 'Modifier un prospect',
-        description: 'Permet de modifier les informations d\'un prospect',
+        action: 'supprimer',
+        label: 'Supprimer un prospect',
+        description: 'Permet de supprimer un prospect',
         sort_order: 5
       },
       {
-        action: 'call',
+        action: 'appeler',
         label: 'Appeler un prospect',
-        description: 'Permet d\'enregistrer un appel téléphonique',
+        description: 'Permet d\'appeler un prospect',
         sort_order: 6
       },
       {
-        action: 'delete',
-        label: 'Supprimer un prospect',
-        description: 'Permet de supprimer un prospect',
+        action: 'convertir',
+        label: 'Convertir un prospect',
+        description: 'Permet de convertir un prospect en client',
         sort_order: 7
       },
       {
-        action: 'convert',
-        label: 'Convertir en client',
-        description: 'Permet de transformer un prospect en client',
+        action: 'importer',
+        label: 'Importer des prospects',
+        description: 'Permet d\'importer des prospects depuis un fichier',
         sort_order: 8
       },
       {
-        action: 'import',
-        label: 'Importer des prospects',
-        description: 'Permet d\'importer des prospects depuis un fichier',
+        action: 'exporter',
+        label: 'Exporter des prospects',
+        description: 'Permet d\'exporter la liste des prospects',
         sort_order: 9
       },
       {
-        action: 'export',
-        label: 'Exporter les prospects',
-        description: 'Permet d\'exporter la liste des prospects',
+        action: 'assigner',
+        label: 'Assigner un prospect',
+        description: 'Permet d\'assigner un prospect a un commercial',
         sort_order: 10
       },
       {
-        action: 'assign',
-        label: 'Assigner un prospect',
-        description: 'Permet d\'attribuer un prospect à un commercial',
+        action: 'reinjecter',
+        label: 'Reinjecter un prospect',
+        description: 'Permet de reinjecter un prospect dans le pipeline',
         sort_order: 11
+      }
+    ],
+
+    nettoyage_prospects: [
+      {
+        action: 'voir',
+        label: 'Voir le nettoyage prospects',
+        description: 'Permet d\'acceder a la page de nettoyage des prospects',
+        sort_order: 1
       },
       {
-        action: 'reinject',
-        label: 'Réinjecter un prospect',
-        description: 'Permet de remettre un prospect dans le pool',
-        sort_order: 12
-      },
-      {
-        action: 'clean',
+        action: 'nettoyer',
         label: 'Nettoyer les prospects',
-        description: 'Permet de supprimer les prospects obsolètes/doublons',
-        sort_order: 13
+        description: 'Permet de nettoyer/supprimer les prospects invalides',
+        sort_order: 2
       }
     ],
 
-    devis: [
+    gestion_gcontacte: [
       {
-        action: 'view_page',
-        label: 'Voir la page des devis',
-        description: 'Permet d\'accéder à la liste des devis',
+        action: 'voir',
+        label: 'Voir G-Contacte',
+        description: 'Permet d\'acceder a la gestion Google Contacts',
         sort_order: 1
       },
       {
-        action: 'view',
-        label: 'Voir un devis',
-        description: 'Permet de consulter un devis',
+        action: 'configurer',
+        label: 'Configurer G-Contacte',
+        description: 'Permet de configurer l\'integration Google Contacts',
         sort_order: 2
       },
       {
-        action: 'create',
-        label: 'Créer un devis',
-        description: 'Permet de créer un nouveau devis',
+        action: 'synchroniser',
+        label: 'Synchroniser',
+        description: 'Permet de synchroniser les contacts Google',
         sort_order: 3
       },
       {
-        action: 'edit',
-        label: 'Modifier un devis',
-        description: 'Permet de modifier un devis existant',
-        sort_order: 4
-      },
-      {
-        action: 'delete',
-        label: 'Supprimer un devis',
-        description: 'Permet de supprimer un devis',
-        sort_order: 5
-      },
-      {
-        action: 'validate',
-        label: 'Valider un devis',
-        description: 'Permet de valider un devis pour envoi',
-        sort_order: 6
-      },
-      {
-        action: 'send',
-        label: 'Envoyer un devis',
-        description: 'Permet d\'envoyer le devis au client',
-        sort_order: 7
-      },
-      {
-        action: 'export',
-        label: 'Exporter les devis',
-        description: 'Permet d\'exporter la liste des devis',
-        sort_order: 8
-      }
-    ],
-
-    contrats: [
-      {
-        action: 'view_page',
-        label: 'Voir la page des contrats',
-        description: 'Permet d\'accéder à la liste des contrats',
-        sort_order: 1
-      },
-      {
-        action: 'view',
-        label: 'Voir un contrat',
-        description: 'Permet de consulter un contrat',
-        sort_order: 2
-      },
-      {
-        action: 'create',
-        label: 'Créer un contrat',
-        description: 'Permet de créer un nouveau contrat',
-        sort_order: 3
-      },
-      {
-        action: 'edit',
-        label: 'Modifier un contrat',
-        description: 'Permet de modifier un contrat',
-        sort_order: 4
-      },
-      {
-        action: 'delete',
-        label: 'Supprimer un contrat',
-        description: 'Permet de supprimer un contrat',
-        sort_order: 5
-      },
-      {
-        action: 'sign',
-        label: 'Signer un contrat',
-        description: 'Permet de marquer un contrat comme signé',
-        sort_order: 6
-      },
-      {
-        action: 'archive',
-        label: 'Archiver un contrat',
-        description: 'Permet d\'archiver un contrat terminé',
-        sort_order: 7
-      },
-      {
-        action: 'export',
-        label: 'Exporter les contrats',
-        description: 'Permet d\'exporter la liste des contrats',
-        sort_order: 8
-      }
-    ]
-  },
-
-  // ============================================================
-  // MODULE 5: SYSTÈME
-  // ============================================================
-  system: {
-    roles: [
-      {
-        action: 'view_page',
-        label: 'Voir la page des rôles',
-        description: 'Permet d\'accéder à la gestion des rôles et permissions',
-        sort_order: 1
-      },
-      {
-        action: 'create',
-        label: 'Créer un rôle',
-        description: 'Permet de créer un nouveau rôle avec des permissions personnalisées',
-        sort_order: 2
-      },
-      {
-        action: 'update',
-        label: 'Modifier un rôle',
-        description: 'Permet de modifier les permissions d\'un rôle existant',
-        sort_order: 3
-      },
-      {
-        action: 'delete',
-        label: 'Supprimer un rôle',
-        description: 'Permet de supprimer un rôle (si aucun utilisateur n\'y est assigné)',
+        action: 'tester',
+        label: 'Tester la connexion',
+        description: 'Permet de tester la connexion Google',
         sort_order: 4
       }
     ]
   }
 };
 
+// ============================================================
+// HELPERS
+// ============================================================
+
 /**
- * Comptage total des permissions
+ * Get all permissions as flat array with full codes
+ * Format: [{ code: 'section.menu.action', label, description, module, menu, sort_order }]
  */
-export function getTotalPermissionsCount() {
-  let total = 0;
-  for (const module of Object.values(PERMISSIONS_MASTER)) {
-    for (const actions of Object.values(module)) {
-      total += actions.length;
-    }
-  }
-  return total;
+export function getAllPermissionsFlat() {
+  const permissions = [];
+
+  Object.entries(PERMISSIONS_MASTER).forEach(([sectionKey, menus]) => {
+    Object.entries(menus).forEach(([menuKey, actions]) => {
+      // Handle section-level permissions (_section)
+      const actualMenuKey = menuKey === '_section' ? '' : menuKey;
+
+      actions.forEach(perm => {
+        // Build the permission code
+        let code;
+        if (actualMenuKey === '') {
+          code = `${sectionKey}.${perm.action}`;
+        } else if (perm.action.includes('.')) {
+          // For nested actions like 'modeles.creer'
+          code = `${sectionKey}.${actualMenuKey}.${perm.action}`;
+        } else {
+          code = `${sectionKey}.${actualMenuKey}.${perm.action}`;
+        }
+
+        permissions.push({
+          code,
+          label: perm.label,
+          description: perm.description,
+          module: sectionKey,
+          menu: actualMenuKey || sectionKey,
+          sort_order: perm.sort_order
+        });
+      });
+    });
+  });
+
+  return permissions;
 }
 
 /**
- * Générer la liste complète des codes de permissions
+ * Get permissions grouped by module for tree view
  */
-export function getAllPermissionCodes() {
-  const codes = [];
-  for (const [moduleName, module] of Object.entries(PERMISSIONS_MASTER)) {
-    for (const [menuName, actions] of Object.entries(module)) {
-      for (const action of actions) {
-        codes.push(`${moduleName}.${menuName}.${action.action}`);
+export function getPermissionsTree() {
+  const tree = {};
+
+  Object.entries(PERMISSIONS_MASTER).forEach(([sectionKey, menus]) => {
+    tree[sectionKey] = {
+      label: getSectionLabel(sectionKey),
+      menus: {}
+    };
+
+    Object.entries(menus).forEach(([menuKey, actions]) => {
+      if (menuKey === '_section') {
+        // Section-level permissions go at root
+        tree[sectionKey].permissions = actions.map(perm => ({
+          code: `${sectionKey}.${perm.action}`,
+          ...perm
+        }));
+      } else {
+        tree[sectionKey].menus[menuKey] = {
+          label: getMenuLabel(sectionKey, menuKey),
+          permissions: actions.map(perm => {
+            const code = perm.action.includes('.')
+              ? `${sectionKey}.${menuKey}.${perm.action}`
+              : `${sectionKey}.${menuKey}.${perm.action}`;
+            return { code, ...perm };
+          })
+        };
       }
-    }
-  }
-  return codes;
+    });
+  });
+
+  return tree;
 }
 
-console.log(`✅ PERMISSIONS_MASTER loaded: ${getTotalPermissionsCount()} permissions defined`);
+/**
+ * Get human-readable section label
+ */
+function getSectionLabel(sectionKey) {
+  const labels = {
+    gestion_comptable: 'Gestion Comptable',
+    formation: 'Formation',
+    ressources_humaines: 'Ressources Humaines',
+    mon_equipe: 'Mon Equipe',
+    mon_espace_rh: 'Mon Espace RH',
+    commercialisation: 'Commercialisation'
+  };
+  return labels[sectionKey] || sectionKey;
+}
+
+/**
+ * Get human-readable menu label
+ */
+function getMenuLabel(sectionKey, menuKey) {
+  const labels = {
+    // Gestion Comptable
+    tableau_de_bord: 'Tableau de bord',
+    segments: 'Segments',
+    villes: 'Villes',
+    utilisateurs: 'Utilisateurs',
+    roles_permissions: 'Roles & Permissions',
+    fiches_calcul: 'Fiches de calcul',
+    declarations: 'Declarations',
+    gestion_projet: 'Gestion de Projet',
+    // Formation
+    gestion_formations: 'Gestion des Formations',
+    sessions_formation: 'Sessions de Formation',
+    analytics: 'Analytics',
+    rapports_etudiants: 'Rapports Etudiants',
+    liste_etudiants: 'Liste des Etudiants',
+    templates_certificats: 'Templates de Certificats',
+    forums: 'Forums',
+    // Ressources Humaines
+    boucles_validation: 'Boucles de Validation',
+    gestion_horaires: 'Gestion des Horaires',
+    gestion_paie: 'Gestion de Paie',
+    gestion_pointage: 'Gestion Pointage',
+    dossier_employe: 'Dossier Employe',
+    validation_demandes: 'Validation des Demandes',
+    delegations: 'Delegations',
+    // Mon Equipe
+    pointages_equipe: 'Pointages equipe',
+    demandes_equipe: 'Demandes equipe',
+    // Mon Espace RH
+    mon_pointage: 'Mon Pointage',
+    mes_demandes: 'Mes Demandes',
+    mes_bulletins: 'Mes Bulletins',
+    // Commercialisation
+    prospects: 'Prospects',
+    nettoyage_prospects: 'Nettoyage Prospects',
+    gestion_gcontacte: 'Gestion G-Contacte'
+  };
+  return labels[menuKey] || menuKey;
+}
+
+// Legacy mapping for backward compatibility
+export const LEGACY_PERMISSION_MAPPING = {
+  // Accounting -> Gestion Comptable
+  'accounting.dashboard.view_page': 'gestion_comptable.tableau_de_bord.voir',
+  'accounting.segments.view_page': 'gestion_comptable.segments.voir',
+  'accounting.segments.create': 'gestion_comptable.segments.creer',
+  'accounting.segments.update': 'gestion_comptable.segments.modifier',
+  'accounting.segments.delete': 'gestion_comptable.segments.supprimer',
+  'accounting.cities.view_page': 'gestion_comptable.villes.voir',
+  'accounting.cities.create': 'gestion_comptable.villes.creer',
+  'accounting.cities.update': 'gestion_comptable.villes.modifier',
+  'accounting.cities.delete': 'gestion_comptable.villes.supprimer',
+  'accounting.cities.bulk_delete': 'gestion_comptable.villes.supprimer_masse',
+  'accounting.users.view_page': 'gestion_comptable.utilisateurs.voir',
+  'accounting.users.create': 'gestion_comptable.utilisateurs.creer',
+  'accounting.users.update': 'gestion_comptable.utilisateurs.modifier',
+  'accounting.users.delete': 'gestion_comptable.utilisateurs.supprimer',
+  'accounting.users.assign_segments': 'gestion_comptable.utilisateurs.assigner_segments',
+  'accounting.users.assign_cities': 'gestion_comptable.utilisateurs.assigner_villes',
+  'accounting.calculation_sheets.view_page': 'gestion_comptable.fiches_calcul.voir',
+  'accounting.declarations.view_page': 'gestion_comptable.declarations.voir',
+  'accounting.projects.view_page': 'gestion_comptable.gestion_projet.voir',
+  'system.roles.view_page': 'gestion_comptable.roles_permissions.voir',
+  'system.roles.create': 'gestion_comptable.roles_permissions.creer',
+  'system.roles.update': 'gestion_comptable.roles_permissions.modifier',
+  'system.roles.delete': 'gestion_comptable.roles_permissions.supprimer',
+
+  // Training -> Formation
+  'training.formations.view_page': 'formation.gestion_formations.voir',
+  'training.sessions.view_page': 'formation.sessions_formation.voir',
+  'training.analytics.view_page': 'formation.analytics.voir',
+  'training.student_reports.view_page': 'formation.rapports_etudiants.voir',
+  'training.students.view_page': 'formation.liste_etudiants.voir',
+  'training.certificate_templates.view_page': 'formation.templates_certificats.voir',
+  'training.forums.view_page': 'formation.forums.voir',
+
+  // HR -> Ressources Humaines
+  'hr.validation_workflows.view_page': 'ressources_humaines.boucles_validation.voir',
+  'hr.schedules.view_page': 'ressources_humaines.gestion_horaires.voir',
+  'hr.payroll.view_page': 'ressources_humaines.gestion_paie.voir',
+  'hr.employee_portal.view_page': 'ressources_humaines.gestion_pointage.voir',
+  'hr.employees.view_page': 'ressources_humaines.dossier_employe.voir',
+  'hr.requests_validation.view_page': 'ressources_humaines.validation_demandes.voir',
+  'hr.delegation.view_page': 'ressources_humaines.delegations.voir',
+
+  // HR Manager -> Mon Equipe
+  'hr.manager.team_attendance': 'mon_equipe.pointages_equipe.voir',
+  'hr.manager.team_requests': 'mon_equipe.demandes_equipe.voir',
+
+  // HR Self-Service -> Mon Espace RH
+  'hr.clocking.self': 'mon_espace_rh.mon_pointage.voir',
+  'hr.my.requests': 'mon_espace_rh.mes_demandes.voir',
+  'hr.my.payslips': 'mon_espace_rh.mes_bulletins.voir',
+
+  // Commercialisation
+  'commercialisation.dashboard.view_page': 'commercialisation.tableau_de_bord.voir',
+  'commercialisation.prospects.view_page': 'commercialisation.prospects.voir',
+  'commercialisation.prospects.clean': 'commercialisation.nettoyage_prospects.nettoyer',
+  'commercialisation.google_contacts.view_page': 'commercialisation.gestion_gcontacte.voir'
+};
+
+/**
+ * Convert legacy permission code to new format
+ */
+export function convertLegacyPermission(code) {
+  return LEGACY_PERMISSION_MAPPING[code] || code;
+}

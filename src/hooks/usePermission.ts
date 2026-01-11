@@ -1,383 +1,450 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useCallback, useMemo } from 'react';
+import { convertLegacyPermission } from '@/config/permissions';
 
 /**
- * Hook for checking user permissions
- * Uses the new hierarchical permission system (module.menu.action)
+ * Hook pour verifier les permissions utilisateur
+ * Utilise le nouveau systeme hierarchique (section.sous_menu.onglet?.action)
  *
- * Example codes:
- * - accounting.segments.view_page
- * - accounting.segments.create
- * - training.formations.delete
+ * Exemples de codes:
+ * - gestion_comptable.segments.voir
+ * - gestion_comptable.segments.creer
+ * - ressources_humaines.gestion_horaires.modeles.creer
+ * - formation.gestion_formations.supprimer
  */
 export function usePermission() {
   const { user, permissions } = useAuth();
 
-  // Check if user has a specific permission
+  // Verifier si l'utilisateur a une permission specifique
   const can = useCallback((permissionCode: string): boolean => {
-    // Admin always has all permissions
+    // Admin a toujours toutes les permissions
     if (user?.role === 'admin') return true;
 
-    // Check wildcard permission
+    // Verifier permission wildcard
     if (permissions.includes('*')) return true;
 
-    // Check specific permission
-    return permissions.includes(permissionCode);
+    // Convertir ancien code si necessaire
+    const normalizedCode = convertLegacyPermission(permissionCode);
+
+    // Verifier permission specifique
+    return permissions.includes(normalizedCode);
   }, [user, permissions]);
 
-  // Check if user has any of the specified permissions
+  // Verifier si l'utilisateur a l'une des permissions specifiees
   const canAny = useCallback((...permissionCodes: string[]): boolean => {
     if (user?.role === 'admin') return true;
     if (permissions.includes('*')) return true;
-    return permissionCodes.some(code => permissions.includes(code));
+    return permissionCodes.some(code => {
+      const normalized = convertLegacyPermission(code);
+      return permissions.includes(normalized);
+    });
   }, [user, permissions]);
 
-  // Check if user has all of the specified permissions
+  // Verifier si l'utilisateur a toutes les permissions specifiees
   const canAll = useCallback((...permissionCodes: string[]): boolean => {
     if (user?.role === 'admin') return true;
     if (permissions.includes('*')) return true;
-    return permissionCodes.every(code => permissions.includes(code));
+    return permissionCodes.every(code => {
+      const normalized = convertLegacyPermission(code);
+      return permissions.includes(normalized);
+    });
   }, [user, permissions]);
 
-  // Check if user can view a specific page (menu item)
-  const canViewPage = useCallback((module: string, menu: string): boolean => {
-    const code = `${module}.${menu}.view_page`;
+  // Verifier si l'utilisateur peut voir une page specifique (menu)
+  const canViewPage = useCallback((section: string, sousMenu: string): boolean => {
+    const code = `${section}.${sousMenu}.voir`;
     return can(code);
   }, [can]);
 
-  // Check if user can perform an action on a menu/page
-  const canAction = useCallback((module: string, menu: string, action: string): boolean => {
-    const code = `${module}.${menu}.${action}`;
+  // Verifier si l'utilisateur peut effectuer une action sur un menu/page
+  const canAction = useCallback((section: string, sousMenu: string, action: string): boolean => {
+    const code = `${section}.${sousMenu}.${action}`;
     return can(code);
   }, [can]);
 
-  // Get all view_page permissions (for menu visibility)
+  // Verifier action avec onglet (pour pages avec onglets comme gestion_horaires)
+  const canOngletAction = useCallback((section: string, sousMenu: string, onglet: string, action: string): boolean => {
+    const code = `${section}.${sousMenu}.${onglet}.${action}`;
+    return can(code);
+  }, [can]);
+
+  // Obtenir toutes les permissions de vue (pour visibilite des menus)
   const viewablePages = useMemo(() => {
     if (user?.role === 'admin' || permissions.includes('*')) {
-      // Admin sees all pages - return a special marker
+      // Admin voit toutes les pages
       return ['*'];
     }
-    return permissions.filter(p => p.endsWith('.view_page'));
+    return permissions.filter(p => p.endsWith('.voir'));
   }, [user, permissions]);
 
-  // Check if user can see any page in a specific module
-  const canAccessModule = useCallback((module: string): boolean => {
+  // Verifier si l'utilisateur peut voir une section
+  const canAccessSection = useCallback((section: string): boolean => {
     if (user?.role === 'admin') return true;
     if (permissions.includes('*')) return true;
-    return permissions.some(p => p.startsWith(`${module}.`) && p.endsWith('.view_page'));
+    // Verifier permission d'acces a la section ou au moins une permission .voir dans la section
+    return permissions.includes(`${section}.acces`) ||
+           permissions.some(p => p.startsWith(`${section}.`) && p.endsWith('.voir'));
   }, [user, permissions]);
 
-  // Accounting module specific checks
-  const accounting = useMemo(() => ({
-    // Dashboard
-    canViewDashboard: can('accounting.dashboard.view_page'),
+  // ==================== GESTION COMPTABLE ====================
+  const gestionComptable = useMemo(() => ({
+    // Acces section
+    acces: can('gestion_comptable.acces'),
+
+    // Tableau de bord
+    voirTableauDeBord: can('gestion_comptable.tableau_de_bord.voir'),
 
     // Segments
-    canViewSegments: can('accounting.segments.view_page'),
-    canCreateSegment: can('accounting.segments.create'),
-    canUpdateSegment: can('accounting.segments.update'),
-    canDeleteSegment: can('accounting.segments.delete'),
-    canImportCities: can('accounting.segments.import_cities'),
+    voirSegments: can('gestion_comptable.segments.voir'),
+    creerSegment: can('gestion_comptable.segments.creer'),
+    modifierSegment: can('gestion_comptable.segments.modifier'),
+    supprimerSegment: can('gestion_comptable.segments.supprimer'),
+    importerVilles: can('gestion_comptable.segments.importer_villes'),
 
-    // Cities
-    canViewCities: can('accounting.cities.view_page'),
-    canCreateCity: can('accounting.cities.create'),
-    canUpdateCity: can('accounting.cities.update'),
-    canDeleteCity: can('accounting.cities.delete'),
-    canBulkDeleteCity: can('accounting.cities.bulk_delete'),
+    // Villes
+    voirVilles: can('gestion_comptable.villes.voir'),
+    creerVille: can('gestion_comptable.villes.creer'),
+    modifierVille: can('gestion_comptable.villes.modifier'),
+    supprimerVille: can('gestion_comptable.villes.supprimer'),
+    supprimerVillesMasse: can('gestion_comptable.villes.supprimer_masse'),
 
-    // Users
-    canViewUsers: can('accounting.users.view_page'),
-    canCreateUser: can('accounting.users.create'),
-    canUpdateUser: can('accounting.users.update'),
-    canDeleteUser: can('accounting.users.delete'),
-    canAssignSegments: can('accounting.users.assign_segments'),
-    canAssignCities: can('accounting.users.assign_cities'),
-    canAssignRoles: can('accounting.users.assign_roles'),
+    // Utilisateurs
+    voirUtilisateurs: can('gestion_comptable.utilisateurs.voir'),
+    creerUtilisateur: can('gestion_comptable.utilisateurs.creer'),
+    modifierUtilisateur: can('gestion_comptable.utilisateurs.modifier'),
+    supprimerUtilisateur: can('gestion_comptable.utilisateurs.supprimer'),
+    assignerSegments: can('gestion_comptable.utilisateurs.assigner_segments'),
+    assignerVilles: can('gestion_comptable.utilisateurs.assigner_villes'),
+    assignerRoles: can('gestion_comptable.utilisateurs.assigner_roles'),
 
-    // Roles
-    canViewRoles: can('accounting.roles.view_page'),
-    canCreateRole: can('accounting.roles.create'),
-    canUpdateRole: can('accounting.roles.update'),
-    canDeleteRole: can('accounting.roles.delete'),
+    // Roles & Permissions
+    voirRoles: can('gestion_comptable.roles_permissions.voir'),
+    creerRole: can('gestion_comptable.roles_permissions.creer'),
+    modifierRole: can('gestion_comptable.roles_permissions.modifier'),
+    supprimerRole: can('gestion_comptable.roles_permissions.supprimer'),
 
-    // Calculation Sheets
-    canViewSheets: can('accounting.calculation_sheets.view_page'),
-    canViewSheet: can('accounting.calculation_sheets.view'),
-    canCreateSheet: can('accounting.calculation_sheets.create'),
-    canUpdateSheet: can('accounting.calculation_sheets.update'),
-    canEditCalculationSheet: can('accounting.calculation_sheets.edit'),
-    canDeleteSheet: can('accounting.calculation_sheets.delete'),
-    canPublishSheet: can('accounting.calculation_sheets.publish'),
-    canDuplicateSheet: can('accounting.calculation_sheets.duplicate'),
-    canExportSheet: can('accounting.calculation_sheets.export'),
-    canManageSheetSettings: can('accounting.calculation_sheets.settings'),
+    // Fiches de calcul
+    voirFiches: can('gestion_comptable.fiches_calcul.voir'),
+    creerFiche: can('gestion_comptable.fiches_calcul.creer'),
+    modifierFiche: can('gestion_comptable.fiches_calcul.modifier'),
+    supprimerFiche: can('gestion_comptable.fiches_calcul.supprimer'),
+    publierFiche: can('gestion_comptable.fiches_calcul.publier'),
+    dupliquerFiche: can('gestion_comptable.fiches_calcul.dupliquer'),
+    exporterFiche: can('gestion_comptable.fiches_calcul.exporter'),
+    parametresFiche: can('gestion_comptable.fiches_calcul.parametres'),
 
-    // Create Declaration
-    canAccessCreateDeclaration: can('accounting.create_declaration.view_page'),
+    // Declarations
+    voirDeclarations: can('gestion_comptable.declarations.voir'),
+    voirToutesDeclarations: can('gestion_comptable.declarations.voir_toutes'),
+    creerDeclaration: can('gestion_comptable.declarations.creer'),
+    remplirDeclaration: can('gestion_comptable.declarations.remplir'),
+    modifierMetadata: can('gestion_comptable.declarations.modifier_metadata'),
+    supprimerDeclaration: can('gestion_comptable.declarations.supprimer'),
+    approuverDeclaration: can('gestion_comptable.declarations.approuver'),
+    rejeterDeclaration: can('gestion_comptable.declarations.rejeter'),
+    soumettreDeclaration: can('gestion_comptable.declarations.soumettre'),
 
-    // Manage Declarations
-    canViewDeclarations: can('accounting.declarations.view_page'),
-    canViewAllDeclarations: can('accounting.declarations.view_all'),
-    canCreateDeclaration: can('accounting.declarations.create'),
-    canCreateDeclarationForOther: can('accounting.declarations.create'),
-    canFillData: can('accounting.declarations.fill_data'),
-    canEditMetadata: can('accounting.declarations.edit_metadata'),
-    canDeleteDeclaration: can('accounting.declarations.delete'),
-    canApproveDeclaration: can('accounting.declarations.approve'),
-    canSubmitDeclaration: can('accounting.declarations.submit'),
-    canRejectDeclaration: can('accounting.declarations.reject'),
-    canRequestModification: can('accounting.declarations.request_modification'),
-
-    // Professors
-    canViewProfessors: can('accounting.professors.view_page'),
-    canCreateProfessor: can('accounting.professors.create'),
-    canUpdateProfessor: can('accounting.professors.update'),
-    canDeleteProfessor: can('accounting.professors.delete'),
-    canAssignProfessorCities: can('accounting.professors.assign_cities'),
-    canViewProfessorAssignments: can('accounting.professors.view_assignments'),
+    // Gestion de Projet
+    voirProjets: can('gestion_comptable.gestion_projet.voir'),
+    creerProjet: can('gestion_comptable.gestion_projet.creer'),
+    modifierProjet: can('gestion_comptable.gestion_projet.modifier'),
+    supprimerProjet: can('gestion_comptable.gestion_projet.supprimer'),
+    exporterProjets: can('gestion_comptable.gestion_projet.exporter'),
   }), [can]);
 
-  // HR module specific checks
-  const hr = useMemo(() => ({
-    // Employees
-    canViewEmployees: can('hr.employees.view_page'),
-    canCreateEmployee: can('hr.employees.create'),
-    canUpdateEmployee: can('hr.employees.update'),
-    canDeleteEmployee: can('hr.employees.delete'),
-    canViewContracts: can('hr.employees.view_contracts'),
-    canManageDocuments: can('hr.employees.manage_documents'),
-    canViewDisciplinary: can('hr.employees.view_disciplinary'),
-    canManageDisciplinary: can('hr.employees.manage_disciplinary'),
+  // ==================== FORMATION ====================
+  const formation = useMemo(() => ({
+    // Acces section
+    acces: can('formation.acces'),
 
-    // Attendance
-    canViewAttendance: can('hr.attendance.view_page'),
-    canRecordAttendance: can('hr.attendance.record'),
-    canCorrectAttendance: can('hr.attendance.correct'),
-    canValidateAttendance: can('hr.attendance.validate'),
-    canExportAttendance: can('hr.attendance.export'),
+    // Gestion des Formations
+    voirFormations: can('formation.gestion_formations.voir'),
+    creerFormation: can('formation.gestion_formations.creer'),
+    modifierFormation: can('formation.gestion_formations.modifier'),
+    supprimerFormation: can('formation.gestion_formations.supprimer'),
+    dupliquerFormation: can('formation.gestion_formations.dupliquer'),
+    creerPack: can('formation.gestion_formations.creer_pack'),
+    editerContenu: can('formation.gestion_formations.editer_contenu'),
 
-    // Overtime
-    canRequestOvertime: can('hr.overtime.request'),
-    canApproveOvertime: can('hr.overtime.approve'),
-    canValidateOvertimePayroll: can('hr.overtime.validate_payroll'),
-    canViewOvertimeReports: can('hr.overtime.view_reports'),
-
-    // Leaves
-    canViewLeaves: can('hr.leaves.view_page'),
-    canRequestLeave: can('hr.leaves.request'),
-    canApproveLeave: can('hr.leaves.approve'),
-    canManageBalances: can('hr.leaves.manage_balances'),
-    canViewCalendar: can('hr.leaves.view_calendar'),
-    canManageHolidays: can('hr.leaves.manage_holidays'),
-    canExportLeaves: can('hr.leaves.export'),
-
-    // Dashboard
-    canViewHRDashboard: can('hr.dashboard.view_page'),
-    canViewMonthlyReports: can('hr.dashboard.view_monthly_reports'),
-    canGeneratePayrollSummary: can('hr.dashboard.generate_payroll_summary'),
-    canExportPayroll: can('hr.dashboard.export_payroll'),
-    canViewAlerts: can('hr.dashboard.view_alerts'),
-
-    // Settings
-    canViewSettings: can('hr.settings.view_page'),
-    canUpdateSettings: can('hr.settings.update'),
-    canManageLeaveTypes: can('hr.settings.manage_leave_types'),
-    canManageSchedules: can('hr.settings.manage_schedules'),
-  }), [can]);
-
-  // Training module specific checks
-  const training = useMemo(() => ({
-    // Professors
-    canViewProfessors: can('training.professors.view_page'),
-    canCreateProfessor: can('training.professors.create'),
-    canUpdateProfessor: can('training.professors.edit'),
-    canDeleteProfessor: can('training.professors.delete'),
-    canAssignProfessorSegments: can('training.professors.assign_segments'),
-    canAssignProfessorCities: can('training.professors.assign_cities'),
-
-    // Formations
-    canViewFormations: can('training.formations.view_page'),
-    canCreateFormation: can('training.formations.create'),
-    canUpdateFormation: can('training.formations.update'),
-    canDeleteFormation: can('training.formations.delete'),
-    canDuplicateFormation: can('training.formations.duplicate'),
-    canCreatePack: can('training.formations.create_pack'),
-    canEditContent: can('training.formations.edit_content'),
-    canCreateCorps: can('training.corps.create'),
-    canUpdateCorps: can('training.corps.update'),
-    canDeleteCorps: can('training.corps.delete'),
-    canDuplicateCorps: can('training.corps.duplicate'),
-
-    // Sessions
-    canViewSessions: can('training.sessions.view_page'),
-    canCreateSession: can('training.sessions.create'),
-    canUpdateSession: can('training.sessions.update'),
-    canDeleteSession: can('training.sessions.delete'),
-    canViewSessionDetails: can('training.sessions.view_details'),
-    canAddStudentToSession: can('training.sessions.add_student'),
-    canEditStudentInSession: can('training.sessions.edit_student'),
+    // Sessions de Formation
+    voirSessions: can('formation.sessions_formation.voir'),
+    creerSession: can('formation.sessions_formation.creer'),
+    modifierSession: can('formation.sessions_formation.modifier'),
+    supprimerSession: can('formation.sessions_formation.supprimer'),
+    ajouterEtudiant: can('formation.sessions_formation.ajouter_etudiant'),
+    modifierEtudiant: can('formation.sessions_formation.modifier_etudiant'),
 
     // Analytics
-    canViewAnalytics: can('training.analytics.view_page'),
-    canExportAnalyticsCsv: can('training.analytics.export_csv'),
-    canChangePeriod: can('training.analytics.change_period'),
+    voirAnalytics: can('formation.analytics.voir'),
+    exporterAnalytics: can('formation.analytics.exporter'),
+    changerPeriode: can('formation.analytics.changer_periode'),
 
-    // Student Reports
-    canViewStudentReports: can('training.student_reports.view_page'),
-    canSearchStudents: can('training.student_reports.search'),
-    canExportStudentsCsv: can('training.student_reports.export_csv'),
-    canExportStudentsPdf: can('training.student_reports.export_pdf'),
+    // Rapports Etudiants
+    voirRapports: can('formation.rapports_etudiants.voir'),
+    rechercherRapports: can('formation.rapports_etudiants.rechercher'),
+    exporterCsv: can('formation.rapports_etudiants.exporter_csv'),
+    exporterPdf: can('formation.rapports_etudiants.exporter_pdf'),
 
-    // Certificates
-    canViewCertificates: can('training.certificates.view_page'),
-    canDownloadCertificate: can('training.certificates.download'),
-    canDeleteCertificate: can('training.certificates.delete'),
-    canSearchCertificates: can('training.certificates.search'),
+    // Liste des Etudiants
+    voirEtudiants: can('formation.liste_etudiants.voir'),
+    creerEtudiant: can('formation.liste_etudiants.creer'),
+    modifierEtudiantListe: can('formation.liste_etudiants.modifier'),
+    supprimerEtudiant: can('formation.liste_etudiants.supprimer'),
 
-    // Certificate Templates
-    canViewTemplates: can('training.certificate_templates.view_page'),
-    canCreateFolder: can('training.certificate_templates.create_folder'),
-    canCreateTemplate: can('training.certificate_templates.create_template'),
-    canRenameFolder: can('training.certificate_templates.rename_folder'),
-    canRenameTemplate: can('training.certificate_templates.rename_template'),
-    canDeleteFolder: can('training.certificate_templates.delete_folder'),
-    canDeleteTemplate: can('training.certificate_templates.delete_template'),
-    canDuplicateTemplate: can('training.certificate_templates.duplicate'),
-    canEditCanvas: can('training.certificate_templates.edit_canvas'),
-    canOrganizeTemplates: can('training.certificate_templates.organize'),
+    // Templates de Certificats
+    voirTemplates: can('formation.templates_certificats.voir'),
+    creerDossier: can('formation.templates_certificats.creer_dossier'),
+    creerTemplate: can('formation.templates_certificats.creer_template'),
+    renommerTemplate: can('formation.templates_certificats.renommer'),
+    supprimerTemplate: can('formation.templates_certificats.supprimer'),
+    dupliquerTemplate: can('formation.templates_certificats.dupliquer'),
+    editerCanvas: can('formation.templates_certificats.editer_canvas'),
 
     // Forums
-    canViewForums: can('training.forums.view_page'),
-    canPinDiscussion: can('training.forums.pin_discussion'),
-    canLockDiscussion: can('training.forums.lock_discussion'),
-    canDeleteForumContent: can('training.forums.delete_content'),
-    canModerate: can('training.forums.moderate'),
+    voirForums: can('formation.forums.voir'),
+    creerDiscussion: can('formation.forums.creer_discussion'),
+    repondre: can('formation.forums.repondre'),
+    reagir: can('formation.forums.reagir'),
+    supprimerForum: can('formation.forums.supprimer'),
+    epingler: can('formation.forums.epingler'),
+    verrouiller: can('formation.forums.verrouiller'),
+    moderer: can('formation.forums.moderer'),
   }), [can]);
 
-  // Commercialisation module specific checks
-  const commercialisation = useMemo(() => ({
-    // Dashboard
-    canViewDashboard: can('commercialisation.dashboard.view_page'),
-    canViewStats: can('commercialisation.dashboard.view_stats'),
-    canExportStats: can('commercialisation.dashboard.export'),
+  // ==================== RESSOURCES HUMAINES ====================
+  const ressourcesHumaines = useMemo(() => ({
+    // Acces section
+    acces: can('ressources_humaines.acces'),
 
-    // Clients
-    canViewClients: can('commercialisation.clients.view_page'),
-    canViewClientDetails: can('commercialisation.clients.view'),
-    canCreateClient: can('commercialisation.clients.create'),
-    canUpdateClient: can('commercialisation.clients.edit'),
-    canDeleteClient: can('commercialisation.clients.delete'),
-    canExportClients: can('commercialisation.clients.export'),
+    // Boucles de Validation
+    voirBouclesValidation: can('ressources_humaines.boucles_validation.voir'),
+    creerBoucle: can('ressources_humaines.boucles_validation.creer'),
+    modifierBoucle: can('ressources_humaines.boucles_validation.modifier'),
+    supprimerBoucle: can('ressources_humaines.boucles_validation.supprimer'),
+
+    // Gestion des Horaires
+    voirGestionHoraires: can('ressources_humaines.gestion_horaires.voir'),
+    // Onglet Modeles
+    creerModele: can('ressources_humaines.gestion_horaires.modeles.creer'),
+    modifierModele: can('ressources_humaines.gestion_horaires.modeles.modifier'),
+    supprimerModele: can('ressources_humaines.gestion_horaires.modeles.supprimer'),
+    // Onglet Jours Feries
+    creerJourFerie: can('ressources_humaines.gestion_horaires.jours_feries.creer'),
+    modifierJourFerie: can('ressources_humaines.gestion_horaires.jours_feries.modifier'),
+    supprimerJourFerie: can('ressources_humaines.gestion_horaires.jours_feries.supprimer'),
+    // Onglet Conges Valides
+    voirCongesValides: can('ressources_humaines.gestion_horaires.conges_valides.voir'),
+    // Onglet Heures Supplementaires
+    voirHeuresSup: can('ressources_humaines.gestion_horaires.heures_sup.voir'),
+    approuverHeuresSup: can('ressources_humaines.gestion_horaires.heures_sup.approuver'),
+    rejeterHeuresSup: can('ressources_humaines.gestion_horaires.heures_sup.rejeter'),
+    creerPeriodeHS: can('ressources_humaines.gestion_horaires.heures_sup.creer_periode'),
+    supprimerPeriodeHS: can('ressources_humaines.gestion_horaires.heures_sup.supprimer_periode'),
+    recalculerHeuresSup: can('ressources_humaines.gestion_horaires.heures_sup.recalculer'),
+    // Onglet Config HS
+    voirConfigHS: can('ressources_humaines.gestion_horaires.config_hs.voir'),
+    modifierConfigHS: can('ressources_humaines.gestion_horaires.config_hs.modifier'),
+
+    // Gestion de Paie
+    voirGestionPaie: can('ressources_humaines.gestion_paie.voir'),
+    // Onglet Periodes de Paie
+    creerPeriode: can('ressources_humaines.gestion_paie.periodes.creer'),
+    ouvrirPeriode: can('ressources_humaines.gestion_paie.periodes.ouvrir'),
+    fermerPeriode: can('ressources_humaines.gestion_paie.periodes.fermer'),
+    supprimerPeriode: can('ressources_humaines.gestion_paie.periodes.supprimer'),
+    // Onglet Calculs de Paie
+    calculerPaie: can('ressources_humaines.gestion_paie.calculs.calculer'),
+    // Onglet Bulletins de Paie
+    voirBulletins: can('ressources_humaines.gestion_paie.bulletins.voir'),
+    validerBulletin: can('ressources_humaines.gestion_paie.bulletins.valider'),
+    validerTousBulletins: can('ressources_humaines.gestion_paie.bulletins.valider_tous'),
+    telechargerBulletin: can('ressources_humaines.gestion_paie.bulletins.telecharger'),
+    exporterCnss: can('ressources_humaines.gestion_paie.bulletins.exporter_cnss'),
+    exporterVirements: can('ressources_humaines.gestion_paie.bulletins.exporter_virements'),
+    // Onglet Tests & Logs
+    voirTests: can('ressources_humaines.gestion_paie.tests.voir'),
+    // Onglet Automatisation
+    voirAutomatisation: can('ressources_humaines.gestion_paie.automatisation.voir'),
+    configurerAutomatisation: can('ressources_humaines.gestion_paie.automatisation.configurer'),
+    // Onglet Configuration
+    voirConfiguration: can('ressources_humaines.gestion_paie.configuration.voir'),
+    modifierConfiguration: can('ressources_humaines.gestion_paie.configuration.modifier'),
+
+    // Gestion Pointage
+    voirGestionPointage: can('ressources_humaines.gestion_pointage.voir'),
+    pointer: can('ressources_humaines.gestion_pointage.pointer'),
+    corrigerPointage: can('ressources_humaines.gestion_pointage.corriger'),
+    importerPointage: can('ressources_humaines.gestion_pointage.importer'),
+    exporterPointage: can('ressources_humaines.gestion_pointage.exporter'),
+    validerPointage: can('ressources_humaines.gestion_pointage.valider'),
+
+    // Dossier Employe
+    voirDossierEmploye: can('ressources_humaines.dossier_employe.voir'),
+    creerDossier: can('ressources_humaines.dossier_employe.creer'),
+    modifierDossier: can('ressources_humaines.dossier_employe.modifier'),
+    supprimerDossier: can('ressources_humaines.dossier_employe.supprimer'),
+    voirSalaire: can('ressources_humaines.dossier_employe.voir_salaire'),
+    gererContrats: can('ressources_humaines.dossier_employe.gerer_contrats'),
+    gererDocuments: can('ressources_humaines.dossier_employe.gerer_documents'),
+    gererDiscipline: can('ressources_humaines.dossier_employe.gerer_discipline'),
+
+    // Validation des Demandes
+    voirValidationDemandes: can('ressources_humaines.validation_demandes.voir'),
+    approuverDemande: can('ressources_humaines.validation_demandes.approuver'),
+    rejeterDemande: can('ressources_humaines.validation_demandes.rejeter'),
+
+    // Delegations
+    voirDelegations: can('ressources_humaines.delegations.voir'),
+    creerDelegation: can('ressources_humaines.delegations.creer'),
+    gererToutesDelegations: can('ressources_humaines.delegations.gerer_toutes'),
+  }), [can]);
+
+  // ==================== MON EQUIPE ====================
+  const monEquipe = useMemo(() => ({
+    // Acces section
+    acces: can('mon_equipe.acces'),
+
+    // Pointages equipe
+    voirPointagesEquipe: can('mon_equipe.pointages_equipe.voir'),
+    supprimerPointage: can('mon_equipe.pointages_equipe.supprimer'),
+
+    // Demandes equipe
+    voirDemandesEquipe: can('mon_equipe.demandes_equipe.voir'),
+    approuverDemande: can('mon_equipe.demandes_equipe.approuver'),
+    rejeterDemande: can('mon_equipe.demandes_equipe.rejeter'),
+  }), [can]);
+
+  // ==================== MON ESPACE RH ====================
+  const monEspaceRh = useMemo(() => ({
+    // Acces section
+    acces: can('mon_espace_rh.acces'),
+
+    // Mon Pointage
+    voirMonPointage: can('mon_espace_rh.mon_pointage.voir'),
+    pointer: can('mon_espace_rh.mon_pointage.pointer'),
+
+    // Mes Demandes
+    voirMesDemandes: can('mon_espace_rh.mes_demandes.voir'),
+    creerDemande: can('mon_espace_rh.mes_demandes.creer'),
+    annulerDemande: can('mon_espace_rh.mes_demandes.annuler'),
+
+    // Mes Bulletins
+    voirMesBulletins: can('mon_espace_rh.mes_bulletins.voir'),
+    telechargerBulletin: can('mon_espace_rh.mes_bulletins.telecharger'),
+  }), [can]);
+
+  // ==================== COMMERCIALISATION ====================
+  const commercialisation = useMemo(() => ({
+    // Acces section
+    acces: can('commercialisation.acces'),
+
+    // Tableau de bord
+    voirTableauDeBord: can('commercialisation.tableau_de_bord.voir'),
+    voirStats: can('commercialisation.tableau_de_bord.voir_stats'),
+    exporterStats: can('commercialisation.tableau_de_bord.exporter'),
 
     // Prospects
-    canViewProspects: can('commercialisation.prospects.view_page'),
-    canViewProspectDetails: can('commercialisation.prospects.view'),
-    canCreateProspect: can('commercialisation.prospects.create'),
-    canCallProspect: can('commercialisation.prospects.call'),
-    canUpdateProspect: can('commercialisation.prospects.update'),
-    canDeleteProspect: can('commercialisation.prospects.delete'),
-    canImportProspects: can('commercialisation.prospects.import'),
-    canExportProspects: can('commercialisation.prospects.export'),
-    canAssignProspect: can('commercialisation.prospects.assign'),
-    canReinjectProspect: can('commercialisation.prospects.reinject'),
-    canCleanProspects: can('commercialisation.prospects.clean'),
-    canViewAllProspects: can('commercialisation.prospects.view_all'),
+    voirProspects: can('commercialisation.prospects.voir'),
+    voirTousProspects: can('commercialisation.prospects.voir_tous'),
+    creerProspect: can('commercialisation.prospects.creer'),
+    modifierProspect: can('commercialisation.prospects.modifier'),
+    supprimerProspect: can('commercialisation.prospects.supprimer'),
+    appelerProspect: can('commercialisation.prospects.appeler'),
+    convertirProspect: can('commercialisation.prospects.convertir'),
+    importerProspects: can('commercialisation.prospects.importer'),
+    exporterProspects: can('commercialisation.prospects.exporter'),
+    assignerProspect: can('commercialisation.prospects.assigner'),
+    reinjecterProspect: can('commercialisation.prospects.reinjecter'),
 
-    // Devis (Quotes)
-    canViewDevis: can('commercialisation.devis.view_page'),
-    canViewDevisDetails: can('commercialisation.devis.view'),
-    canCreateDevis: can('commercialisation.devis.create'),
-    canUpdateDevis: can('commercialisation.devis.edit'),
-    canDeleteDevis: can('commercialisation.devis.delete'),
-    canValidateDevis: can('commercialisation.devis.validate'),
-    canSendDevis: can('commercialisation.devis.send'),
-    canExportDevis: can('commercialisation.devis.export'),
+    // Nettoyage Prospects
+    voirNettoyage: can('commercialisation.nettoyage_prospects.voir'),
+    nettoyer: can('commercialisation.nettoyage_prospects.nettoyer'),
 
-    // Contrats (Contracts)
-    canViewContrats: can('commercialisation.contrats.view_page'),
-    canViewContratDetails: can('commercialisation.contrats.view'),
-    canCreateContrat: can('commercialisation.contrats.create'),
-    canUpdateContrat: can('commercialisation.contrats.edit'),
-    canDeleteContrat: can('commercialisation.contrats.delete'),
-    canSignContrat: can('commercialisation.contrats.sign'),
-    canArchiveContrat: can('commercialisation.contrats.archive'),
-    canExportContrat: can('commercialisation.contrats.export'),
-
-    // Visits (Visites physiques)
-    visits: {
-      view_page: can('commercialisation.visits.view_page'),
-      create: can('commercialisation.visits.create'),
-      update: can('commercialisation.visits.update'),
-      delete: can('commercialisation.visits.delete'),
-      export: can('commercialisation.visits.export'),
-      view_analytics: can('commercialisation.visits.view_analytics'),
-      view_all: can('commercialisation.visits.view_all'),
-    },
-  }), [can]);
-
-  // System module specific checks
-  const system = useMemo(() => ({
-    // Roles & Permissions
-    canViewRoles: can('system.roles.view_page'),
-    canCreateRole: can('system.roles.create'),
-    canUpdateRole: can('system.roles.update'),
-    canDeleteRole: can('system.roles.delete'),
+    // Gestion G-Contacte
+    voirGContacte: can('commercialisation.gestion_gcontacte.voir'),
+    configurerGContacte: can('commercialisation.gestion_gcontacte.configurer'),
+    synchroniserGContacte: can('commercialisation.gestion_gcontacte.synchroniser'),
+    testerGContacte: can('commercialisation.gestion_gcontacte.tester'),
   }), [can]);
 
   return {
-    // Generic permission checks
+    // Verifications generiques
     can,
     canAny,
     canAll,
     canViewPage,
     canAction,
-    canAccessModule,
+    canOngletAction,
+    canAccessSection,
 
-    // Utility
+    // Utilitaires
     viewablePages,
     permissions,
     isAdmin: user?.role === 'admin',
 
-    // Module-specific permissions
-    accounting,
-    training,
-    hr,
+    // Permissions par section
+    gestionComptable,
+    formation,
+    ressourcesHumaines,
+    monEquipe,
+    monEspaceRh,
     commercialisation,
-    system,
   };
 }
 
-// Type for permission code - useful for type safety
+// Type pour les codes de permission - utile pour la securite de type
 export type PermissionCode =
-  // Accounting module
-  | 'accounting.dashboard.view_page'
-  | 'accounting.segments.view_page' | 'accounting.segments.create' | 'accounting.segments.update' | 'accounting.segments.delete' | 'accounting.segments.import_cities'
-  | 'accounting.cities.view_page' | 'accounting.cities.create' | 'accounting.cities.update' | 'accounting.cities.delete' | 'accounting.cities.bulk_delete'
-  | 'accounting.users.view_page' | 'accounting.users.create' | 'accounting.users.update' | 'accounting.users.delete' | 'accounting.users.assign_segments' | 'accounting.users.assign_cities' | 'accounting.users.assign_roles'
-  | 'accounting.roles.view_page' | 'accounting.roles.create' | 'accounting.roles.update' | 'accounting.roles.delete'
-  | 'accounting.calculation_sheets.view_page' | 'accounting.calculation_sheets.create' | 'accounting.calculation_sheets.update' | 'accounting.calculation_sheets.delete' | 'accounting.calculation_sheets.publish' | 'accounting.calculation_sheets.duplicate' | 'accounting.calculation_sheets.export' | 'accounting.calculation_sheets.settings'
-  | 'accounting.create_declaration.view_page'
-  | 'accounting.declarations.view_page' | 'accounting.declarations.view_all' | 'accounting.declarations.create' | 'accounting.declarations.update' | 'accounting.declarations.delete' | 'accounting.declarations.approve' | 'accounting.declarations.reject' | 'accounting.declarations.request_modification'
-  // Training module
-  | 'training.formations.view_page' | 'training.formations.create' | 'training.formations.update' | 'training.formations.delete' | 'training.formations.duplicate' | 'training.formations.create_pack' | 'training.formations.edit_content'
-  | 'training.corps.create' | 'training.corps.update' | 'training.corps.delete'
-  | 'training.sessions.view_page' | 'training.sessions.create' | 'training.sessions.update' | 'training.sessions.delete' | 'training.sessions.view_details' | 'training.sessions.add_student' | 'training.sessions.edit_student'
-  | 'training.analytics.view_page' | 'training.analytics.export_csv' | 'training.analytics.change_period'
-  | 'training.student_reports.view_page' | 'training.student_reports.search' | 'training.student_reports.export_csv' | 'training.student_reports.export_pdf'
-  | 'training.certificates.view_page' | 'training.certificates.download' | 'training.certificates.delete' | 'training.certificates.search'
-  | 'training.certificate_templates.view_page' | 'training.certificate_templates.create_folder' | 'training.certificate_templates.create_template' | 'training.certificate_templates.rename' | 'training.certificate_templates.delete' | 'training.certificate_templates.duplicate' | 'training.certificate_templates.edit_canvas' | 'training.certificate_templates.organize'
-  | 'training.forums.view_page' | 'training.forums.pin_discussion' | 'training.forums.lock_discussion' | 'training.forums.delete_content' | 'training.forums.moderate'
-  // HR module
-  | 'hr.employees.view_page' | 'hr.employees.create' | 'hr.employees.update' | 'hr.employees.delete' | 'hr.employees.view_contracts' | 'hr.employees.manage_documents' | 'hr.employees.view_disciplinary' | 'hr.employees.manage_disciplinary'
-  | 'hr.attendance.view_page' | 'hr.attendance.record' | 'hr.attendance.correct' | 'hr.attendance.validate' | 'hr.attendance.export'
-  | 'hr.overtime.request' | 'hr.overtime.approve' | 'hr.overtime.validate_payroll' | 'hr.overtime.view_reports'
-  | 'hr.leaves.view_page' | 'hr.leaves.request' | 'hr.leaves.approve' | 'hr.leaves.manage_balances' | 'hr.leaves.view_calendar' | 'hr.leaves.manage_holidays' | 'hr.leaves.export'
-  | 'hr.dashboard.view_page' | 'hr.dashboard.view_monthly_reports' | 'hr.dashboard.generate_payroll_summary' | 'hr.dashboard.export_payroll' | 'hr.dashboard.view_alerts'
-  | 'hr.settings.view_page' | 'hr.settings.update' | 'hr.settings.manage_leave_types' | 'hr.settings.manage_schedules'
-  // Commercialisation module
-  | 'commercialisation.dashboard.view_page'
-  | 'commercialisation.clients.view_page' | 'commercialisation.clients.view' | 'commercialisation.clients.create' | 'commercialisation.clients.edit' | 'commercialisation.clients.delete' | 'commercialisation.clients.export'
-  | 'commercialisation.prospects.view_page' | 'commercialisation.prospects.view' | 'commercialisation.prospects.create' | 'commercialisation.prospects.call' | 'commercialisation.prospects.update' | 'commercialisation.prospects.delete' | 'commercialisation.prospects.import' | 'commercialisation.prospects.export' | 'commercialisation.prospects.assign' | 'commercialisation.prospects.reinject' | 'commercialisation.prospects.clean' | 'commercialisation.prospects.view_all'
-  | 'commercialisation.devis.view_page' | 'commercialisation.devis.view' | 'commercialisation.devis.create' | 'commercialisation.devis.edit' | 'commercialisation.devis.delete' | 'commercialisation.devis.validate'
-  | 'commercialisation.contrats.view_page' | 'commercialisation.contrats.view' | 'commercialisation.contrats.create' | 'commercialisation.contrats.edit' | 'commercialisation.contrats.delete' | 'commercialisation.contrats.sign';
+  // Gestion Comptable
+  | 'gestion_comptable.acces'
+  | 'gestion_comptable.tableau_de_bord.voir'
+  | 'gestion_comptable.segments.voir' | 'gestion_comptable.segments.creer' | 'gestion_comptable.segments.modifier' | 'gestion_comptable.segments.supprimer' | 'gestion_comptable.segments.importer_villes'
+  | 'gestion_comptable.villes.voir' | 'gestion_comptable.villes.creer' | 'gestion_comptable.villes.modifier' | 'gestion_comptable.villes.supprimer' | 'gestion_comptable.villes.supprimer_masse'
+  | 'gestion_comptable.utilisateurs.voir' | 'gestion_comptable.utilisateurs.creer' | 'gestion_comptable.utilisateurs.modifier' | 'gestion_comptable.utilisateurs.supprimer' | 'gestion_comptable.utilisateurs.assigner_segments' | 'gestion_comptable.utilisateurs.assigner_villes' | 'gestion_comptable.utilisateurs.assigner_roles'
+  | 'gestion_comptable.roles_permissions.voir' | 'gestion_comptable.roles_permissions.creer' | 'gestion_comptable.roles_permissions.modifier' | 'gestion_comptable.roles_permissions.supprimer'
+  | 'gestion_comptable.fiches_calcul.voir' | 'gestion_comptable.fiches_calcul.creer' | 'gestion_comptable.fiches_calcul.modifier' | 'gestion_comptable.fiches_calcul.supprimer' | 'gestion_comptable.fiches_calcul.publier' | 'gestion_comptable.fiches_calcul.dupliquer' | 'gestion_comptable.fiches_calcul.exporter' | 'gestion_comptable.fiches_calcul.parametres'
+  | 'gestion_comptable.declarations.voir' | 'gestion_comptable.declarations.voir_toutes' | 'gestion_comptable.declarations.creer' | 'gestion_comptable.declarations.remplir' | 'gestion_comptable.declarations.modifier_metadata' | 'gestion_comptable.declarations.supprimer' | 'gestion_comptable.declarations.approuver' | 'gestion_comptable.declarations.rejeter' | 'gestion_comptable.declarations.soumettre'
+  | 'gestion_comptable.gestion_projet.voir' | 'gestion_comptable.gestion_projet.creer' | 'gestion_comptable.gestion_projet.modifier' | 'gestion_comptable.gestion_projet.supprimer' | 'gestion_comptable.gestion_projet.exporter'
+  // Formation
+  | 'formation.acces'
+  | 'formation.gestion_formations.voir' | 'formation.gestion_formations.creer' | 'formation.gestion_formations.modifier' | 'formation.gestion_formations.supprimer' | 'formation.gestion_formations.dupliquer' | 'formation.gestion_formations.creer_pack' | 'formation.gestion_formations.editer_contenu'
+  | 'formation.sessions_formation.voir' | 'formation.sessions_formation.creer' | 'formation.sessions_formation.modifier' | 'formation.sessions_formation.supprimer' | 'formation.sessions_formation.ajouter_etudiant' | 'formation.sessions_formation.modifier_etudiant'
+  | 'formation.analytics.voir' | 'formation.analytics.exporter' | 'formation.analytics.changer_periode'
+  | 'formation.rapports_etudiants.voir' | 'formation.rapports_etudiants.rechercher' | 'formation.rapports_etudiants.exporter_csv' | 'formation.rapports_etudiants.exporter_pdf'
+  | 'formation.liste_etudiants.voir' | 'formation.liste_etudiants.creer' | 'formation.liste_etudiants.modifier' | 'formation.liste_etudiants.supprimer'
+  | 'formation.templates_certificats.voir' | 'formation.templates_certificats.creer_dossier' | 'formation.templates_certificats.creer_template' | 'formation.templates_certificats.renommer' | 'formation.templates_certificats.supprimer' | 'formation.templates_certificats.dupliquer' | 'formation.templates_certificats.editer_canvas'
+  | 'formation.forums.voir' | 'formation.forums.creer_discussion' | 'formation.forums.repondre' | 'formation.forums.reagir' | 'formation.forums.supprimer' | 'formation.forums.epingler' | 'formation.forums.verrouiller' | 'formation.forums.moderer'
+  // Ressources Humaines
+  | 'ressources_humaines.acces'
+  | 'ressources_humaines.boucles_validation.voir' | 'ressources_humaines.boucles_validation.creer' | 'ressources_humaines.boucles_validation.modifier' | 'ressources_humaines.boucles_validation.supprimer'
+  | 'ressources_humaines.gestion_horaires.voir'
+  | 'ressources_humaines.gestion_horaires.modeles.creer' | 'ressources_humaines.gestion_horaires.modeles.modifier' | 'ressources_humaines.gestion_horaires.modeles.supprimer'
+  | 'ressources_humaines.gestion_horaires.jours_feries.creer' | 'ressources_humaines.gestion_horaires.jours_feries.modifier' | 'ressources_humaines.gestion_horaires.jours_feries.supprimer'
+  | 'ressources_humaines.gestion_horaires.conges_valides.voir'
+  | 'ressources_humaines.gestion_horaires.heures_sup.voir' | 'ressources_humaines.gestion_horaires.heures_sup.approuver' | 'ressources_humaines.gestion_horaires.heures_sup.rejeter' | 'ressources_humaines.gestion_horaires.heures_sup.creer_periode' | 'ressources_humaines.gestion_horaires.heures_sup.supprimer_periode' | 'ressources_humaines.gestion_horaires.heures_sup.recalculer'
+  | 'ressources_humaines.gestion_horaires.config_hs.voir' | 'ressources_humaines.gestion_horaires.config_hs.modifier'
+  | 'ressources_humaines.gestion_paie.voir'
+  | 'ressources_humaines.gestion_paie.periodes.creer' | 'ressources_humaines.gestion_paie.periodes.ouvrir' | 'ressources_humaines.gestion_paie.periodes.fermer' | 'ressources_humaines.gestion_paie.periodes.supprimer'
+  | 'ressources_humaines.gestion_paie.calculs.calculer'
+  | 'ressources_humaines.gestion_paie.bulletins.voir' | 'ressources_humaines.gestion_paie.bulletins.valider' | 'ressources_humaines.gestion_paie.bulletins.valider_tous' | 'ressources_humaines.gestion_paie.bulletins.telecharger' | 'ressources_humaines.gestion_paie.bulletins.exporter_cnss' | 'ressources_humaines.gestion_paie.bulletins.exporter_virements'
+  | 'ressources_humaines.gestion_paie.tests.voir'
+  | 'ressources_humaines.gestion_paie.automatisation.voir' | 'ressources_humaines.gestion_paie.automatisation.configurer'
+  | 'ressources_humaines.gestion_paie.configuration.voir' | 'ressources_humaines.gestion_paie.configuration.modifier'
+  | 'ressources_humaines.gestion_pointage.voir' | 'ressources_humaines.gestion_pointage.pointer' | 'ressources_humaines.gestion_pointage.corriger' | 'ressources_humaines.gestion_pointage.importer' | 'ressources_humaines.gestion_pointage.exporter' | 'ressources_humaines.gestion_pointage.valider'
+  | 'ressources_humaines.dossier_employe.voir' | 'ressources_humaines.dossier_employe.creer' | 'ressources_humaines.dossier_employe.modifier' | 'ressources_humaines.dossier_employe.supprimer' | 'ressources_humaines.dossier_employe.voir_salaire' | 'ressources_humaines.dossier_employe.gerer_contrats' | 'ressources_humaines.dossier_employe.gerer_documents' | 'ressources_humaines.dossier_employe.gerer_discipline'
+  | 'ressources_humaines.validation_demandes.voir' | 'ressources_humaines.validation_demandes.approuver' | 'ressources_humaines.validation_demandes.rejeter'
+  | 'ressources_humaines.delegations.voir' | 'ressources_humaines.delegations.creer' | 'ressources_humaines.delegations.gerer_toutes'
+  // Mon Equipe
+  | 'mon_equipe.acces'
+  | 'mon_equipe.pointages_equipe.voir' | 'mon_equipe.pointages_equipe.supprimer'
+  | 'mon_equipe.demandes_equipe.voir' | 'mon_equipe.demandes_equipe.approuver' | 'mon_equipe.demandes_equipe.rejeter'
+  // Mon Espace RH
+  | 'mon_espace_rh.acces'
+  | 'mon_espace_rh.mon_pointage.voir' | 'mon_espace_rh.mon_pointage.pointer'
+  | 'mon_espace_rh.mes_demandes.voir' | 'mon_espace_rh.mes_demandes.creer' | 'mon_espace_rh.mes_demandes.annuler'
+  | 'mon_espace_rh.mes_bulletins.voir' | 'mon_espace_rh.mes_bulletins.telecharger'
+  // Commercialisation
+  | 'commercialisation.acces'
+  | 'commercialisation.tableau_de_bord.voir' | 'commercialisation.tableau_de_bord.voir_stats' | 'commercialisation.tableau_de_bord.exporter'
+  | 'commercialisation.prospects.voir' | 'commercialisation.prospects.voir_tous' | 'commercialisation.prospects.creer' | 'commercialisation.prospects.modifier' | 'commercialisation.prospects.supprimer' | 'commercialisation.prospects.appeler' | 'commercialisation.prospects.convertir' | 'commercialisation.prospects.importer' | 'commercialisation.prospects.exporter' | 'commercialisation.prospects.assigner' | 'commercialisation.prospects.reinjecter'
+  | 'commercialisation.nettoyage_prospects.voir' | 'commercialisation.nettoyage_prospects.nettoyer'
+  | 'commercialisation.gestion_gcontacte.voir' | 'commercialisation.gestion_gcontacte.configurer' | 'commercialisation.gestion_gcontacte.synchroniser' | 'commercialisation.gestion_gcontacte.tester';

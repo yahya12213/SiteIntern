@@ -7,6 +7,8 @@ import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ProtectedButton } from '@/components/ui/ProtectedButton';
+import { PERMISSIONS } from '@/config/permissions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -444,10 +446,14 @@ export default function PayrollManagement() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button size="sm" onClick={() => setShowCreatePeriodModal(true)}>
+                <ProtectedButton
+                  permission={PERMISSIONS.ressources_humaines.gestion_paie.periodes.creer}
+                  size="sm"
+                  onClick={() => setShowCreatePeriodModal(true)}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Nouvelle période
-                </Button>
+                </ProtectedButton>
               </div>
             </CardHeader>
             <CardContent>
@@ -495,7 +501,8 @@ export default function PayrollManagement() {
                             <div className="flex justify-end gap-1">
                               {periode.status === 'draft' && (
                                 <>
-                                  <Button
+                                  <ProtectedButton
+                                    permission={PERMISSIONS.ressources_humaines.gestion_paie.periodes.ouvrir}
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleOpenPeriod(periode.id)}
@@ -503,18 +510,20 @@ export default function PayrollManagement() {
                                   >
                                     <Play className="h-4 w-4 mr-1" />
                                     Ouvrir
-                                  </Button>
-                                  <Button
+                                  </ProtectedButton>
+                                  <ProtectedButton
+                                    permission={PERMISSIONS.ressources_humaines.gestion_paie.periodes.supprimer}
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => setPeriodToDelete(periode.id)}
                                   >
                                     <Trash2 className="h-4 w-4 text-red-500" />
-                                  </Button>
+                                  </ProtectedButton>
                                 </>
                               )}
                               {periode.status === 'open' && (
-                                <Button
+                                <ProtectedButton
+                                  permission={PERMISSIONS.ressources_humaines.gestion_paie.calculs.calculer}
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleCalculatePayroll(periode.id)}
@@ -526,11 +535,12 @@ export default function PayrollManagement() {
                                     <Calculator className="h-4 w-4 mr-1" />
                                   )}
                                   Calculer
-                                </Button>
+                                </ProtectedButton>
                               )}
                               {(periode.status === 'calculated' || periode.status === 'validated') && (
                                 <>
-                                  <Button
+                                  <ProtectedButton
+                                    permission={PERMISSIONS.ressources_humaines.gestion_paie.bulletins.voir}
                                     variant="outline"
                                     size="sm"
                                     onClick={() => {
@@ -540,15 +550,16 @@ export default function PayrollManagement() {
                                   >
                                     <Eye className="h-4 w-4 mr-1" />
                                     Bulletins
-                                  </Button>
-                                  <Button
+                                  </ProtectedButton>
+                                  <ProtectedButton
+                                    permission={PERMISSIONS.ressources_humaines.gestion_paie.periodes.fermer}
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setPeriodToClose(periode.id)}
                                   >
                                     <Lock className="h-4 w-4 mr-1" />
                                     Clôturer
-                                  </Button>
+                                  </ProtectedButton>
                                 </>
                               )}
                               {periode.status === 'closed' && (
@@ -632,7 +643,8 @@ export default function PayrollManagement() {
                     </ul>
                   </div>
 
-                  <Button
+                  <ProtectedButton
+                    permission={PERMISSIONS.ressources_humaines.gestion_paie.calculs.calculer}
                     className="w-full"
                     disabled={!selectedPeriodId || calculatePayrollMutation.isPending}
                     onClick={() => selectedPeriodId && handleCalculatePayroll(selectedPeriodId)}
@@ -648,7 +660,7 @@ export default function PayrollManagement() {
                         Lancer le calcul de paie
                       </>
                     )}
-                  </Button>
+                  </ProtectedButton>
                 </>
               )}
             </CardContent>
@@ -686,7 +698,8 @@ export default function PayrollManagement() {
                 </Select>
                 {selectedPeriodId && (
                   <>
-                    <Button
+                    <ProtectedButton
+                      permission={PERMISSIONS.ressources_humaines.gestion_paie.bulletins.valider_tous}
                       variant="outline"
                       size="sm"
                       onClick={() => handleValidateAllPayslips(selectedPeriodId)}
@@ -694,8 +707,9 @@ export default function PayrollManagement() {
                     >
                       <Check className="h-4 w-4 mr-2" />
                       Valider tous
-                    </Button>
-                    <Button
+                    </ProtectedButton>
+                    <ProtectedButton
+                      permission={PERMISSIONS.ressources_humaines.gestion_paie.bulletins.telecharger}
                       variant="outline"
                       size="sm"
                       onClick={() => handleDownloadAllPayslips(selectedPeriodId)}
@@ -703,8 +717,9 @@ export default function PayrollManagement() {
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Télécharger tout
-                    </Button>
-                    <Button
+                    </ProtectedButton>
+                    <ProtectedButton
+                      permission={PERMISSIONS.ressources_humaines.gestion_paie.bulletins.exporter_cnss}
                       variant="outline"
                       size="sm"
                       onClick={() => handleExportCNSS(selectedPeriodId)}
@@ -712,8 +727,9 @@ export default function PayrollManagement() {
                     >
                       <FileDown className="h-4 w-4 mr-2" />
                       Export CNSS
-                    </Button>
-                    <Button
+                    </ProtectedButton>
+                    <ProtectedButton
+                      permission={PERMISSIONS.ressources_humaines.gestion_paie.bulletins.exporter_virements}
                       variant="outline"
                       size="sm"
                       onClick={() => handleExportBankTransfers(selectedPeriodId)}
@@ -721,7 +737,7 @@ export default function PayrollManagement() {
                     >
                       <FileDown className="h-4 w-4 mr-2" />
                       Virements
-                    </Button>
+                    </ProtectedButton>
                   </>
                 )}
               </div>
@@ -770,23 +786,25 @@ export default function PayrollManagement() {
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-1">
                               {payslip.status === 'calculated' && (
-                                <Button
+                                <ProtectedButton
+                                  permission={PERMISSIONS.ressources_humaines.gestion_paie.bulletins.valider}
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleValidatePayslip(payslip.id)}
                                   disabled={validatePayslipMutation.isPending}
                                 >
                                   <Check className="h-4 w-4 text-green-500" />
-                                </Button>
+                                </ProtectedButton>
                               )}
-                              <Button
+                              <ProtectedButton
+                                permission={PERMISSIONS.ressources_humaines.gestion_paie.bulletins.telecharger}
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDownloadPayslip(payslip.id)}
                                 disabled={downloadPayslipPdfMutation.isPending}
                               >
                                 <Download className="h-4 w-4" />
-                              </Button>
+                              </ProtectedButton>
                             </div>
                           </TableCell>
                         </TableRow>

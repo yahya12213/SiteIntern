@@ -10,6 +10,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import WorkScheduleFormModal from '@/components/admin/hr/WorkScheduleFormModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ProtectedButton } from '@/components/ui/ProtectedButton';
+import { PERMISSIONS } from '@/config/permissions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -356,10 +358,14 @@ export default function ScheduleManagement() {
                 <Clock className="h-5 w-5" />
                 Modèles d'Horaires
               </CardTitle>
-              <Button size="sm" onClick={() => handleOpenScheduleModal()}>
+              <ProtectedButton
+                permission={PERMISSIONS.ressources_humaines.gestion_horaires.modeles.creer}
+                size="sm"
+                onClick={() => handleOpenScheduleModal()}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Nouveau modèle
-              </Button>
+              </ProtectedButton>
             </CardHeader>
             <CardContent>
               {modeles.length === 0 ? (
@@ -413,17 +419,23 @@ export default function ScheduleManagement() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => handleOpenScheduleModal(modele)}>
+                          <ProtectedButton
+                            permission={PERMISSIONS.ressources_humaines.gestion_horaires.modeles.modifier}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenScheduleModal(modele)}
+                          >
                             <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
+                          </ProtectedButton>
+                          <ProtectedButton
+                            permission={PERMISSIONS.ressources_humaines.gestion_horaires.modeles.supprimer}
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteSchedule(modele.id)}
                             disabled={deleteSchedule.isPending}
                           >
                             <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
+                          </ProtectedButton>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -445,10 +457,14 @@ export default function ScheduleManagement() {
                 <CalendarDays className="h-5 w-5" />
                 Jours Fériés & Congés Collectifs ({currentYear})
               </CardTitle>
-              <Button size="sm" onClick={() => handleOpenHolidayModal()}>
+              <ProtectedButton
+                permission={PERMISSIONS.ressources_humaines.gestion_horaires.jours_feries.creer}
+                size="sm"
+                onClick={() => handleOpenHolidayModal()}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Ajouter
-              </Button>
+              </ProtectedButton>
             </CardHeader>
             <CardContent>
               {joursFeries.length === 0 ? (
@@ -486,17 +502,23 @@ export default function ScheduleManagement() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => handleOpenHolidayModal(jour)}>
+                          <ProtectedButton
+                            permission={PERMISSIONS.ressources_humaines.gestion_horaires.jours_feries.modifier}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenHolidayModal(jour)}
+                          >
                             <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
+                          </ProtectedButton>
+                          <ProtectedButton
+                            permission={PERMISSIONS.ressources_humaines.gestion_horaires.jours_feries.supprimer}
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteHoliday(jour.id)}
                             disabled={deleteHoliday.isPending}
                           >
                             <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
+                          </ProtectedButton>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -569,10 +591,14 @@ export default function ScheduleManagement() {
                   <Timer className="h-5 w-5" />
                   Périodes d'Heures Supplémentaires (Manager)
                 </CardTitle>
-                <Button size="sm" onClick={() => setShowOvertimePeriodModal(true)}>
+                <ProtectedButton
+                  permission={PERMISSIONS.ressources_humaines.gestion_horaires.heures_sup.creer_periode}
+                  size="sm"
+                  onClick={() => setShowOvertimePeriodModal(true)}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Déclarer une période HS
-                </Button>
+                </ProtectedButton>
               </CardHeader>
               <CardContent>
                 {overtimePeriods.length === 0 ? (
@@ -623,7 +649,8 @@ export default function ScheduleManagement() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button
+                              <ProtectedButton
+                                permission={PERMISSIONS.ressources_humaines.gestion_horaires.heures_sup.recalculer}
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleRecalculatePeriod(period.id)}
@@ -631,15 +658,16 @@ export default function ScheduleManagement() {
                                 title="Recalculer les heures"
                               >
                                 <RefreshCw className="h-4 w-4" />
-                              </Button>
-                              <Button
+                              </ProtectedButton>
+                              <ProtectedButton
+                                permission={PERMISSIONS.ressources_humaines.gestion_horaires.heures_sup.supprimer_periode}
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDeleteOvertimePeriod(period.id)}
                                 disabled={deleteOvertimePeriod.isPending}
                               >
                                 <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
+                              </ProtectedButton>
                             </TableCell>
                           </TableRow>
                         );
@@ -695,7 +723,8 @@ export default function ScheduleManagement() {
                           <TableCell className="text-right">
                             {decl.statut === 'pending' && (
                               <>
-                                <Button
+                                <ProtectedButton
+                                  permission={PERMISSIONS.ressources_humaines.gestion_horaires.heures_sup.approuver}
                                   variant="ghost"
                                   size="sm"
                                   className="text-green-600"
@@ -703,8 +732,9 @@ export default function ScheduleManagement() {
                                   disabled={approveOvertime.isPending}
                                 >
                                   <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
+                                </ProtectedButton>
+                                <ProtectedButton
+                                  permission={PERMISSIONS.ressources_humaines.gestion_horaires.heures_sup.rejeter}
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-600"
@@ -712,7 +742,7 @@ export default function ScheduleManagement() {
                                   disabled={rejectOvertime.isPending}
                                 >
                                   <X className="h-4 w-4" />
-                                </Button>
+                                </ProtectedButton>
                               </>
                             )}
                           </TableCell>
@@ -925,13 +955,14 @@ export default function ScheduleManagement() {
 
             {/* Save Button */}
             <div className="flex justify-end">
-              <Button
+              <ProtectedButton
+                permission={PERMISSIONS.ressources_humaines.gestion_horaires.config_hs.modifier}
                 onClick={handleSaveOvertimeConfig}
                 disabled={updateOvertimeConfig.isPending}
               >
                 {updateOvertimeConfig.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Enregistrer la configuration
-              </Button>
+              </ProtectedButton>
             </div>
           </div>
         );
