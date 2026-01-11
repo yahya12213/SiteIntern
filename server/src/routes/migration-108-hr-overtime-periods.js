@@ -1,20 +1,17 @@
 import express from 'express';
-import pg from 'pg';
-const { Pool } = pg;
+import pool from '../config/database.js';
 
 const router = express.Router();
 
-router.post('/run', async (req, res) => {
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-  });
+export async function runMigration108() {
+  const client = await pool.connect();
 
   try {
-    console.log('Starting migration 108: HR Overtime Periods...');
+    await client.query('BEGIN');
+    console.log('🔄 Migration 108: HR Overtime Periods...');
 
     // Create hr_overtime_periods table for manager declarations
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS hr_overtime_periods (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         declared_by UUID,
@@ -32,27 +29,27 @@ router.post('/run', async (req, res) => {
     console.log('Created hr_overtime_periods table');
 
     // Create index for faster lookups by date
-    await pool.query(`
+    await client.query(`
       CREATE INDEX IF NOT EXISTS idx_overtime_periods_date
       ON hr_overtime_periods(period_date)
     `);
     console.log('Created index on period_date');
 
     // Create index for department filtering
-    await pool.query(`
+    await client.query(`
       CREATE INDEX IF NOT EXISTS idx_overtime_periods_department
       ON hr_overtime_periods(department_id) WHERE department_id IS NOT NULL
     `);
     console.log('Created index on department_id');
 
     // Add period_id column to hr_overtime_records if not exists
-    const columnCheck = await pool.query(`
+    const columnCheck = await client.query(`
       SELECT column_name FROM information_schema.columns
       WHERE table_name = 'hr_overtime_records' AND column_name = 'period_id'
     `);
 
     if (columnCheck.rows.length === 0) {
-      await pool.query(`
+      await client.query(`
         ALTER TABLE hr_overtime_records
         ADD COLUMN period_id UUID REFERENCES hr_overtime_periods(id) ON DELETE SET NULL
       `);
@@ -60,7 +57,7 @@ router.post('/run', async (req, res) => {
     }
 
     // Create unique constraint to prevent duplicate entries per employee/date/period
-    await pool.query(`
+    await client.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_overtime_records_unique
       ON hr_overtime_records(employee_id, overtime_date, period_id)
       WHERE period_id IS NOT NULL
@@ -68,7 +65,7 @@ router.post('/run', async (req, res) => {
     console.log('Created unique index for overtime records');
 
     // Create hr_overtime_config table for global settings
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS hr_overtime_config (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         daily_threshold_hours DECIMAL(4,2) DEFAULT 8.00,
@@ -92,9 +89,9 @@ router.post('/run', async (req, res) => {
     console.log('Created hr_overtime_config table');
 
     // Insert default config if not exists
-    const configExists = await pool.query(`SELECT id FROM hr_overtime_config LIMIT 1`);
+    const configExists = await client.query(`SELECT id FROM hr_overtime_config LIMIT 1`);
     if (configExists.rows.length === 0) {
-      await pool.query(`
+      await client.query(`
         INSERT INTO hr_overtime_config (
           daily_threshold_hours, weekly_threshold_hours, monthly_max_hours,
           rate_25_multiplier, rate_50_multiplier, rate_100_multiplier,
@@ -105,20 +102,28 @@ router.post('/run', async (req, res) => {
       console.log('Inserted default overtime config');
     }
 
-    res.json({
-      success: true,
-      message: 'Migration 108 completed: HR Overtime Periods tables created'
-    });
+    await client.query('COMMIT');
+    console.log('✅ Migration 108 completed successfully');
+
+    return { success: true, message: 'Migration 108 completed: HR Overtime Periods tables created' };
 
   } catch (error) {
-    console.error('Migration 108 error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      details: error.detail || error.hint
-    });
+    await client.query('ROLLBACK');
+    console.error('❌ Migration 108 failed:', error);
+    throw error;
   } finally {
-    await pool.end();
+    client.release();
+  }
+}
+
+// Route pour exécuter la migration
+router.post('/run', async (req, res) => {
+  try {
+    const result = await runMigration108();
+    res.json(result);
+  } catch (error) {
+    console.error('Migration 108 error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
