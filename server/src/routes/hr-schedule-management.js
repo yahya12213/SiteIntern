@@ -741,9 +741,10 @@ router.get('/overtime-periods', authenticateToken, requirePermission('hr.attenda
       SELECT
         op.*,
         p.email as declared_by_email,
-        (SELECT first_name || ' ' || last_name FROM hr_employees WHERE profile_id = op.declared_by LIMIT 1) as declared_by_name,
-        (SELECT COUNT(*) FROM hr_overtime_records WHERE period_id = op.id) as employee_count,
-        (SELECT COALESCE(SUM(actual_minutes), 0) FROM hr_overtime_records WHERE period_id = op.id) as total_minutes
+        (SELECT COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')
+         FROM hr_employees WHERE profile_id = op.declared_by LIMIT 1) as declared_by_name,
+        COALESCE((SELECT COUNT(*)::integer FROM hr_overtime_records WHERE period_id = op.id), 0) as employee_count,
+        COALESCE((SELECT SUM(actual_minutes) FROM hr_overtime_records WHERE period_id = op.id), 0) as total_minutes
       FROM hr_overtime_periods op
       LEFT JOIN profiles p ON op.declared_by = p.id
       WHERE 1=1
@@ -752,12 +753,12 @@ router.get('/overtime-periods', authenticateToken, requirePermission('hr.attenda
     let paramIndex = 1;
 
     if (year) {
-      query += ` AND EXTRACT(YEAR FROM op.period_date) = $${paramIndex++}`;
-      params.push(year);
+      query += ` AND EXTRACT(YEAR FROM op.period_date)::integer = $${paramIndex++}::integer`;
+      params.push(parseInt(year, 10));
     }
     if (month) {
-      query += ` AND EXTRACT(MONTH FROM op.period_date) = $${paramIndex++}`;
-      params.push(month);
+      query += ` AND EXTRACT(MONTH FROM op.period_date)::integer = $${paramIndex++}::integer`;
+      params.push(parseInt(month, 10));
     }
     if (status) {
       query += ` AND op.status = $${paramIndex++}`;
