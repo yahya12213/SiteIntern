@@ -173,6 +173,7 @@ import migration104Router from './routes/migration-104-fix-hr-schedules-constrai
 import migration105Router from './routes/migration-105-assign-team-manager.js';
 import migration106Router from './routes/migration-106-hr-multi-managers.js';
 import migration107Router from './routes/migration-107-hr-correction-requests.js';
+import migration108Router from './routes/migration-108-hr-overtime-periods.js';
 import hrCorrectionRequestsRouter from './routes/hr-correction-requests.js';
 import debugTemplateDateformatRouter from './routes/debug-template-dateformat.js';
 import visitsRouter from './routes/visits.js';
@@ -405,6 +406,7 @@ app.use('/api/migration-103-hr-delegation', ...adminOnly, migration103Router);
 app.use('/api/migration-104-fix-hr-schedules-constraints', ...adminOnly, migration104Router);
 app.use('/api/migration-106-hr-multi-managers', ...adminOnly, migration106Router);
 app.use('/api/migration-107-hr-correction-requests', ...adminOnly, migration107Router);
+app.use('/api/migration-108-hr-overtime-periods', ...adminOnly, migration108Router);
 // Note: /my/correction-requests routes are in hr-employee-self.js (mounted at /api/hr/my)
 // Manager routes for correction requests are mounted separately below
 app.use('/api/hr/correction', authenticateToken, hrCorrectionRequestsRouter);

@@ -726,6 +726,392 @@ router.delete('/overtime/:id', authenticateToken, requirePermission('hr.attendan
 });
 
 // ============================================================
+// OVERTIME PERIODS (Manager declarations)
+// ============================================================
+
+/**
+ * GET /api/hr/schedule-management/overtime-periods
+ * List all overtime periods declared by managers
+ */
+router.get('/overtime-periods', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
+  try {
+    const { year, month, status } = req.query;
+
+    let query = `
+      SELECT
+        op.*,
+        p.email as declared_by_email,
+        (SELECT first_name || ' ' || last_name FROM hr_employees WHERE profile_id = op.declared_by LIMIT 1) as declared_by_name,
+        (SELECT COUNT(*) FROM hr_overtime_records WHERE period_id = op.id) as employee_count,
+        (SELECT COALESCE(SUM(actual_minutes), 0) FROM hr_overtime_records WHERE period_id = op.id) as total_minutes
+      FROM hr_overtime_periods op
+      LEFT JOIN profiles p ON op.declared_by = p.id
+      WHERE 1=1
+    `;
+    const params = [];
+    let paramIndex = 1;
+
+    if (year) {
+      query += ` AND EXTRACT(YEAR FROM op.period_date) = $${paramIndex++}`;
+      params.push(year);
+    }
+    if (month) {
+      query += ` AND EXTRACT(MONTH FROM op.period_date) = $${paramIndex++}`;
+      params.push(month);
+    }
+    if (status) {
+      query += ` AND op.status = $${paramIndex++}`;
+      params.push(status);
+    }
+
+    query += ` ORDER BY op.period_date DESC, op.start_time DESC`;
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, periods: result.rows });
+  } catch (error) {
+    console.error('Error fetching overtime periods:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/hr/schedule-management/overtime-periods
+ * Create a new overtime period declaration
+ */
+router.post('/overtime-periods', authenticateToken, requirePermission('hr.attendance.create'), async (req, res) => {
+  try {
+    const { period_date, start_time, end_time, department_id, reason, rate_type } = req.body;
+
+    if (!period_date || !start_time || !end_time) {
+      return res.status(400).json({
+        success: false,
+        error: 'Date, heure de debut et heure de fin sont obligatoires'
+      });
+    }
+
+    // Create the overtime period
+    const result = await pool.query(`
+      INSERT INTO hr_overtime_periods
+        (declared_by, period_date, start_time, end_time, department_id, reason, rate_type)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `, [req.user.id, period_date, start_time, end_time, department_id || null, reason || null, rate_type || 'normal']);
+
+    const period = result.rows[0];
+
+    // Automatically calculate overtime for employees who clocked during this period
+    await calculateOvertimeForPeriod(period.id);
+
+    // Fetch updated period with counts
+    const updatedPeriod = await pool.query(`
+      SELECT
+        op.*,
+        (SELECT COUNT(*) FROM hr_overtime_records WHERE period_id = op.id) as employee_count,
+        (SELECT COALESCE(SUM(actual_minutes), 0) FROM hr_overtime_records WHERE period_id = op.id) as total_minutes
+      FROM hr_overtime_periods op
+      WHERE op.id = $1
+    `, [period.id]);
+
+    res.status(201).json({
+      success: true,
+      period: updatedPeriod.rows[0],
+      message: 'Periode d heures supplementaires creee avec succes'
+    });
+  } catch (error) {
+    console.error('Error creating overtime period:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/hr/schedule-management/overtime-periods/:id
+ * Cancel an overtime period
+ */
+router.delete('/overtime-periods/:id', authenticateToken, requirePermission('hr.attendance.edit'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Mark as cancelled instead of deleting
+    await pool.query(`
+      UPDATE hr_overtime_periods
+      SET status = 'cancelled', updated_at = NOW()
+      WHERE id = $1
+    `, [id]);
+
+    // Also mark related overtime records as not validated for payroll
+    await pool.query(`
+      UPDATE hr_overtime_records
+      SET validated_for_payroll = false
+      WHERE period_id = $1
+    `, [id]);
+
+    res.json({ success: true, message: 'Periode annulee' });
+  } catch (error) {
+    console.error('Error cancelling overtime period:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/hr/schedule-management/overtime-periods/:id/recalculate
+ * Recalculate overtime for a specific period
+ */
+router.post('/overtime-periods/:id/recalculate', authenticateToken, requirePermission('hr.attendance.edit'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Delete existing overtime records for this period
+    await pool.query(`DELETE FROM hr_overtime_records WHERE period_id = $1`, [id]);
+
+    // Recalculate
+    const count = await calculateOvertimeForPeriod(id);
+
+    res.json({
+      success: true,
+      message: `Heures supplementaires recalculees pour ${count} employes`
+    });
+  } catch (error) {
+    console.error('Error recalculating overtime:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/hr/schedule-management/overtime-periods/:id/employees
+ * Get employees with overtime for a specific period
+ */
+router.get('/overtime-periods/:id/employees', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(`
+      SELECT
+        otr.*,
+        e.first_name || ' ' || e.last_name as employee_name,
+        e.employee_number
+      FROM hr_overtime_records otr
+      JOIN hr_employees e ON otr.employee_id = e.id
+      WHERE otr.period_id = $1
+      ORDER BY e.last_name, e.first_name
+    `, [id]);
+
+    res.json({ success: true, employees: result.rows });
+  } catch (error) {
+    console.error('Error fetching period employees:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/hr/schedule-management/overtime-config
+ * Get overtime configuration
+ */
+router.get('/overtime-config', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM hr_overtime_config LIMIT 1`);
+
+    if (result.rows.length === 0) {
+      // Return defaults if no config exists
+      return res.json({
+        success: true,
+        config: {
+          daily_threshold_hours: 8,
+          weekly_threshold_hours: 44,
+          monthly_max_hours: 40,
+          rate_25_multiplier: 1.25,
+          rate_50_multiplier: 1.50,
+          rate_100_multiplier: 2.00,
+          rate_25_threshold_hours: 8,
+          rate_50_threshold_hours: 16,
+          night_start: '21:00',
+          night_end: '06:00',
+          apply_100_for_night: true,
+          apply_100_for_weekend: true,
+          apply_100_for_holiday: true,
+          requires_prior_approval: false
+        }
+      });
+    }
+
+    res.json({ success: true, config: result.rows[0] });
+  } catch (error) {
+    console.error('Error fetching overtime config:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/hr/schedule-management/overtime-config
+ * Update overtime configuration
+ */
+router.put('/overtime-config', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
+  try {
+    const {
+      daily_threshold_hours,
+      weekly_threshold_hours,
+      monthly_max_hours,
+      rate_25_multiplier,
+      rate_50_multiplier,
+      rate_100_multiplier,
+      rate_25_threshold_hours,
+      rate_50_threshold_hours,
+      night_start,
+      night_end,
+      apply_100_for_night,
+      apply_100_for_weekend,
+      apply_100_for_holiday,
+      requires_prior_approval
+    } = req.body;
+
+    // Check if config exists
+    const existing = await pool.query(`SELECT id FROM hr_overtime_config LIMIT 1`);
+
+    let result;
+    if (existing.rows.length === 0) {
+      // Insert new config
+      result = await pool.query(`
+        INSERT INTO hr_overtime_config (
+          daily_threshold_hours, weekly_threshold_hours, monthly_max_hours,
+          rate_25_multiplier, rate_50_multiplier, rate_100_multiplier,
+          rate_25_threshold_hours, rate_50_threshold_hours,
+          night_start, night_end,
+          apply_100_for_night, apply_100_for_weekend, apply_100_for_holiday,
+          requires_prior_approval
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        RETURNING *
+      `, [
+        daily_threshold_hours ?? 8, weekly_threshold_hours ?? 44, monthly_max_hours ?? 40,
+        rate_25_multiplier ?? 1.25, rate_50_multiplier ?? 1.50, rate_100_multiplier ?? 2.00,
+        rate_25_threshold_hours ?? 8, rate_50_threshold_hours ?? 16,
+        night_start ?? '21:00', night_end ?? '06:00',
+        apply_100_for_night ?? true, apply_100_for_weekend ?? true, apply_100_for_holiday ?? true,
+        requires_prior_approval ?? false
+      ]);
+    } else {
+      // Update existing config
+      result = await pool.query(`
+        UPDATE hr_overtime_config SET
+          daily_threshold_hours = COALESCE($1, daily_threshold_hours),
+          weekly_threshold_hours = COALESCE($2, weekly_threshold_hours),
+          monthly_max_hours = COALESCE($3, monthly_max_hours),
+          rate_25_multiplier = COALESCE($4, rate_25_multiplier),
+          rate_50_multiplier = COALESCE($5, rate_50_multiplier),
+          rate_100_multiplier = COALESCE($6, rate_100_multiplier),
+          rate_25_threshold_hours = COALESCE($7, rate_25_threshold_hours),
+          rate_50_threshold_hours = COALESCE($8, rate_50_threshold_hours),
+          night_start = COALESCE($9, night_start),
+          night_end = COALESCE($10, night_end),
+          apply_100_for_night = COALESCE($11, apply_100_for_night),
+          apply_100_for_weekend = COALESCE($12, apply_100_for_weekend),
+          apply_100_for_holiday = COALESCE($13, apply_100_for_holiday),
+          requires_prior_approval = COALESCE($14, requires_prior_approval),
+          updated_at = NOW()
+        WHERE id = $15
+        RETURNING *
+      `, [
+        daily_threshold_hours, weekly_threshold_hours, monthly_max_hours,
+        rate_25_multiplier, rate_50_multiplier, rate_100_multiplier,
+        rate_25_threshold_hours, rate_50_threshold_hours,
+        night_start, night_end,
+        apply_100_for_night, apply_100_for_weekend, apply_100_for_holiday,
+        requires_prior_approval,
+        existing.rows[0].id
+      ]);
+    }
+
+    res.json({ success: true, config: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating overtime config:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Helper function to calculate overtime for a period
+ */
+async function calculateOvertimeForPeriod(periodId) {
+  // Get the period details
+  const periodResult = await pool.query(`
+    SELECT * FROM hr_overtime_periods WHERE id = $1
+  `, [periodId]);
+
+  if (periodResult.rows.length === 0) {
+    throw new Error('Period not found');
+  }
+
+  const period = periodResult.rows[0];
+
+  // Convert times to minutes for easier comparison
+  const toMinutes = (timeStr) => {
+    if (!timeStr) return 0;
+    const [h, m] = timeStr.split(':').map(Number);
+    return h * 60 + m;
+  };
+
+  const periodStartMin = toMinutes(period.start_time);
+  const periodEndMin = toMinutes(period.end_time);
+
+  // Find all employees who clocked during this period
+  // We need to handle the case where clocking spans the period
+  const employeesQuery = await pool.query(`
+    WITH daily_records AS (
+      SELECT
+        ar.employee_id,
+        DATE(ar.clock_time) as record_date,
+        MIN(CASE WHEN ar.status = 'check_in' THEN ar.clock_time END) as check_in,
+        MAX(CASE WHEN ar.status = 'check_out' THEN ar.clock_time END) as check_out
+      FROM hr_attendance_records ar
+      WHERE DATE(ar.clock_time) = $1
+      GROUP BY ar.employee_id, DATE(ar.clock_time)
+    )
+    SELECT
+      dr.employee_id,
+      dr.check_in,
+      dr.check_out,
+      e.first_name || ' ' || e.last_name as employee_name
+    FROM daily_records dr
+    JOIN hr_employees e ON dr.employee_id = e.id
+    WHERE dr.check_in IS NOT NULL
+      AND dr.check_out IS NOT NULL
+      AND (
+        -- Employee clocked in during the HS period
+        EXTRACT(HOUR FROM dr.check_in) * 60 + EXTRACT(MINUTE FROM dr.check_in) < $3
+        AND EXTRACT(HOUR FROM dr.check_out) * 60 + EXTRACT(MINUTE FROM dr.check_out) > $2
+      )
+  `, [period.period_date, periodStartMin, periodEndMin]);
+
+  let count = 0;
+
+  for (const emp of employeesQuery.rows) {
+    // Calculate overlap between employee work time and declared period
+    const empCheckInMin = emp.check_in ?
+      new Date(emp.check_in).getHours() * 60 + new Date(emp.check_in).getMinutes() : 0;
+    const empCheckOutMin = emp.check_out ?
+      new Date(emp.check_out).getHours() * 60 + new Date(emp.check_out).getMinutes() : 0;
+
+    // Calculate overlap
+    const overlapStart = Math.max(empCheckInMin, periodStartMin);
+    const overlapEnd = Math.min(empCheckOutMin, periodEndMin);
+    const overtimeMinutes = Math.max(0, overlapEnd - overlapStart);
+
+    if (overtimeMinutes > 0) {
+      // Insert or update overtime record
+      await pool.query(`
+        INSERT INTO hr_overtime_records
+          (employee_id, overtime_date, period_id, actual_minutes, rate_type, validated_for_payroll)
+        VALUES ($1, $2, $3, $4, $5, true)
+        ON CONFLICT (employee_id, overtime_date, period_id)
+        DO UPDATE SET actual_minutes = $4, rate_type = $5, validated_for_payroll = true
+      `, [emp.employee_id, period.period_date, periodId, overtimeMinutes, period.rate_type]);
+
+      count++;
+    }
+  }
+
+  return count;
+}
+
+// ============================================================
 // STATS & SUMMARY
 // ============================================================
 

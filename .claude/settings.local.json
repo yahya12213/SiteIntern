@@ -105,7 +105,9 @@
       "Bash(if not exist \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\src\\\\pages\\\\manager\" mkdir \"c:\\\\Users\\\\pc\\\\Desktop\\\\systeme de calcul\\\\src\\\\pages\\\\manager\")",
       "Bash(en Ligne\" role\\) could not edit student enrollments.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git update-index:*)",
-      "Bash(git hash-object:*)"
+      "Bash(git hash-object:*)",
+      "Bash(railway --version:*)",
+      "Bash(railway run psql:*)"
     ],
     "deny": [],
     "ask": []
