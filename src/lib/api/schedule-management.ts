@@ -117,6 +117,69 @@ export interface CreateOvertimeInput {
 }
 
 // ============================================================
+// TYPES - Overtime Periods (Manager declarations)
+// ============================================================
+
+export interface OvertimePeriod {
+  id: string;
+  declared_by: string;
+  declared_by_name?: string;
+  declared_by_email?: string;
+  period_date: string;
+  start_time: string;
+  end_time: string;
+  department_id?: string;
+  reason?: string;
+  rate_type: 'normal' | 'extended' | 'special';
+  status: 'active' | 'cancelled';
+  employee_count?: number;
+  total_minutes?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateOvertimePeriodInput {
+  period_date: string;
+  start_time: string;
+  end_time: string;
+  department_id?: string;
+  reason?: string;
+  rate_type?: 'normal' | 'extended' | 'special';
+}
+
+export interface OvertimePeriodEmployee {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  employee_number: string;
+  actual_minutes: number;
+  rate_type: string;
+  validated_for_payroll: boolean;
+}
+
+// ============================================================
+// TYPES - Overtime Config
+// ============================================================
+
+export interface OvertimeConfig {
+  id?: string;
+  daily_threshold_hours: number;
+  weekly_threshold_hours: number;
+  monthly_max_hours: number;
+  rate_25_multiplier: number;
+  rate_50_multiplier: number;
+  rate_100_multiplier: number;
+  rate_25_threshold_hours: number;
+  rate_50_threshold_hours: number;
+  night_start: string;
+  night_end: string;
+  apply_100_for_night: boolean;
+  apply_100_for_weekend: boolean;
+  apply_100_for_holiday: boolean;
+  requires_prior_approval: boolean;
+}
+
+// ============================================================
 // TYPES - Stats
 // ============================================================
 
@@ -200,6 +263,41 @@ export const scheduleManagementApi = {
 
   deleteOvertime: async (id: number): Promise<{ success: boolean; message: string }> => {
     return apiClient.delete<{ success: boolean; message: string }>(`/hr/schedule-management/overtime/${id}`);
+  },
+
+  // === OVERTIME PERIODS (Manager declarations) ===
+  getOvertimePeriods: async (filters?: { year?: number; month?: number; status?: string }): Promise<{ success: boolean; periods: OvertimePeriod[] }> => {
+    const params = new URLSearchParams();
+    if (filters?.year) params.append('year', filters.year.toString());
+    if (filters?.month) params.append('month', filters.month.toString());
+    if (filters?.status) params.append('status', filters.status);
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    return apiClient.get<{ success: boolean; periods: OvertimePeriod[] }>(`/hr/schedule-management/overtime-periods${queryString}`);
+  },
+
+  createOvertimePeriod: async (data: CreateOvertimePeriodInput): Promise<{ success: boolean; period: OvertimePeriod; message: string }> => {
+    return apiClient.post<{ success: boolean; period: OvertimePeriod; message: string }>('/hr/schedule-management/overtime-periods', data);
+  },
+
+  deleteOvertimePeriod: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.delete<{ success: boolean; message: string }>(`/hr/schedule-management/overtime-periods/${id}`);
+  },
+
+  recalculateOvertimePeriod: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.post<{ success: boolean; message: string }>(`/hr/schedule-management/overtime-periods/${id}/recalculate`, {});
+  },
+
+  getOvertimePeriodEmployees: async (id: string): Promise<{ success: boolean; employees: OvertimePeriodEmployee[] }> => {
+    return apiClient.get<{ success: boolean; employees: OvertimePeriodEmployee[] }>(`/hr/schedule-management/overtime-periods/${id}/employees`);
+  },
+
+  // === OVERTIME CONFIG ===
+  getOvertimeConfig: async (): Promise<{ success: boolean; config: OvertimeConfig }> => {
+    return apiClient.get<{ success: boolean; config: OvertimeConfig }>('/hr/schedule-management/overtime-config');
+  },
+
+  updateOvertimeConfig: async (data: Partial<OvertimeConfig>): Promise<{ success: boolean; config: OvertimeConfig }> => {
+    return apiClient.put<{ success: boolean; config: OvertimeConfig }>('/hr/schedule-management/overtime-config', data);
   },
 
   // === STATS ===

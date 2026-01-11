@@ -219,6 +219,121 @@ export const useDeleteOvertime = () => {
 };
 
 // ============================================================
+// OVERTIME PERIODS HOOKS (Manager declarations)
+// ============================================================
+
+/**
+ * Hook pour récupérer les périodes HS déclarées
+ */
+export const useOvertimePeriods = (filters?: { year?: number; month?: number; status?: string }) => {
+  return useQuery({
+    queryKey: ['schedule-management', 'overtime-periods', filters],
+    queryFn: () => scheduleManagementApi.getOvertimePeriods(filters),
+  });
+};
+
+/**
+ * Hook pour créer une période HS
+ */
+export const useCreateOvertimePeriod = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { period_date: string; start_time: string; end_time: string; department_id?: string; reason?: string; rate_type?: 'normal' | 'extended' | 'special' }) =>
+      scheduleManagementApi.createOvertimePeriod(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'overtime-periods'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'overtime'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'stats'] });
+    },
+  });
+};
+
+/**
+ * Hook pour supprimer/annuler une période HS
+ */
+export const useDeleteOvertimePeriod = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => scheduleManagementApi.deleteOvertimePeriod(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'overtime-periods'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'overtime'] });
+    },
+  });
+};
+
+/**
+ * Hook pour recalculer une période HS
+ */
+export const useRecalculateOvertimePeriod = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => scheduleManagementApi.recalculateOvertimePeriod(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'overtime-periods'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'overtime'] });
+    },
+  });
+};
+
+/**
+ * Hook pour récupérer les employés d'une période HS
+ */
+export const useOvertimePeriodEmployees = (periodId: string | null) => {
+  return useQuery({
+    queryKey: ['schedule-management', 'overtime-periods', periodId, 'employees'],
+    queryFn: () => scheduleManagementApi.getOvertimePeriodEmployees(periodId!),
+    enabled: !!periodId,
+  });
+};
+
+// ============================================================
+// OVERTIME CONFIG HOOKS
+// ============================================================
+
+/**
+ * Hook pour récupérer la configuration HS
+ */
+export const useOvertimeConfig = () => {
+  return useQuery({
+    queryKey: ['schedule-management', 'overtime-config'],
+    queryFn: () => scheduleManagementApi.getOvertimeConfig(),
+  });
+};
+
+/**
+ * Hook pour mettre à jour la configuration HS
+ */
+export const useUpdateOvertimeConfig = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: Partial<{
+      daily_threshold_hours: number;
+      weekly_threshold_hours: number;
+      monthly_max_hours: number;
+      rate_25_multiplier: number;
+      rate_50_multiplier: number;
+      rate_100_multiplier: number;
+      rate_25_threshold_hours: number;
+      rate_50_threshold_hours: number;
+      night_start: string;
+      night_end: string;
+      apply_100_for_night: boolean;
+      apply_100_for_weekend: boolean;
+      apply_100_for_holiday: boolean;
+      requires_prior_approval: boolean;
+    }>) => scheduleManagementApi.updateOvertimeConfig(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'overtime-config'] });
+    },
+  });
+};
+
+// ============================================================
 // STATS HOOK
 // ============================================================
 
