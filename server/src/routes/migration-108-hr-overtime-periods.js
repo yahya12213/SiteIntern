@@ -14,7 +14,7 @@ export async function runMigration108() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS hr_overtime_periods (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        declared_by UUID,
+        declared_by TEXT,
         period_date DATE NOT NULL,
         start_time TIME NOT NULL,
         end_time TIME NOT NULL,
@@ -27,6 +27,24 @@ export async function runMigration108() {
       )
     `);
     console.log('Created hr_overtime_periods table');
+
+    // Fix: Change declared_by from UUID to TEXT if it exists as UUID
+    // This handles the case where the table was created with UUID type
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'hr_overtime_periods'
+          AND column_name = 'declared_by'
+          AND data_type = 'uuid'
+        ) THEN
+          ALTER TABLE hr_overtime_periods ALTER COLUMN declared_by TYPE TEXT USING declared_by::TEXT;
+          RAISE NOTICE 'Changed declared_by column from UUID to TEXT';
+        END IF;
+      END $$;
+    `);
+    console.log('Ensured declared_by is TEXT type');
 
     // Create index for faster lookups by date
     await client.query(`
