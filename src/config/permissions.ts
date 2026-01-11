@@ -324,6 +324,20 @@ export const PERMISSIONS = {
       exporter: 'commercialisation.prospects.exporter',
       assigner: 'commercialisation.prospects.assigner',
       reinjecter: 'commercialisation.prospects.reinjecter',
+      // Legacy aliases
+      view_page: 'commercialisation.prospects.voir',
+      view_all: 'commercialisation.prospects.voir_tous',
+      create: 'commercialisation.prospects.creer',
+      edit: 'commercialisation.prospects.modifier',
+      update: 'commercialisation.prospects.modifier',
+      delete: 'commercialisation.prospects.supprimer',
+      call: 'commercialisation.prospects.appeler',
+      convert: 'commercialisation.prospects.convertir',
+      import: 'commercialisation.prospects.importer',
+      export: 'commercialisation.prospects.exporter',
+      assign: 'commercialisation.prospects.assigner',
+      reinject: 'commercialisation.prospects.reinjecter',
+      clean: 'commercialisation.nettoyage_prospects.nettoyer',
     },
 
     nettoyage_prospects: {
@@ -336,6 +350,363 @@ export const PERMISSIONS = {
       configurer: 'commercialisation.gestion_gcontacte.configurer',
       synchroniser: 'commercialisation.gestion_gcontacte.synchroniser',
       tester: 'commercialisation.gestion_gcontacte.tester',
+    },
+
+    // ===== LEGACY ALIASES (commercialisation.*) =====
+    dashboard: {
+      view_page: 'commercialisation.tableau_de_bord.voir',
+      view_stats: 'commercialisation.tableau_de_bord.voir_stats',
+      export: 'commercialisation.tableau_de_bord.exporter',
+    },
+    clients: {
+      view_page: 'commercialisation.prospects.voir',
+      create: 'commercialisation.prospects.creer',
+      update: 'commercialisation.prospects.modifier',
+      delete: 'commercialisation.prospects.supprimer',
+    },
+    visits: {
+      view_page: 'commercialisation.prospects.voir',
+      create: 'commercialisation.prospects.creer',
+      update: 'commercialisation.prospects.modifier',
+      delete: 'commercialisation.prospects.supprimer',
+    },
+    google_contacts: {
+      view_page: 'commercialisation.gestion_gcontacte.voir',
+      configure: 'commercialisation.gestion_gcontacte.configurer',
+      sync: 'commercialisation.gestion_gcontacte.synchroniser',
+      test: 'commercialisation.gestion_gcontacte.tester',
+    },
+    devis: {
+      view_page: 'commercialisation.prospects.voir',
+      create: 'commercialisation.prospects.creer',
+      update: 'commercialisation.prospects.modifier',
+      delete: 'commercialisation.prospects.supprimer',
+    },
+    contrats: {
+      view_page: 'commercialisation.prospects.voir',
+      create: 'commercialisation.prospects.creer',
+      update: 'commercialisation.prospects.modifier',
+      delete: 'commercialisation.prospects.supprimer',
+    },
+  },
+
+  // =====================================================
+  // LEGACY ALIASES - Pour compatibilite avec ancien code
+  // =====================================================
+
+  // ===== ACCOUNTING -> GESTION_COMPTABLE =====
+  accounting: {
+    dashboard: {
+      view_page: 'gestion_comptable.tableau_de_bord.voir',
+    },
+    segments: {
+      view_page: 'gestion_comptable.segments.voir',
+      create: 'gestion_comptable.segments.creer',
+      update: 'gestion_comptable.segments.modifier',
+      delete: 'gestion_comptable.segments.supprimer',
+      import_cities: 'gestion_comptable.segments.importer_villes',
+    },
+    cities: {
+      view_page: 'gestion_comptable.villes.voir',
+      create: 'gestion_comptable.villes.creer',
+      update: 'gestion_comptable.villes.modifier',
+      delete: 'gestion_comptable.villes.supprimer',
+      bulk_delete: 'gestion_comptable.villes.supprimer_masse',
+    },
+    users: {
+      view_page: 'gestion_comptable.utilisateurs.voir',
+      create: 'gestion_comptable.utilisateurs.creer',
+      update: 'gestion_comptable.utilisateurs.modifier',
+      delete: 'gestion_comptable.utilisateurs.supprimer',
+      assign_segments: 'gestion_comptable.utilisateurs.assigner_segments',
+      assign_cities: 'gestion_comptable.utilisateurs.assigner_villes',
+      assign_roles: 'gestion_comptable.utilisateurs.assigner_roles',
+    },
+    calculation_sheets: {
+      view_page: 'gestion_comptable.fiches_calcul.voir',
+      create: 'gestion_comptable.fiches_calcul.creer',
+      update: 'gestion_comptable.fiches_calcul.modifier',
+      edit: 'gestion_comptable.fiches_calcul.modifier',
+      delete: 'gestion_comptable.fiches_calcul.supprimer',
+      publish: 'gestion_comptable.fiches_calcul.publier',
+      duplicate: 'gestion_comptable.fiches_calcul.dupliquer',
+      export: 'gestion_comptable.fiches_calcul.exporter',
+      settings: 'gestion_comptable.fiches_calcul.parametres',
+    },
+    professor: {
+      view_page: 'gestion_comptable.utilisateurs.voir',
+      create: 'gestion_comptable.utilisateurs.creer',
+      update: 'gestion_comptable.utilisateurs.modifier',
+      delete: 'gestion_comptable.utilisateurs.supprimer',
+      declarations: {
+        view_page: 'gestion_comptable.declarations.voir',
+        create: 'gestion_comptable.declarations.creer',
+        fill: 'gestion_comptable.declarations.remplir',
+      },
+    },
+    declarations: {
+      view_page: 'gestion_comptable.declarations.voir',
+      view_all: 'gestion_comptable.declarations.voir_toutes',
+      create: 'gestion_comptable.declarations.creer',
+      fill_data: 'gestion_comptable.declarations.remplir',
+      edit_metadata: 'gestion_comptable.declarations.modifier_metadata',
+      delete: 'gestion_comptable.declarations.supprimer',
+      approve: 'gestion_comptable.declarations.approuver',
+      reject: 'gestion_comptable.declarations.rejeter',
+      submit: 'gestion_comptable.declarations.soumettre',
+    },
+    projects: {
+      view_page: 'gestion_comptable.gestion_projet.voir',
+      create: 'gestion_comptable.gestion_projet.creer',
+      update: 'gestion_comptable.gestion_projet.modifier',
+      delete: 'gestion_comptable.gestion_projet.supprimer',
+      export: 'gestion_comptable.gestion_projet.exporter',
+    },
+  },
+
+  // ===== SYSTEM -> GESTION_COMPTABLE (roles_permissions) =====
+  system: {
+    roles: {
+      view_page: 'gestion_comptable.roles_permissions.voir',
+      create: 'gestion_comptable.roles_permissions.creer',
+      update: 'gestion_comptable.roles_permissions.modifier',
+      delete: 'gestion_comptable.roles_permissions.supprimer',
+    },
+    users: {
+      view_page: 'gestion_comptable.utilisateurs.voir',
+      create: 'gestion_comptable.utilisateurs.creer',
+      update: 'gestion_comptable.utilisateurs.modifier',
+      delete: 'gestion_comptable.utilisateurs.supprimer',
+      assign_roles: 'gestion_comptable.utilisateurs.assigner_roles',
+    },
+  },
+
+  // ===== TRAINING -> FORMATION =====
+  training: {
+    formations: {
+      view_page: 'formation.gestion_formations.voir',
+      create: 'formation.gestion_formations.creer',
+      update: 'formation.gestion_formations.modifier',
+      delete: 'formation.gestion_formations.supprimer',
+      duplicate: 'formation.gestion_formations.dupliquer',
+      create_pack: 'formation.gestion_formations.creer_pack',
+      edit_content: 'formation.gestion_formations.editer_contenu',
+    },
+    corps: {
+      view_page: 'formation.gestion_formations.voir',
+      create: 'formation.gestion_formations.creer',
+      update: 'formation.gestion_formations.modifier',
+      delete: 'formation.gestion_formations.supprimer',
+    },
+    sessions: {
+      view_page: 'formation.sessions_formation.voir',
+      create: 'formation.sessions_formation.creer',
+      update: 'formation.sessions_formation.modifier',
+      delete: 'formation.sessions_formation.supprimer',
+      add_student: 'formation.sessions_formation.ajouter_etudiant',
+      edit_student: 'formation.sessions_formation.modifier_etudiant',
+    },
+    analytics: {
+      view_page: 'formation.analytics.voir',
+      export: 'formation.analytics.exporter',
+      change_period: 'formation.analytics.changer_periode',
+    },
+    student_reports: {
+      view_page: 'formation.rapports_etudiants.voir',
+      search: 'formation.rapports_etudiants.rechercher',
+      export_csv: 'formation.rapports_etudiants.exporter_csv',
+      export_pdf: 'formation.rapports_etudiants.exporter_pdf',
+      export: 'formation.rapports_etudiants.exporter_csv',
+    },
+    students: {
+      view_page: 'formation.liste_etudiants.voir',
+      create: 'formation.liste_etudiants.creer',
+      update: 'formation.liste_etudiants.modifier',
+      delete: 'formation.liste_etudiants.supprimer',
+    },
+    student: {
+      view_page: 'formation.liste_etudiants.voir',
+      create: 'formation.liste_etudiants.creer',
+      update: 'formation.liste_etudiants.modifier',
+      delete: 'formation.liste_etudiants.supprimer',
+      // Nested sections for student portal
+      dashboard: {
+        view_page: 'formation.liste_etudiants.voir',
+      },
+      catalog: {
+        view_page: 'formation.gestion_formations.voir',
+      },
+      course: {
+        view_page: 'formation.gestion_formations.voir',
+        view: 'formation.gestion_formations.voir',
+        take: 'formation.sessions_formation.voir',
+        complete: 'formation.sessions_formation.voir',
+        videos: {
+          view: 'formation.gestion_formations.voir',
+          view_page: 'formation.gestion_formations.voir',
+        },
+        tests: {
+          take: 'formation.sessions_formation.voir',
+          view: 'formation.sessions_formation.voir',
+        },
+      },
+      certificates: {
+        view_page: 'formation.templates_certificats.voir',
+        view: 'formation.templates_certificats.voir',
+        download: 'formation.templates_certificats.voir',
+      },
+      forums: {
+        view_page: 'formation.forums.voir',
+        create_thread: 'formation.forums.creer_discussion',
+        reply: 'formation.forums.repondre',
+        participate: 'formation.forums.voir',
+      },
+    },
+    certificate_templates: {
+      view_page: 'formation.templates_certificats.voir',
+      create_folder: 'formation.templates_certificats.creer_dossier',
+      create: 'formation.templates_certificats.creer_template',
+      create_template: 'formation.templates_certificats.creer_template',
+      rename: 'formation.templates_certificats.renommer',
+      delete_template: 'formation.templates_certificats.supprimer',
+      delete: 'formation.templates_certificats.supprimer',
+      duplicate: 'formation.templates_certificats.dupliquer',
+      edit_canvas: 'formation.templates_certificats.editer_canvas',
+      organize: 'formation.templates_certificats.voir',
+    },
+    certificates: {
+      view_page: 'formation.templates_certificats.voir',
+      generate: 'formation.templates_certificats.creer_template',
+      download: 'formation.templates_certificats.voir',
+    },
+    forums: {
+      view_page: 'formation.forums.voir',
+      create_thread: 'formation.forums.creer_discussion',
+      reply: 'formation.forums.repondre',
+      react: 'formation.forums.reagir',
+      delete: 'formation.forums.supprimer',
+      pin: 'formation.forums.epingler',
+      lock: 'formation.forums.verrouiller',
+      moderate: 'formation.forums.moderer',
+    },
+  },
+
+  // ===== HR -> RESSOURCES_HUMAINES =====
+  hr: {
+    validation_workflows: {
+      view_page: 'ressources_humaines.boucles_validation.voir',
+      create: 'ressources_humaines.boucles_validation.creer',
+      update: 'ressources_humaines.boucles_validation.modifier',
+      delete: 'ressources_humaines.boucles_validation.supprimer',
+    },
+    schedules: {
+      view_page: 'ressources_humaines.gestion_horaires.voir',
+      manage_models: 'ressources_humaines.gestion_horaires.modeles.creer',
+      manage_holidays: 'ressources_humaines.gestion_horaires.jours_feries.creer',
+      manage_overtime: 'ressources_humaines.gestion_horaires.heures_sup.creer_periode',
+    },
+    payroll: {
+      view_page: 'ressources_humaines.gestion_paie.voir',
+      manage_periods: 'ressources_humaines.gestion_paie.periodes.creer',
+      calculate: 'ressources_humaines.gestion_paie.calculs.calculer',
+      view_payslips: 'ressources_humaines.gestion_paie.bulletins.voir',
+      generate_payslips: 'ressources_humaines.gestion_paie.bulletins.valider',
+      validate_payslip: 'ressources_humaines.gestion_paie.bulletins.valider',
+      validate_all: 'ressources_humaines.gestion_paie.bulletins.valider_tous',
+      download: 'ressources_humaines.gestion_paie.bulletins.telecharger',
+      export_cnss: 'ressources_humaines.gestion_paie.bulletins.exporter_cnss',
+      export_transfers: 'ressources_humaines.gestion_paie.bulletins.exporter_virements',
+      manage_config: 'ressources_humaines.gestion_paie.configuration.modifier',
+    },
+    employee_portal: {
+      view_page: 'ressources_humaines.gestion_pointage.voir',
+      clock_in_out: 'ressources_humaines.gestion_pointage.pointer',
+    },
+    attendance: {
+      view_page: 'ressources_humaines.gestion_pointage.voir',
+      clock: 'ressources_humaines.gestion_pointage.pointer',
+      correct: 'ressources_humaines.gestion_pointage.corriger',
+      import: 'ressources_humaines.gestion_pointage.importer',
+      export: 'ressources_humaines.gestion_pointage.exporter',
+      validate: 'ressources_humaines.gestion_pointage.valider',
+    },
+    employees: {
+      view_page: 'ressources_humaines.dossier_employe.voir',
+      create: 'ressources_humaines.dossier_employe.creer',
+      update: 'ressources_humaines.dossier_employe.modifier',
+      delete: 'ressources_humaines.dossier_employe.supprimer',
+      view_salary: 'ressources_humaines.dossier_employe.voir_salaire',
+      manage_contracts: 'ressources_humaines.dossier_employe.gerer_contrats',
+      manage_documents: 'ressources_humaines.dossier_employe.gerer_documents',
+      manage_discipline: 'ressources_humaines.dossier_employe.gerer_discipline',
+    },
+    requests_validation: {
+      view_page: 'ressources_humaines.validation_demandes.voir',
+      approve: 'ressources_humaines.validation_demandes.approuver',
+      reject: 'ressources_humaines.validation_demandes.rejeter',
+    },
+    leaves: {
+      view_page: 'ressources_humaines.validation_demandes.voir',
+      approve: 'ressources_humaines.validation_demandes.approuver',
+      reject: 'ressources_humaines.validation_demandes.rejeter',
+      create: 'mon_espace_rh.mes_demandes.creer',
+    },
+    delegation: {
+      view_page: 'ressources_humaines.delegations.voir',
+      create: 'ressources_humaines.delegations.creer',
+      manage_all: 'ressources_humaines.delegations.gerer_toutes',
+    },
+    settings: {
+      view_page: 'ressources_humaines.gestion_paie.configuration.voir',
+      update: 'ressources_humaines.gestion_paie.configuration.modifier',
+    },
+    dashboard: {
+      view_page: 'ressources_humaines.gestion_pointage.voir',
+    },
+    manager: {
+      team_attendance: 'mon_equipe.pointages_equipe.voir',
+      team_requests: 'mon_equipe.demandes_equipe.voir',
+      approve_requests: 'mon_equipe.demandes_equipe.approuver',
+      reject_requests: 'mon_equipe.demandes_equipe.rejeter',
+    },
+    clocking: {
+      self: 'mon_espace_rh.mon_pointage.voir',
+      view_own: 'mon_espace_rh.mon_pointage.voir',
+      clock: 'mon_espace_rh.mon_pointage.pointer',
+    },
+    my: {
+      requests: 'mon_espace_rh.mes_demandes.voir',
+      payslips: 'mon_espace_rh.mes_bulletins.voir',
+    },
+  },
+
+  // ===== MANAGER -> MON_EQUIPE =====
+  manager: {
+    team_attendance: {
+      view_page: 'mon_equipe.pointages_equipe.voir',
+      delete: 'mon_equipe.pointages_equipe.supprimer',
+    },
+    team_requests: {
+      view_page: 'mon_equipe.demandes_equipe.voir',
+      approve: 'mon_equipe.demandes_equipe.approuver',
+      reject: 'mon_equipe.demandes_equipe.rejeter',
+    },
+  },
+
+  // ===== EMPLOYEE -> MON_ESPACE_RH =====
+  employee: {
+    clocking: {
+      view_page: 'mon_espace_rh.mon_pointage.voir',
+      clock: 'mon_espace_rh.mon_pointage.pointer',
+    },
+    requests: {
+      view_page: 'mon_espace_rh.mes_demandes.voir',
+      create: 'mon_espace_rh.mes_demandes.creer',
+      cancel: 'mon_espace_rh.mes_demandes.annuler',
+    },
+    payslips: {
+      view_page: 'mon_espace_rh.mes_bulletins.voir',
+      download: 'mon_espace_rh.mes_bulletins.telecharger',
     },
   },
 } as const;

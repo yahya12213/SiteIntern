@@ -360,12 +360,161 @@ export function usePermission() {
     voirNettoyage: can('commercialisation.nettoyage_prospects.voir'),
     nettoyer: can('commercialisation.nettoyage_prospects.nettoyer'),
 
+    // Legacy - Client aliases
+    canCreateClient: can('commercialisation.prospects.creer'),
+    canUpdateClient: can('commercialisation.prospects.modifier'),
+    canDeleteClient: can('commercialisation.prospects.supprimer'),
+    canViewClient: can('commercialisation.prospects.voir'),
+
     // Gestion G-Contacte
     voirGContacte: can('commercialisation.gestion_gcontacte.voir'),
     configurerGContacte: can('commercialisation.gestion_gcontacte.configurer'),
     synchroniserGContacte: can('commercialisation.gestion_gcontacte.synchroniser'),
     testerGContacte: can('commercialisation.gestion_gcontacte.tester'),
   }), [can]);
+
+  // ==================== LEGACY ALIASES ====================
+  // Ces objets permettent la compatibilite avec l'ancien code (flat structure)
+  const accounting = useMemo(() => ({
+    // Segments
+    canViewSegments: gestionComptable.voirSegments,
+    canCreateSegment: gestionComptable.creerSegment,
+    canUpdateSegment: gestionComptable.modifierSegment,
+    canDeleteSegment: gestionComptable.supprimerSegment,
+    // Cities
+    canViewCities: gestionComptable.voirVilles,
+    canCreateCity: gestionComptable.creerVille,
+    canUpdateCity: gestionComptable.modifierVille,
+    canDeleteCity: gestionComptable.supprimerVille,
+    canBulkDeleteCity: gestionComptable.supprimerVillesMasse,
+    // Users
+    canViewUsers: gestionComptable.voirUtilisateurs,
+    canCreateUser: gestionComptable.creerUtilisateur,
+    canUpdateUser: gestionComptable.modifierUtilisateur,
+    canDeleteUser: gestionComptable.supprimerUtilisateur,
+    canAssignSegments: gestionComptable.assignerSegments,
+    canAssignCities: gestionComptable.assignerVilles,
+    canAssignProfessorCities: gestionComptable.assignerVilles,
+    // Professors (map to users)
+    canViewProfessor: gestionComptable.voirUtilisateurs,
+    canCreateProfessor: gestionComptable.creerUtilisateur,
+    canUpdateProfessor: gestionComptable.modifierUtilisateur,
+    canDeleteProfessor: gestionComptable.supprimerUtilisateur,
+    // Calculation Sheets
+    canViewSheet: gestionComptable.voirFiches,
+    canCreateSheet: gestionComptable.creerFiche,
+    canUpdateSheet: gestionComptable.modifierFiche,
+    canEditCalculationSheet: gestionComptable.modifierFiche,
+    canDeleteSheet: gestionComptable.supprimerFiche,
+    canPublishSheet: gestionComptable.publierFiche,
+    canDuplicateSheet: gestionComptable.dupliquerFiche,
+    canExportSheet: gestionComptable.exporterFiche,
+    canManageSheetSettings: gestionComptable.parametresFiche,
+    // Declarations
+    canViewDeclarations: gestionComptable.voirDeclarations,
+    canViewAllDeclarations: gestionComptable.voirToutesDeclarations,
+    canCreateDeclaration: gestionComptable.creerDeclaration,
+    canFillData: gestionComptable.remplirDeclaration,
+    canEditMetadata: gestionComptable.modifierMetadata,
+    canDeleteDeclaration: gestionComptable.supprimerDeclaration,
+    canApproveDeclaration: gestionComptable.approuverDeclaration,
+    canSubmitDeclaration: gestionComptable.soumettreDeclaration,
+    // Import
+    canImportCities: gestionComptable.importerVilles,
+  }), [gestionComptable]);
+
+  const training = useMemo(() => ({
+    // Formations
+    canViewFormations: formation.voirFormations,
+    canCreateFormation: formation.creerFormation,
+    canUpdateFormation: formation.modifierFormation,
+    canDeleteFormation: formation.supprimerFormation,
+    canDuplicateFormation: formation.dupliquerFormation,
+    canCreatePack: formation.creerPack,
+    canEditContent: formation.editerContenu,
+    // Corps
+    canViewCorps: formation.voirFormations,
+    canCreateCorps: formation.creerFormation,
+    canUpdateCorps: formation.modifierFormation,
+    canDeleteCorps: formation.supprimerFormation,
+    canDuplicateCorps: formation.dupliquerFormation,
+    // Sessions
+    canViewSessions: formation.voirSessions,
+    canCreateSession: formation.creerSession,
+    canUpdateSession: formation.modifierSession,
+    canDeleteSession: formation.supprimerSession,
+    canAddStudent: formation.ajouterEtudiant,
+    // Students
+    canViewStudents: formation.voirEtudiants,
+    canCreateStudent: formation.creerEtudiant,
+    canUpdateStudent: formation.modifierEtudiantListe,
+    canDeleteStudent: formation.supprimerEtudiant,
+    // Certificate Templates
+    canViewTemplates: formation.voirTemplates,
+    canCreateTemplate: formation.creerTemplate,
+    canCreateFolder: formation.creerDossier,
+    canDeleteTemplate: formation.supprimerTemplate,
+    canDuplicateTemplate: formation.dupliquerTemplate,
+    canEditCanvas: formation.editerCanvas,
+    canRenameFolder: formation.renommerTemplate,
+    canRenameTemplate: formation.renommerTemplate,
+    canDeleteFolder: formation.supprimerTemplate,
+    canOrganize: formation.voirTemplates,
+    // Certificates
+    canViewCertificates: formation.voirTemplates,
+    canGenerateCertificate: formation.creerTemplate,
+    canDownloadCertificate: formation.voirTemplates,
+    canDeleteCertificate: formation.supprimerTemplate,
+    // Forums
+    canViewForums: formation.voirForums,
+    canCreateThread: formation.creerDiscussion,
+    canReply: formation.repondre,
+    canDeleteForum: formation.supprimerForum,
+    canModerate: formation.moderer,
+  }), [formation]);
+
+  const hr = useMemo(() => ({
+    // Schedules
+    canViewSchedules: ressourcesHumaines.voirGestionHoraires,
+    canManageModels: ressourcesHumaines.creerModele,
+    canManageHolidays: ressourcesHumaines.creerJourFerie,
+    canManageOvertime: ressourcesHumaines.creerPeriodeHS,
+    // Payroll
+    canViewPayroll: ressourcesHumaines.voirGestionPaie,
+    canManagePeriods: ressourcesHumaines.creerPeriode,
+    canCalculate: ressourcesHumaines.calculerPaie,
+    canViewPayslips: ressourcesHumaines.voirBulletins,
+    canGeneratePayslips: ressourcesHumaines.validerBulletin,
+    canExportPayroll: ressourcesHumaines.exporterCnss,
+    canManagePayrollConfig: ressourcesHumaines.modifierConfiguration,
+    // Attendance
+    canViewAttendance: ressourcesHumaines.voirGestionPointage,
+    canRecordAttendance: ressourcesHumaines.pointer,
+    canCorrectAttendance: ressourcesHumaines.corrigerPointage,
+    canImportAttendance: ressourcesHumaines.importerPointage,
+    canExportAttendance: ressourcesHumaines.exporterPointage,
+    canValidateAttendance: ressourcesHumaines.validerPointage,
+    // Employees
+    canViewEmployees: ressourcesHumaines.voirDossierEmploye,
+    canCreateEmployee: ressourcesHumaines.creerDossier,
+    canUpdateEmployee: ressourcesHumaines.modifierDossier,
+    canDeleteEmployee: ressourcesHumaines.supprimerDossier,
+    canViewSalary: ressourcesHumaines.voirSalaire,
+    canViewContracts: ressourcesHumaines.gererContrats,
+    canManageDocuments: ressourcesHumaines.gererDocuments,
+    canViewDisciplinary: ressourcesHumaines.gererDiscipline,
+    // Leaves
+    canViewLeaves: ressourcesHumaines.voirValidationDemandes,
+    canApproveLeave: ressourcesHumaines.approuverDemande,
+    canRejectLeave: ressourcesHumaines.rejeterDemande,
+    canRequestLeave: monEspaceRh.creerDemande,
+    canManageLeaveTypes: ressourcesHumaines.modifierConfiguration,
+    // Settings
+    canViewSettings: ressourcesHumaines.voirConfiguration,
+    canUpdateSettings: ressourcesHumaines.modifierConfiguration,
+    // Schedules
+    canManageSchedules: ressourcesHumaines.creerModele,
+  }), [ressourcesHumaines, monEspaceRh]);
 
   return {
     // Verifications generiques
@@ -389,6 +538,11 @@ export function usePermission() {
     monEquipe,
     monEspaceRh,
     commercialisation,
+
+    // Legacy aliases
+    accounting,
+    training,
+    hr,
   };
 }
 
