@@ -17,7 +17,7 @@ router.post('/run', async (req, res) => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS hr_overtime_periods (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        declared_by UUID REFERENCES profiles(id),
+        declared_by UUID,
         period_date DATE NOT NULL,
         start_time TIME NOT NULL,
         end_time TIME NOT NULL,
