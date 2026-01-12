@@ -413,6 +413,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 114: Ajouter Permissions Certificats',
     description: '📜 Ajoute les permissions formation.certificats.* (voir, generer, modifier, supprimer, telecharger) manquantes pour les routes certificates.js',
     endpoint: '/migration-114-add-certificats-permissions'
+  },
+  {
+    id: 'migration-115',
+    name: 'Migration 115: Ajouter TOUTES Permissions Manquantes',
+    description: '🔧 Ajoute les 34 permissions manquantes identifiees par la validation: sessions (3), templates (2), certificats (4), forums (3), centres (2), corps (4), pointage (4), conges (4), dashboard RH (1), parametres (2), jours feries (2), declarations (2)',
+    endpoint: '/migration-115-add-all-missing-permissions'
   }
 ];
 
