@@ -26,6 +26,143 @@ if (JWT_SECRET.length < 32) {
 
 console.log('✓ JWT_SECRET validated successfully');
 
+// ==========================================
+// PERMISSION CODE CONVERSION EN → FR
+// ==========================================
+// Le backend utilise des codes anglais mais la DB a des codes français
+// Cette fonction convertit automatiquement les codes pour assurer la compatibilité
+
+const EN_TO_FR_PERMISSION_MAP = {
+  // === MODULE PREFIXES ===
+  'accounting.': 'gestion_comptable.',
+  'training.': 'formation.',
+  'hr.': 'ressources_humaines.',
+  'system.roles.': 'gestion_comptable.roles_permissions.',
+
+  // === SOUS-MODULES SPECIFIQUES ===
+  // Formation
+  'formation.sessions.': 'formation.sessions_formation.',
+  'formation.formations.': 'formation.gestion_formations.',
+  'formation.students.': 'formation.liste_etudiants.',
+  'formation.certificate_templates.': 'formation.templates_certificats.',
+  'formation.student.': 'formation.etudiant.',
+
+  // Comptabilité
+  'gestion_comptable.calculation_sheets.': 'gestion_comptable.fiches_calcul.',
+  'gestion_comptable.projects.': 'gestion_comptable.gestion_projet.',
+  'gestion_comptable.actions.': 'gestion_comptable.plan_action.',
+  'gestion_comptable.users.': 'gestion_comptable.utilisateurs.',
+  'gestion_comptable.cities.': 'gestion_comptable.villes.',
+
+  // RH
+  'ressources_humaines.employees.': 'ressources_humaines.dossier_employe.',
+  'ressources_humaines.attendance.': 'ressources_humaines.gestion_pointage.',
+  'ressources_humaines.leaves.': 'ressources_humaines.conges.',
+  'ressources_humaines.payroll.': 'ressources_humaines.gestion_paie.',
+  'ressources_humaines.validation_workflows.': 'ressources_humaines.boucles_validation.',
+  'ressources_humaines.settings.': 'ressources_humaines.parametres.',
+  'ressources_humaines.dashboard.': 'ressources_humaines.tableau_de_bord.',
+  'ressources_humaines.holidays.': 'ressources_humaines.jours_feries.',
+  'ressources_humaines.contracts.': 'ressources_humaines.contrats.',
+  'ressources_humaines.documents.': 'ressources_humaines.documents.',
+  'ressources_humaines.discipline.': 'ressources_humaines.discipline.',
+  'ressources_humaines.delegation.': 'ressources_humaines.delegations.',
+
+  // Commercialisation
+  'commercialisation.visits.': 'commercialisation.visites.',
+};
+
+// Actions anglais → français
+const EN_TO_FR_ACTION_MAP = {
+  '.view_page': '.voir',
+  '.view_list': '.voir_liste',
+  '.view': '.voir_liste',
+  '.create': '.creer',
+  '.update': '.modifier',
+  '.edit': '.modifier',
+  '.delete': '.supprimer',
+  '.approve': '.approuver',
+  '.reject': '.rejeter',
+  '.submit': '.soumettre',
+  '.export': '.exporter',
+  '.import': '.importer',
+  '.manage': '.gerer',
+  '.clean': '.nettoyer',
+  '.call': '.appeler',
+  '.reinject': '.reinjecter',
+  '.assign': '.assigner',
+  '.duplicate': '.dupliquer',
+  '.publish': '.publier',
+  '.fill': '.remplir',
+  '.add_student': '.ajouter_etudiant',
+  '.edit_student': '.editer_etudiant',
+  '.remove_student': '.retirer_etudiant',
+  '.delete_payment': '.supprimer_paiement',
+  '.transfer_student': '.transfert_etudiant',
+  '.edit_content': '.editer_contenu',
+  '.create_pack': '.creer_pack',
+  '.create_folder': '.creer_dossier',
+  '.rename_folder': '.renommer_dossier',
+  '.delete_folder': '.supprimer_dossier',
+  '.create_thread': '.creer_sujet',
+  '.update_thread': '.modifier_sujet',
+  '.reply': '.repondre',
+  '.react': '.reagir',
+  '.approve_overtime': '.approuver_heures_sup',
+  '.reject_overtime': '.rejeter_heures_sup',
+  '.view_all': '.voir_tous',
+  '.view_analytics': '.voir_analytics',
+  '.clock_in_out': '.pointer',
+  '.assign_roles': '.assigner_roles',
+  '.assign_segments': '.assigner_segments',
+  '.assign_cities': '.assigner_villes',
+  '.view_all_payslips': '.voir_tous_bulletins',
+  '.validate': '.valider',
+  '.config': '.configurer',
+  '.calculate': '.calculer',
+  '.periods.create': '.periodes.creer',
+  '.periods.close': '.periodes.fermer',
+};
+
+/**
+ * Convertit un code de permission anglais en français
+ * @param {string} code - Code de permission (peut être EN ou FR)
+ * @returns {string} - Code de permission en français
+ */
+function convertToFrenchPermission(code) {
+  if (!code || typeof code !== 'string') return code;
+
+  let converted = code;
+
+  // 1. Convertir les préfixes de modules (ordre important: plus spécifique d'abord)
+  const sortedPrefixes = Object.entries(EN_TO_FR_PERMISSION_MAP)
+    .sort((a, b) => b[0].length - a[0].length);
+
+  for (const [en, fr] of sortedPrefixes) {
+    if (converted.includes(en)) {
+      converted = converted.replace(en, fr);
+      break; // Un seul remplacement de préfixe
+    }
+  }
+
+  // 2. Convertir les actions (suffixes)
+  const sortedActions = Object.entries(EN_TO_FR_ACTION_MAP)
+    .sort((a, b) => b[0].length - a[0].length);
+
+  for (const [en, fr] of sortedActions) {
+    if (converted.endsWith(en)) {
+      converted = converted.slice(0, -en.length) + fr;
+      break; // Un seul remplacement d'action
+    }
+  }
+
+  // Log si conversion effectuée
+  if (converted !== code) {
+    console.log(`🔄 Permission converted: ${code} → ${converted}`);
+  }
+
+  return converted;
+}
 
 // Token generation
 export const generateToken = (user) => {
@@ -138,12 +275,15 @@ export const requirePermission = (...requiredPermissions) => {
       });
     }
 
+    // 🔄 CONVERT: Convertir les codes anglais en français AVANT vérification
+    const convertedPermissions = requiredPermissions.map(convertToFrenchPermission);
+
     try {
       // 🔧 FIX: Check admin role FIRST, before any database queries
       // This ensures admin users bypass permission checks entirely and prevents
       // database errors from blocking admin access
       if (req.user.role === 'admin') {
-        console.log(`✅ Admin bypass for user ${req.user.username} on ${requiredPermissions.join(', ')}`);
+        console.log(`✅ Admin bypass for user ${req.user.username} on ${convertedPermissions.join(', ')}`);
         return next();
       }
 
@@ -156,18 +296,19 @@ export const requirePermission = (...requiredPermissions) => {
         return next();
       }
 
-      const hasPermission = requiredPermissions.some(perm => permissions.includes(perm));
+      // Vérifier avec les codes FRANÇAIS convertis
+      const hasPermission = convertedPermissions.some(perm => permissions.includes(perm));
 
       if (!hasPermission) {
-        console.log(`❌ Permission denied for user ${req.user.username}: required ${requiredPermissions.join(' or ')}`);
+        console.log(`❌ Permission denied for user ${req.user.username}: required ${convertedPermissions.join(' or ')} (original: ${requiredPermissions.join(' or ')})`);
         return res.status(403).json({
           success: false,
-          error: `Access denied. Required permission: ${requiredPermissions.join(' or ')}`,
+          error: `Access denied. Required permission: ${convertedPermissions.join(' or ')}`,
           code: 'INSUFFICIENT_PERMISSION',
         });
       }
 
-      console.log(`✅ Permission granted for user ${req.user.username}: ${requiredPermissions.join(', ')}`);
+      console.log(`✅ Permission granted for user ${req.user.username}: ${convertedPermissions.join(', ')}`);
       next();
     } catch (error) {
       console.error('Permission check error:', error);
