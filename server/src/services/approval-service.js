@@ -215,7 +215,7 @@ export class ApprovalService {
         WHERE id = $5
         RETURNING *
       `;
-      updateParams = [newStatus, isFinal ? 'completed' : nextLevel, approverId, comment, requestId];
+      updateParams = [newStatus, isFinal ? 'completed' : `n${nextLevel}`, approverId, comment, requestId];
     } else if (currentLevel === 1) {
       updateQuery = `
         UPDATE hr_leave_requests
@@ -228,7 +228,7 @@ export class ApprovalService {
         WHERE id = $5
         RETURNING *
       `;
-      updateParams = [newStatus, isFinal ? 'completed' : nextLevel, approverId, comment, requestId];
+      updateParams = [newStatus, isFinal ? 'completed' : `n${nextLevel}`, approverId, comment, requestId];
     } else {
       // Higher levels use hr_approver fields
       updateQuery = `
@@ -242,7 +242,8 @@ export class ApprovalService {
         WHERE id = $5
         RETURNING *
       `;
-      updateParams = [newStatus, isFinal ? 'completed' : nextLevel, approverId, comment, requestId];
+      // Pour les niveaux 3+, utiliser 'hr' car la contrainte CHECK n'autorise que n1, n2, hr, completed
+      updateParams = [newStatus, isFinal ? 'completed' : (nextLevel > 2 ? 'hr' : `n${nextLevel}`), approverId, comment, requestId];
     }
 
     const result = await pool.query(updateQuery, updateParams);
