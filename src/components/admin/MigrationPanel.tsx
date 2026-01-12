@@ -425,6 +425,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 116: Consolider Permissions Doublons',
     description: '🔗 Migre les role_permissions des anciens codes EN (training.certificates.*) vers les nouveaux codes FR (formation.certificats.*) et supprime les doublons. Corrige les erreurs "Permission denied".',
     endpoint: '/migration-116-consolidate-permissions'
+  },
+  {
+    id: 'migration-117',
+    name: 'Migration 117: Fix Colonnes hr_leave_requests',
+    description: '🔧 FIX CRITIQUE: Ajoute les colonnes n1_approved_at, n2_approved_at, hr_approved_at manquantes dans hr_leave_requests - Corrige l\'erreur "column n1_approved_at does not exist"',
+    endpoint: '/migration-117-fix-leave-request-columns'
   }
 ];
 
