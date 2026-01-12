@@ -137,6 +137,14 @@ export const PERMISSIONS = {
       editer_canvas: 'formation.templates_certificats.editer_canvas',
     },
 
+    certificats: {
+      voir: 'formation.certificats.voir',
+      generer: 'formation.certificats.generer',
+      modifier: 'formation.certificats.modifier',
+      supprimer: 'formation.certificats.supprimer',
+      telecharger: 'formation.certificats.telecharger',
+    },
+
     forums: {
       voir: 'formation.forums.voir',
       creer_discussion: 'formation.forums.creer_discussion',

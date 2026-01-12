@@ -534,6 +534,40 @@ export const PERMISSIONS_MASTER = {
       }
     ],
 
+    // Certificats generes (distinct des templates)
+    certificats: [
+      {
+        action: 'voir',
+        label: 'Voir les certificats',
+        description: 'Permet de voir les certificats generes',
+        sort_order: 1
+      },
+      {
+        action: 'generer',
+        label: 'Generer un certificat',
+        description: 'Permet de generer un nouveau certificat pour un etudiant',
+        sort_order: 2
+      },
+      {
+        action: 'modifier',
+        label: 'Modifier un certificat',
+        description: 'Permet de modifier un certificat existant',
+        sort_order: 3
+      },
+      {
+        action: 'supprimer',
+        label: 'Supprimer un certificat',
+        description: 'Permet de supprimer un certificat',
+        sort_order: 4
+      },
+      {
+        action: 'telecharger',
+        label: 'Telecharger un certificat',
+        description: 'Permet de telecharger un certificat en PDF',
+        sort_order: 5
+      }
+    ],
+
     forums: [
       {
         action: 'voir',
@@ -1351,6 +1385,7 @@ function getMenuLabel(sectionKey, menuKey) {
     rapports_etudiants: 'Rapports Etudiants',
     liste_etudiants: 'Liste des Etudiants',
     templates_certificats: 'Templates de Certificats',
+    certificats: 'Certificats',
     forums: 'Forums',
     // Ressources Humaines
     boucles_validation: 'Boucles de Validation',

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { rolesApi, type Role, type GroupedPermissions } from '@/lib/api/roles';
 import { permissionsApi } from '@/lib/api/permissions';
+import { apiClient } from '@/lib/api/client';
 import { PermissionTree } from '@/components/admin/PermissionTree';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import {
@@ -220,16 +221,17 @@ export const RolesManagement: React.FC = () => {
   const handleValidateMappings = async () => {
     setIsValidating(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/roles/validate-mappings', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setValidationResults(data.data);
+      const response = await apiClient.get<{
+        success: boolean;
+        data: typeof validationResults;
+        error?: string;
+      }>('/roles/validate-mappings');
+
+      if (response.success && response.data) {
+        setValidationResults(response.data);
         setShowValidationModal(true);
       } else {
-        alert('Erreur: ' + data.error);
+        alert('Erreur: ' + (response.error || 'Réponse invalide'));
       }
     } catch (error: any) {
       console.error('Validation error:', error);
