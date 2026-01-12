@@ -15,7 +15,7 @@ const router = express.Router();
 
 router.post('/run',
   authenticateToken,
-  requireRole(['admin', 'gerant']),
+  requireRole('admin', 'gerant'),
   async (req, res) => {
     const client = await pool.connect();
 
