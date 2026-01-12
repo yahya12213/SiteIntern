@@ -1114,8 +1114,26 @@ export const LEGACY_PERMISSION_MAPPING: Record<string, string> = {
 
   // HR Self-Service -> Mon Espace RH
   'hr.clocking.self': 'mon_espace_rh.mon_pointage.voir',
+  'hr.clocking.view_own': 'mon_espace_rh.mon_pointage.voir',
+  'hr.clocking.clock': 'mon_espace_rh.mon_pointage.pointer',
   'hr.my.requests': 'mon_espace_rh.mes_demandes.voir',
   'hr.my.payslips': 'mon_espace_rh.mes_bulletins.voir',
+
+  // Employee -> Mon Espace RH
+  'employee.clocking.view_page': 'mon_espace_rh.mon_pointage.voir',
+  'employee.clocking.clock': 'mon_espace_rh.mon_pointage.pointer',
+  'employee.requests.view_page': 'mon_espace_rh.mes_demandes.voir',
+  'employee.requests.create': 'mon_espace_rh.mes_demandes.creer',
+  'employee.requests.cancel': 'mon_espace_rh.mes_demandes.annuler',
+  'employee.payslips.view_page': 'mon_espace_rh.mes_bulletins.voir',
+  'employee.payslips.download': 'mon_espace_rh.mes_bulletins.telecharger',
+
+  // Manager -> Mon Equipe
+  'manager.team_attendance.view_page': 'mon_equipe.pointages_equipe.voir',
+  'manager.team_attendance.delete': 'mon_equipe.pointages_equipe.supprimer',
+  'manager.team_requests.view_page': 'mon_equipe.demandes_equipe.voir',
+  'manager.team_requests.approve': 'mon_equipe.demandes_equipe.approuver',
+  'manager.team_requests.reject': 'mon_equipe.demandes_equipe.rejeter',
 
   // Commercialisation
   'commercialisation.dashboard.view_page': 'commercialisation.tableau_de_bord.voir',

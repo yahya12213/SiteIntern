@@ -15,6 +15,22 @@ import { convertLegacyPermission } from '@/config/permissions';
 export function usePermission() {
   const { user, permissions } = useAuth();
 
+  // Normaliser les permissions en convertissant les codes legacy vers les nouveaux codes français
+  const normalizedPermissions = useMemo(() => {
+    if (!permissions || permissions.length === 0) return [];
+    const normalized = new Set<string>();
+    permissions.forEach(p => {
+      // Ajouter le code original
+      normalized.add(p);
+      // Ajouter aussi le code converti (si différent)
+      const converted = convertLegacyPermission(p);
+      if (converted !== p) {
+        normalized.add(converted);
+      }
+    });
+    return Array.from(normalized);
+  }, [permissions]);
+
   // Verifier si l'utilisateur a une permission specifique
   const can = useCallback((permissionCode: string): boolean => {
     // Admin a toujours toutes les permissions
@@ -70,21 +86,22 @@ export function usePermission() {
 
   // Obtenir toutes les permissions de vue (pour visibilite des menus)
   const viewablePages = useMemo(() => {
-    if (user?.role === 'admin' || permissions.includes('*')) {
+    if (user?.role === 'admin' || normalizedPermissions.includes('*')) {
       // Admin voit toutes les pages
       return ['*'];
     }
-    return permissions.filter(p => p.endsWith('.voir'));
-  }, [user, permissions]);
+    return normalizedPermissions.filter(p => p.endsWith('.voir'));
+  }, [user, normalizedPermissions]);
 
   // Verifier si l'utilisateur peut voir une section
   const canAccessSection = useCallback((section: string): boolean => {
     if (user?.role === 'admin') return true;
-    if (permissions.includes('*')) return true;
+    if (normalizedPermissions.includes('*')) return true;
     // Verifier permission d'acces a la section ou au moins une permission .voir dans la section
-    return permissions.includes(`${section}.acces`) ||
-           permissions.some(p => p.startsWith(`${section}.`) && p.endsWith('.voir'));
-  }, [user, permissions]);
+    // Utilise normalizedPermissions qui inclut les codes legacy convertis
+    return normalizedPermissions.includes(`${section}.acces`) ||
+           normalizedPermissions.some(p => p.startsWith(`${section}.`) && p.endsWith('.voir'));
+  }, [user, normalizedPermissions]);
 
   // ==================== GESTION COMPTABLE ====================
   const gestionComptable = useMemo(() => ({
@@ -529,6 +546,7 @@ export function usePermission() {
     // Utilitaires
     viewablePages,
     permissions,
+    normalizedPermissions, // Permissions avec codes legacy convertis
     isAdmin: user?.role === 'admin',
 
     // Permissions par section
