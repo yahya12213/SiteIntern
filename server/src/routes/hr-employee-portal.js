@@ -119,13 +119,16 @@ router.get('/attendance', authenticateToken, async (req, res) => {
     // Get attendance records for the month (with try/catch for missing table)
     let records = { rows: [] };
     try {
+      // Statuts possibles pour le check-in: initial (check_in, late, weekend) + finaux après check-out (present, half_day, early_leave, late_early, incomplete)
       records = await pool.query(`
         SELECT
           attendance_date as date,
-          MIN(CASE WHEN status IN ('check_in', 'late', 'weekend') THEN clock_time END) as check_in,
+          MIN(CASE WHEN status IN ('check_in', 'late', 'weekend', 'present', 'half_day', 'early_leave', 'late_early', 'incomplete') THEN clock_time END) as check_in,
           MAX(CASE WHEN status IN ('check_out', 'weekend') THEN clock_time END) as check_out,
-          COUNT(CASE WHEN status IN ('check_in', 'late', 'weekend') THEN 1 END) as check_ins,
-          COUNT(CASE WHEN status IN ('check_out', 'weekend') THEN 1 END) as check_outs
+          COUNT(CASE WHEN status IN ('check_in', 'late', 'weekend', 'present', 'half_day', 'early_leave', 'late_early', 'incomplete') THEN 1 END) as check_ins,
+          COUNT(CASE WHEN status IN ('check_out', 'weekend') THEN 1 END) as check_outs,
+          MAX(CASE WHEN status NOT IN ('check_out') THEN status END) as day_status,
+          MAX(late_minutes) as late_minutes
         FROM hr_attendance_records
         WHERE employee_id = $1
           AND EXTRACT(YEAR FROM attendance_date) = $2
@@ -133,12 +136,6 @@ router.get('/attendance', authenticateToken, async (req, res) => {
         GROUP BY attendance_date
         ORDER BY attendance_date DESC
       `, [employee.id, targetYear, targetMonth]);
-
-      // DEBUG LOG - À supprimer après diagnostic
-      console.log(`📊 ATTENDANCE DEBUG: employee_id=${employee.id}, year=${targetYear}, month=${targetMonth}, records_count=${records.rows.length}`);
-      if (records.rows.length > 0) {
-        console.log(`📊 ATTENDANCE DATES:`, records.rows.map(r => r.date));
-      }
     } catch (err) {
       console.log('Warning: hr_attendance_records table issue:', err.message);
     }
@@ -345,13 +342,17 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
       if (!r.check_in || !r.check_out) {
+        // Utiliser le statut réel de la base de données si disponible
+        let displayStatus = r.day_status || (isWeekend ? 'weekend' : (r.check_ins > 0 ? 'incomplete' : 'absent'));
+
         return {
           date: r.date,
           check_in: r.check_in ? new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }) : '-',
           check_out: r.check_out ? new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }) : '-',
-          status: isWeekend ? 'weekend' : (r.check_ins > 0 ? 'present' : 'absent'),
+          status: displayStatus,
           worked_minutes: isWeekend ? 0 : null,
           has_anomaly: isWeekend ? false : hasAnomaly,
+          late_minutes: r.late_minutes || 0,
           correction_request: correctionRequest
         };
       }
@@ -402,13 +403,17 @@ router.get('/attendance', authenticateToken, async (req, res) => {
         workedMinutes -= Math.max(0, breakDuration);
       }
 
+      // Utiliser le statut réel de la base de données
+      const displayStatus = r.day_status || 'present';
+
       return {
         date: r.date,
         check_in: new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }),
         check_out: new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }),
-        status: r.check_ins > 0 ? 'present' : 'absent',
+        status: displayStatus,
         worked_minutes: Math.max(0, workedMinutes),
         has_anomaly: hasAnomaly,
+        late_minutes: r.late_minutes || 0,
         correction_request: correctionRequest
       };
     });

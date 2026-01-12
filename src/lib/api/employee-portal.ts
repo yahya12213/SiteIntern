@@ -69,6 +69,7 @@ export interface AttendanceRecord {
   status: AttendanceStatus;
   worked_minutes?: number | null;
   has_anomaly?: boolean;
+  late_minutes?: number;
   correction_request?: CorrectionRequestInfo | null;
 }
 
