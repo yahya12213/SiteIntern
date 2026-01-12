@@ -3,6 +3,8 @@
  *
  * The backend routes use training.certificates.* which converts to formation.certificats.*
  * but these permissions were missing from the database.
+ *
+ * FIXED: Uses simple permissions table structure (no modules/submenus tables)
  */
 
 import express from 'express';
@@ -19,75 +21,38 @@ router.post('/run', authenticateToken, requireRole('admin'), async (req, res) =>
 
     console.log('🚀 Migration 114: Adding certificats permissions...');
 
-    // Get formation module ID
-    const moduleResult = await client.query(`
-      SELECT id FROM modules WHERE code = 'formation' LIMIT 1
-    `);
-
-    if (moduleResult.rows.length === 0) {
-      throw new Error('Module "formation" not found. Please run migration 109 first.');
-    }
-
-    const moduleId = moduleResult.rows[0].id;
-    console.log(`✓ Found formation module: ${moduleId}`);
-
-    // Check if certificats submenu already exists
-    let submenuResult = await client.query(`
-      SELECT id FROM submenus WHERE code = 'certificats' AND module_id = $1
-    `, [moduleId]);
-
-    let submenuId;
-
-    if (submenuResult.rows.length === 0) {
-      // Create the certificats submenu
-      const insertSubmenu = await client.query(`
-        INSERT INTO submenus (module_id, code, name, description, sort_order)
-        VALUES ($1, 'certificats', 'Certificats', 'Gestion des certificats generes', 8)
-        RETURNING id
-      `, [moduleId]);
-      submenuId = insertSubmenu.rows[0].id;
-      console.log(`✓ Created certificats submenu: ${submenuId}`);
-    } else {
-      submenuId = submenuResult.rows[0].id;
-      console.log(`✓ Certificats submenu already exists: ${submenuId}`);
-    }
-
     // Define the certificats permissions to add
+    // Using simple permissions table structure: code, name, module, description
     const certificatsPermissions = [
       {
         code: 'formation.certificats.voir',
         name: 'Voir les certificats',
-        description: 'Permet de voir les certificats generes',
-        action: 'voir',
-        sort_order: 1
+        module: 'formation',
+        description: 'Permet de voir les certificats generes'
       },
       {
         code: 'formation.certificats.generer',
         name: 'Generer un certificat',
-        description: 'Permet de generer un nouveau certificat pour un etudiant',
-        action: 'generer',
-        sort_order: 2
+        module: 'formation',
+        description: 'Permet de generer un nouveau certificat pour un etudiant'
       },
       {
         code: 'formation.certificats.modifier',
         name: 'Modifier un certificat',
-        description: 'Permet de modifier un certificat existant',
-        action: 'modifier',
-        sort_order: 3
+        module: 'formation',
+        description: 'Permet de modifier un certificat existant'
       },
       {
         code: 'formation.certificats.supprimer',
         name: 'Supprimer un certificat',
-        description: 'Permet de supprimer un certificat',
-        action: 'supprimer',
-        sort_order: 4
+        module: 'formation',
+        description: 'Permet de supprimer un certificat'
       },
       {
         code: 'formation.certificats.telecharger',
         name: 'Telecharger un certificat',
-        description: 'Permet de telecharger un certificat en PDF',
-        action: 'telecharger',
-        sort_order: 5
+        module: 'formation',
+        description: 'Permet de telecharger un certificat en PDF'
       }
     ];
 
@@ -102,9 +67,9 @@ router.post('/run', authenticateToken, requireRole('admin'), async (req, res) =>
 
       if (existing.rows.length === 0) {
         await client.query(`
-          INSERT INTO permissions (code, name, description, module_id, submenu_id, action, sort_order, is_active)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, true)
-        `, [perm.code, perm.name, perm.description, moduleId, submenuId, perm.action, perm.sort_order]);
+          INSERT INTO permissions (code, name, module, description)
+          VALUES ($1, $2, $3, $4)
+        `, [perm.code, perm.name, perm.module, perm.description]);
         console.log(`  ✓ Created: ${perm.code}`);
         created++;
       } else {
@@ -124,8 +89,7 @@ router.post('/run', authenticateToken, requireRole('admin'), async (req, res) =>
       message: 'Migration 114 completed successfully',
       details: {
         created,
-        skipped,
-        submenuId
+        skipped
       }
     });
 
@@ -147,7 +111,7 @@ router.get('/status', authenticateToken, async (req, res) => {
     const result = await pool.query(`
       SELECT code, name FROM permissions
       WHERE code LIKE 'formation.certificats.%'
-      ORDER BY sort_order
+      ORDER BY code
     `);
 
     res.json({
