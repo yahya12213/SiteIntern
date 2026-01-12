@@ -407,6 +407,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 113: Classification Types Permissions',
     description: '🏷️ Ajoute colonne permission_type (menu, sous_menu, page, bouton) pour distinguer le niveau hiérarchique de chaque permission',
     endpoint: '/migration-113-permission-types'
+  },
+  {
+    id: 'migration-114',
+    name: 'Migration 114: Ajouter Permissions Certificats',
+    description: '📜 Ajoute les permissions formation.certificats.* (voir, generer, modifier, supprimer, telecharger) manquantes pour les routes certificates.js',
+    endpoint: '/migration-114-add-certificats-permissions'
   }
 ];
 
