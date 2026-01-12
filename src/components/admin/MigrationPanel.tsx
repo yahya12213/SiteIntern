@@ -419,6 +419,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 115: Ajouter TOUTES Permissions Manquantes',
     description: '🔧 Ajoute les 34 permissions manquantes identifiees par la validation: sessions (3), templates (2), certificats (4), forums (3), centres (2), corps (4), pointage (4), conges (4), dashboard RH (1), parametres (2), jours feries (2), declarations (2)',
     endpoint: '/migration-115-add-all-missing-permissions'
+  },
+  {
+    id: 'migration-116',
+    name: 'Migration 116: Consolider Permissions Doublons',
+    description: '🔗 Migre les role_permissions des anciens codes EN (training.certificates.*) vers les nouveaux codes FR (formation.certificats.*) et supprime les doublons. Corrige les erreurs "Permission denied".',
+    endpoint: '/migration-116-consolidate-permissions'
   }
 ];
 
