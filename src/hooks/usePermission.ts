@@ -383,6 +383,27 @@ export function usePermission() {
     canDeleteClient: can('commercialisation.prospects.supprimer'),
     canViewClient: can('commercialisation.prospects.voir'),
 
+    // Legacy - Prospect aliases (utilisés par Prospects.tsx)
+    canCreateProspect: can('commercialisation.prospects.creer'),
+    canUpdateProspect: can('commercialisation.prospects.modifier'),
+    canDeleteProspect: can('commercialisation.prospects.supprimer'),
+    canViewProspects: can('commercialisation.prospects.voir'),
+    canImportProspects: can('commercialisation.prospects.importer'),
+    canExportProspects: can('commercialisation.prospects.exporter'),
+    canCallProspect: can('commercialisation.prospects.appeler'),
+    canAssignProspect: can('commercialisation.prospects.assigner'),
+    canReinjectProspect: can('commercialisation.prospects.reinjecter'),
+
+    // Visits object (utilisé par Visits.tsx)
+    visits: {
+      create: can('commercialisation.visites.creer'),
+      update: can('commercialisation.visites.modifier'),
+      delete: can('commercialisation.visites.supprimer'),
+      view_page: can('commercialisation.visites.voir'),
+      export: can('commercialisation.visites.exporter'),
+      view_analytics: can('commercialisation.visites.voir_analytics'),
+    },
+
     // Gestion G-Contacte
     voirGContacte: can('commercialisation.gestion_gcontacte.voir'),
     configurerGContacte: can('commercialisation.gestion_gcontacte.configurer'),
