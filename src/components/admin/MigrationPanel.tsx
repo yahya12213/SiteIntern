@@ -383,6 +383,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 109: Refactorisation Permissions Français',
     description: '🇫🇷 Refactorisation complète des permissions en français - Structure hiérarchique (section.sous_menu.onglet.action), ~150 nouvelles permissions alignées avec le menu latéral',
     endpoint: '/migration-109-refactor-permissions-french'
+  },
+  {
+    id: 'migration-110',
+    name: 'Migration 110: Renommer Permissions en Français',
+    description: '🔄 Renomme les permissions anglaises existantes en français (UPDATE, pas INSERT) - Assure la cohérence entre la DB et le frontend sans créer de doublons',
+    endpoint: '/migration-110-rename-permissions-french'
   }
 ];
 

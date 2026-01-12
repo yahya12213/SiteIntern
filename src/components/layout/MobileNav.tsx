@@ -34,6 +34,10 @@ import {
   GitBranch,
   Calendar,
   Trash2,
+  ArrowRightLeft,
+  UserCheck,
+  Send,
+  Receipt,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,7 +62,7 @@ interface NavItem {
 
 export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation', 'ressources-humaines', 'commercialisation']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation', 'ressources-humaines', 'mon-equipe', 'mon-espace-rh', 'commercialisation']);
   const { user, isAdmin, isGerant, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -119,6 +123,28 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
         { to: '/admin/hr/employee-portal', icon: Clock, label: 'Gestion Pointage', permission: PERMISSIONS.ressources_humaines.gestion_pointage.voir },
         { to: '/admin/hr/employees', icon: User, label: 'Dossier Employé', permission: PERMISSIONS.ressources_humaines.dossier_employe.voir },
         { to: '/admin/hr/requests-validation', icon: CheckSquare, label: 'Validation des Demandes', permission: PERMISSIONS.ressources_humaines.validation_demandes.voir },
+        { to: '/admin/hr/delegations', icon: ArrowRightLeft, label: 'Délégations', permission: PERMISSIONS.ressources_humaines.delegations.voir },
+      ],
+    },
+    // Section Manager - Vue Équipe
+    {
+      id: 'mon-equipe',
+      title: 'Mon Équipe',
+      icon: UserCheck,
+      items: [
+        { to: '/manager/team-attendance', icon: Clock, label: 'Pointages équipe', permission: PERMISSIONS.mon_equipe.pointages_equipe.voir },
+        { to: '/manager/team-requests', icon: CheckSquare, label: 'Demandes équipe', permission: PERMISSIONS.mon_equipe.demandes_equipe.voir },
+      ],
+    },
+    // Section Employé - Mon Espace RH
+    {
+      id: 'mon-espace-rh',
+      title: 'Mon Espace RH',
+      icon: User,
+      items: [
+        { to: '/employee/clocking', icon: Clock, label: 'Mon Pointage', permission: PERMISSIONS.mon_espace_rh.mon_pointage.voir },
+        { to: '/employee/requests', icon: Send, label: 'Mes Demandes', permission: PERMISSIONS.mon_espace_rh.mes_demandes.voir },
+        { to: '/employee/payslips', icon: Receipt, label: 'Mes Bulletins', permission: PERMISSIONS.mon_espace_rh.mes_bulletins.voir },
       ],
     },
     {
