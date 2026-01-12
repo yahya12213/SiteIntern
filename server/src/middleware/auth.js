@@ -61,7 +61,7 @@ const EN_TO_FR_PERMISSION_MAP = {
   'training.student.': 'formation.etudiant.',
 
   // === ACCOUNTING DIRECT MAPPINGS ===
-  'accounting.actions.': 'gestion_comptable.plan_action.',
+  'accounting.actions.': 'gestion_comptable.gestion_projet.',
   'accounting.calculation_sheets.': 'gestion_comptable.fiches_calcul.',
   'accounting.projects.': 'gestion_comptable.gestion_projet.',
   'accounting.users.': 'gestion_comptable.utilisateurs.',

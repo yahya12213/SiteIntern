@@ -456,10 +456,10 @@ export const PERMISSIONS = {
       submit: 'gestion_comptable.declarations.soumettre',
     },
     actions: {
-      view_page: 'gestion_comptable.plan_action.voir',
-      create: 'gestion_comptable.plan_action.creer',
-      update: 'gestion_comptable.plan_action.modifier',
-      delete: 'gestion_comptable.plan_action.supprimer',
+      view_page: 'gestion_comptable.gestion_projet.voir',
+      create: 'gestion_comptable.gestion_projet.creer',
+      update: 'gestion_comptable.gestion_projet.modifier',
+      delete: 'gestion_comptable.gestion_projet.supprimer',
     },
     projects: {
       view_page: 'gestion_comptable.gestion_projet.voir',
