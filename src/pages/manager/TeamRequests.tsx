@@ -102,8 +102,8 @@ interface RequestDetailModalProps {
 function RequestDetailModal({ request, open, onOpenChange, onApprove, onReject }: RequestDetailModalProps) {
   if (!request) return null;
 
-  const typeConfig = REQUEST_TYPE_CONFIG[request.request_type];
-  const statusConfig = STATUS_CONFIG[request.status];
+  const typeConfig = REQUEST_TYPE_CONFIG[request.request_type] || REQUEST_TYPE_CONFIG.leave;
+  const statusConfig = STATUS_CONFIG[request.status] || { label: request.status, className: 'bg-gray-100 text-gray-800', icon: Clock };
   const TypeIcon = typeConfig.icon;
   const StatusIcon = statusConfig.icon;
 
@@ -826,8 +826,8 @@ export default function TeamRequests() {
                   </TableHeader>
                   <TableBody>
                     {displayRequests.map((request) => {
-                      const typeConfig = REQUEST_TYPE_CONFIG[request.request_type];
-                      const statusConfig = STATUS_CONFIG[request.status];
+                      const typeConfig = REQUEST_TYPE_CONFIG[request.request_type] || REQUEST_TYPE_CONFIG.leave;
+                      const statusConfig = STATUS_CONFIG[request.status] || { label: request.status, className: 'bg-gray-100 text-gray-800', icon: Clock };
                       const TypeIcon = typeConfig.icon;
                       const StatusIcon = statusConfig.icon;
 
