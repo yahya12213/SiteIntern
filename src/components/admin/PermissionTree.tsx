@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { permissionsApi, type PermissionModule, type PermissionMenu } from '@/lib/api/permissions';
 import { getPermissionLabel } from '@/config/permissions';
-import { ChevronDown, ChevronRight, Check, Minus, Folder, FileText, Info } from 'lucide-react';
+import { ChevronDown, ChevronRight, Check, Minus, Folder, FileText, Info, Search, Download, Copy } from 'lucide-react';
 
 interface PermissionTreeProps {
   selectedPermissions: string[]; // Array of permission IDs
   onSelectionChange: (permissionIds: string[]) => void;
   readOnly?: boolean;
+  roleName?: string; // Nom du rôle pour l'export
 }
 
 interface ExpandState {
@@ -18,8 +19,11 @@ export function PermissionTree({
   selectedPermissions,
   onSelectionChange,
   readOnly = false,
+  roleName,
 }: PermissionTreeProps) {
   const [expanded, setExpanded] = useState<ExpandState>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
 
   // Fetch permission tree structure
   const { data: treeData, isLoading, error } = useQuery({
@@ -43,6 +47,63 @@ export function PermissionTree({
 
   const toggleExpand = (key: string) => {
     setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // Filtrer les modules/menus/actions par recherche
+  const filteredData = useMemo(() => {
+    if (!treeData?.data) return [];
+    if (!searchQuery.trim()) return treeData.data;
+
+    const query = searchQuery.toLowerCase();
+    return treeData.data.map(module => ({
+      ...module,
+      menus: module.menus.map(menu => ({
+        ...menu,
+        actions: menu.actions.filter(action =>
+          action.label?.toLowerCase().includes(query) ||
+          action.code?.toLowerCase().includes(query) ||
+          menu.label?.toLowerCase().includes(query) ||
+          module.label?.toLowerCase().includes(query)
+        )
+      })).filter(menu => menu.actions.length > 0)
+    })).filter(module => module.menus.length > 0);
+  }, [treeData, searchQuery]);
+
+  // Fonction d'export des permissions
+  const handleExport = () => {
+    const selectedPerms = treeData?.data?.flatMap(m =>
+      m.menus.flatMap(menu =>
+        menu.actions
+          .filter(a => selectedPermissions.includes(a.id))
+          .map(a => ({
+            module: m.label,
+            menu: menu.label,
+            action: a.label || getPermissionLabel(a.code),
+            code: a.code
+          }))
+      )
+    ) || [];
+
+    // Format texte lisible
+    let text = `Permissions du rôle: ${roleName || 'N/A'}\n`;
+    text += `Date: ${new Date().toLocaleDateString('fr-FR')}\n`;
+    text += `Total: ${selectedPerms.length} permissions\n`;
+    text += `${'='.repeat(50)}\n`;
+
+    let currentModule = '';
+    selectedPerms.forEach(p => {
+      if (p.module !== currentModule) {
+        currentModule = p.module;
+        text += `\n=== ${p.module} ===\n`;
+      }
+      text += `  • ${p.menu} → ${p.action}\n`;
+    });
+
+    // Copier dans le presse-papier
+    navigator.clipboard.writeText(text).then(() => {
+      setExportMessage('Permissions copiées!');
+      setTimeout(() => setExportMessage(null), 3000);
+    });
   };
 
   // Check if all actions in a menu are selected
@@ -133,16 +194,58 @@ export function PermissionTree({
 
   return (
     <div className="space-y-4">
-      {/* Summary */}
-      <div className="bg-gray-50 rounded-md p-3 mb-4">
-        <p className="text-sm text-gray-600">
-          <span className="font-medium">{selectedPermissions.length}</span> permissions sélectionnées
-        </p>
+      {/* Search + Summary */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        {/* Barre de recherche */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Rechercher une permission..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        {/* Summary */}
+        <div className="bg-gray-50 rounded-md px-4 py-2 flex items-center gap-2">
+          <span className="text-sm text-gray-600">
+            <span className="font-medium">{selectedPermissions.length}</span> sélectionnées
+          </span>
+          {searchQuery && (
+            <span className="text-xs text-indigo-600">
+              ({filteredData.reduce((acc, m) => acc + m.menus.reduce((a, menu) => a + menu.actions.length, 0), 0)} affichées)
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Message d'export */}
+      {exportMessage && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded-md text-sm flex items-center gap-2">
+          <Check className="h-4 w-4" />
+          {exportMessage}
+        </div>
+      )}
 
       {/* Tree */}
       <div className="border border-gray-200 rounded-lg overflow-hidden">
-        {treeData.data.map((module) => (
+        {filteredData.length === 0 && searchQuery ? (
+          <div className="p-8 text-center text-gray-500">
+            <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>Aucune permission trouvée pour "{searchQuery}"</p>
+          </div>
+        ) : null}
+        {filteredData.map((module) => (
           <div key={module.id} className="border-b border-gray-200 last:border-b-0">
             {/* Module Header */}
             <div
@@ -281,46 +384,58 @@ export function PermissionTree({
       </div>
 
       {/* Quick actions */}
-      {!readOnly && (
-        <div className="flex gap-2 mt-4">
-          <button
-            type="button"
-            onClick={() => {
-              const allIds = treeData.data.flatMap(m =>
-                m.menus.flatMap(menu => menu.actions.map(a => a.id))
-              );
-              onSelectionChange(allIds);
-            }}
-            className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md"
-          >
-            Tout sélectionner
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelectionChange([])}
-            className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md"
-          >
-            Tout désélectionner
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              // Select only view_page permissions
-              const viewPageIds = treeData.data.flatMap(m =>
-                m.menus.flatMap(menu =>
-                  menu.actions
-                    .filter(a => a.action === 'view_page')
-                    .map(a => a.id)
-                )
-              );
-              onSelectionChange(viewPageIds);
-            }}
-            className="px-3 py-1 text-sm bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-md"
-          >
-            Lecture seule (voir pages)
-          </button>
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2 mt-4">
+        {!readOnly && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                const allIds = treeData?.data?.flatMap(m =>
+                  m.menus.flatMap(menu => menu.actions.map(a => a.id))
+                ) || [];
+                onSelectionChange(allIds);
+              }}
+              className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md"
+            >
+              Tout sélectionner
+            </button>
+            <button
+              type="button"
+              onClick={() => onSelectionChange([])}
+              className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md"
+            >
+              Tout désélectionner
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                // Select only view_page permissions
+                const viewPageIds = treeData?.data?.flatMap(m =>
+                  m.menus.flatMap(menu =>
+                    menu.actions
+                      .filter(a => a.action === 'view_page' || a.code?.endsWith('.voir'))
+                      .map(a => a.id)
+                  )
+                ) || [];
+                onSelectionChange(viewPageIds);
+              }}
+              className="px-3 py-1 text-sm bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-md"
+            >
+              Lecture seule (voir pages)
+            </button>
+          </>
+        )}
+        {/* Bouton Export - toujours visible */}
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={selectedPermissions.length === 0}
+          className="px-3 py-1 text-sm bg-green-100 hover:bg-green-200 text-green-700 rounded-md flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Copy className="h-3.5 w-3.5" />
+          Exporter ({selectedPermissions.length})
+        </button>
+      </div>
     </div>
   );
 }

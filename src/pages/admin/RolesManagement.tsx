@@ -623,6 +623,7 @@ export const RolesManagement: React.FC = () => {
                     <PermissionTree
                       selectedPermissions={formPermissions}
                       onSelectionChange={setFormPermissions}
+                      roleName={formName || 'Nouveau rôle'}
                     />
                   ) : (
                     <div className="border border-gray-300 rounded-lg max-h-[300px] overflow-y-auto">
@@ -747,6 +748,7 @@ export const RolesManagement: React.FC = () => {
                     <PermissionTree
                       selectedPermissions={formPermissions}
                       onSelectionChange={setFormPermissions}
+                      roleName={selectedRole?.name || formName}
                     />
                   ) : (
                     <div className="border border-gray-300 rounded-lg max-h-[300px] overflow-y-auto">
