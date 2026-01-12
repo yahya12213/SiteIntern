@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { permissionsApi, type PermissionModule, type PermissionMenu } from '@/lib/api/permissions';
 import { getPermissionLabel } from '@/config/permissions';
-import { ChevronDown, ChevronRight, Check, Minus, Folder, FileText, Info, Search, Download, Copy } from 'lucide-react';
+import { ChevronDown, ChevronRight, Check, Minus, Folder, FileText, Info, Search, Copy } from 'lucide-react';
 
 interface PermissionTreeProps {
   selectedPermissions: string[]; // Array of permission IDs
