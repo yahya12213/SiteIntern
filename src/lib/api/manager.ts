@@ -74,7 +74,7 @@ export interface TeamRequest {
   duration_days?: number;
   duration_hours?: number;
   reason?: string;
-  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  status: 'pending' | 'approved' | 'approved_n1' | 'approved_n2' | 'approved_n3' | 'approved_n4' | 'approved_n5' | 'rejected' | 'cancelled';
   current_step?: number;
   total_steps?: number;
   created_at: string;

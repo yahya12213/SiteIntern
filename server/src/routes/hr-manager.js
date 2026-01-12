@@ -331,7 +331,7 @@ router.get('/team-requests',
   authenticateToken,
   async (req, res) => {
     const userId = req.user.id;
-    const { status = 'pending', type } = req.query;
+    const { status, type } = req.query;
 
     try {
       // 🔧 FIX: Admin voit toutes les demandes, pas seulement son équipe
