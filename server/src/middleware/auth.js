@@ -128,7 +128,7 @@ const EN_TO_FR_ACTION_MAP = {
 
   // === ACTIONS FORMATION (étudiants) ===
   '.add_student': '.ajouter_etudiant',
-  '.edit_student': '.editer_etudiant',
+  '.edit_student': '.modifier_etudiant',
   '.remove_student': '.retirer_etudiant',
   '.delete_payment': '.supprimer_paiement',
   '.transfer_student': '.transfert_etudiant',
