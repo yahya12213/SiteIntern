@@ -401,6 +401,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 112: Supprimer Permissions Anglaises',
     description: '🗑️ Supprime les permissions anglaises qui ont un équivalent français - Migre role_permissions vers la version FR, supprime les EN (428 → ~200 permissions)',
     endpoint: '/migration-112-cleanup-english-permissions'
+  },
+  {
+    id: 'migration-113',
+    name: 'Migration 113: Classification Types Permissions',
+    description: '🏷️ Ajoute colonne permission_type (menu, sous_menu, page, bouton) pour distinguer le niveau hiérarchique de chaque permission',
+    endpoint: '/migration-113-permission-types'
   }
 ];
 
