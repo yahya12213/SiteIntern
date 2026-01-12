@@ -465,4 +465,4 @@ export const apiRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-export { JWT_SECRET, JWT_EXPIRES_IN };
+export { JWT_SECRET, JWT_EXPIRES_IN, EN_TO_FR_PERMISSION_MAP, EN_TO_FR_ACTION_MAP };

@@ -5,7 +5,7 @@
 
 import express from 'express';
 import pool from '../config/database.js';
-import { authenticateToken, requireRole, requirePermission } from '../middleware/auth.js';
+import { authenticateToken, requireRole, requirePermission, EN_TO_FR_PERMISSION_MAP, EN_TO_FR_ACTION_MAP } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -40,6 +40,181 @@ router.get('/', requirePermission('system.roles.view_page'), async (req, res) =>
       success: false,
       error: error.message,
     });
+  }
+});
+
+/**
+ * GET /api/roles/validate-mappings
+ * Validate that all EN permission codes map correctly to FR codes in the database
+ */
+router.get('/validate-mappings', requirePermission('system.roles.view_page'), async (req, res) => {
+  try {
+    // Liste de TOUS les codes EN utilisés dans les routes backend
+    const ROUTE_PERMISSIONS = [
+      // sessions-formation.js
+      'training.sessions.view_page',
+      'training.sessions.create',
+      'training.sessions.update',
+      'training.sessions.delete',
+      'training.sessions.add_student',
+      'training.sessions.edit_student',
+      'training.sessions.remove_student',
+      'training.sessions.delete_payment',
+      'training.sessions.transfer_student',
+      // formations/cours.js
+      'training.formations.view_page',
+      'training.formations.create',
+      'training.formations.update',
+      'training.formations.delete',
+      'training.formations.edit_content',
+      'training.formations.create_pack',
+      'training.formations.duplicate',
+      // students.js
+      'training.students.view_page',
+      'training.students.create',
+      'training.students.update',
+      'training.students.delete',
+      // certificate-templates.js
+      'training.certificate_templates.view_page',
+      'training.certificate_templates.create',
+      'training.certificate_templates.update',
+      'training.certificate_templates.delete',
+      // certificates.js
+      'training.certificates.view_page',
+      'training.certificates.view',
+      'training.certificates.generate',
+      'training.certificates.update',
+      'training.certificates.delete',
+      // forums.js
+      'training.forums.view_page',
+      'training.forums.view',
+      'training.forums.create_thread',
+      'training.forums.update_thread',
+      'training.forums.reply',
+      'training.forums.delete',
+      'training.forums.manage',
+      'training.forums.react',
+      // analytics.js
+      'training.analytics.view_page',
+      // centres.js
+      'training.centres.view_page',
+      'training.centres.create',
+      // corps-formation.js
+      'training.corps.view_page',
+      'training.corps.create',
+      'training.corps.update',
+      'training.corps.delete',
+      // hr-attendance.js
+      'hr.attendance.view_page',
+      'hr.attendance.create',
+      'hr.attendance.edit',
+      'hr.attendance.approve_overtime',
+      'hr.attendance.reject_overtime',
+      // hr-leaves.js
+      'hr.leaves.view_page',
+      'hr.leaves.create',
+      'hr.leaves.approve',
+      'hr.leaves.edit',
+      // hr-dashboard.js
+      'hr.dashboard.view_page',
+      // hr-settings.js
+      'hr.settings.view_page',
+      'hr.settings.edit',
+      // hr-validation-workflows.js
+      'hr.validation_workflows.view_page',
+      // hr-public-holidays.js
+      'hr.holidays.view_page',
+      'hr.holidays.manage',
+      // accounting - declarations.js
+      'accounting.declarations.view_page',
+      'accounting.declarations.view_all',
+      'accounting.declarations.create',
+      'accounting.declarations.fill_data',
+      'accounting.declarations.edit_metadata',
+      'accounting.declarations.approve',
+      'accounting.declarations.delete',
+      // accounting - cities.js
+      'accounting.cities.create',
+      'accounting.cities.update',
+      'accounting.cities.delete',
+      // accounting - segments.js
+      'accounting.segments.create',
+      'accounting.segments.update',
+      'accounting.segments.delete',
+      // accounting - calculationSheets.js
+      'accounting.calculation_sheets.create',
+      'accounting.calculation_sheets.update',
+      'accounting.calculation_sheets.delete',
+      'accounting.calculation_sheets.publish',
+      // accounting - admin.js (dashboard)
+      'accounting.dashboard.view_page',
+      // system
+      'system.roles.view_page',
+    ];
+
+    // Fonction de conversion (même logique que auth.js)
+    function convertToFrench(code) {
+      let converted = code;
+
+      const sortedPrefixes = Object.entries(EN_TO_FR_PERMISSION_MAP)
+        .sort((a, b) => b[0].length - a[0].length);
+
+      for (const [en, fr] of sortedPrefixes) {
+        if (converted.includes(en)) {
+          converted = converted.replace(en, fr);
+          break;
+        }
+      }
+
+      const sortedActions = Object.entries(EN_TO_FR_ACTION_MAP)
+        .sort((a, b) => b[0].length - a[0].length);
+
+      for (const [en, fr] of sortedActions) {
+        if (converted.endsWith(en)) {
+          converted = converted.slice(0, -en.length) + fr;
+          break;
+        }
+      }
+
+      return converted;
+    }
+
+    // Récupérer tous les codes de la DB
+    const { rows } = await pool.query('SELECT code FROM permissions');
+    const dbCodes = new Set(rows.map(r => r.code));
+
+    // Valider chaque permission
+    const results = [];
+    let errors = 0;
+
+    for (const enCode of ROUTE_PERMISSIONS) {
+      const frCode = convertToFrench(enCode);
+      const exists = dbCodes.has(frCode);
+
+      if (!exists) {
+        errors++;
+        results.push({
+          en: enCode,
+          fr: frCode,
+          status: 'error',
+          message: 'Code FR non trouvé dans la DB'
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        total: ROUTE_PERMISSIONS.length,
+        errors,
+        valid: ROUTE_PERMISSIONS.length - errors,
+        details: results
+      }
+    });
+
+  } catch (error) {
+    console.error('Validation error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

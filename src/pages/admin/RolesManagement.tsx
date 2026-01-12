@@ -45,6 +45,16 @@ export const RolesManagement: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const useNewTree = true; // Always use new hierarchical tree UI
 
+  // Validation states
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationResults, setValidationResults] = useState<{
+    total: number;
+    errors: number;
+    valid: number;
+    details: Array<{ en: string; fr: string; status: string; message: string }>;
+  } | null>(null);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+
   useEffect(() => {
     checkMigration();
   }, []);
@@ -205,6 +215,28 @@ export const RolesManagement: React.FC = () => {
     setFormName('');
     setFormDescription('');
     setFormPermissions([]);
+  };
+
+  const handleValidateMappings = async () => {
+    setIsValidating(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/roles/validate-mappings', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setValidationResults(data.data);
+        setShowValidationModal(true);
+      } else {
+        alert('Erreur: ' + data.error);
+      }
+    } catch (error: any) {
+      console.error('Validation error:', error);
+      alert('Erreur lors de la validation: ' + error.message);
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   const openEditModal = (role: Role) => {
@@ -420,17 +452,37 @@ export const RolesManagement: React.FC = () => {
               </p>
             </div>
           </div>
-          <ProtectedButton
-            permission="system.roles.create"
-            onClick={() => {
-              resetForm();
-              setShowCreateModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            Nouveau Rôle
-          </ProtectedButton>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleValidateMappings}
+              disabled={isValidating}
+              className="flex items-center gap-2 px-4 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {isValidating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-orange-700 border-t-transparent" />
+                  Validation...
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-4 w-4" />
+                  Valider Mappings
+                </>
+              )}
+            </button>
+            <ProtectedButton
+              permission="system.roles.create"
+              onClick={() => {
+                resetForm();
+                setShowCreateModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Nouveau Rôle
+            </ProtectedButton>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -814,6 +866,86 @@ export const RolesManagement: React.FC = () => {
                 {isSaving ? 'Enregistrement...' : 'Enregistrer'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Validation Results Modal */}
+      {showValidationModal && validationResults && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Résultats de validation des mappings</h3>
+              <button
+                type="button"
+                onClick={() => setShowValidationModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+                title="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-blue-600">{validationResults.total}</div>
+                <div className="text-sm text-blue-600">Total</div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-green-600">{validationResults.valid}</div>
+                <div className="text-sm text-green-600">Valides</div>
+              </div>
+              <div className="bg-red-50 p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-red-600">{validationResults.errors}</div>
+                <div className="text-sm text-red-600">Erreurs</div>
+              </div>
+            </div>
+
+            {validationResults.errors > 0 ? (
+              <div className="space-y-3">
+                <h4 className="font-medium text-red-600 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Mappings incorrects ({validationResults.errors})
+                </h4>
+                <p className="text-sm text-gray-600 mb-3">
+                  Ces codes de permission backend ne correspondent pas aux codes dans la base de données.
+                  Il faut corriger auth.js ou ajouter les permissions manquantes.
+                </p>
+                {validationResults.details.map((d, i) => (
+                  <div key={i} className="bg-red-50 border border-red-200 p-3 rounded-lg text-sm">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-gray-500">Code EN (backend):</span>
+                        <div className="font-mono text-red-700">{d.en}</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Code FR converti:</span>
+                        <div className="font-mono text-red-700">{d.fr}</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 text-red-600 text-xs">{d.message}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-green-50 border border-green-200 p-6 rounded-lg text-center">
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                <p className="text-green-700 font-medium">
+                  Tous les mappings sont correctement configurés!
+                </p>
+                <p className="text-green-600 text-sm mt-1">
+                  Les {validationResults.total} permissions backend correspondent aux codes en base de données.
+                </p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowValidationModal(false)}
+              className="mt-6 w-full py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              Fermer
+            </button>
           </div>
         </div>
       )}
