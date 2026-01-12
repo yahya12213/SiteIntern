@@ -306,7 +306,7 @@ router.post('/:id/approve', authenticateToken, requirePermission('hr.leaves.appr
         newStatus = `approved_n${nextLevel}`;
         updateFields = `
           status = '${newStatus}',
-          current_approver_level = '${nextLevel}',
+          current_approver_level = 'n${nextLevel}',
           updated_at = NOW()
         `;
 
@@ -314,7 +314,7 @@ router.post('/:id/approve', authenticateToken, requirePermission('hr.leaves.appr
         if (currentLevel === 0) {
           updateFields = `
             status = '${newStatus}',
-            current_approver_level = '${nextLevel}',
+            current_approver_level = 'n${nextLevel}',
             n1_approver_id = $2,
             n1_approved_at = NOW(),
             n1_comment = $3,
@@ -323,7 +323,7 @@ router.post('/:id/approve', authenticateToken, requirePermission('hr.leaves.appr
         } else if (currentLevel === 1) {
           updateFields = `
             status = '${newStatus}',
-            current_approver_level = '${nextLevel}',
+            current_approver_level = 'n${nextLevel}',
             n2_approver_id = $2,
             n2_approved_at = NOW(),
             n2_comment = $3,
