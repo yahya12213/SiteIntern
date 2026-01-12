@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { authApi } from '@/lib/api/auth';
 import { tokenManager } from '@/lib/api/client';
 import type { User } from '@/lib/api/auth';
+import { convertLegacyPermission } from '@/config/permissions';
 
 // Session timeout check interval (every minute)
 const SESSION_CHECK_INTERVAL = 60 * 1000;
@@ -185,8 +186,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hasPermission = (permission: string): boolean => {
     // Admin has all permissions
     if (user?.role === 'admin') return true;
-    // Check in permissions array
-    return permissions.includes(permission) || permissions.includes('*');
+    // Check wildcard
+    if (permissions.includes('*')) return true;
+
+    // Convertir le code demandé (au cas où on demande un ancien code)
+    const normalizedRequested = convertLegacyPermission(permission);
+
+    // Vérifier si l'utilisateur a la permission demandée
+    // OU une permission legacy qui correspond au code demandé
+    return permissions.some(p => {
+      const normalizedUserPerm = convertLegacyPermission(p);
+      return p === normalizedRequested || normalizedUserPerm === normalizedRequested;
+    });
   };
 
   const hasAnyPermission = (...perms: string[]): boolean => {
