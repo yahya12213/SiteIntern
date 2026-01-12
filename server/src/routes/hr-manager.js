@@ -119,11 +119,11 @@ router.get('/team',
           e.hire_date,
           e.employment_type,
           e.employment_status = 'active' as is_active,
-          -- Today's attendance
+          -- Today's attendance (inclut tous les statuts possibles pour check-in)
           (SELECT clock_time FROM hr_attendance_records
-           WHERE employee_id = e.id AND status = 'check_in'
+           WHERE employee_id = e.id AND status IN ('check_in', 'late', 'weekend', 'present', 'half_day', 'early_leave', 'late_early', 'incomplete')
            AND DATE(clock_time) = CURRENT_DATE
-           ORDER BY clock_time DESC LIMIT 1) as today_check_in,
+           ORDER BY clock_time ASC LIMIT 1) as today_check_in,
           (SELECT clock_time FROM hr_attendance_records
            WHERE employee_id = e.id AND status = 'check_out'
            AND DATE(clock_time) = CURRENT_DATE
@@ -178,7 +178,7 @@ router.get('/team-attendance',
           SELECT
             ar.employee_id,
             ar.attendance_date as record_date,
-            MIN(CASE WHEN ar.status IN ('check_in', 'late', 'weekend') THEN ar.clock_time END) as clock_in,
+            MIN(CASE WHEN ar.status IN ('check_in', 'late', 'weekend', 'present', 'half_day', 'early_leave', 'late_early', 'incomplete') THEN ar.clock_time END) as clock_in,
             MAX(CASE WHEN ar.status IN ('check_out', 'weekend') THEN ar.clock_time END) as clock_out,
             SUM(COALESCE(ar.worked_minutes, 0)) as total_worked_minutes
           FROM hr_attendance_records ar
@@ -271,7 +271,7 @@ router.get('/team-attendance/today',
             t.employee_number,
             t.position,
             (SELECT clock_time FROM hr_attendance_records
-             WHERE employee_id = t.id AND status = 'check_in'
+             WHERE employee_id = t.id AND status IN ('check_in', 'late', 'weekend', 'present', 'half_day', 'early_leave', 'late_early', 'incomplete')
              AND DATE(clock_time) = CURRENT_DATE
              ORDER BY clock_time ASC LIMIT 1) as first_check_in,
             (SELECT clock_time FROM hr_attendance_records
