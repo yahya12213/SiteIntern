@@ -33,60 +33,86 @@ console.log('✓ JWT_SECRET validated successfully');
 // Cette fonction convertit automatiquement les codes pour assurer la compatibilité
 
 const EN_TO_FR_PERMISSION_MAP = {
-  // === MODULE PREFIXES ===
+  // === HR DIRECT MAPPINGS (codes backend EN → codes DB FR) ===
+  // Ces mappings convertissent directement hr.X → ressources_humaines.Y
+  'hr.leaves.': 'ressources_humaines.conges.',
+  'hr.employees.': 'ressources_humaines.dossier_employe.',
+  'hr.attendance.': 'ressources_humaines.gestion_pointage.',
+  'hr.payroll.': 'ressources_humaines.gestion_paie.',
+  'hr.validation_workflows.': 'ressources_humaines.boucles_validation.',
+  'hr.holidays.': 'ressources_humaines.gestion_horaires.jours_feries.',
+  'hr.settings.': 'ressources_humaines.parametres.',
+  'hr.dashboard.': 'ressources_humaines.tableau_de_bord.',
+  'hr.contracts.': 'ressources_humaines.contrats.',
+  'hr.documents.': 'ressources_humaines.documents.',
+  'hr.discipline.': 'ressources_humaines.discipline.',
+  'hr.delegation.': 'ressources_humaines.delegations.',
+
+  // === TRAINING DIRECT MAPPINGS ===
+  'training.sessions.': 'formation.sessions_formation.',
+  'training.formations.': 'formation.gestion_formations.',
+  'training.students.': 'formation.liste_etudiants.',
+  'training.certificate_templates.': 'formation.templates_certificats.',
+  'training.certificates.': 'formation.certificats.',
+  'training.analytics.': 'formation.analytics.',
+  'training.forums.': 'formation.forums.',
+  'training.centres.': 'formation.centres.',
+  'training.corps.': 'formation.corps.',
+  'training.student.': 'formation.etudiant.',
+
+  // === ACCOUNTING DIRECT MAPPINGS ===
+  'accounting.actions.': 'gestion_comptable.plan_action.',
+  'accounting.calculation_sheets.': 'gestion_comptable.fiches_calcul.',
+  'accounting.projects.': 'gestion_comptable.gestion_projet.',
+  'accounting.users.': 'gestion_comptable.utilisateurs.',
+  'accounting.cities.': 'gestion_comptable.villes.',
+  'accounting.segments.': 'gestion_comptable.segments.',
+  'accounting.declarations.': 'gestion_comptable.declarations.',
+  'accounting.dashboard.': 'gestion_comptable.tableau_de_bord.',
+
+  // === SYSTEM DIRECT MAPPINGS ===
+  'system.roles.': 'gestion_comptable.roles_permissions.',
+
+  // === COMMERCIALISATION DIRECT MAPPINGS ===
+  'commercialisation.visits.': 'commercialisation.visites.',
+  'commercialisation.prospects.': 'commercialisation.prospects.',
+
+  // === FALLBACK MODULE PREFIXES (si pas de mapping direct) ===
   'accounting.': 'gestion_comptable.',
   'training.': 'formation.',
   'hr.': 'ressources_humaines.',
-  'system.roles.': 'gestion_comptable.roles_permissions.',
-
-  // === SOUS-MODULES SPECIFIQUES ===
-  // Formation
-  'formation.sessions.': 'formation.sessions_formation.',
-  'formation.formations.': 'formation.gestion_formations.',
-  'formation.students.': 'formation.liste_etudiants.',
-  'formation.certificate_templates.': 'formation.templates_certificats.',
-  'formation.student.': 'formation.etudiant.',
-
-  // Comptabilité
-  'gestion_comptable.calculation_sheets.': 'gestion_comptable.fiches_calcul.',
-  'gestion_comptable.projects.': 'gestion_comptable.gestion_projet.',
-  'gestion_comptable.actions.': 'gestion_comptable.plan_action.',
-  'gestion_comptable.users.': 'gestion_comptable.utilisateurs.',
-  'gestion_comptable.cities.': 'gestion_comptable.villes.',
-
-  // RH
-  'ressources_humaines.employees.': 'ressources_humaines.dossier_employe.',
-  'ressources_humaines.attendance.': 'ressources_humaines.gestion_pointage.',
-  'ressources_humaines.leaves.': 'ressources_humaines.conges.',
-  'ressources_humaines.payroll.': 'ressources_humaines.gestion_paie.',
-  'ressources_humaines.validation_workflows.': 'ressources_humaines.boucles_validation.',
-  'ressources_humaines.settings.': 'ressources_humaines.parametres.',
-  'ressources_humaines.dashboard.': 'ressources_humaines.tableau_de_bord.',
-  'ressources_humaines.holidays.': 'ressources_humaines.jours_feries.',
-  'ressources_humaines.contracts.': 'ressources_humaines.contrats.',
-  'ressources_humaines.documents.': 'ressources_humaines.documents.',
-  'ressources_humaines.discipline.': 'ressources_humaines.discipline.',
-  'ressources_humaines.delegation.': 'ressources_humaines.delegations.',
-
-  // Commercialisation
-  'commercialisation.visits.': 'commercialisation.visites.',
 };
 
 // Actions anglais → français
 const EN_TO_FR_ACTION_MAP = {
+  // === ACTIONS DE VISUALISATION ===
   '.view_page': '.voir',
   '.view_list': '.voir_liste',
-  '.view': '.voir_liste',
+  '.view': '.voir',
+  '.view_all': '.voir_tous',
+  '.view_analytics': '.voir_analytics',
+  '.view_all_payslips': '.bulletins.voir',
+
+  // === ACTIONS CRUD ===
   '.create': '.creer',
   '.update': '.modifier',
   '.edit': '.modifier',
   '.delete': '.supprimer',
+
+  // === ACTIONS DE VALIDATION ===
   '.approve': '.approuver',
   '.reject': '.rejeter',
   '.submit': '.soumettre',
+  '.validate': '.valider',
+  '.approve_overtime': '.approuver',
+  '.reject_overtime': '.rejeter',
+
+  // === ACTIONS DIVERSES ===
   '.export': '.exporter',
   '.import': '.importer',
   '.manage': '.gerer',
+  '.verify': '.verifier',
+  '.cancel': '.annuler',
   '.clean': '.nettoyer',
   '.call': '.appeler',
   '.reinject': '.reinjecter',
@@ -94,6 +120,13 @@ const EN_TO_FR_ACTION_MAP = {
   '.duplicate': '.dupliquer',
   '.publish': '.publier',
   '.fill': '.remplir',
+  '.fill_data': '.remplir',
+  '.config': '.configurer',
+  '.calculate': '.calculer',
+  '.clock_in_out': '.pointer',
+  '.generate': '.generer',
+
+  // === ACTIONS FORMATION (étudiants) ===
   '.add_student': '.ajouter_etudiant',
   '.edit_student': '.editer_etudiant',
   '.remove_student': '.retirer_etudiant',
@@ -101,6 +134,8 @@ const EN_TO_FR_ACTION_MAP = {
   '.transfer_student': '.transfert_etudiant',
   '.edit_content': '.editer_contenu',
   '.create_pack': '.creer_pack',
+
+  // === ACTIONS DOSSIERS/FORUMS ===
   '.create_folder': '.creer_dossier',
   '.rename_folder': '.renommer_dossier',
   '.delete_folder': '.supprimer_dossier',
@@ -108,18 +143,13 @@ const EN_TO_FR_ACTION_MAP = {
   '.update_thread': '.modifier_sujet',
   '.reply': '.repondre',
   '.react': '.reagir',
-  '.approve_overtime': '.approuver_heures_sup',
-  '.reject_overtime': '.rejeter_heures_sup',
-  '.view_all': '.voir_tous',
-  '.view_analytics': '.voir_analytics',
-  '.clock_in_out': '.pointer',
+
+  // === ACTIONS ASSIGNATION ===
   '.assign_roles': '.assigner_roles',
   '.assign_segments': '.assigner_segments',
   '.assign_cities': '.assigner_villes',
-  '.view_all_payslips': '.voir_tous_bulletins',
-  '.validate': '.valider',
-  '.config': '.configurer',
-  '.calculate': '.calculer',
+
+  // === ACTIONS PAIE/PÉRIODES ===
   '.periods.create': '.periodes.creer',
   '.periods.close': '.periodes.fermer',
 };
