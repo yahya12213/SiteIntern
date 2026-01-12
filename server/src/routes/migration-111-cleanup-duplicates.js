@@ -136,6 +136,58 @@ router.post('/run', async (req, res) => {
   }
 });
 
+// Route de status
+router.get('/status', async (req, res) => {
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  });
+
+  const client = await pool.connect();
+
+  try {
+    // Vérifier s'il reste des doublons
+    const duplicatesResult = await client.query(`
+      SELECT COUNT(*) as duplicate_codes
+      FROM (
+        SELECT code
+        FROM permissions
+        GROUP BY code
+        HAVING COUNT(*) > 1
+      ) as duplicates
+    `);
+
+    const duplicateCount = parseInt(duplicatesResult.rows[0].duplicate_codes);
+    const totalResult = await client.query('SELECT COUNT(*) FROM permissions');
+    const totalCount = parseInt(totalResult.rows[0].count);
+
+    const needsMigration = duplicateCount > 0;
+
+    res.json({
+      success: true,
+      applied: !needsMigration,
+      status: {
+        migrationNeeded: needsMigration,
+        duplicateCodes: duplicateCount,
+        totalPermissions: totalCount
+      },
+      message: needsMigration
+        ? `${duplicateCount} codes dupliqués trouvés - Migration recommandée`
+        : `Aucun doublon - ${totalCount} permissions uniques`
+    });
+
+  } catch (error) {
+    console.error('Erreur status Migration 111:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  } finally {
+    client.release();
+    await pool.end();
+  }
+});
+
 // Route de preview (sans modifications)
 router.get('/preview', async (req, res) => {
   const pool = new Pool({
