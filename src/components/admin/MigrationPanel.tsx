@@ -395,6 +395,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 111: Nettoyer Doublons Permissions',
     description: '🧹 Supprime les permissions dupliquées (même code, ID différent) - Garde l\'ID le plus bas, migre les role_permissions, supprime les doublons',
     endpoint: '/migration-111-cleanup-duplicates'
+  },
+  {
+    id: 'migration-112',
+    name: 'Migration 112: Supprimer Permissions Anglaises',
+    description: '🗑️ Supprime les permissions anglaises qui ont un équivalent français - Migre role_permissions vers la version FR, supprime les EN (428 → ~200 permissions)',
+    endpoint: '/migration-112-cleanup-english-permissions'
   }
 ];
 
