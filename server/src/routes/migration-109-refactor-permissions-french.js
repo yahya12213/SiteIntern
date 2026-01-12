@@ -8,6 +8,15 @@ const router = express.Router();
 // Aligne les codes de permissions avec les noms des menus en francais
 // Structure hierarchique: section.sous_menu.onglet?.action
 
+// Helper to parse permission code into module, menu, action
+function parsePermissionCode(code) {
+  const parts = code.split('.');
+  const module = parts[0] || '';
+  const menu = parts.length > 2 ? parts.slice(1, -1).join('.') : (parts[1] || '');
+  const action = parts[parts.length - 1] || '';
+  return { module, menu, action };
+}
+
 router.post('/run', async (req, res) => {
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -25,7 +34,7 @@ router.post('/run', async (req, res) => {
     console.log('Step 1: Sauvegarde des associations role_permissions...');
     await client.query(`
       CREATE TEMP TABLE IF NOT EXISTS temp_role_permissions_backup AS
-      SELECT rp.role_id, p.id as permission_code
+      SELECT rp.role_id, p.code as permission_code
       FROM role_permissions rp
       JOIN permissions p ON rp.permission_id = p.id
     `);
@@ -131,272 +140,311 @@ router.post('/run', async (req, res) => {
 
     const newPermissions = [
       // ==================== GESTION COMPTABLE ====================
-      { id: 'gestion_comptable.acces', name: 'Acces Gestion Comptable', description: 'Acces a la section Gestion Comptable', category: 'gestion_comptable', parent_id: null },
+      { code: 'gestion_comptable.acces', label: 'Acces Gestion Comptable', description: 'Acces a la section Gestion Comptable' },
       // Tableau de bord
-      { id: 'gestion_comptable.tableau_de_bord.voir', name: 'Voir Tableau de bord', description: 'Acces au tableau de bord comptable', category: 'gestion_comptable', parent_id: 'gestion_comptable.acces' },
+      { code: 'gestion_comptable.tableau_de_bord.voir', label: 'Voir Tableau de bord', description: 'Acces au tableau de bord comptable' },
       // Segments
-      { id: 'gestion_comptable.segments.voir', name: 'Voir Segments', description: 'Voir la liste des segments', category: 'gestion_comptable', parent_id: 'gestion_comptable.acces' },
-      { id: 'gestion_comptable.segments.creer', name: 'Creer Segment', description: 'Creer un nouveau segment', category: 'gestion_comptable', parent_id: 'gestion_comptable.segments.voir' },
-      { id: 'gestion_comptable.segments.modifier', name: 'Modifier Segment', description: 'Modifier un segment existant', category: 'gestion_comptable', parent_id: 'gestion_comptable.segments.voir' },
-      { id: 'gestion_comptable.segments.supprimer', name: 'Supprimer Segment', description: 'Supprimer un segment', category: 'gestion_comptable', parent_id: 'gestion_comptable.segments.voir' },
-      { id: 'gestion_comptable.segments.importer_villes', name: 'Importer Villes', description: 'Importer des villes dans un segment', category: 'gestion_comptable', parent_id: 'gestion_comptable.segments.voir' },
+      { code: 'gestion_comptable.segments.voir', label: 'Voir Segments', description: 'Voir la liste des segments' },
+      { code: 'gestion_comptable.segments.creer', label: 'Creer Segment', description: 'Creer un nouveau segment' },
+      { code: 'gestion_comptable.segments.modifier', label: 'Modifier Segment', description: 'Modifier un segment existant' },
+      { code: 'gestion_comptable.segments.supprimer', label: 'Supprimer Segment', description: 'Supprimer un segment' },
+      { code: 'gestion_comptable.segments.importer_villes', label: 'Importer Villes', description: 'Importer des villes dans un segment' },
       // Villes
-      { id: 'gestion_comptable.villes.voir', name: 'Voir Villes', description: 'Voir la liste des villes', category: 'gestion_comptable', parent_id: 'gestion_comptable.acces' },
-      { id: 'gestion_comptable.villes.creer', name: 'Creer Ville', description: 'Creer une nouvelle ville', category: 'gestion_comptable', parent_id: 'gestion_comptable.villes.voir' },
-      { id: 'gestion_comptable.villes.modifier', name: 'Modifier Ville', description: 'Modifier une ville existante', category: 'gestion_comptable', parent_id: 'gestion_comptable.villes.voir' },
-      { id: 'gestion_comptable.villes.supprimer', name: 'Supprimer Ville', description: 'Supprimer une ville', category: 'gestion_comptable', parent_id: 'gestion_comptable.villes.voir' },
-      { id: 'gestion_comptable.villes.supprimer_masse', name: 'Supprimer Villes en masse', description: 'Supprimer plusieurs villes', category: 'gestion_comptable', parent_id: 'gestion_comptable.villes.voir' },
+      { code: 'gestion_comptable.villes.voir', label: 'Voir Villes', description: 'Voir la liste des villes' },
+      { code: 'gestion_comptable.villes.creer', label: 'Creer Ville', description: 'Creer une nouvelle ville' },
+      { code: 'gestion_comptable.villes.modifier', label: 'Modifier Ville', description: 'Modifier une ville existante' },
+      { code: 'gestion_comptable.villes.supprimer', label: 'Supprimer Ville', description: 'Supprimer une ville' },
+      { code: 'gestion_comptable.villes.supprimer_masse', label: 'Supprimer Villes en masse', description: 'Supprimer plusieurs villes' },
       // Utilisateurs
-      { id: 'gestion_comptable.utilisateurs.voir', name: 'Voir Utilisateurs', description: 'Voir la liste des utilisateurs', category: 'gestion_comptable', parent_id: 'gestion_comptable.acces' },
-      { id: 'gestion_comptable.utilisateurs.creer', name: 'Creer Utilisateur', description: 'Creer un nouvel utilisateur', category: 'gestion_comptable', parent_id: 'gestion_comptable.utilisateurs.voir' },
-      { id: 'gestion_comptable.utilisateurs.modifier', name: 'Modifier Utilisateur', description: 'Modifier un utilisateur', category: 'gestion_comptable', parent_id: 'gestion_comptable.utilisateurs.voir' },
-      { id: 'gestion_comptable.utilisateurs.supprimer', name: 'Supprimer Utilisateur', description: 'Supprimer un utilisateur', category: 'gestion_comptable', parent_id: 'gestion_comptable.utilisateurs.voir' },
-      { id: 'gestion_comptable.utilisateurs.assigner_segments', name: 'Assigner Segments', description: 'Assigner des segments aux utilisateurs', category: 'gestion_comptable', parent_id: 'gestion_comptable.utilisateurs.voir' },
-      { id: 'gestion_comptable.utilisateurs.assigner_villes', name: 'Assigner Villes', description: 'Assigner des villes aux utilisateurs', category: 'gestion_comptable', parent_id: 'gestion_comptable.utilisateurs.voir' },
-      { id: 'gestion_comptable.utilisateurs.assigner_roles', name: 'Assigner Roles', description: 'Assigner des roles aux utilisateurs', category: 'gestion_comptable', parent_id: 'gestion_comptable.utilisateurs.voir' },
+      { code: 'gestion_comptable.utilisateurs.voir', label: 'Voir Utilisateurs', description: 'Voir la liste des utilisateurs' },
+      { code: 'gestion_comptable.utilisateurs.creer', label: 'Creer Utilisateur', description: 'Creer un nouvel utilisateur' },
+      { code: 'gestion_comptable.utilisateurs.modifier', label: 'Modifier Utilisateur', description: 'Modifier un utilisateur' },
+      { code: 'gestion_comptable.utilisateurs.supprimer', label: 'Supprimer Utilisateur', description: 'Supprimer un utilisateur' },
+      { code: 'gestion_comptable.utilisateurs.assigner_segments', label: 'Assigner Segments', description: 'Assigner des segments aux utilisateurs' },
+      { code: 'gestion_comptable.utilisateurs.assigner_villes', label: 'Assigner Villes', description: 'Assigner des villes aux utilisateurs' },
+      { code: 'gestion_comptable.utilisateurs.assigner_roles', label: 'Assigner Roles', description: 'Assigner des roles aux utilisateurs' },
       // Roles & Permissions
-      { id: 'gestion_comptable.roles_permissions.voir', name: 'Voir Roles & Permissions', description: 'Voir les roles et permissions', category: 'gestion_comptable', parent_id: 'gestion_comptable.acces' },
-      { id: 'gestion_comptable.roles_permissions.creer', name: 'Creer Role', description: 'Creer un nouveau role', category: 'gestion_comptable', parent_id: 'gestion_comptable.roles_permissions.voir' },
-      { id: 'gestion_comptable.roles_permissions.modifier', name: 'Modifier Role', description: 'Modifier un role', category: 'gestion_comptable', parent_id: 'gestion_comptable.roles_permissions.voir' },
-      { id: 'gestion_comptable.roles_permissions.supprimer', name: 'Supprimer Role', description: 'Supprimer un role', category: 'gestion_comptable', parent_id: 'gestion_comptable.roles_permissions.voir' },
+      { code: 'gestion_comptable.roles_permissions.voir', label: 'Voir Roles & Permissions', description: 'Voir les roles et permissions' },
+      { code: 'gestion_comptable.roles_permissions.creer', label: 'Creer Role', description: 'Creer un nouveau role' },
+      { code: 'gestion_comptable.roles_permissions.modifier', label: 'Modifier Role', description: 'Modifier un role' },
+      { code: 'gestion_comptable.roles_permissions.supprimer', label: 'Supprimer Role', description: 'Supprimer un role' },
       // Fiches de calcul
-      { id: 'gestion_comptable.fiches_calcul.voir', name: 'Voir Fiches de calcul', description: 'Voir les fiches de calcul', category: 'gestion_comptable', parent_id: 'gestion_comptable.acces' },
-      { id: 'gestion_comptable.fiches_calcul.creer', name: 'Creer Fiche', description: 'Creer une fiche de calcul', category: 'gestion_comptable', parent_id: 'gestion_comptable.fiches_calcul.voir' },
-      { id: 'gestion_comptable.fiches_calcul.modifier', name: 'Modifier Fiche', description: 'Modifier une fiche de calcul', category: 'gestion_comptable', parent_id: 'gestion_comptable.fiches_calcul.voir' },
-      { id: 'gestion_comptable.fiches_calcul.supprimer', name: 'Supprimer Fiche', description: 'Supprimer une fiche de calcul', category: 'gestion_comptable', parent_id: 'gestion_comptable.fiches_calcul.voir' },
-      { id: 'gestion_comptable.fiches_calcul.publier', name: 'Publier Fiche', description: 'Publier une fiche de calcul', category: 'gestion_comptable', parent_id: 'gestion_comptable.fiches_calcul.voir' },
-      { id: 'gestion_comptable.fiches_calcul.dupliquer', name: 'Dupliquer Fiche', description: 'Dupliquer une fiche de calcul', category: 'gestion_comptable', parent_id: 'gestion_comptable.fiches_calcul.voir' },
-      { id: 'gestion_comptable.fiches_calcul.exporter', name: 'Exporter Fiche', description: 'Exporter une fiche de calcul', category: 'gestion_comptable', parent_id: 'gestion_comptable.fiches_calcul.voir' },
-      { id: 'gestion_comptable.fiches_calcul.parametres', name: 'Parametres Fiche', description: 'Gerer les parametres des fiches', category: 'gestion_comptable', parent_id: 'gestion_comptable.fiches_calcul.voir' },
+      { code: 'gestion_comptable.fiches_calcul.voir', label: 'Voir Fiches de calcul', description: 'Voir les fiches de calcul' },
+      { code: 'gestion_comptable.fiches_calcul.creer', label: 'Creer Fiche', description: 'Creer une fiche de calcul' },
+      { code: 'gestion_comptable.fiches_calcul.modifier', label: 'Modifier Fiche', description: 'Modifier une fiche de calcul' },
+      { code: 'gestion_comptable.fiches_calcul.supprimer', label: 'Supprimer Fiche', description: 'Supprimer une fiche de calcul' },
+      { code: 'gestion_comptable.fiches_calcul.publier', label: 'Publier Fiche', description: 'Publier une fiche de calcul' },
+      { code: 'gestion_comptable.fiches_calcul.dupliquer', label: 'Dupliquer Fiche', description: 'Dupliquer une fiche de calcul' },
+      { code: 'gestion_comptable.fiches_calcul.exporter', label: 'Exporter Fiche', description: 'Exporter une fiche de calcul' },
+      { code: 'gestion_comptable.fiches_calcul.parametres', label: 'Parametres Fiche', description: 'Gerer les parametres des fiches' },
       // Declarations
-      { id: 'gestion_comptable.declarations.voir', name: 'Voir Declarations', description: 'Voir les declarations', category: 'gestion_comptable', parent_id: 'gestion_comptable.acces' },
-      { id: 'gestion_comptable.declarations.voir_toutes', name: 'Voir Toutes Declarations', description: 'Voir toutes les declarations', category: 'gestion_comptable', parent_id: 'gestion_comptable.declarations.voir' },
-      { id: 'gestion_comptable.declarations.creer', name: 'Creer Declaration', description: 'Creer une declaration', category: 'gestion_comptable', parent_id: 'gestion_comptable.declarations.voir' },
-      { id: 'gestion_comptable.declarations.remplir', name: 'Remplir Declaration', description: 'Remplir une declaration', category: 'gestion_comptable', parent_id: 'gestion_comptable.declarations.voir' },
-      { id: 'gestion_comptable.declarations.modifier_metadata', name: 'Modifier Metadata', description: 'Modifier les metadonnees', category: 'gestion_comptable', parent_id: 'gestion_comptable.declarations.voir' },
-      { id: 'gestion_comptable.declarations.supprimer', name: 'Supprimer Declaration', description: 'Supprimer une declaration', category: 'gestion_comptable', parent_id: 'gestion_comptable.declarations.voir' },
-      { id: 'gestion_comptable.declarations.approuver', name: 'Approuver Declaration', description: 'Approuver une declaration', category: 'gestion_comptable', parent_id: 'gestion_comptable.declarations.voir' },
-      { id: 'gestion_comptable.declarations.rejeter', name: 'Rejeter Declaration', description: 'Rejeter une declaration', category: 'gestion_comptable', parent_id: 'gestion_comptable.declarations.voir' },
-      { id: 'gestion_comptable.declarations.soumettre', name: 'Soumettre Declaration', description: 'Soumettre une declaration', category: 'gestion_comptable', parent_id: 'gestion_comptable.declarations.voir' },
+      { code: 'gestion_comptable.declarations.voir', label: 'Voir Declarations', description: 'Voir les declarations' },
+      { code: 'gestion_comptable.declarations.voir_toutes', label: 'Voir Toutes Declarations', description: 'Voir toutes les declarations' },
+      { code: 'gestion_comptable.declarations.creer', label: 'Creer Declaration', description: 'Creer une declaration' },
+      { code: 'gestion_comptable.declarations.remplir', label: 'Remplir Declaration', description: 'Remplir une declaration' },
+      { code: 'gestion_comptable.declarations.modifier_metadata', label: 'Modifier Metadata', description: 'Modifier les metadonnees' },
+      { code: 'gestion_comptable.declarations.supprimer', label: 'Supprimer Declaration', description: 'Supprimer une declaration' },
+      { code: 'gestion_comptable.declarations.approuver', label: 'Approuver Declaration', description: 'Approuver une declaration' },
+      { code: 'gestion_comptable.declarations.rejeter', label: 'Rejeter Declaration', description: 'Rejeter une declaration' },
+      { code: 'gestion_comptable.declarations.soumettre', label: 'Soumettre Declaration', description: 'Soumettre une declaration' },
       // Gestion de Projet
-      { id: 'gestion_comptable.gestion_projet.voir', name: 'Voir Projets', description: 'Voir les projets', category: 'gestion_comptable', parent_id: 'gestion_comptable.acces' },
-      { id: 'gestion_comptable.gestion_projet.creer', name: 'Creer Projet', description: 'Creer un projet', category: 'gestion_comptable', parent_id: 'gestion_comptable.gestion_projet.voir' },
-      { id: 'gestion_comptable.gestion_projet.modifier', name: 'Modifier Projet', description: 'Modifier un projet', category: 'gestion_comptable', parent_id: 'gestion_comptable.gestion_projet.voir' },
-      { id: 'gestion_comptable.gestion_projet.supprimer', name: 'Supprimer Projet', description: 'Supprimer un projet', category: 'gestion_comptable', parent_id: 'gestion_comptable.gestion_projet.voir' },
-      { id: 'gestion_comptable.gestion_projet.exporter', name: 'Exporter Projets', description: 'Exporter les projets', category: 'gestion_comptable', parent_id: 'gestion_comptable.gestion_projet.voir' },
+      { code: 'gestion_comptable.gestion_projet.voir', label: 'Voir Projets', description: 'Voir les projets' },
+      { code: 'gestion_comptable.gestion_projet.creer', label: 'Creer Projet', description: 'Creer un projet' },
+      { code: 'gestion_comptable.gestion_projet.modifier', label: 'Modifier Projet', description: 'Modifier un projet' },
+      { code: 'gestion_comptable.gestion_projet.supprimer', label: 'Supprimer Projet', description: 'Supprimer un projet' },
+      { code: 'gestion_comptable.gestion_projet.exporter', label: 'Exporter Projets', description: 'Exporter les projets' },
 
       // ==================== FORMATION ====================
-      { id: 'formation.acces', name: 'Acces Formation', description: 'Acces a la section Formation', category: 'formation', parent_id: null },
+      { code: 'formation.acces', label: 'Acces Formation', description: 'Acces a la section Formation' },
       // Gestion des Formations
-      { id: 'formation.gestion_formations.voir', name: 'Voir Formations', description: 'Voir les formations', category: 'formation', parent_id: 'formation.acces' },
-      { id: 'formation.gestion_formations.creer', name: 'Creer Formation', description: 'Creer une formation', category: 'formation', parent_id: 'formation.gestion_formations.voir' },
-      { id: 'formation.gestion_formations.modifier', name: 'Modifier Formation', description: 'Modifier une formation', category: 'formation', parent_id: 'formation.gestion_formations.voir' },
-      { id: 'formation.gestion_formations.supprimer', name: 'Supprimer Formation', description: 'Supprimer une formation', category: 'formation', parent_id: 'formation.gestion_formations.voir' },
-      { id: 'formation.gestion_formations.dupliquer', name: 'Dupliquer Formation', description: 'Dupliquer une formation', category: 'formation', parent_id: 'formation.gestion_formations.voir' },
-      { id: 'formation.gestion_formations.creer_pack', name: 'Creer Pack', description: 'Creer un pack de formations', category: 'formation', parent_id: 'formation.gestion_formations.voir' },
-      { id: 'formation.gestion_formations.editer_contenu', name: 'Editer Contenu', description: 'Editer le contenu des formations', category: 'formation', parent_id: 'formation.gestion_formations.voir' },
+      { code: 'formation.gestion_formations.voir', label: 'Voir Formations', description: 'Voir les formations' },
+      { code: 'formation.gestion_formations.creer', label: 'Creer Formation', description: 'Creer une formation' },
+      { code: 'formation.gestion_formations.modifier', label: 'Modifier Formation', description: 'Modifier une formation' },
+      { code: 'formation.gestion_formations.supprimer', label: 'Supprimer Formation', description: 'Supprimer une formation' },
+      { code: 'formation.gestion_formations.dupliquer', label: 'Dupliquer Formation', description: 'Dupliquer une formation' },
+      { code: 'formation.gestion_formations.creer_pack', label: 'Creer Pack', description: 'Creer un pack de formations' },
+      { code: 'formation.gestion_formations.editer_contenu', label: 'Editer Contenu', description: 'Editer le contenu des formations' },
       // Sessions de Formation
-      { id: 'formation.sessions_formation.voir', name: 'Voir Sessions', description: 'Voir les sessions de formation', category: 'formation', parent_id: 'formation.acces' },
-      { id: 'formation.sessions_formation.creer', name: 'Creer Session', description: 'Creer une session', category: 'formation', parent_id: 'formation.sessions_formation.voir' },
-      { id: 'formation.sessions_formation.modifier', name: 'Modifier Session', description: 'Modifier une session', category: 'formation', parent_id: 'formation.sessions_formation.voir' },
-      { id: 'formation.sessions_formation.supprimer', name: 'Supprimer Session', description: 'Supprimer une session', category: 'formation', parent_id: 'formation.sessions_formation.voir' },
-      { id: 'formation.sessions_formation.ajouter_etudiant', name: 'Ajouter Etudiant', description: 'Ajouter un etudiant a la session', category: 'formation', parent_id: 'formation.sessions_formation.voir' },
-      { id: 'formation.sessions_formation.modifier_etudiant', name: 'Modifier Etudiant Session', description: 'Modifier un etudiant dans la session', category: 'formation', parent_id: 'formation.sessions_formation.voir' },
+      { code: 'formation.sessions_formation.voir', label: 'Voir Sessions', description: 'Voir les sessions de formation' },
+      { code: 'formation.sessions_formation.creer', label: 'Creer Session', description: 'Creer une session' },
+      { code: 'formation.sessions_formation.modifier', label: 'Modifier Session', description: 'Modifier une session' },
+      { code: 'formation.sessions_formation.supprimer', label: 'Supprimer Session', description: 'Supprimer une session' },
+      { code: 'formation.sessions_formation.ajouter_etudiant', label: 'Ajouter Etudiant', description: 'Ajouter un etudiant a la session' },
+      { code: 'formation.sessions_formation.modifier_etudiant', label: 'Modifier Etudiant Session', description: 'Modifier un etudiant dans la session' },
       // Analytics
-      { id: 'formation.analytics.voir', name: 'Voir Analytics', description: 'Voir les analytics', category: 'formation', parent_id: 'formation.acces' },
-      { id: 'formation.analytics.exporter', name: 'Exporter Analytics', description: 'Exporter les analytics', category: 'formation', parent_id: 'formation.analytics.voir' },
-      { id: 'formation.analytics.changer_periode', name: 'Changer Periode', description: 'Changer la periode des analytics', category: 'formation', parent_id: 'formation.analytics.voir' },
+      { code: 'formation.analytics.voir', label: 'Voir Analytics', description: 'Voir les analytics' },
+      { code: 'formation.analytics.exporter', label: 'Exporter Analytics', description: 'Exporter les analytics' },
+      { code: 'formation.analytics.changer_periode', label: 'Changer Periode', description: 'Changer la periode des analytics' },
       // Rapports Etudiants
-      { id: 'formation.rapports_etudiants.voir', name: 'Voir Rapports', description: 'Voir les rapports etudiants', category: 'formation', parent_id: 'formation.acces' },
-      { id: 'formation.rapports_etudiants.rechercher', name: 'Rechercher Rapports', description: 'Rechercher dans les rapports', category: 'formation', parent_id: 'formation.rapports_etudiants.voir' },
-      { id: 'formation.rapports_etudiants.exporter_csv', name: 'Exporter CSV', description: 'Exporter les rapports en CSV', category: 'formation', parent_id: 'formation.rapports_etudiants.voir' },
-      { id: 'formation.rapports_etudiants.exporter_pdf', name: 'Exporter PDF', description: 'Exporter les rapports en PDF', category: 'formation', parent_id: 'formation.rapports_etudiants.voir' },
+      { code: 'formation.rapports_etudiants.voir', label: 'Voir Rapports', description: 'Voir les rapports etudiants' },
+      { code: 'formation.rapports_etudiants.rechercher', label: 'Rechercher Rapports', description: 'Rechercher dans les rapports' },
+      { code: 'formation.rapports_etudiants.exporter_csv', label: 'Exporter CSV', description: 'Exporter les rapports en CSV' },
+      { code: 'formation.rapports_etudiants.exporter_pdf', label: 'Exporter PDF', description: 'Exporter les rapports en PDF' },
       // Liste des Etudiants
-      { id: 'formation.liste_etudiants.voir', name: 'Voir Etudiants', description: 'Voir la liste des etudiants', category: 'formation', parent_id: 'formation.acces' },
-      { id: 'formation.liste_etudiants.creer', name: 'Creer Etudiant', description: 'Creer un etudiant', category: 'formation', parent_id: 'formation.liste_etudiants.voir' },
-      { id: 'formation.liste_etudiants.modifier', name: 'Modifier Etudiant', description: 'Modifier un etudiant', category: 'formation', parent_id: 'formation.liste_etudiants.voir' },
-      { id: 'formation.liste_etudiants.supprimer', name: 'Supprimer Etudiant', description: 'Supprimer un etudiant', category: 'formation', parent_id: 'formation.liste_etudiants.voir' },
+      { code: 'formation.liste_etudiants.voir', label: 'Voir Etudiants', description: 'Voir la liste des etudiants' },
+      { code: 'formation.liste_etudiants.creer', label: 'Creer Etudiant', description: 'Creer un etudiant' },
+      { code: 'formation.liste_etudiants.modifier', label: 'Modifier Etudiant', description: 'Modifier un etudiant' },
+      { code: 'formation.liste_etudiants.supprimer', label: 'Supprimer Etudiant', description: 'Supprimer un etudiant' },
       // Templates de Certificats
-      { id: 'formation.templates_certificats.voir', name: 'Voir Templates', description: 'Voir les templates de certificats', category: 'formation', parent_id: 'formation.acces' },
-      { id: 'formation.templates_certificats.creer_dossier', name: 'Creer Dossier', description: 'Creer un dossier de templates', category: 'formation', parent_id: 'formation.templates_certificats.voir' },
-      { id: 'formation.templates_certificats.creer_template', name: 'Creer Template', description: 'Creer un template', category: 'formation', parent_id: 'formation.templates_certificats.voir' },
-      { id: 'formation.templates_certificats.renommer', name: 'Renommer Template', description: 'Renommer un template', category: 'formation', parent_id: 'formation.templates_certificats.voir' },
-      { id: 'formation.templates_certificats.supprimer', name: 'Supprimer Template', description: 'Supprimer un template', category: 'formation', parent_id: 'formation.templates_certificats.voir' },
-      { id: 'formation.templates_certificats.dupliquer', name: 'Dupliquer Template', description: 'Dupliquer un template', category: 'formation', parent_id: 'formation.templates_certificats.voir' },
-      { id: 'formation.templates_certificats.editer_canvas', name: 'Editer Canvas', description: 'Editer le canvas du template', category: 'formation', parent_id: 'formation.templates_certificats.voir' },
+      { code: 'formation.templates_certificats.voir', label: 'Voir Templates', description: 'Voir les templates de certificats' },
+      { code: 'formation.templates_certificats.creer_dossier', label: 'Creer Dossier', description: 'Creer un dossier de templates' },
+      { code: 'formation.templates_certificats.creer_template', label: 'Creer Template', description: 'Creer un template' },
+      { code: 'formation.templates_certificats.renommer', label: 'Renommer Template', description: 'Renommer un template' },
+      { code: 'formation.templates_certificats.supprimer', label: 'Supprimer Template', description: 'Supprimer un template' },
+      { code: 'formation.templates_certificats.dupliquer', label: 'Dupliquer Template', description: 'Dupliquer un template' },
+      { code: 'formation.templates_certificats.editer_canvas', label: 'Editer Canvas', description: 'Editer le canvas du template' },
       // Forums
-      { id: 'formation.forums.voir', name: 'Voir Forums', description: 'Voir les forums', category: 'formation', parent_id: 'formation.acces' },
-      { id: 'formation.forums.creer_discussion', name: 'Creer Discussion', description: 'Creer une discussion', category: 'formation', parent_id: 'formation.forums.voir' },
-      { id: 'formation.forums.repondre', name: 'Repondre', description: 'Repondre aux discussions', category: 'formation', parent_id: 'formation.forums.voir' },
-      { id: 'formation.forums.reagir', name: 'Reagir', description: 'Reagir aux messages', category: 'formation', parent_id: 'formation.forums.voir' },
-      { id: 'formation.forums.supprimer', name: 'Supprimer Forum', description: 'Supprimer des messages', category: 'formation', parent_id: 'formation.forums.voir' },
-      { id: 'formation.forums.epingler', name: 'Epingler', description: 'Epingler des discussions', category: 'formation', parent_id: 'formation.forums.voir' },
-      { id: 'formation.forums.verrouiller', name: 'Verrouiller', description: 'Verrouiller des discussions', category: 'formation', parent_id: 'formation.forums.voir' },
-      { id: 'formation.forums.moderer', name: 'Moderer', description: 'Moderer les forums', category: 'formation', parent_id: 'formation.forums.voir' },
+      { code: 'formation.forums.voir', label: 'Voir Forums', description: 'Voir les forums' },
+      { code: 'formation.forums.creer_discussion', label: 'Creer Discussion', description: 'Creer une discussion' },
+      { code: 'formation.forums.repondre', label: 'Repondre', description: 'Repondre aux discussions' },
+      { code: 'formation.forums.reagir', label: 'Reagir', description: 'Reagir aux messages' },
+      { code: 'formation.forums.supprimer', label: 'Supprimer Forum', description: 'Supprimer des messages' },
+      { code: 'formation.forums.epingler', label: 'Epingler', description: 'Epingler des discussions' },
+      { code: 'formation.forums.verrouiller', label: 'Verrouiller', description: 'Verrouiller des discussions' },
+      { code: 'formation.forums.moderer', label: 'Moderer', description: 'Moderer les forums' },
 
       // ==================== RESSOURCES HUMAINES ====================
-      { id: 'ressources_humaines.acces', name: 'Acces RH', description: 'Acces a la section Ressources Humaines', category: 'ressources_humaines', parent_id: null },
+      { code: 'ressources_humaines.acces', label: 'Acces RH', description: 'Acces a la section Ressources Humaines' },
       // Boucles de Validation
-      { id: 'ressources_humaines.boucles_validation.voir', name: 'Voir Boucles Validation', description: 'Voir les boucles de validation', category: 'ressources_humaines', parent_id: 'ressources_humaines.acces' },
-      { id: 'ressources_humaines.boucles_validation.creer', name: 'Creer Boucle', description: 'Creer une boucle de validation', category: 'ressources_humaines', parent_id: 'ressources_humaines.boucles_validation.voir' },
-      { id: 'ressources_humaines.boucles_validation.modifier', name: 'Modifier Boucle', description: 'Modifier une boucle de validation', category: 'ressources_humaines', parent_id: 'ressources_humaines.boucles_validation.voir' },
-      { id: 'ressources_humaines.boucles_validation.supprimer', name: 'Supprimer Boucle', description: 'Supprimer une boucle de validation', category: 'ressources_humaines', parent_id: 'ressources_humaines.boucles_validation.voir' },
+      { code: 'ressources_humaines.boucles_validation.voir', label: 'Voir Boucles Validation', description: 'Voir les boucles de validation' },
+      { code: 'ressources_humaines.boucles_validation.creer', label: 'Creer Boucle', description: 'Creer une boucle de validation' },
+      { code: 'ressources_humaines.boucles_validation.modifier', label: 'Modifier Boucle', description: 'Modifier une boucle de validation' },
+      { code: 'ressources_humaines.boucles_validation.supprimer', label: 'Supprimer Boucle', description: 'Supprimer une boucle de validation' },
       // Gestion des Horaires
-      { id: 'ressources_humaines.gestion_horaires.voir', name: 'Voir Gestion Horaires', description: 'Voir la gestion des horaires', category: 'ressources_humaines', parent_id: 'ressources_humaines.acces' },
+      { code: 'ressources_humaines.gestion_horaires.voir', label: 'Voir Gestion Horaires', description: 'Voir la gestion des horaires' },
       // Onglet Modeles
-      { id: 'ressources_humaines.gestion_horaires.modeles.creer', name: 'Creer Modele Horaire', description: 'Creer un modele d\'horaire', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.voir' },
-      { id: 'ressources_humaines.gestion_horaires.modeles.modifier', name: 'Modifier Modele Horaire', description: 'Modifier un modele d\'horaire', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.voir' },
-      { id: 'ressources_humaines.gestion_horaires.modeles.supprimer', name: 'Supprimer Modele Horaire', description: 'Supprimer un modele d\'horaire', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.voir' },
+      { code: 'ressources_humaines.gestion_horaires.modeles.creer', label: 'Creer Modele Horaire', description: 'Creer un modele d\'horaire' },
+      { code: 'ressources_humaines.gestion_horaires.modeles.modifier', label: 'Modifier Modele Horaire', description: 'Modifier un modele d\'horaire' },
+      { code: 'ressources_humaines.gestion_horaires.modeles.supprimer', label: 'Supprimer Modele Horaire', description: 'Supprimer un modele d\'horaire' },
       // Onglet Jours Feries
-      { id: 'ressources_humaines.gestion_horaires.jours_feries.creer', name: 'Creer Jour Ferie', description: 'Creer un jour ferie', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.voir' },
-      { id: 'ressources_humaines.gestion_horaires.jours_feries.modifier', name: 'Modifier Jour Ferie', description: 'Modifier un jour ferie', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.voir' },
-      { id: 'ressources_humaines.gestion_horaires.jours_feries.supprimer', name: 'Supprimer Jour Ferie', description: 'Supprimer un jour ferie', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.voir' },
+      { code: 'ressources_humaines.gestion_horaires.jours_feries.creer', label: 'Creer Jour Ferie', description: 'Creer un jour ferie' },
+      { code: 'ressources_humaines.gestion_horaires.jours_feries.modifier', label: 'Modifier Jour Ferie', description: 'Modifier un jour ferie' },
+      { code: 'ressources_humaines.gestion_horaires.jours_feries.supprimer', label: 'Supprimer Jour Ferie', description: 'Supprimer un jour ferie' },
       // Onglet Conges Valides
-      { id: 'ressources_humaines.gestion_horaires.conges_valides.voir', name: 'Voir Conges Valides', description: 'Voir les conges valides', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.voir' },
+      { code: 'ressources_humaines.gestion_horaires.conges_valides.voir', label: 'Voir Conges Valides', description: 'Voir les conges valides' },
       // Onglet Heures Supplementaires
-      { id: 'ressources_humaines.gestion_horaires.heures_sup.voir', name: 'Voir Heures Sup', description: 'Voir les heures supplementaires', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.voir' },
-      { id: 'ressources_humaines.gestion_horaires.heures_sup.approuver', name: 'Approuver Heures Sup', description: 'Approuver les heures supplementaires', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.heures_sup.voir' },
-      { id: 'ressources_humaines.gestion_horaires.heures_sup.rejeter', name: 'Rejeter Heures Sup', description: 'Rejeter les heures supplementaires', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.heures_sup.voir' },
-      { id: 'ressources_humaines.gestion_horaires.heures_sup.creer_periode', name: 'Creer Periode HS', description: 'Creer une periode d\'heures supplementaires', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.heures_sup.voir' },
-      { id: 'ressources_humaines.gestion_horaires.heures_sup.supprimer_periode', name: 'Supprimer Periode HS', description: 'Supprimer une periode d\'heures supplementaires', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.heures_sup.voir' },
-      { id: 'ressources_humaines.gestion_horaires.heures_sup.recalculer', name: 'Recalculer Heures Sup', description: 'Recalculer les heures supplementaires', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.heures_sup.voir' },
+      { code: 'ressources_humaines.gestion_horaires.heures_sup.voir', label: 'Voir Heures Sup', description: 'Voir les heures supplementaires' },
+      { code: 'ressources_humaines.gestion_horaires.heures_sup.approuver', label: 'Approuver Heures Sup', description: 'Approuver les heures supplementaires' },
+      { code: 'ressources_humaines.gestion_horaires.heures_sup.rejeter', label: 'Rejeter Heures Sup', description: 'Rejeter les heures supplementaires' },
+      { code: 'ressources_humaines.gestion_horaires.heures_sup.creer_periode', label: 'Creer Periode HS', description: 'Creer une periode d\'heures supplementaires' },
+      { code: 'ressources_humaines.gestion_horaires.heures_sup.supprimer_periode', label: 'Supprimer Periode HS', description: 'Supprimer une periode d\'heures supplementaires' },
+      { code: 'ressources_humaines.gestion_horaires.heures_sup.recalculer', label: 'Recalculer Heures Sup', description: 'Recalculer les heures supplementaires' },
       // Onglet Config HS
-      { id: 'ressources_humaines.gestion_horaires.config_hs.voir', name: 'Voir Config HS', description: 'Voir la configuration des heures supplementaires', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.voir' },
-      { id: 'ressources_humaines.gestion_horaires.config_hs.modifier', name: 'Modifier Config HS', description: 'Modifier la configuration des heures supplementaires', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_horaires.config_hs.voir' },
+      { code: 'ressources_humaines.gestion_horaires.config_hs.voir', label: 'Voir Config HS', description: 'Voir la configuration des heures supplementaires' },
+      { code: 'ressources_humaines.gestion_horaires.config_hs.modifier', label: 'Modifier Config HS', description: 'Modifier la configuration des heures supplementaires' },
       // Gestion de Paie
-      { id: 'ressources_humaines.gestion_paie.voir', name: 'Voir Gestion Paie', description: 'Voir la gestion de paie', category: 'ressources_humaines', parent_id: 'ressources_humaines.acces' },
+      { code: 'ressources_humaines.gestion_paie.voir', label: 'Voir Gestion Paie', description: 'Voir la gestion de paie' },
       // Onglet Periodes
-      { id: 'ressources_humaines.gestion_paie.periodes.creer', name: 'Creer Periode Paie', description: 'Creer une periode de paie', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.voir' },
-      { id: 'ressources_humaines.gestion_paie.periodes.ouvrir', name: 'Ouvrir Periode Paie', description: 'Ouvrir une periode de paie', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.voir' },
-      { id: 'ressources_humaines.gestion_paie.periodes.fermer', name: 'Fermer Periode Paie', description: 'Fermer une periode de paie', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.voir' },
-      { id: 'ressources_humaines.gestion_paie.periodes.supprimer', name: 'Supprimer Periode Paie', description: 'Supprimer une periode de paie', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.voir' },
+      { code: 'ressources_humaines.gestion_paie.periodes.creer', label: 'Creer Periode Paie', description: 'Creer une periode de paie' },
+      { code: 'ressources_humaines.gestion_paie.periodes.ouvrir', label: 'Ouvrir Periode Paie', description: 'Ouvrir une periode de paie' },
+      { code: 'ressources_humaines.gestion_paie.periodes.fermer', label: 'Fermer Periode Paie', description: 'Fermer une periode de paie' },
+      { code: 'ressources_humaines.gestion_paie.periodes.supprimer', label: 'Supprimer Periode Paie', description: 'Supprimer une periode de paie' },
       // Onglet Calculs
-      { id: 'ressources_humaines.gestion_paie.calculs.calculer', name: 'Calculer Paie', description: 'Lancer le calcul de paie', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.voir' },
+      { code: 'ressources_humaines.gestion_paie.calculs.calculer', label: 'Calculer Paie', description: 'Lancer le calcul de paie' },
       // Onglet Bulletins
-      { id: 'ressources_humaines.gestion_paie.bulletins.voir', name: 'Voir Bulletins', description: 'Voir les bulletins de paie', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.voir' },
-      { id: 'ressources_humaines.gestion_paie.bulletins.valider', name: 'Valider Bulletin', description: 'Valider un bulletin', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.bulletins.voir' },
-      { id: 'ressources_humaines.gestion_paie.bulletins.valider_tous', name: 'Valider Tous Bulletins', description: 'Valider tous les bulletins', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.bulletins.voir' },
-      { id: 'ressources_humaines.gestion_paie.bulletins.telecharger', name: 'Telecharger Bulletin', description: 'Telecharger un bulletin', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.bulletins.voir' },
-      { id: 'ressources_humaines.gestion_paie.bulletins.exporter_cnss', name: 'Exporter CNSS', description: 'Exporter la declaration CNSS', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.bulletins.voir' },
-      { id: 'ressources_humaines.gestion_paie.bulletins.exporter_virements', name: 'Exporter Virements', description: 'Exporter le fichier de virements', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.bulletins.voir' },
+      { code: 'ressources_humaines.gestion_paie.bulletins.voir', label: 'Voir Bulletins', description: 'Voir les bulletins de paie' },
+      { code: 'ressources_humaines.gestion_paie.bulletins.valider', label: 'Valider Bulletin', description: 'Valider un bulletin' },
+      { code: 'ressources_humaines.gestion_paie.bulletins.valider_tous', label: 'Valider Tous Bulletins', description: 'Valider tous les bulletins' },
+      { code: 'ressources_humaines.gestion_paie.bulletins.telecharger', label: 'Telecharger Bulletin', description: 'Telecharger un bulletin' },
+      { code: 'ressources_humaines.gestion_paie.bulletins.exporter_cnss', label: 'Exporter CNSS', description: 'Exporter la declaration CNSS' },
+      { code: 'ressources_humaines.gestion_paie.bulletins.exporter_virements', label: 'Exporter Virements', description: 'Exporter le fichier de virements' },
       // Onglet Tests
-      { id: 'ressources_humaines.gestion_paie.tests.voir', name: 'Voir Tests Paie', description: 'Voir les tests et logs de paie', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.voir' },
+      { code: 'ressources_humaines.gestion_paie.tests.voir', label: 'Voir Tests Paie', description: 'Voir les tests et logs de paie' },
       // Onglet Automatisation
-      { id: 'ressources_humaines.gestion_paie.automatisation.voir', name: 'Voir Automatisation', description: 'Voir l\'automatisation de la paie', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.voir' },
-      { id: 'ressources_humaines.gestion_paie.automatisation.configurer', name: 'Configurer Automatisation', description: 'Configurer l\'automatisation', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.automatisation.voir' },
+      { code: 'ressources_humaines.gestion_paie.automatisation.voir', label: 'Voir Automatisation', description: 'Voir l\'automatisation de la paie' },
+      { code: 'ressources_humaines.gestion_paie.automatisation.configurer', label: 'Configurer Automatisation', description: 'Configurer l\'automatisation' },
       // Onglet Configuration
-      { id: 'ressources_humaines.gestion_paie.configuration.voir', name: 'Voir Configuration Paie', description: 'Voir la configuration de la paie', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.voir' },
-      { id: 'ressources_humaines.gestion_paie.configuration.modifier', name: 'Modifier Configuration Paie', description: 'Modifier la configuration de la paie', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_paie.configuration.voir' },
+      { code: 'ressources_humaines.gestion_paie.configuration.voir', label: 'Voir Configuration Paie', description: 'Voir la configuration de la paie' },
+      { code: 'ressources_humaines.gestion_paie.configuration.modifier', label: 'Modifier Configuration Paie', description: 'Modifier la configuration de la paie' },
       // Gestion Pointage
-      { id: 'ressources_humaines.gestion_pointage.voir', name: 'Voir Gestion Pointage', description: 'Voir la gestion du pointage', category: 'ressources_humaines', parent_id: 'ressources_humaines.acces' },
-      { id: 'ressources_humaines.gestion_pointage.pointer', name: 'Pointer', description: 'Effectuer un pointage', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_pointage.voir' },
-      { id: 'ressources_humaines.gestion_pointage.corriger', name: 'Corriger Pointage', description: 'Corriger un pointage', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_pointage.voir' },
-      { id: 'ressources_humaines.gestion_pointage.importer', name: 'Importer Pointages', description: 'Importer des pointages', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_pointage.voir' },
-      { id: 'ressources_humaines.gestion_pointage.exporter', name: 'Exporter Pointages', description: 'Exporter les pointages', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_pointage.voir' },
-      { id: 'ressources_humaines.gestion_pointage.valider', name: 'Valider Pointages', description: 'Valider les pointages', category: 'ressources_humaines', parent_id: 'ressources_humaines.gestion_pointage.voir' },
+      { code: 'ressources_humaines.gestion_pointage.voir', label: 'Voir Gestion Pointage', description: 'Voir la gestion du pointage' },
+      { code: 'ressources_humaines.gestion_pointage.pointer', label: 'Pointer', description: 'Effectuer un pointage' },
+      { code: 'ressources_humaines.gestion_pointage.corriger', label: 'Corriger Pointage', description: 'Corriger un pointage' },
+      { code: 'ressources_humaines.gestion_pointage.importer', label: 'Importer Pointages', description: 'Importer des pointages' },
+      { code: 'ressources_humaines.gestion_pointage.exporter', label: 'Exporter Pointages', description: 'Exporter les pointages' },
+      { code: 'ressources_humaines.gestion_pointage.valider', label: 'Valider Pointages', description: 'Valider les pointages' },
       // Dossier Employe
-      { id: 'ressources_humaines.dossier_employe.voir', name: 'Voir Dossier Employe', description: 'Voir les dossiers employes', category: 'ressources_humaines', parent_id: 'ressources_humaines.acces' },
-      { id: 'ressources_humaines.dossier_employe.creer', name: 'Creer Dossier', description: 'Creer un dossier employe', category: 'ressources_humaines', parent_id: 'ressources_humaines.dossier_employe.voir' },
-      { id: 'ressources_humaines.dossier_employe.modifier', name: 'Modifier Dossier', description: 'Modifier un dossier employe', category: 'ressources_humaines', parent_id: 'ressources_humaines.dossier_employe.voir' },
-      { id: 'ressources_humaines.dossier_employe.supprimer', name: 'Supprimer Dossier', description: 'Supprimer un dossier employe', category: 'ressources_humaines', parent_id: 'ressources_humaines.dossier_employe.voir' },
-      { id: 'ressources_humaines.dossier_employe.voir_salaire', name: 'Voir Salaire', description: 'Voir le salaire de l\'employe', category: 'ressources_humaines', parent_id: 'ressources_humaines.dossier_employe.voir' },
-      { id: 'ressources_humaines.dossier_employe.gerer_contrats', name: 'Gerer Contrats', description: 'Gerer les contrats de l\'employe', category: 'ressources_humaines', parent_id: 'ressources_humaines.dossier_employe.voir' },
-      { id: 'ressources_humaines.dossier_employe.gerer_documents', name: 'Gerer Documents', description: 'Gerer les documents de l\'employe', category: 'ressources_humaines', parent_id: 'ressources_humaines.dossier_employe.voir' },
-      { id: 'ressources_humaines.dossier_employe.gerer_discipline', name: 'Gerer Discipline', description: 'Gerer les actions disciplinaires', category: 'ressources_humaines', parent_id: 'ressources_humaines.dossier_employe.voir' },
+      { code: 'ressources_humaines.dossier_employe.voir', label: 'Voir Dossier Employe', description: 'Voir les dossiers employes' },
+      { code: 'ressources_humaines.dossier_employe.creer', label: 'Creer Dossier', description: 'Creer un dossier employe' },
+      { code: 'ressources_humaines.dossier_employe.modifier', label: 'Modifier Dossier', description: 'Modifier un dossier employe' },
+      { code: 'ressources_humaines.dossier_employe.supprimer', label: 'Supprimer Dossier', description: 'Supprimer un dossier employe' },
+      { code: 'ressources_humaines.dossier_employe.voir_salaire', label: 'Voir Salaire', description: 'Voir le salaire de l\'employe' },
+      { code: 'ressources_humaines.dossier_employe.gerer_contrats', label: 'Gerer Contrats', description: 'Gerer les contrats de l\'employe' },
+      { code: 'ressources_humaines.dossier_employe.gerer_documents', label: 'Gerer Documents', description: 'Gerer les documents de l\'employe' },
+      { code: 'ressources_humaines.dossier_employe.gerer_discipline', label: 'Gerer Discipline', description: 'Gerer les actions disciplinaires' },
       // Validation des Demandes
-      { id: 'ressources_humaines.validation_demandes.voir', name: 'Voir Validation Demandes', description: 'Voir la validation des demandes', category: 'ressources_humaines', parent_id: 'ressources_humaines.acces' },
-      { id: 'ressources_humaines.validation_demandes.approuver', name: 'Approuver Demande', description: 'Approuver une demande', category: 'ressources_humaines', parent_id: 'ressources_humaines.validation_demandes.voir' },
-      { id: 'ressources_humaines.validation_demandes.rejeter', name: 'Rejeter Demande', description: 'Rejeter une demande', category: 'ressources_humaines', parent_id: 'ressources_humaines.validation_demandes.voir' },
+      { code: 'ressources_humaines.validation_demandes.voir', label: 'Voir Validation Demandes', description: 'Voir la validation des demandes' },
+      { code: 'ressources_humaines.validation_demandes.approuver', label: 'Approuver Demande', description: 'Approuver une demande' },
+      { code: 'ressources_humaines.validation_demandes.rejeter', label: 'Rejeter Demande', description: 'Rejeter une demande' },
       // Delegations
-      { id: 'ressources_humaines.delegations.voir', name: 'Voir Delegations', description: 'Voir les delegations', category: 'ressources_humaines', parent_id: 'ressources_humaines.acces' },
-      { id: 'ressources_humaines.delegations.creer', name: 'Creer Delegation', description: 'Creer une delegation', category: 'ressources_humaines', parent_id: 'ressources_humaines.delegations.voir' },
-      { id: 'ressources_humaines.delegations.gerer_toutes', name: 'Gerer Toutes Delegations', description: 'Gerer toutes les delegations', category: 'ressources_humaines', parent_id: 'ressources_humaines.delegations.voir' },
+      { code: 'ressources_humaines.delegations.voir', label: 'Voir Delegations', description: 'Voir les delegations' },
+      { code: 'ressources_humaines.delegations.creer', label: 'Creer Delegation', description: 'Creer une delegation' },
+      { code: 'ressources_humaines.delegations.gerer_toutes', label: 'Gerer Toutes Delegations', description: 'Gerer toutes les delegations' },
 
       // ==================== MON EQUIPE ====================
-      { id: 'mon_equipe.acces', name: 'Acces Mon Equipe', description: 'Acces a la section Mon Equipe', category: 'mon_equipe', parent_id: null },
-      { id: 'mon_equipe.pointages_equipe.voir', name: 'Voir Pointages Equipe', description: 'Voir les pointages de l\'equipe', category: 'mon_equipe', parent_id: 'mon_equipe.acces' },
-      { id: 'mon_equipe.pointages_equipe.supprimer', name: 'Supprimer Pointage Equipe', description: 'Supprimer un pointage de l\'equipe', category: 'mon_equipe', parent_id: 'mon_equipe.pointages_equipe.voir' },
-      { id: 'mon_equipe.demandes_equipe.voir', name: 'Voir Demandes Equipe', description: 'Voir les demandes de l\'equipe', category: 'mon_equipe', parent_id: 'mon_equipe.acces' },
-      { id: 'mon_equipe.demandes_equipe.approuver', name: 'Approuver Demande Equipe', description: 'Approuver une demande de l\'equipe', category: 'mon_equipe', parent_id: 'mon_equipe.demandes_equipe.voir' },
-      { id: 'mon_equipe.demandes_equipe.rejeter', name: 'Rejeter Demande Equipe', description: 'Rejeter une demande de l\'equipe', category: 'mon_equipe', parent_id: 'mon_equipe.demandes_equipe.voir' },
+      { code: 'mon_equipe.acces', label: 'Acces Mon Equipe', description: 'Acces a la section Mon Equipe' },
+      { code: 'mon_equipe.pointages_equipe.voir', label: 'Voir Pointages Equipe', description: 'Voir les pointages de l\'equipe' },
+      { code: 'mon_equipe.pointages_equipe.supprimer', label: 'Supprimer Pointage Equipe', description: 'Supprimer un pointage de l\'equipe' },
+      { code: 'mon_equipe.demandes_equipe.voir', label: 'Voir Demandes Equipe', description: 'Voir les demandes de l\'equipe' },
+      { code: 'mon_equipe.demandes_equipe.approuver', label: 'Approuver Demande Equipe', description: 'Approuver une demande de l\'equipe' },
+      { code: 'mon_equipe.demandes_equipe.rejeter', label: 'Rejeter Demande Equipe', description: 'Rejeter une demande de l\'equipe' },
 
       // ==================== MON ESPACE RH ====================
-      { id: 'mon_espace_rh.acces', name: 'Acces Mon Espace RH', description: 'Acces a Mon Espace RH', category: 'mon_espace_rh', parent_id: null },
-      { id: 'mon_espace_rh.mon_pointage.voir', name: 'Voir Mon Pointage', description: 'Voir mes pointages', category: 'mon_espace_rh', parent_id: 'mon_espace_rh.acces' },
-      { id: 'mon_espace_rh.mon_pointage.pointer', name: 'Pointer', description: 'Effectuer mon pointage', category: 'mon_espace_rh', parent_id: 'mon_espace_rh.mon_pointage.voir' },
-      { id: 'mon_espace_rh.mes_demandes.voir', name: 'Voir Mes Demandes', description: 'Voir mes demandes', category: 'mon_espace_rh', parent_id: 'mon_espace_rh.acces' },
-      { id: 'mon_espace_rh.mes_demandes.creer', name: 'Creer Demande', description: 'Creer une demande', category: 'mon_espace_rh', parent_id: 'mon_espace_rh.mes_demandes.voir' },
-      { id: 'mon_espace_rh.mes_demandes.annuler', name: 'Annuler Demande', description: 'Annuler une demande', category: 'mon_espace_rh', parent_id: 'mon_espace_rh.mes_demandes.voir' },
-      { id: 'mon_espace_rh.mes_bulletins.voir', name: 'Voir Mes Bulletins', description: 'Voir mes bulletins de paie', category: 'mon_espace_rh', parent_id: 'mon_espace_rh.acces' },
-      { id: 'mon_espace_rh.mes_bulletins.telecharger', name: 'Telecharger Bulletin', description: 'Telecharger mon bulletin', category: 'mon_espace_rh', parent_id: 'mon_espace_rh.mes_bulletins.voir' },
+      { code: 'mon_espace_rh.acces', label: 'Acces Mon Espace RH', description: 'Acces a Mon Espace RH' },
+      { code: 'mon_espace_rh.mon_pointage.voir', label: 'Voir Mon Pointage', description: 'Voir mes pointages' },
+      { code: 'mon_espace_rh.mon_pointage.pointer', label: 'Pointer', description: 'Effectuer mon pointage' },
+      { code: 'mon_espace_rh.mes_demandes.voir', label: 'Voir Mes Demandes', description: 'Voir mes demandes' },
+      { code: 'mon_espace_rh.mes_demandes.creer', label: 'Creer Demande', description: 'Creer une demande' },
+      { code: 'mon_espace_rh.mes_demandes.annuler', label: 'Annuler Demande', description: 'Annuler une demande' },
+      { code: 'mon_espace_rh.mes_bulletins.voir', label: 'Voir Mes Bulletins', description: 'Voir mes bulletins de paie' },
+      { code: 'mon_espace_rh.mes_bulletins.telecharger', label: 'Telecharger Bulletin', description: 'Telecharger mon bulletin' },
 
       // ==================== COMMERCIALISATION ====================
-      { id: 'commercialisation.acces', name: 'Acces Commercialisation', description: 'Acces a la section Commercialisation', category: 'commercialisation', parent_id: null },
+      { code: 'commercialisation.acces', label: 'Acces Commercialisation', description: 'Acces a la section Commercialisation' },
       // Tableau de bord
-      { id: 'commercialisation.tableau_de_bord.voir', name: 'Voir Tableau de bord', description: 'Voir le tableau de bord commercial', category: 'commercialisation', parent_id: 'commercialisation.acces' },
-      { id: 'commercialisation.tableau_de_bord.voir_stats', name: 'Voir Statistiques', description: 'Voir les statistiques', category: 'commercialisation', parent_id: 'commercialisation.tableau_de_bord.voir' },
-      { id: 'commercialisation.tableau_de_bord.exporter', name: 'Exporter Stats', description: 'Exporter les statistiques', category: 'commercialisation', parent_id: 'commercialisation.tableau_de_bord.voir' },
+      { code: 'commercialisation.tableau_de_bord.voir', label: 'Voir Tableau de bord', description: 'Voir le tableau de bord commercial' },
+      { code: 'commercialisation.tableau_de_bord.voir_stats', label: 'Voir Statistiques', description: 'Voir les statistiques' },
+      { code: 'commercialisation.tableau_de_bord.exporter', label: 'Exporter Stats', description: 'Exporter les statistiques' },
       // Prospects
-      { id: 'commercialisation.prospects.voir', name: 'Voir Prospects', description: 'Voir les prospects', category: 'commercialisation', parent_id: 'commercialisation.acces' },
-      { id: 'commercialisation.prospects.voir_tous', name: 'Voir Tous Prospects', description: 'Voir tous les prospects', category: 'commercialisation', parent_id: 'commercialisation.prospects.voir' },
-      { id: 'commercialisation.prospects.creer', name: 'Creer Prospect', description: 'Creer un prospect', category: 'commercialisation', parent_id: 'commercialisation.prospects.voir' },
-      { id: 'commercialisation.prospects.modifier', name: 'Modifier Prospect', description: 'Modifier un prospect', category: 'commercialisation', parent_id: 'commercialisation.prospects.voir' },
-      { id: 'commercialisation.prospects.supprimer', name: 'Supprimer Prospect', description: 'Supprimer un prospect', category: 'commercialisation', parent_id: 'commercialisation.prospects.voir' },
-      { id: 'commercialisation.prospects.appeler', name: 'Appeler Prospect', description: 'Appeler un prospect', category: 'commercialisation', parent_id: 'commercialisation.prospects.voir' },
-      { id: 'commercialisation.prospects.convertir', name: 'Convertir Prospect', description: 'Convertir un prospect en client', category: 'commercialisation', parent_id: 'commercialisation.prospects.voir' },
-      { id: 'commercialisation.prospects.importer', name: 'Importer Prospects', description: 'Importer des prospects', category: 'commercialisation', parent_id: 'commercialisation.prospects.voir' },
-      { id: 'commercialisation.prospects.exporter', name: 'Exporter Prospects', description: 'Exporter des prospects', category: 'commercialisation', parent_id: 'commercialisation.prospects.voir' },
-      { id: 'commercialisation.prospects.assigner', name: 'Assigner Prospect', description: 'Assigner un prospect', category: 'commercialisation', parent_id: 'commercialisation.prospects.voir' },
-      { id: 'commercialisation.prospects.reinjecter', name: 'Reinjecter Prospect', description: 'Reinjecter un prospect dans le cycle', category: 'commercialisation', parent_id: 'commercialisation.prospects.voir' },
+      { code: 'commercialisation.prospects.voir', label: 'Voir Prospects', description: 'Voir les prospects' },
+      { code: 'commercialisation.prospects.voir_tous', label: 'Voir Tous Prospects', description: 'Voir tous les prospects' },
+      { code: 'commercialisation.prospects.creer', label: 'Creer Prospect', description: 'Creer un prospect' },
+      { code: 'commercialisation.prospects.modifier', label: 'Modifier Prospect', description: 'Modifier un prospect' },
+      { code: 'commercialisation.prospects.supprimer', label: 'Supprimer Prospect', description: 'Supprimer un prospect' },
+      { code: 'commercialisation.prospects.appeler', label: 'Appeler Prospect', description: 'Appeler un prospect' },
+      { code: 'commercialisation.prospects.convertir', label: 'Convertir Prospect', description: 'Convertir un prospect en client' },
+      { code: 'commercialisation.prospects.importer', label: 'Importer Prospects', description: 'Importer des prospects' },
+      { code: 'commercialisation.prospects.exporter', label: 'Exporter Prospects', description: 'Exporter des prospects' },
+      { code: 'commercialisation.prospects.assigner', label: 'Assigner Prospect', description: 'Assigner un prospect' },
+      { code: 'commercialisation.prospects.reinjecter', label: 'Reinjecter Prospect', description: 'Reinjecter un prospect dans le cycle' },
       // Nettoyage Prospects
-      { id: 'commercialisation.nettoyage_prospects.voir', name: 'Voir Nettoyage', description: 'Voir le nettoyage des prospects', category: 'commercialisation', parent_id: 'commercialisation.acces' },
-      { id: 'commercialisation.nettoyage_prospects.nettoyer', name: 'Nettoyer Prospects', description: 'Nettoyer les prospects', category: 'commercialisation', parent_id: 'commercialisation.nettoyage_prospects.voir' },
+      { code: 'commercialisation.nettoyage_prospects.voir', label: 'Voir Nettoyage', description: 'Voir le nettoyage des prospects' },
+      { code: 'commercialisation.nettoyage_prospects.nettoyer', label: 'Nettoyer Prospects', description: 'Nettoyer les prospects' },
       // Gestion G-Contacte
-      { id: 'commercialisation.gestion_gcontacte.voir', name: 'Voir G-Contacte', description: 'Voir la gestion G-Contacte', category: 'commercialisation', parent_id: 'commercialisation.acces' },
-      { id: 'commercialisation.gestion_gcontacte.configurer', name: 'Configurer G-Contacte', description: 'Configurer G-Contacte', category: 'commercialisation', parent_id: 'commercialisation.gestion_gcontacte.voir' },
-      { id: 'commercialisation.gestion_gcontacte.synchroniser', name: 'Synchroniser G-Contacte', description: 'Synchroniser avec G-Contacte', category: 'commercialisation', parent_id: 'commercialisation.gestion_gcontacte.voir' },
-      { id: 'commercialisation.gestion_gcontacte.tester', name: 'Tester G-Contacte', description: 'Tester la connexion G-Contacte', category: 'commercialisation', parent_id: 'commercialisation.gestion_gcontacte.voir' },
+      { code: 'commercialisation.gestion_gcontacte.voir', label: 'Voir G-Contacte', description: 'Voir la gestion G-Contacte' },
+      { code: 'commercialisation.gestion_gcontacte.configurer', label: 'Configurer G-Contacte', description: 'Configurer G-Contacte' },
+      { code: 'commercialisation.gestion_gcontacte.synchroniser', label: 'Synchroniser G-Contacte', description: 'Synchroniser avec G-Contacte' },
+      { code: 'commercialisation.gestion_gcontacte.tester', label: 'Tester G-Contacte', description: 'Tester la connexion G-Contacte' },
     ];
 
+    let insertedCount = 0;
     for (const perm of newPermissions) {
-      await client.query(`
-        INSERT INTO permissions (id, name, description, category, parent_id)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (id) DO UPDATE SET
-          name = EXCLUDED.name,
-          description = EXCLUDED.description,
-          category = EXCLUDED.category,
-          parent_id = EXCLUDED.parent_id
-      `, [perm.id, perm.name, perm.description, perm.category, perm.parent_id]);
+      const parsed = parsePermissionCode(perm.code);
+      try {
+        const result = await client.query(`
+          INSERT INTO permissions (module, menu, action, code, label, description, sort_order, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, 0, NOW())
+          ON CONFLICT (code) DO UPDATE SET
+            label = EXCLUDED.label,
+            description = EXCLUDED.description,
+            module = EXCLUDED.module,
+            menu = EXCLUDED.menu,
+            action = EXCLUDED.action
+          RETURNING id
+        `, [parsed.module, parsed.menu, parsed.action, perm.code, perm.label, perm.description]);
+        insertedCount++;
+      } catch (err) {
+        console.log(`Erreur insertion ${perm.code}:`, err.message);
+      }
     }
-    console.log(`${newPermissions.length} nouvelles permissions inserees`);
+    console.log(`${insertedCount} permissions inserees/mises a jour`);
 
     // Step 4: Migrer les associations role_permissions vers les nouveaux codes
     console.log('Step 4: Migration des associations role_permissions...');
-    await client.query(`
-      -- Pour chaque mapping, ajouter les nouvelles permissions aux roles qui avaient les anciennes
-      INSERT INTO role_permissions (role_id, permission_id)
-      SELECT DISTINCT rp.role_id, m.new_code
-      FROM role_permissions rp
-      JOIN permissions p ON rp.permission_id = p.id
-      JOIN permission_mapping m ON p.id = m.old_code
-      ON CONFLICT (role_id, permission_id) DO NOTHING
+
+    // Get IDs of new permissions
+    const newPermIds = await client.query(`
+      SELECT id, code FROM permissions
+      WHERE code LIKE 'gestion_comptable.%'
+         OR code LIKE 'formation.%'
+         OR code LIKE 'ressources_humaines.%'
+         OR code LIKE 'mon_equipe.%'
+         OR code LIKE 'mon_espace_rh.%'
+         OR code LIKE 'commercialisation.%'
     `);
+
+    // For each old->new mapping, copy role associations
+    const mappingResult = await client.query('SELECT old_code, new_code FROM permission_mapping');
+    for (const mapping of mappingResult.rows) {
+      // Find old permission ID
+      const oldPermResult = await client.query('SELECT id FROM permissions WHERE code = $1', [mapping.old_code]);
+      if (oldPermResult.rows.length === 0) continue;
+
+      const oldPermId = oldPermResult.rows[0].id;
+
+      // Find new permission ID
+      const newPermResult = await client.query('SELECT id FROM permissions WHERE code = $1', [mapping.new_code]);
+      if (newPermResult.rows.length === 0) continue;
+
+      const newPermId = newPermResult.rows[0].id;
+
+      // Copy associations
+      await client.query(`
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT role_id, $1
+        FROM role_permissions
+        WHERE permission_id = $2
+        ON CONFLICT (role_id, permission_id) DO NOTHING
+      `, [newPermId, oldPermId]);
+    }
     console.log('Associations migreees');
 
     // Step 5: Assigner toutes les nouvelles permissions au role admin
     console.log('Step 5: Attribution des permissions admin...');
-    await client.query(`
-      INSERT INTO role_permissions (role_id, permission_id)
-      SELECT r.id, p.id
-      FROM roles r
-      CROSS JOIN permissions p
-      WHERE r.name = 'admin'
-        AND p.id LIKE 'gestion_comptable.%' OR p.id LIKE 'formation.%' OR p.id LIKE 'ressources_humaines.%'
-        OR p.id LIKE 'mon_equipe.%' OR p.id LIKE 'mon_espace_rh.%' OR p.id LIKE 'commercialisation.%'
-      ON CONFLICT (role_id, permission_id) DO NOTHING
-    `);
-    console.log('Permissions admin attribuees');
+    const adminRoleResult = await client.query("SELECT id FROM roles WHERE name = 'admin' LIMIT 1");
+
+    if (adminRoleResult.rows.length > 0) {
+      const adminRoleId = adminRoleResult.rows[0].id;
+
+      for (const row of newPermIds.rows) {
+        await client.query(`
+          INSERT INTO role_permissions (role_id, permission_id)
+          VALUES ($1, $2)
+          ON CONFLICT (role_id, permission_id) DO NOTHING
+        `, [adminRoleId, row.id]);
+      }
+      console.log('Permissions admin attribuees');
+    }
 
     await client.query('COMMIT');
 
@@ -404,7 +452,7 @@ router.post('/run', async (req, res) => {
     res.json({
       success: true,
       message: 'Migration 109: Refactorisation des permissions en francais terminee',
-      permissions_created: newPermissions.length
+      permissions_created: insertedCount
     });
 
   } catch (error) {
