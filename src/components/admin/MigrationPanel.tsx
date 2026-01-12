@@ -389,6 +389,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 110: Renommer Permissions en Français',
     description: '🔄 Renomme les permissions anglaises existantes en français (UPDATE, pas INSERT) - Assure la cohérence entre la DB et le frontend sans créer de doublons',
     endpoint: '/migration-110-rename-permissions-french'
+  },
+  {
+    id: 'migration-111',
+    name: 'Migration 111: Nettoyer Doublons Permissions',
+    description: '🧹 Supprime les permissions dupliquées (même code, ID différent) - Garde l\'ID le plus bas, migre les role_permissions, supprime les doublons',
+    endpoint: '/migration-111-cleanup-duplicates'
   }
 ];
 
