@@ -240,7 +240,7 @@ router.get('/team-attendance',
                 WHEN 4 THEN EXTRACT(HOUR FROM es.thursday_start::time) * 60 + EXTRACT(MINUTE FROM es.thursday_start::time)
                 WHEN 5 THEN EXTRACT(HOUR FROM es.friday_start::time) * 60 + EXTRACT(MINUTE FROM es.friday_start::time)
                 ELSE 8 * 60
-              END) + COALESCE(es.tolerance_late_minutes, 15)
+              END) + COALESCE(es.tolerance_late_minutes, 0)
             ) THEN 'late'
             ELSE 'present'
           END as status,
