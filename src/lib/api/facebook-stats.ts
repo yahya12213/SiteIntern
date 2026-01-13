@@ -44,11 +44,6 @@ export interface CreateFacebookStatInput {
 
 export interface ComparisonRow {
   date: string;
-  city_id: string;
-  segment_id: string;
-  city_name: string;
-  segment_name: string;
-  segment_color?: string;
   facebook_count: number;
   database_count: number;
   difference: number;
@@ -63,8 +58,6 @@ export interface ComparisonSummary {
 }
 
 export interface ComparisonFilters {
-  segment_id?: string;
-  city_id?: string;
   date_start: string;
   date_end: string;
 }

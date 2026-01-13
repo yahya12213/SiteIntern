@@ -136,10 +136,8 @@ export default function AnalysePublicite() {
     limit: 100,
   });
 
-  // Comparaison Facebook vs BDD
+  // Comparaison Facebook vs BDD (agrege par jour)
   const { data: comparisonData, isLoading: comparisonLoading, refetch: refetchComparison } = useFacebookStatsComparison({
-    segment_id: selectedSegment || undefined,
-    city_id: selectedCity || undefined,
     date_start: dateStart,
     date_end: dateEnd,
   });
@@ -463,37 +461,21 @@ export default function AnalysePublicite() {
         </TabsContent>
 
         {/* ============================================================
-            ONGLET 2: COMPARAISON FACEBOOK VS BDD
+            ONGLET 2: COMPARAISON FACEBOOK VS BDD (Resume par jour)
             ============================================================ */}
         <TabsContent value="comparison" className="space-y-6">
-          {/* Filtres */}
+          {/* Filtres - Dates uniquement */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Filter className="h-4 w-4" />
-                Filtres
+                Periode
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <SearchableSelect
-                  options={segmentOptionsWithAll}
-                  value={selectedSegment}
-                  onValueChange={handleFilterSegmentChange}
-                  placeholder="Tous les segments"
-                  emptyMessage="Aucun segment trouve"
-                />
-
-                <SearchableSelect
-                  options={cityOptionsForFilter}
-                  value={selectedCity}
-                  onValueChange={setSelectedCity}
-                  placeholder="Toutes les villes"
-                  emptyMessage="Aucune ville trouvee"
-                />
-
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <Calendar className="h-4 w-4 text-gray-500 shrink-0" />
                   <Input
                     type="date"
                     value={dateStart}
@@ -502,7 +484,7 @@ export default function AnalysePublicite() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <Calendar className="h-4 w-4 text-gray-500 shrink-0" />
                   <Input
                     type="date"
                     value={dateEnd}
@@ -579,12 +561,12 @@ export default function AnalysePublicite() {
             </div>
           )}
 
-          {/* Tableau de comparaison */}
+          {/* Tableau de comparaison par jour */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ArrowUpDown className="h-5 w-5" />
-                Detail par jour et ville
+                Resume par jour
               </CardTitle>
               <CardDescription>
                 Comparaison entre les prospects declares sur Facebook et ceux ajoutes dans la base de donnees
@@ -605,8 +587,6 @@ export default function AnalysePublicite() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Date</TableHead>
-                        <TableHead>Ville</TableHead>
-                        <TableHead>Segment</TableHead>
                         <TableHead className="text-right">Facebook</TableHead>
                         <TableHead className="text-right">Prospects BDD</TableHead>
                         <TableHead className="text-right">Difference</TableHead>
@@ -615,21 +595,9 @@ export default function AnalysePublicite() {
                     </TableHeader>
                     <TableBody>
                       {comparison.map((row, index) => (
-                        <TableRow key={`${row.date}-${row.city_id}-${index}`}>
+                        <TableRow key={`${row.date}-${index}`}>
                           <TableCell className="font-medium">
                             {new Date(row.date).toLocaleDateString('fr-FR')}
-                          </TableCell>
-                          <TableCell>{row.city_name}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              style={{
-                                borderColor: row.segment_color || '#3B82F6',
-                                color: row.segment_color || '#3B82F6',
-                              }}
-                            >
-                              {row.segment_name}
-                            </Badge>
                           </TableCell>
                           <TableCell className="text-right font-medium text-blue-600">
                             {row.facebook_count}

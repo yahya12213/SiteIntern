@@ -162,14 +162,14 @@ router.post('/',
 );
 
 // ============================================================
-// GET /api/facebook-stats/comparison - Comparaison Facebook vs BDD
+// GET /api/facebook-stats/comparison - Comparaison Facebook vs BDD (agrege par jour)
 // ============================================================
 router.get('/comparison',
   requirePermission('commercialisation.analyse_publicite.voir'),
   injectUserScope,
   async (req, res) => {
     try {
-      const { segment_id, city_id, date_start, date_end } = req.query;
+      const { date_start, date_end } = req.query;
 
       // Validation des dates
       if (!date_start || !date_end) {
@@ -178,59 +178,26 @@ router.get('/comparison',
         });
       }
 
-      // Construction de la requete avec CTE
-      let query = `
+      // Requete agrégée par jour uniquement (pas par ville/segment)
+      const query = `
         WITH fb_stats AS (
           SELECT
             fs.date,
-            fs.city_id,
-            fs.segment_id,
-            fs.declared_count as facebook_count
+            SUM(fs.declared_count) as facebook_count
           FROM facebook_stats fs
           WHERE fs.date >= $1 AND fs.date <= $2
-      `;
-      const params = [date_start, date_end];
-      let paramIndex = 3;
-
-      if (segment_id) {
-        query += ` AND fs.segment_id = $${paramIndex++}`;
-        params.push(segment_id);
-      }
-      if (city_id) {
-        query += ` AND fs.city_id = $${paramIndex++}`;
-        params.push(city_id);
-      }
-
-      query += `
+          GROUP BY fs.date
         ),
         db_prospects AS (
           SELECT
             DATE(p.date_injection) as date,
-            p.ville_id as city_id,
-            p.segment_id,
             COUNT(*) as db_count
           FROM prospects p
           WHERE DATE(p.date_injection) >= $1 AND DATE(p.date_injection) <= $2
-      `;
-
-      // Repeter les filtres pour prospects
-      if (segment_id) {
-        query += ` AND p.segment_id = $${paramIndex - (city_id ? 2 : 1)}`;
-      }
-      if (city_id) {
-        query += ` AND p.ville_id = $${paramIndex - 1}`;
-      }
-
-      query += `
-          GROUP BY DATE(p.date_injection), p.ville_id, p.segment_id
+          GROUP BY DATE(p.date_injection)
         )
         SELECT
           COALESCE(fb.date, db.date) as date,
-          COALESCE(fb.city_id, db.city_id) as city_id,
-          COALESCE(fb.segment_id, db.segment_id) as segment_id,
-          c.name as city_name,
-          s.name as segment_name,
-          s.color as segment_color,
           COALESCE(fb.facebook_count, 0) as facebook_count,
           COALESCE(db.db_count, 0) as database_count,
           COALESCE(db.db_count, 0) - COALESCE(fb.facebook_count, 0) as difference,
@@ -240,14 +207,11 @@ router.get('/comparison',
             ELSE NULL
           END as conversion_rate
         FROM fb_stats fb
-        FULL OUTER JOIN db_prospects db
-          ON fb.date = db.date AND fb.city_id = db.city_id
-        LEFT JOIN cities c ON c.id = COALESCE(fb.city_id, db.city_id)
-        LEFT JOIN segments s ON s.id = COALESCE(fb.segment_id, db.segment_id)
-        ORDER BY date DESC, city_name ASC
+        FULL OUTER JOIN db_prospects db ON fb.date = db.date
+        ORDER BY date DESC
       `;
 
-      const { rows } = await pool.query(query, params);
+      const { rows } = await pool.query(query, [date_start, date_end]);
 
       // Calculer les statistiques globales
       let totalFacebook = 0;
@@ -272,9 +236,7 @@ router.get('/comparison',
         },
         filters: {
           date_start,
-          date_end,
-          segment_id: segment_id || null,
-          city_id: city_id || null
+          date_end
         }
       });
     } catch (error) {
