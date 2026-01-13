@@ -345,6 +345,17 @@ router.get('/attendance', authenticateToken, async (req, res) => {
         // Utiliser le statut réel de la base de données si disponible
         let displayStatus = r.day_status || (isWeekend ? 'weekend' : (r.check_ins > 0 ? 'incomplete' : 'absent'));
 
+        // Vérifier si l'employé est en congé approuvé pour cette date
+        const recordDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : r.date;
+        const hasApprovedLeave = leaves.rows.some(l => {
+          const startDate = l.start_date instanceof Date ? l.start_date.toISOString().split('T')[0] : l.start_date;
+          const endDate = l.end_date instanceof Date ? l.end_date.toISOString().split('T')[0] : l.end_date;
+          return recordDateStr >= startDate && recordDateStr <= endDate;
+        });
+        if (hasApprovedLeave) {
+          displayStatus = 'leave';
+        }
+
         return {
           date: r.date,
           check_in: r.check_in ? new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }) : '-',
@@ -404,7 +415,18 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       }
 
       // Utiliser le statut réel de la base de données
-      const displayStatus = r.day_status || 'present';
+      let displayStatus = r.day_status || 'present';
+
+      // Vérifier si l'employé est en congé approuvé pour cette date
+      const recordDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : r.date;
+      const hasApprovedLeave = leaves.rows.some(l => {
+        const startDate = l.start_date instanceof Date ? l.start_date.toISOString().split('T')[0] : l.start_date;
+        const endDate = l.end_date instanceof Date ? l.end_date.toISOString().split('T')[0] : l.end_date;
+        return recordDateStr >= startDate && recordDateStr <= endDate;
+      });
+      if (hasApprovedLeave) {
+        displayStatus = 'leave';
+      }
 
       return {
         date: r.date,
