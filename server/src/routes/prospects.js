@@ -228,17 +228,16 @@ router.get('/',
 
       const statsResult = await pool.query(statsQuery, scopeFilter.params);
 
-      // Requête séparée pour inscrits_session - utiliser buildScopeFilter comme formations.js
+      // Requete pour inscrits_session - utiliser les tables francaises (sessions_formation + session_etudiants)
       let inscritsSessionQuery = `
-        SELECT COUNT(DISTINCT fe.student_id) as count
-        FROM formation_enrollments fe
-        JOIN formation_sessions fs ON fs.id = fe.session_id
-        WHERE fs.status != 'cancelled'
-          AND fe.status = 'enrolled'
+        SELECT COUNT(DISTINCT se.etudiant_id) as count
+        FROM session_etudiants se
+        JOIN sessions_formation sf ON sf.id = se.session_id
+        WHERE sf.statut != 'annulee'
       `;
 
-      // Utiliser buildScopeFilter comme dans formations.js (ligne 42)
-      const sessionScopeFilter = buildScopeFilter(req, 'fs.segment_id', 'fs.city_id');
+      // Utiliser buildScopeFilter avec les colonnes francaises
+      const sessionScopeFilter = buildScopeFilter(req, 'sf.segment_id', 'sf.ville_id');
       if (sessionScopeFilter.hasScope) {
         inscritsSessionQuery += ` AND (${sessionScopeFilter.conditions.join(' AND ')})`;
       }
