@@ -207,6 +207,15 @@ router.get('/team-attendance',
           FROM hr_leave_requests lr
           LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
           WHERE lr.status = 'approved'
+        ),
+        employee_schedules AS (
+          SELECT
+            e.id as employee_id,
+            ws.tolerance_late_minutes,
+            ws.monday_start, ws.tuesday_start, ws.wednesday_start,
+            ws.thursday_start, ws.friday_start, ws.saturday_start, ws.sunday_start
+          FROM hr_employees e
+          LEFT JOIN hr_work_schedules ws ON ws.id = e.schedule_id
         )
         SELECT
           dr.employee_id || '-' || dr.record_date as id,
@@ -221,19 +230,52 @@ router.get('/team-attendance',
             WHEN ol.employee_id IS NOT NULL THEN 'leave'
             WHEN dr.clock_in IS NULL THEN 'absent'
             WHEN dr.clock_out IS NULL THEN 'partial'
-            WHEN EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) > 8 * 60 + 15 THEN 'late'
+            WHEN es.monday_start IS NULL THEN 'present'
+            WHEN (
+              EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) >
+              (CASE EXTRACT(DOW FROM dr.record_date)
+                WHEN 1 THEN EXTRACT(HOUR FROM es.monday_start::time) * 60 + EXTRACT(MINUTE FROM es.monday_start::time)
+                WHEN 2 THEN EXTRACT(HOUR FROM es.tuesday_start::time) * 60 + EXTRACT(MINUTE FROM es.tuesday_start::time)
+                WHEN 3 THEN EXTRACT(HOUR FROM es.wednesday_start::time) * 60 + EXTRACT(MINUTE FROM es.wednesday_start::time)
+                WHEN 4 THEN EXTRACT(HOUR FROM es.thursday_start::time) * 60 + EXTRACT(MINUTE FROM es.thursday_start::time)
+                WHEN 5 THEN EXTRACT(HOUR FROM es.friday_start::time) * 60 + EXTRACT(MINUTE FROM es.friday_start::time)
+                ELSE 8 * 60
+              END) + COALESCE(es.tolerance_late_minutes, 15)
+            ) THEN 'late'
             ELSE 'present'
           END as status,
           CASE
             WHEN EXTRACT(DOW FROM dr.record_date) IN (0, 6) THEN 0
-            WHEN dr.clock_in IS NOT NULL AND EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) > 8 * 60
-            THEN (EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) - 8 * 60)::integer
+            WHEN es.monday_start IS NULL THEN 0
+            WHEN dr.clock_in IS NOT NULL AND (
+              EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) >
+              (CASE EXTRACT(DOW FROM dr.record_date)
+                WHEN 1 THEN EXTRACT(HOUR FROM es.monday_start::time) * 60 + EXTRACT(MINUTE FROM es.monday_start::time)
+                WHEN 2 THEN EXTRACT(HOUR FROM es.tuesday_start::time) * 60 + EXTRACT(MINUTE FROM es.tuesday_start::time)
+                WHEN 3 THEN EXTRACT(HOUR FROM es.wednesday_start::time) * 60 + EXTRACT(MINUTE FROM es.wednesday_start::time)
+                WHEN 4 THEN EXTRACT(HOUR FROM es.thursday_start::time) * 60 + EXTRACT(MINUTE FROM es.thursday_start::time)
+                WHEN 5 THEN EXTRACT(HOUR FROM es.friday_start::time) * 60 + EXTRACT(MINUTE FROM es.friday_start::time)
+                ELSE 8 * 60
+              END)
+            )
+            THEN (
+              EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) -
+              (CASE EXTRACT(DOW FROM dr.record_date)
+                WHEN 1 THEN EXTRACT(HOUR FROM es.monday_start::time) * 60 + EXTRACT(MINUTE FROM es.monday_start::time)
+                WHEN 2 THEN EXTRACT(HOUR FROM es.tuesday_start::time) * 60 + EXTRACT(MINUTE FROM es.tuesday_start::time)
+                WHEN 3 THEN EXTRACT(HOUR FROM es.wednesday_start::time) * 60 + EXTRACT(MINUTE FROM es.wednesday_start::time)
+                WHEN 4 THEN EXTRACT(HOUR FROM es.thursday_start::time) * 60 + EXTRACT(MINUTE FROM es.thursday_start::time)
+                WHEN 5 THEN EXTRACT(HOUR FROM es.friday_start::time) * 60 + EXTRACT(MINUTE FROM es.friday_start::time)
+                ELSE 8 * 60
+              END)
+            )::integer
             ELSE 0
           END as late_minutes,
           ol.leave_type,
           NULL as notes
         FROM daily_records dr
         JOIN hr_employees e ON e.id = dr.employee_id
+        LEFT JOIN employee_schedules es ON es.employee_id = dr.employee_id
         LEFT JOIN on_leave ol ON ol.employee_id = dr.employee_id
           AND dr.record_date BETWEEN ol.start_date AND ol.end_date
         ORDER BY dr.record_date DESC, e.last_name, e.first_name
