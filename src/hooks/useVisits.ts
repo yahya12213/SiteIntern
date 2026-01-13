@@ -73,6 +73,8 @@ export const useCreateVisit = () => {
     mutationFn: (data: CreateVisitInput) => visitsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['visits'] });
+      // 🔄 Rafraîchir aussi les prospects car le statut peut changer après visite
+      queryClient.invalidateQueries({ queryKey: ['prospects'] });
     },
   });
 };

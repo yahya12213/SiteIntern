@@ -391,6 +391,29 @@ router.post('/',
         req.user.id
       ]);
 
+      // 🔄 Mettre à jour le statut du prospect correspondant selon le résultat de la visite
+      if (phone_international) {
+        try {
+          const updateProspectResult = await pool.query(`
+            UPDATE prospects
+            SET statut_contact = $1,
+                updated_at = NOW()
+            WHERE phone_international = $2
+            RETURNING id, nom, prenom, statut_contact
+          `, [statut, phone_international]);
+
+          if (updateProspectResult.rows.length > 0) {
+            const updatedProspect = updateProspectResult.rows[0];
+            console.log(`✅ Prospect ${updatedProspect.id} (${updatedProspect.nom} ${updatedProspect.prenom}) mis à jour: statut_contact = '${statut}'`);
+          } else {
+            console.log(`⚠️ Aucun prospect trouvé avec phone_international = ${phone_international}`);
+          }
+        } catch (updateError) {
+          console.warn('⚠️ Impossible de mettre à jour le prospect:', updateError.message);
+          // Ne pas bloquer la création de visite si update échoue
+        }
+      }
+
       // Récupérer les infos complètes avec jointures
       const fullVisit = await pool.query(`
         SELECT
