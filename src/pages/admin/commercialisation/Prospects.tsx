@@ -226,8 +226,8 @@ export default function Prospects() {
     non_contactes: 0,
     avec_rdv: 0,
     sans_rdv: 0,
-    inscrits: 0,
-    a_supprimer: 0,
+    inscrits_prospect: 0,
+    inscrits_session: 0,
   };
   const pagination = data?.pagination || { page: 1, limit: 50, total: 0 };
 
@@ -323,8 +323,12 @@ export default function Prospects() {
   const isSomeSelected = selectedIds.size > 0 && selectedIds.size < prospects.length;
 
   // Render stats cards
+  const ecart = stats.inscrits_session - stats.inscrits_prospect;
+  const ecartColor = ecart > 0 ? 'text-green-600' : ecart < 0 ? 'text-red-600' : 'text-gray-600';
+  const ecartSign = ecart > 0 ? '+' : '';
+
   const renderStatsCards = () => (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6 mb-6">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mb-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total</CardTitle>
@@ -364,19 +368,28 @@ export default function Prospects() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Inscrits</CardTitle>
+          <CardTitle className="text-sm font-medium">Inscrit Prospect</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-blue-600">{stats.inscrits}</div>
+          <div className="text-2xl font-bold text-blue-600">{stats.inscrits_prospect}</div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">À supprimer</CardTitle>
+          <CardTitle className="text-sm font-medium">Inscrit Session</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-red-600">{stats.a_supprimer}</div>
+          <div className="text-2xl font-bold text-purple-600">{stats.inscrits_session}</div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Écart</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className={`text-2xl font-bold ${ecartColor}`}>{ecartSign}{ecart}</div>
         </CardContent>
       </Card>
     </div>

@@ -212,8 +212,21 @@ router.get('/',
           COUNT(*) FILTER (WHERE statut_contact = 'non contacté') as non_contactes,
           COUNT(*) FILTER (WHERE statut_contact = 'contacté avec rdv') as avec_rdv,
           COUNT(*) FILTER (WHERE statut_contact = 'contacté sans rdv') as sans_rdv,
-          COUNT(*) FILTER (WHERE statut_contact = 'inscrit') as inscrits,
-          COUNT(*) FILTER (WHERE decision_nettoyage = 'supprimer') as a_supprimer
+          COUNT(*) FILTER (WHERE statut_contact = 'inscrit') as inscrits_prospect,
+          (
+            SELECT COUNT(DISTINCT s.id)
+            FROM students s
+            JOIN formation_enrollments fe ON fe.student_id = s.id
+            JOIN formation_sessions fs ON fs.id = fe.session_id
+            WHERE fs.status != 'cancelled'
+              AND fe.status = 'enrolled'
+              AND (s.phone IS NOT NULL OR s.whatsapp IS NOT NULL)
+              AND EXISTS (
+                SELECT 1 FROM prospects pr
+                WHERE pr.phone_international = s.phone
+                   OR pr.phone_international = s.whatsapp
+              )
+          ) as inscrits_session
         FROM prospects p
         WHERE 1=1
       `;

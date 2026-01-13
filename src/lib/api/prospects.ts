@@ -46,8 +46,8 @@ export interface ProspectStats {
   non_contactes: number;
   avec_rdv: number;
   sans_rdv: number;
-  inscrits: number;
-  a_supprimer: number;
+  inscrits_prospect: number;
+  inscrits_session: number;
 }
 
 export interface ProspectFilters {
