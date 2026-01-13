@@ -443,16 +443,56 @@ router.post('/:id/reject', authenticateToken, requirePermission('hr.leaves.appro
     }
 
     if (request_type === 'leave') {
-      await pool.query(`
-        UPDATE hr_leave_requests
-        SET
-          status = 'rejected',
-          n1_approver_id = $2,
-          n1_approved_at = NOW(),
-          n1_comment = $3,
-          updated_at = NOW()
-        WHERE id = $1
-      `, [id, userId, comment]);
+      // Récupérer le statut actuel pour déterminer le niveau d'approbation
+      const currentRequest = await pool.query(
+        `SELECT status FROM hr_leave_requests WHERE id = $1`,
+        [id]
+      );
+
+      const currentStatus = currentRequest.rows[0]?.status || 'pending';
+      const currentLevel = currentStatus === 'pending' ? 0 :
+                           currentStatus === 'approved_n1' ? 1 :
+                           currentStatus === 'approved_n2' ? 2 :
+                           currentStatus === 'approved_n3' ? 3 :
+                           currentStatus === 'approved_n4' ? 4 : 0;
+
+      let updateQuery;
+      if (currentLevel === 0) {
+        // Rejet par N (manager direct)
+        updateQuery = `
+          UPDATE hr_leave_requests
+          SET status = 'rejected',
+              n1_approver_id = $2,
+              n1_approved_at = NOW(),
+              n1_comment = $3,
+              updated_at = NOW()
+          WHERE id = $1
+        `;
+      } else if (currentLevel === 1) {
+        // Rejet par N+1
+        updateQuery = `
+          UPDATE hr_leave_requests
+          SET status = 'rejected',
+              n2_approver_id = $2,
+              n2_approved_at = NOW(),
+              n2_comment = $3,
+              updated_at = NOW()
+          WHERE id = $1
+        `;
+      } else {
+        // Rejet par N+2 ou supérieur
+        updateQuery = `
+          UPDATE hr_leave_requests
+          SET status = 'rejected',
+              hr_approver_id = $2,
+              hr_approved_at = NOW(),
+              hr_comment = $3,
+              updated_at = NOW()
+          WHERE id = $1
+        `;
+      }
+
+      await pool.query(updateQuery, [id, userId, comment]);
     } else if (request_type === 'overtime') {
       await pool.query(`
         UPDATE hr_overtime_requests
