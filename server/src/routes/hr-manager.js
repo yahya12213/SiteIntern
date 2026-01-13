@@ -215,7 +215,8 @@ router.get('/team-attendance',
             ws.monday_start, ws.tuesday_start, ws.wednesday_start,
             ws.thursday_start, ws.friday_start, ws.saturday_start, ws.sunday_start
           FROM hr_employees e
-          LEFT JOIN hr_work_schedules ws ON ws.id = e.schedule_id
+          LEFT JOIN hr_employee_schedules hes ON hes.employee_id = e.id
+          LEFT JOIN hr_work_schedules ws ON ws.id = hes.schedule_id
         )
         SELECT
           dr.employee_id || '-' || dr.record_date as id,
