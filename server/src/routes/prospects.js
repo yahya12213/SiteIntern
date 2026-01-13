@@ -241,15 +241,23 @@ router.get('/',
       const segmentIds = req.userScope?.segmentIds || [];
       const cityIds = req.userScope?.cityIds || [];
 
-      if (segmentIds.length > 0 && cityIds.length > 0) {
-        inscritsSessionQuery += ` AND (fs.segment_id = ANY($1) OR fs.city_id = ANY($2))`;
-        sessionParams.push(segmentIds, cityIds);
-      } else if (segmentIds.length > 0) {
-        inscritsSessionQuery += ` AND fs.segment_id = ANY($1)`;
-        sessionParams.push(segmentIds);
-      } else if (cityIds.length > 0) {
-        inscritsSessionQuery += ` AND fs.city_id = ANY($1)`;
-        sessionParams.push(cityIds);
+      // Construire les conditions avec IN et placeholders dynamiques
+      const scopeConditions = [];
+
+      if (segmentIds.length > 0) {
+        const segmentPlaceholders = segmentIds.map((_, idx) => `$${sessionParams.length + idx + 1}`).join(', ');
+        scopeConditions.push(`fs.segment_id IN (${segmentPlaceholders})`);
+        sessionParams.push(...segmentIds);
+      }
+
+      if (cityIds.length > 0) {
+        const cityPlaceholders = cityIds.map((_, idx) => `$${sessionParams.length + idx + 1}`).join(', ');
+        scopeConditions.push(`fs.city_id IN (${cityPlaceholders})`);
+        sessionParams.push(...cityIds);
+      }
+
+      if (scopeConditions.length > 0) {
+        inscritsSessionQuery += ` AND (${scopeConditions.join(' OR ')})`;
       }
       // Si admin (pas de scope), on compte toutes les sessions
 
