@@ -240,8 +240,8 @@ const timeToMinutes = (timeStr) => {
   return hours * 60 + minutes;
 };
 
-// Helper: Calculate worked minutes for a day (capped to schedule)
-const calculateWorkedMinutes = (records, breakRules, schedule = null, date = null) => {
+// Helper: Calculate worked minutes for a day (capped to schedule, unless overtime approved)
+const calculateWorkedMinutes = async (records, breakRules, schedule = null, date = null, pool = null, employeeId = null) => {
   if (records.length === 0) return 0;
   if (records.length % 2 !== 0) return null; // Incomplete (odd number of records)
 
@@ -257,6 +257,24 @@ const calculateWorkedMinutes = (records, breakRules, schedule = null, date = nul
     }
   }
 
+  // Check if employee has approved overtime for this date
+  let hasApprovedOvertime = false;
+  if (pool && employeeId && date) {
+    try {
+      const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
+      const overtimeCheck = await pool.query(`
+        SELECT id FROM hr_overtime_requests
+        WHERE employee_id = $1
+          AND request_date = $2
+          AND status = 'approved'
+        LIMIT 1
+      `, [employeeId, dateStr]);
+      hasApprovedOvertime = overtimeCheck.rows.length > 0;
+    } catch (err) {
+      console.log('Warning: Could not check overtime requests:', err.message);
+    }
+  }
+
   let totalMinutes = 0;
 
   // Process pairs: check_in -> check_out
@@ -268,8 +286,8 @@ const calculateWorkedMinutes = (records, breakRules, schedule = null, date = nul
     let checkInMinutes = checkInTime.getHours() * 60 + checkInTime.getMinutes();
     let checkOutMinutes = checkOutTime.getHours() * 60 + checkOutTime.getMinutes();
 
-    // Cap to schedule if available
-    if (scheduledStartMinutes !== null && scheduledEndMinutes !== null) {
+    // Cap to schedule ONLY if NO approved overtime
+    if (scheduledStartMinutes !== null && scheduledEndMinutes !== null && !hasApprovedOvertime) {
       // If check-in is before scheduled start, use scheduled start
       if (checkInMinutes < scheduledStartMinutes) {
         checkInMinutes = scheduledStartMinutes;
@@ -524,10 +542,10 @@ router.post('/check-out', authenticateToken, async (req, res) => {
     const breakRules = await getBreakRules(pool);
     // Utiliser la pause de l'horaire si disponible
     const breakMinutes = schedule?.break_duration_minutes || breakRules.default_break_minutes || 60;
-    const workedMinutes = calculateWorkedMinutes(todayRecords.rows, {
+    const workedMinutes = await calculateWorkedMinutes(todayRecords.rows, {
       deduct_break_automatically: true,
       default_break_minutes: breakMinutes
-    }, schedule, today);
+    }, schedule, today, pool, employee.id);
 
     // Déterminer le statut final de la journée
     let dayStatus = 'present';
@@ -669,9 +687,9 @@ router.get('/my-today', authenticateToken, async (req, res) => {
     const weekendRecords = records.rows.filter(r => r.status === 'weekend');
     const hasCheckOut = records.rows.some(r => r.status === 'check_out') || weekendRecords.length >= 2;
 
-    // Calculate worked minutes (capped to schedule)
+    // Calculate worked minutes (capped to schedule, unless overtime approved)
     const breakRules = await getBreakRules(pool);
-    const workedMinutes = calculateWorkedMinutes(records.rows, breakRules, schedule, today);
+    const workedMinutes = await calculateWorkedMinutes(records.rows, breakRules, schedule, today, pool, employee.id);
 
     res.json({
       success: true,
@@ -816,12 +834,12 @@ router.get('/my-records', authenticateToken, async (req, res) => {
       };
     });
 
-    // Calculate worked minutes for each day (capped to schedule)
-    const recordsWithCalculations = result.rows.map(day => {
+    // Calculate worked minutes for each day (capped to schedule, unless overtime approved)
+    const recordsWithCalculations = await Promise.all(result.rows.map(async (day) => {
       const dateStr = day.date instanceof Date
         ? day.date.toISOString().split('T')[0]
         : day.date;
-      const workedMinutes = calculateWorkedMinutes(day.records, breakRules, schedule, day.date);
+      const workedMinutes = await calculateWorkedMinutes(day.records, breakRules, schedule, day.date, pool, employee.id);
       const correctionRequest = correctionsByDate[dateStr] || null;
 
       return {
@@ -832,7 +850,7 @@ router.get('/my-records', authenticateToken, async (req, res) => {
         has_anomaly: day.records.length % 2 !== 0,
         correction_request: correctionRequest
       };
-    });
+    }));
 
     // Get total count
     const countResult = await pool.query(`
