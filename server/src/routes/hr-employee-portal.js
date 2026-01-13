@@ -480,7 +480,38 @@ router.get('/requests', authenticateToken, async (req, res) => {
           lr.created_at as date_soumission,
           lr.n1_comment,
           lr.n2_comment,
-          lr.hr_comment
+          lr.hr_comment,
+          CASE
+            WHEN lr.status = 'pending' THEN (
+              SELECT m.first_name || ' ' || m.last_name
+              FROM hr_employee_managers em
+              JOIN hr_employees m ON em.manager_id = m.id
+              WHERE em.employee_id = lr.employee_id AND em.rank = 0 AND em.is_active = true
+              LIMIT 1
+            )
+            WHEN lr.status = 'approved_n1' THEN (
+              SELECT m.first_name || ' ' || m.last_name
+              FROM hr_employee_managers em
+              JOIN hr_employees m ON em.manager_id = m.id
+              WHERE em.employee_id = lr.employee_id AND em.rank = 1 AND em.is_active = true
+              LIMIT 1
+            )
+            WHEN lr.status = 'approved_n2' THEN (
+              SELECT m.first_name || ' ' || m.last_name
+              FROM hr_employee_managers em
+              JOIN hr_employees m ON em.manager_id = m.id
+              WHERE em.employee_id = lr.employee_id AND em.rank = 2 AND em.is_active = true
+              LIMIT 1
+            )
+            WHEN lr.status = 'approved_n3' THEN (
+              SELECT m.first_name || ' ' || m.last_name
+              FROM hr_employee_managers em
+              JOIN hr_employees m ON em.manager_id = m.id
+              WHERE em.employee_id = lr.employee_id AND em.rank = 3 AND em.is_active = true
+              LIMIT 1
+            )
+            ELSE NULL
+          END as current_approver_name
         FROM hr_leave_requests lr
         JOIN hr_leave_types lt ON lr.leave_type_id = lt.id
         WHERE lr.employee_id = $1
@@ -496,20 +527,30 @@ router.get('/requests', authenticateToken, async (req, res) => {
     try {
       overtimeRequests = await pool.query(`
         SELECT
-          id,
+          ot.id,
           'overtime' as request_type,
           'heures_sup' as type_code,
           'Heures supplémentaires' as type_name,
-          request_date as start_date,
-          request_date as end_date,
-          estimated_hours as days_requested,
-          reason as description,
-          status,
-          created_at as date_soumission,
-          approver_comment as n1_comment
-        FROM hr_overtime_requests
-        WHERE employee_id = $1
-        ORDER BY created_at DESC
+          ot.request_date as start_date,
+          ot.request_date as end_date,
+          ot.estimated_hours as days_requested,
+          ot.reason as description,
+          ot.status,
+          ot.created_at as date_soumission,
+          ot.approver_comment as n1_comment,
+          CASE
+            WHEN ot.status = 'pending' THEN (
+              SELECT m.first_name || ' ' || m.last_name
+              FROM hr_employee_managers em
+              JOIN hr_employees m ON em.manager_id = m.id
+              WHERE em.employee_id = ot.employee_id AND em.rank = 0 AND em.is_active = true
+              LIMIT 1
+            )
+            ELSE NULL
+          END as current_approver_name
+        FROM hr_overtime_requests ot
+        WHERE ot.employee_id = $1
+        ORDER BY ot.created_at DESC
         LIMIT 50
       `, [employee.id]);
     } catch (err) {

@@ -21,6 +21,7 @@ export interface MyRequest {
   status: 'pending' | 'approved' | 'rejected' | 'cancelled';
   current_step?: number;
   total_steps?: number;
+  current_approver_name?: string;
   workflow_steps?: Array<{
     step_number: number;
     approver_name: string;

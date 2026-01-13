@@ -769,10 +769,17 @@ export default function MyRequests() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <Badge className="bg-yellow-100 text-yellow-800">
-                              <Clock className="h-3 w-3 mr-1" />
-                              En attente
-                            </Badge>
+                            <div className="flex flex-col gap-1">
+                              <Badge className="bg-yellow-100 text-yellow-800">
+                                <Clock className="h-3 w-3 mr-1" />
+                                En attente
+                              </Badge>
+                              {request.current_approver_name && (
+                                <span className="text-xs text-muted-foreground">
+                                  de {request.current_approver_name}
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             {request.current_step && request.total_steps && (

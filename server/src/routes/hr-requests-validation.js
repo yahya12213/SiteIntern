@@ -201,11 +201,12 @@ router.get('/pending', authenticateToken, requirePermission('hr.leaves.approve')
 // GET /api/hr/requests-validation/history - Get decision history
 router.get('/history', authenticateToken, requirePermission('hr.leaves.view_page'), async (req, res) => {
   const pool = getPool();
+  const userId = req.user.id;
 
   try {
     const { limit = 50 } = req.query;
 
-    // Get approved/rejected leave requests
+    // Get leave requests where this user made a decision
     const leaveHistory = await pool.query(`
       SELECT
         lr.id,
@@ -221,11 +222,12 @@ router.get('/history', authenticateToken, requirePermission('hr.leaves.view_page
       JOIN hr_leave_types lt ON lr.leave_type_id = lt.id
       JOIN hr_employees e ON lr.employee_id = e.id
       WHERE lr.status IN ('approved', 'approved_n1', 'approved_n2', 'approved_n3', 'approved_n4', 'approved_n5', 'rejected')
+        AND (lr.n1_approver_id = $2 OR lr.n2_approver_id = $2 OR lr.hr_approver_id = $2)
       ORDER BY lr.updated_at DESC
       LIMIT $1
-    `, [parseInt(limit)]);
+    `, [parseInt(limit), userId]);
 
-    // Get approved/rejected overtime requests
+    // Get overtime requests where this user made a decision
     const overtimeHistory = await pool.query(`
       SELECT
         ot.id,
@@ -240,9 +242,10 @@ router.get('/history', authenticateToken, requirePermission('hr.leaves.view_page
       FROM hr_overtime_requests ot
       JOIN hr_employees e ON ot.employee_id = e.id
       WHERE ot.status IN ('approved', 'rejected')
+        AND ot.approver_id = $2
       ORDER BY ot.updated_at DESC
       LIMIT $1
-    `, [parseInt(limit)]);
+    `, [parseInt(limit), userId]);
 
     // Combine and sort
     const allHistory = [...leaveHistory.rows, ...overtimeHistory.rows]
