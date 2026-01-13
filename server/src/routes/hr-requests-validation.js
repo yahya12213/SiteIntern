@@ -301,14 +301,18 @@ router.post('/:id/approve', authenticateToken, requirePermission('hr.leaves.appr
       const nextLevel = currentLevel + 1;
       const hasNextApprover = approvalChain.some(m => m.rank === nextLevel);
 
-      // DEBUG: Log approval chain details
-      console.log('=== APPROVAL DEBUG (hr-requests-validation) ===');
-      console.log('Employee ID:', request.employee_id);
-      console.log('Current Level:', currentLevel);
-      console.log('Next Level:', nextLevel);
-      console.log('Approval Chain:', JSON.stringify(approvalChain, null, 2));
-      console.log('Has Next Approver:', hasNextApprover);
-      console.log('==============================================');
+      // Verifier que l'utilisateur est l'approbateur attendu pour ce niveau
+      const expectedApprover = approvalChain.find(m => m.rank === currentLevel);
+      if (!expectedApprover || expectedApprover.manager_profile_id !== userId) {
+        console.log('=== APPROVAL BLOCKED ===');
+        console.log('User ID:', userId);
+        console.log('Expected approver for level', currentLevel, ':', expectedApprover);
+        console.log('========================');
+        return res.status(403).json({
+          success: false,
+          error: 'Vous n\'etes pas l\'approbateur attendu pour ce niveau d\'approbation'
+        });
+      }
 
       let newStatus;
       let updateFields;
