@@ -230,7 +230,7 @@ router.get('/',
 
       // Requete pour inscrits_session - utiliser les tables francaises (sessions_formation + session_etudiants)
       let inscritsSessionQuery = `
-        SELECT COUNT(DISTINCT se.etudiant_id) as count
+        SELECT COUNT(DISTINCT se.student_id) as count
         FROM session_etudiants se
         JOIN sessions_formation sf ON sf.id = se.session_id
         WHERE sf.statut != 'annulee'
