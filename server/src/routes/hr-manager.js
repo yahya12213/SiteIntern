@@ -358,7 +358,10 @@ router.get('/team-requests',
         const params = [];
         let paramCount = 1;
 
-        if (status) {
+        if (status === 'pending') {
+          // "pending" inclut tous les statuts intermédiaires en attente d'approbation
+          query += ` AND lr.status IN ('pending', 'approved_n1', 'approved_n2', 'approved_n3', 'approved_n4', 'approved_n5')`;
+        } else if (status) {
           query += ` AND lr.status = $${paramCount}`;
           params.push(status);
           paramCount++;
@@ -403,7 +406,10 @@ router.get('/team-requests',
       const params = [employeeIds];
       let paramCount = 2;
 
-      if (status) {
+      if (status === 'pending') {
+        // "pending" inclut tous les statuts intermédiaires en attente d'approbation
+        query += ` AND lr.status IN ('pending', 'approved_n1', 'approved_n2', 'approved_n3', 'approved_n4', 'approved_n5')`;
+      } else if (status) {
         query += ` AND lr.status = $${paramCount}`;
         params.push(status);
         paramCount++;
