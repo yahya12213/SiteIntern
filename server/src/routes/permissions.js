@@ -1,6 +1,6 @@
 import express from 'express';
 import pool from '../config/database.js';
-import { authenticateToken, requirePermission } from '../middleware/auth.js';
+import { authenticateToken, requirePermission, convertToFrenchPermission, EN_TO_FR_PERMISSION_MAP } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -596,6 +596,108 @@ router.get('/diagnostic',
     res.status(500).json({
       success: false,
       error: 'Failed to fetch permission diagnostic',
+      details: error.message
+    });
+  }
+});
+
+// GET /api/permissions/validate-mapping - Valider la cohérence du mapping EN→FR
+router.get('/validate-mapping',
+  authenticateToken,
+  requirePermission('system.roles.view_page'),
+  async (req, res) => {
+  try {
+    // 1. Récupérer toutes les permissions de la DB
+    const dbPerms = await pool.query('SELECT id, code, label, module, menu FROM permissions ORDER BY code');
+
+    // 2. Pour chaque permission, vérifier si conversion == original
+    const conversionIssues = [];
+    for (const row of dbPerms.rows) {
+      const original = row.code;
+      const converted = convertToFrenchPermission(original);
+
+      // Si conversion change le code, c'est potentiellement un problème
+      if (original !== converted) {
+        // Vérifier si le code converti existe aussi en DB
+        const exists = dbPerms.rows.some(r => r.code === converted);
+        conversionIssues.push({
+          id: row.id,
+          original,
+          converted,
+          label: row.label,
+          module: row.module,
+          menu: row.menu,
+          convertedExistsInDb: exists,
+          status: exists ? '⚠️ Doublon potentiel' : '❌ Code converti manquant en DB'
+        });
+      }
+    }
+
+    // 3. Vérifier les préfixes qui changent (visits → visites, hr → ressources_humaines, etc.)
+    const prefixIssues = [];
+    for (const [enPrefix, frPrefix] of Object.entries(EN_TO_FR_PERMISSION_MAP)) {
+      if (enPrefix !== frPrefix) {
+        // Trouver toutes les permissions avec ce préfixe EN qui n'ont pas d'équivalent FR
+        const enPrefixClean = enPrefix.slice(0, -1); // Remove trailing dot
+        const frPrefixClean = frPrefix.slice(0, -1);
+
+        const affected = dbPerms.rows.filter(r => r.code.startsWith(enPrefixClean + '.'));
+        for (const perm of affected) {
+          const expectedFrCode = perm.code.replace(enPrefixClean, frPrefixClean);
+          const frExists = dbPerms.rows.some(r => r.code === expectedFrCode);
+
+          if (!frExists) {
+            prefixIssues.push({
+              permission: perm.code,
+              label: perm.label,
+              enPrefix: enPrefixClean,
+              frPrefix: frPrefixClean,
+              expectedFrCode,
+              status: '❌ Version FR manquante'
+            });
+          }
+        }
+      }
+    }
+
+    // 4. Générer les recommandations
+    const hasIssues = conversionIssues.length > 0 || prefixIssues.length > 0;
+    const recommendations = [];
+
+    if (conversionIssues.length > 0) {
+      recommendations.push({
+        priority: 'HAUTE',
+        message: `${conversionIssues.length} permissions ont un code qui change après conversion EN→FR`,
+        solution: 'Le fix dans auth.js (convertir permissions utilisateur) résout ce problème automatiquement'
+      });
+    }
+
+    if (prefixIssues.length > 0) {
+      recommendations.push({
+        priority: 'MOYENNE',
+        message: `${prefixIssues.length} permissions utilisent un préfixe anglais sans équivalent français en DB`,
+        solution: 'Créer une migration pour ajouter les versions françaises ou s\'assurer que le fix middleware est appliqué'
+      });
+    }
+
+    res.json({
+      success: true,
+      summary: {
+        totalPermissions: dbPerms.rows.length,
+        permissionsWithConversionChange: conversionIssues.length,
+        permissionsWithPrefixMismatch: prefixIssues.length,
+        healthStatus: hasIssues ? '⚠️ Nécessite attention' : '✅ OK'
+      },
+      conversionIssues: conversionIssues.slice(0, 50), // Limiter à 50 pour la lisibilité
+      prefixIssues: prefixIssues.slice(0, 50),
+      recommendations,
+      fixApplied: 'Le fix auth.js convertit les permissions utilisateur → problème résolu automatiquement'
+    });
+  } catch (error) {
+    console.error('Error validating permission mapping:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to validate permission mapping',
       details: error.message
     });
   }

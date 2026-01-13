@@ -396,7 +396,8 @@ export const getUserPermissions = async (userId) => {
       }
     }
 
-    return result.rows.map(row => row.code);
+    // 🔄 CONVERT: Convertir les permissions utilisateur EN → FR pour cohérence avec requirePermission
+    return result.rows.map(row => convertToFrenchPermission(row.code));
   } catch (error) {
     // If tables don't exist yet (before migration), fall back to role-based
     console.warn('Permission tables not available, using role-based fallback:', error.message);
@@ -465,4 +466,4 @@ export const apiRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-export { JWT_SECRET, JWT_EXPIRES_IN, EN_TO_FR_PERMISSION_MAP, EN_TO_FR_ACTION_MAP };
+export { JWT_SECRET, JWT_EXPIRES_IN, EN_TO_FR_PERMISSION_MAP, EN_TO_FR_ACTION_MAP, convertToFrenchPermission };
