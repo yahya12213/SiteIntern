@@ -85,6 +85,7 @@ export interface TeamRequest {
     delegator_name?: string;
     delegation_id?: string;
   };
+  previous_approver_name?: string;
 }
 
 export interface TeamStats {

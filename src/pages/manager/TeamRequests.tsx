@@ -692,6 +692,7 @@ export default function TeamRequests() {
                     <TableRow>
                       <TableHead>Employé</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Validation N-1</TableHead>
                       <TableHead>Période/Détail</TableHead>
                       <TableHead>Soumis</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -735,6 +736,21 @@ export default function TeamRequests() {
                               <span className="text-xs text-muted-foreground block mt-1">
                                 {request.request_subtype}
                               </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {request.previous_approver_name ? (
+                              <div className="flex flex-col gap-1">
+                                <Badge className="bg-green-100 text-green-800">
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  Validé
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  par {request.previous_approver_name}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
                             )}
                           </TableCell>
                           <TableCell>

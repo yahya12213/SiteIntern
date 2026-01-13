@@ -349,7 +349,30 @@ router.get('/team-requests',
             e.position,
             lt.name as leave_type_name,
             lt.requires_justification,
-            lr.days_requested as duration_days
+            lr.days_requested as duration_days,
+            CASE
+              WHEN lr.status = 'approved_n1' THEN (
+                SELECT m.first_name || ' ' || m.last_name
+                FROM hr_employees m WHERE m.id = lr.n1_approver_id
+              )
+              WHEN lr.status = 'approved_n2' THEN (
+                SELECT m.first_name || ' ' || m.last_name
+                FROM hr_employees m WHERE m.id = lr.n2_approver_id
+              )
+              WHEN lr.status = 'approved_n3' THEN (
+                SELECT m.first_name || ' ' || m.last_name
+                FROM hr_employees m WHERE m.id = lr.n3_approver_id
+              )
+              WHEN lr.status = 'approved_n4' THEN (
+                SELECT m.first_name || ' ' || m.last_name
+                FROM hr_employees m WHERE m.id = lr.n4_approver_id
+              )
+              WHEN lr.status = 'approved_n5' THEN (
+                SELECT m.first_name || ' ' || m.last_name
+                FROM hr_employees m WHERE m.id = lr.n5_approver_id
+              )
+              ELSE NULL
+            END as previous_approver_name
           FROM hr_leave_requests lr
           JOIN hr_employees e ON e.id = lr.employee_id
           LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
@@ -397,7 +420,30 @@ router.get('/team-requests',
           e.position,
           lt.name as leave_type_name,
           lt.requires_justification,
-          lr.days_requested as duration_days
+          lr.days_requested as duration_days,
+          CASE
+            WHEN lr.status = 'approved_n1' THEN (
+              SELECT m.first_name || ' ' || m.last_name
+              FROM hr_employees m WHERE m.id = lr.n1_approver_id
+            )
+            WHEN lr.status = 'approved_n2' THEN (
+              SELECT m.first_name || ' ' || m.last_name
+              FROM hr_employees m WHERE m.id = lr.n2_approver_id
+            )
+            WHEN lr.status = 'approved_n3' THEN (
+              SELECT m.first_name || ' ' || m.last_name
+              FROM hr_employees m WHERE m.id = lr.n3_approver_id
+            )
+            WHEN lr.status = 'approved_n4' THEN (
+              SELECT m.first_name || ' ' || m.last_name
+              FROM hr_employees m WHERE m.id = lr.n4_approver_id
+            )
+            WHEN lr.status = 'approved_n5' THEN (
+              SELECT m.first_name || ' ' || m.last_name
+              FROM hr_employees m WHERE m.id = lr.n5_approver_id
+            )
+            ELSE NULL
+          END as previous_approver_name
         FROM hr_leave_requests lr
         JOIN hr_employees e ON e.id = lr.employee_id
         LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
