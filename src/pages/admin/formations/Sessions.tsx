@@ -23,7 +23,10 @@ const Sessions: React.FC = () => {
       active: sessions.filter(s => s.statut === 'en_cours').length,
       completed: sessions.filter(s => s.statut === 'terminee').length,
     },
-    total_students_enrolled: sessions.reduce((sum, s) => sum + (s.nombre_etudiants || 0), 0),
+    // Étudiants dans sessions non annulées uniquement
+    total_students_enrolled: sessions
+      .filter(s => s.statut !== 'annulee')
+      .reduce((sum, s) => sum + (s.nombre_etudiants || 0), 0),
   } : null;
 
   const handleDelete = async (session: SessionFormation) => {

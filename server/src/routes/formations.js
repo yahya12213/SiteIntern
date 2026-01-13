@@ -572,6 +572,36 @@ router.post('/sessions/:id/enroll',
 
         if (result.rows.length > 0) {
           enrollments.push(result.rows[0]);
+
+          // 🔄 AUTO-SYNC: Mettre à jour le prospect correspondant si existe
+          try {
+            const studentData = await pool.query(
+              'SELECT phone, whatsapp FROM students WHERE id = $1',
+              [student_id]
+            );
+
+            if (studentData.rows[0]) {
+              const { phone, whatsapp } = studentData.rows[0];
+              const phoneToMatch = phone || whatsapp;
+
+              if (phoneToMatch) {
+                const updateProspect = await pool.query(`
+                  UPDATE prospects
+                  SET statut_contact = 'inscrit',
+                      updated_at = NOW()
+                  WHERE (phone_international = $1 OR whatsapp = $1)
+                    AND statut_contact != 'inscrit'
+                  RETURNING id, nom, prenom
+                `, [phoneToMatch]);
+
+                if (updateProspect.rows.length > 0) {
+                  console.log(`✅ Prospect ${updateProspect.rows[0].id} (${updateProspect.rows[0].nom} ${updateProspect.rows[0].prenom}) auto-synchronisé: statut → inscrit`);
+                }
+              }
+            }
+          } catch (syncError) {
+            console.warn('⚠️ Erreur sync prospect:', syncError.message);
+          }
         }
       } catch (error) {
         console.error(`Error enrolling student ${student_id}:`, error);
@@ -729,12 +759,14 @@ router.get('/stats',
       stats.sessions.total += parseInt(row.count);
     });
 
-    // Nombre total d'étudiants inscrits (avec SBAC filtering)
+    // Nombre total d'étudiants inscrits (sessions non annulées avec SBAC filtering)
     const enrollmentsQuery = `
       SELECT COUNT(DISTINCT fe.student_id) as total_students
       FROM formation_enrollments fe
       JOIN formation_sessions fs ON fe.session_id = fs.id
-      ${whereClause ? whereClause.replace('WHERE', 'WHERE fe.status = \'enrolled\' AND') : 'WHERE fe.status = \'enrolled\''}
+      ${whereClause
+        ? whereClause.replace('WHERE', 'WHERE fe.status = \'enrolled\' AND fs.status != \'cancelled\' AND')
+        : 'WHERE fe.status = \'enrolled\' AND fs.status != \'cancelled\''}
     `;
     const enrollmentsResult = await pool.query(enrollmentsQuery, params);
     stats.total_students_enrolled = parseInt(enrollmentsResult.rows[0].total_students || 0);
