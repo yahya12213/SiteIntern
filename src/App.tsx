@@ -55,6 +55,7 @@ import ProspectsCleaningDashboard from './pages/admin/ProspectsCleaningDashboard
 import Devis from './pages/admin/commercialisation/Devis';
 import Contrats from './pages/admin/commercialisation/Contrats';
 import GoogleContactsManagement from './pages/admin/commercialisation/GoogleContactsManagement';
+import AnalysePublicite from './pages/admin/commercialisation/AnalysePublicite';
 import Clocking from './pages/employee/Clocking';
 import StudentDashboard from './pages/student/StudentDashboard';
 import FormationCatalog from './pages/student/FormationCatalog';
@@ -533,6 +534,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.google_contacts?.view_page}>
             <GoogleContactsManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/commercialisation/analyse-publicite"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.analyse_publicite?.voir}>
+            <AnalysePublicite />
           </ProtectedRoute>
         }
       />

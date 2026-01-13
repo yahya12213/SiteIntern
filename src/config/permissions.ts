@@ -360,6 +360,14 @@ export const PERMISSIONS = {
       tester: 'commercialisation.gestion_gcontacte.tester',
     },
 
+    analyse_publicite: {
+      voir: 'commercialisation.analyse_publicite.voir',
+      creer: 'commercialisation.analyse_publicite.creer',
+      modifier: 'commercialisation.analyse_publicite.modifier',
+      supprimer: 'commercialisation.analyse_publicite.supprimer',
+      exporter: 'commercialisation.analyse_publicite.exporter',
+    },
+
     // ===== LEGACY ALIASES (commercialisation.*) =====
     dashboard: {
       view_page: 'commercialisation.tableau_de_bord.voir',
@@ -1005,6 +1013,13 @@ export function getPermissionLabel(code: string): string {
     'commercialisation.gestion_gcontacte.configurer': 'Configurer G-Contacte',
     'commercialisation.gestion_gcontacte.synchroniser': 'Synchroniser',
     'commercialisation.gestion_gcontacte.tester': 'Tester la connexion',
+
+    // Analyse Publicite
+    'commercialisation.analyse_publicite.voir': 'Voir l\'analyse publicite',
+    'commercialisation.analyse_publicite.creer': 'Saisir les stats Facebook',
+    'commercialisation.analyse_publicite.modifier': 'Modifier les stats Facebook',
+    'commercialisation.analyse_publicite.supprimer': 'Supprimer les stats Facebook',
+    'commercialisation.analyse_publicite.exporter': 'Exporter les analyses',
   };
 
   return labels[code] || code;

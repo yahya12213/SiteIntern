@@ -33,6 +33,7 @@ import {
   UserCheck,
   Receipt,
   Send,
+  BarChart2,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -137,6 +138,7 @@ export const Sidebar: React.FC = () => {
         { to: '/admin/commercialisation/prospects', icon: Target, label: 'Prospects', permission: PERMISSIONS.commercialisation.prospects.voir },
         { to: '/admin/commercialisation/prospects-cleaning', icon: Trash2, label: 'Nettoyage Prospects', permission: PERMISSIONS.commercialisation.nettoyage_prospects.voir },
         { to: '/admin/commercialisation/google-contacts', icon: Cloud, label: 'Gestion G-Contacte', permission: PERMISSIONS.commercialisation.gestion_gcontacte.voir },
+        { to: '/admin/commercialisation/analyse-publicite', icon: BarChart2, label: 'Analyse Publicite', permission: PERMISSIONS.commercialisation.analyse_publicite.voir },
       ],
     },
   ];
