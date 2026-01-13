@@ -353,23 +353,11 @@ router.get('/team-requests',
             CASE
               WHEN lr.status = 'approved_n1' THEN (
                 SELECT m.first_name || ' ' || m.last_name
-                FROM hr_employees m WHERE m.id = lr.n1_approver_id
+                FROM hr_employees m WHERE m.id::text = lr.n1_approver_id
               )
               WHEN lr.status = 'approved_n2' THEN (
                 SELECT m.first_name || ' ' || m.last_name
-                FROM hr_employees m WHERE m.id = lr.n2_approver_id
-              )
-              WHEN lr.status = 'approved_n3' THEN (
-                SELECT m.first_name || ' ' || m.last_name
-                FROM hr_employees m WHERE m.id = lr.n3_approver_id
-              )
-              WHEN lr.status = 'approved_n4' THEN (
-                SELECT m.first_name || ' ' || m.last_name
-                FROM hr_employees m WHERE m.id = lr.n4_approver_id
-              )
-              WHEN lr.status = 'approved_n5' THEN (
-                SELECT m.first_name || ' ' || m.last_name
-                FROM hr_employees m WHERE m.id = lr.n5_approver_id
+                FROM hr_employees m WHERE m.id::text = lr.n2_approver_id
               )
               ELSE NULL
             END as previous_approver_name
@@ -383,7 +371,7 @@ router.get('/team-requests',
 
         if (status === 'pending') {
           // "pending" inclut tous les statuts intermédiaires en attente d'approbation
-          query += ` AND lr.status IN ('pending', 'approved_n1', 'approved_n2', 'approved_n3', 'approved_n4', 'approved_n5')`;
+          query += ` AND lr.status IN ('pending', 'approved_n1', 'approved_n2')`;
         } else if (status) {
           query += ` AND lr.status = $${paramCount}`;
           params.push(status);
@@ -424,23 +412,11 @@ router.get('/team-requests',
           CASE
             WHEN lr.status = 'approved_n1' THEN (
               SELECT m.first_name || ' ' || m.last_name
-              FROM hr_employees m WHERE m.id = lr.n1_approver_id
+              FROM hr_employees m WHERE m.id::text = lr.n1_approver_id
             )
             WHEN lr.status = 'approved_n2' THEN (
               SELECT m.first_name || ' ' || m.last_name
-              FROM hr_employees m WHERE m.id = lr.n2_approver_id
-            )
-            WHEN lr.status = 'approved_n3' THEN (
-              SELECT m.first_name || ' ' || m.last_name
-              FROM hr_employees m WHERE m.id = lr.n3_approver_id
-            )
-            WHEN lr.status = 'approved_n4' THEN (
-              SELECT m.first_name || ' ' || m.last_name
-              FROM hr_employees m WHERE m.id = lr.n4_approver_id
-            )
-            WHEN lr.status = 'approved_n5' THEN (
-              SELECT m.first_name || ' ' || m.last_name
-              FROM hr_employees m WHERE m.id = lr.n5_approver_id
+              FROM hr_employees m WHERE m.id::text = lr.n2_approver_id
             )
             ELSE NULL
           END as previous_approver_name
@@ -454,7 +430,7 @@ router.get('/team-requests',
 
       if (status === 'pending') {
         // "pending" inclut tous les statuts intermédiaires en attente d'approbation
-        query += ` AND lr.status IN ('pending', 'approved_n1', 'approved_n2', 'approved_n3', 'approved_n4', 'approved_n5')`;
+        query += ` AND lr.status IN ('pending', 'approved_n1', 'approved_n2')`;
       } else if (status) {
         query += ` AND lr.status = $${paramCount}`;
         params.push(status);
