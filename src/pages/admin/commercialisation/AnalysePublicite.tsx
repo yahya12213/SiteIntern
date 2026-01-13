@@ -27,7 +27,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Facebook,
+  Megaphone,
   Database,
   TrendingUp,
   TrendingDown,
@@ -226,7 +226,7 @@ export default function AnalysePublicite() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Facebook className="h-5 w-5 text-blue-600" />
+                <Megaphone className="h-5 w-5 text-blue-600" />
                 Declarer les prospects Facebook
               </CardTitle>
               <CardDescription>
@@ -408,7 +408,7 @@ export default function AnalysePublicite() {
                       <p className="text-sm text-muted-foreground">Total Facebook</p>
                       <p className="text-2xl font-bold text-blue-600">{summary.total_facebook}</p>
                     </div>
-                    <Facebook className="h-10 w-10 text-blue-500 opacity-50" />
+                    <Megaphone className="h-10 w-10 text-blue-500 opacity-50" />
                   </div>
                 </CardContent>
               </Card>
