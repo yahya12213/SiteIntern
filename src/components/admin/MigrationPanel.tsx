@@ -437,6 +437,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 118: Analyse Publicite Facebook',
     description: '📊 Systeme de tracking Facebook - Table facebook_stats pour enregistrer les declarations par jour/ville, comparaison avec prospects en BDD, 5 permissions commercialisation.analyse_publicite.*',
     endpoint: '/migration-118-facebook-stats'
+  },
+  {
+    id: 'migration-119',
+    name: 'Migration 119: Sync Etudiants-Prospects',
+    description: '🔄 Synchroniser les etudiants avec prospects - Normalise les telephones (0xxx → +212xxx) et met a jour le statut des prospects correspondants en "inscrit"',
+    endpoint: '/migration-119-sync-students-prospects'
   }
 ];
 

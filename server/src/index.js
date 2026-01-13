@@ -189,6 +189,7 @@ import visitsRouter from './routes/visits.js';
 import googleOAuthRouter from './routes/google-oauth.js';
 import facebookStatsRouter from './routes/facebook-stats.js';
 import migration118Router from './routes/migration-118-facebook-stats.js';
+import migration119Router from './routes/migration-119-sync-students-prospects.js';
 
 const app = express();
 
@@ -429,6 +430,7 @@ app.use('/api/migration-115-add-all-missing-permissions', ...adminOnly, migratio
 app.use('/api/migration-116-consolidate-permissions', ...adminOnly, migration116Router);
 app.use('/api/migration-117-fix-leave-request-columns', ...adminOnly, migration117Router);
 app.use('/api/migration-118-facebook-stats', ...adminOnly, migration118Router);
+app.use('/api/migration-119-sync-students-prospects', ...adminOnly, migration119Router);
 // Note: /my/correction-requests routes are in hr-employee-self.js (mounted at /api/hr/my)
 // Manager routes for correction requests are mounted separately below
 app.use('/api/hr/correction', authenticateToken, hrCorrectionRequestsRouter);
