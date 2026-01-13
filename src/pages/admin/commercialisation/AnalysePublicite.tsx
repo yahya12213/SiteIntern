@@ -9,13 +9,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
   Table,
   TableBody,
@@ -98,6 +92,40 @@ export default function AnalysePublicite() {
     if (!selectedSegment) return allCities;
     return allCities.filter(city => city.segment_id === selectedSegment);
   }, [allCities, selectedSegment]);
+
+  // Options pour SearchableSelect - Segments
+  const segmentOptions = useMemo(() => {
+    return segments.map(seg => ({
+      value: seg.id,
+      label: seg.name
+    }));
+  }, [segments]);
+
+  // Options pour SearchableSelect - Villes (formulaire de saisie)
+  const cityOptionsForInput = useMemo(() => {
+    return filteredCitiesForInput.map(city => ({
+      value: city.id,
+      label: city.name
+    }));
+  }, [filteredCitiesForInput]);
+
+  // Options pour SearchableSelect - Villes (filtres)
+  const cityOptionsForFilter = useMemo(() => {
+    const options = [{ value: '', label: 'Toutes les villes' }];
+    filteredCitiesForFilter.forEach(city => {
+      options.push({ value: city.id, label: city.name });
+    });
+    return options;
+  }, [filteredCitiesForFilter]);
+
+  // Options pour SearchableSelect - Segments (filtres) avec option "Tous"
+  const segmentOptionsWithAll = useMemo(() => {
+    const options = [{ value: '', label: 'Tous les segments' }];
+    segments.forEach(seg => {
+      options.push({ value: seg.id, label: seg.name });
+    });
+    return options;
+  }, [segments]);
 
   // Stats Facebook (historique)
   const { data: statsData, isLoading: statsLoading, refetch: refetchStats } = useFacebookStats({
@@ -253,45 +281,26 @@ export default function AnalysePublicite() {
                 {/* Segment */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Segment *</label>
-                  <Select value={inputSegment} onValueChange={handleInputSegmentChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choisir un segment" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {segments.map((seg) => (
-                        <SelectItem key={seg.id} value={seg.id}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: seg.color || '#3B82F6' }}
-                            />
-                            {seg.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    options={segmentOptions}
+                    value={inputSegment}
+                    onValueChange={handleInputSegmentChange}
+                    placeholder="Choisir un segment"
+                    emptyMessage="Aucun segment trouve"
+                  />
                 </div>
 
                 {/* Ville */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Ville *</label>
-                  <Select
+                  <SearchableSelect
+                    options={cityOptionsForInput}
                     value={inputCity}
                     onValueChange={setInputCity}
+                    placeholder={inputSegment ? "Choisir une ville" : "Selectionnez d'abord un segment"}
                     disabled={!inputSegment}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={inputSegment ? "Choisir une ville" : "Selectionnez d'abord un segment"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredCitiesForInput.map((city) => (
-                        <SelectItem key={city.id} value={city.id}>
-                          {city.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    emptyMessage="Aucune ville trouvee"
+                  />
                 </div>
 
                 {/* Nombre */}
@@ -343,39 +352,21 @@ export default function AnalysePublicite() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <Select value={selectedSegment} onValueChange={handleFilterSegmentChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Tous les segments" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Tous les segments</SelectItem>
-                    {segments.map((seg) => (
-                      <SelectItem key={seg.id} value={seg.id}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: seg.color || '#3B82F6' }}
-                          />
-                          {seg.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={segmentOptionsWithAll}
+                  value={selectedSegment}
+                  onValueChange={handleFilterSegmentChange}
+                  placeholder="Tous les segments"
+                  emptyMessage="Aucun segment trouve"
+                />
 
-                <Select value={selectedCity} onValueChange={setSelectedCity}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Toutes les villes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Toutes les villes</SelectItem>
-                    {filteredCitiesForFilter.map((city) => (
-                      <SelectItem key={city.id} value={city.id}>
-                        {city.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={cityOptionsForFilter}
+                  value={selectedCity}
+                  onValueChange={setSelectedCity}
+                  placeholder="Toutes les villes"
+                  emptyMessage="Aucune ville trouvee"
+                />
 
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-gray-500" />
