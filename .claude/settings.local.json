@@ -107,7 +107,8 @@
       "Bash(git update-index:*)",
       "Bash(git hash-object:*)",
       "Bash(railway --version:*)",
-      "Bash(railway run psql:*)"
+      "Bash(railway run psql:*)",
+      "Bash(PGPASSWORD=kMfsYpEZqZorPiMaUPvQnOoBqysrEjQx psql:*)"
     ],
     "deny": [],
     "ask": []
