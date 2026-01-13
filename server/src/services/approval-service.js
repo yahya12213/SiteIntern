@@ -190,6 +190,16 @@ export class ApprovalService {
       currentLevel
     );
 
+    // Block approval if user is not the expected approver
+    if (!canApprove) {
+      console.log('=== APPROVAL BLOCKED ===');
+      console.log('Approver ID:', approverId);
+      console.log('Reason:', reason);
+      console.log('Expected:', managerInfo?.manager_name);
+      console.log('========================');
+      return { success: false, error: reason || 'Vous n\'etes pas l\'approbateur attendu pour ce niveau' };
+    }
+
     // Get full approval chain to check for next approver
     const approvalChain = await this.getApprovalChain(request.employee_id);
     const nextLevel = currentLevel + 1;
