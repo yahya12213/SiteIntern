@@ -228,7 +228,7 @@ router.get('/',
 
       const statsResult = await pool.query(statsQuery, scopeFilter.params);
 
-      // Requête séparée pour inscrits_session avec SBAC filtering sur sessions
+      // Requête séparée pour inscrits_session - utiliser buildScopeFilter comme formations.js
       let inscritsSessionQuery = `
         SELECT COUNT(DISTINCT fe.student_id) as count
         FROM formation_enrollments fe
@@ -237,31 +237,13 @@ router.get('/',
           AND fe.status = 'enrolled'
       `;
 
-      const sessionParams = [];
-      const segmentIds = req.userScope?.segmentIds || [];
-      const cityIds = req.userScope?.cityIds || [];
-
-      // Construire les conditions avec IN et placeholders dynamiques
-      const scopeConditions = [];
-
-      if (segmentIds.length > 0) {
-        const segmentPlaceholders = segmentIds.map((_, idx) => `$${sessionParams.length + idx + 1}`).join(', ');
-        scopeConditions.push(`fs.segment_id IN (${segmentPlaceholders})`);
-        sessionParams.push(...segmentIds);
+      // Utiliser buildScopeFilter comme dans formations.js (ligne 42)
+      const sessionScopeFilter = buildScopeFilter(req, 'fs.segment_id', 'fs.city_id');
+      if (sessionScopeFilter.hasScope) {
+        inscritsSessionQuery += ` AND (${sessionScopeFilter.conditions.join(' AND ')})`;
       }
 
-      if (cityIds.length > 0) {
-        const cityPlaceholders = cityIds.map((_, idx) => `$${sessionParams.length + idx + 1}`).join(', ');
-        scopeConditions.push(`fs.city_id IN (${cityPlaceholders})`);
-        sessionParams.push(...cityIds);
-      }
-
-      if (scopeConditions.length > 0) {
-        inscritsSessionQuery += ` AND (${scopeConditions.join(' AND ')})`;
-      }
-      // Si admin (pas de scope), on compte toutes les sessions
-
-      const inscritsSessionResult = await pool.query(inscritsSessionQuery, sessionParams);
+      const inscritsSessionResult = await pool.query(inscritsSessionQuery, sessionScopeFilter.params);
 
       res.json({
         prospects: rows,
