@@ -50,10 +50,10 @@ export default function AnalysePublicite() {
   // ============================================================
   // STATE - Onglet actif
   // ============================================================
-  const [activeTab, setActiveTab] = useState<string>('input');
+  const [activeTab, setActiveTab] = useState<string>('declarations');
 
   // ============================================================
-  // STATE - Filtres comparaison
+  // STATE - Filtres (partages entre historique et comparaison)
   // ============================================================
   const [selectedSegment, setSelectedSegment] = useState<string>('');
   const [selectedCity, setSelectedCity] = useState<string>('');
@@ -246,28 +246,28 @@ export default function AnalysePublicite() {
       subtitle="Comparaison des prospects Facebook vs Base de donnees"
     >
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
-          <TabsTrigger value="input">Saisie</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 lg:w-[300px]">
+          <TabsTrigger value="declarations">Declarations</TabsTrigger>
           <TabsTrigger value="comparison">Comparaison</TabsTrigger>
-          <TabsTrigger value="history">Historique</TabsTrigger>
         </TabsList>
 
         {/* ============================================================
-            ONGLET 1: SAISIE DES STATS FACEBOOK
+            ONGLET 1: DECLARATIONS (SAISIE + HISTORIQUE)
             ============================================================ */}
-        <TabsContent value="input">
+        <TabsContent value="declarations" className="space-y-6">
+          {/* Formulaire de saisie */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2">
                 <Megaphone className="h-5 w-5 text-blue-600" />
                 Declarer les prospects Facebook
               </CardTitle>
               <CardDescription>
-                Saisissez le nombre de prospects declares par Facebook pour une date et une ville donnees
+                Saisissez le nombre de prospects declares par Facebook pour une date et une ville
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
                 {/* Date */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Date *</label>
@@ -297,7 +297,7 @@ export default function AnalysePublicite() {
                     options={cityOptionsForInput}
                     value={inputCity}
                     onValueChange={setInputCity}
-                    placeholder={inputSegment ? "Choisir une ville" : "Selectionnez d'abord un segment"}
+                    placeholder={inputSegment ? "Choisir une ville" : "Segment d'abord"}
                     disabled={!inputSegment}
                     emptyMessage="Aucune ville trouvee"
                   />
@@ -305,7 +305,7 @@ export default function AnalysePublicite() {
 
                 {/* Nombre */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Nombre de prospects *</label>
+                  <label className="text-sm font-medium">Nombre *</label>
                   <Input
                     type="number"
                     min="0"
@@ -317,23 +317,147 @@ export default function AnalysePublicite() {
 
                 {/* Notes */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Notes (optionnel)</label>
+                  <label className="text-sm font-medium">Notes</label>
                   <Input
                     value={inputNotes}
                     onChange={(e) => setInputNotes(e.target.value)}
-                    placeholder="Campagne, remarques..."
+                    placeholder="Campagne..."
                   />
                 </div>
+
+                {/* Bouton */}
+                <Button
+                  onClick={handleSubmit}
+                  disabled={createStat.isPending || !inputDate || !inputCity || !inputCount}
+                  className="h-10"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {createStat.isPending ? 'Ajout...' : 'Ajouter'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Historique des declarations */}
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Historique des declarations
+                </CardTitle>
+                <Button onClick={handleRefresh} variant="outline" size="sm">
+                  <RefreshCw className={`h-4 w-4 mr-2 ${statsLoading ? 'animate-spin' : ''}`} />
+                  Actualiser
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Filtres pour l'historique */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-gray-500 shrink-0" />
+                  <Input
+                    type="date"
+                    value={dateStart}
+                    onChange={(e) => setDateStart(e.target.value)}
+                    className="bg-white"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-gray-500 shrink-0" />
+                  <Input
+                    type="date"
+                    value={dateEnd}
+                    onChange={(e) => setDateEnd(e.target.value)}
+                    className="bg-white"
+                  />
+                </div>
+
+                <SearchableSelect
+                  options={segmentOptionsWithAll}
+                  value={selectedSegment}
+                  onValueChange={handleFilterSegmentChange}
+                  placeholder="Tous les segments"
+                  emptyMessage="Aucun segment trouve"
+                />
+
+                <SearchableSelect
+                  options={cityOptionsForFilter}
+                  value={selectedCity}
+                  onValueChange={setSelectedCity}
+                  placeholder="Toutes les villes"
+                  emptyMessage="Aucune ville trouvee"
+                />
               </div>
 
-              <Button
-                onClick={handleSubmit}
-                disabled={createStat.isPending || !inputDate || !inputCity || !inputCount}
-                className="w-full md:w-auto"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {createStat.isPending ? 'Enregistrement...' : 'Enregistrer'}
-              </Button>
+              {/* Tableau historique */}
+              {statsLoading ? (
+                <div className="flex justify-center py-8">
+                  <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : stats.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Aucune declaration enregistree pour cette periode
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Ville</TableHead>
+                        <TableHead>Segment</TableHead>
+                        <TableHead className="text-right">Prospects</TableHead>
+                        <TableHead>Notes</TableHead>
+                        <TableHead>Saisi par</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {stats.map((stat) => (
+                        <TableRow key={stat.id}>
+                          <TableCell className="font-medium">
+                            {new Date(stat.date).toLocaleDateString('fr-FR')}
+                          </TableCell>
+                          <TableCell>{stat.city_name}</TableCell>
+                          <TableCell>
+                            <Badge
+                              style={{
+                                backgroundColor: stat.segment_color || '#3B82F6',
+                              }}
+                              className="text-white"
+                            >
+                              {stat.segment_name}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-blue-600">
+                            {stat.declared_count}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground max-w-[150px] truncate">
+                            {stat.notes || '-'}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {stat.created_by_name || '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(stat.id)}
+                              disabled={deleteStat.isPending}
+                              className="hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -413,7 +537,7 @@ export default function AnalysePublicite() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Total Base de donnees</p>
+                      <p className="text-sm text-muted-foreground">Total Prospects BDD</p>
                       <p className="text-2xl font-bold text-green-600">{summary.total_database}</p>
                     </div>
                     <Database className="h-10 w-10 text-green-500 opacity-50" />
@@ -462,6 +586,9 @@ export default function AnalysePublicite() {
                 <ArrowUpDown className="h-5 w-5" />
                 Detail par jour et ville
               </CardTitle>
+              <CardDescription>
+                Comparaison entre les prospects declares sur Facebook et ceux ajoutes dans la base de donnees
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {comparisonLoading ? (
@@ -481,7 +608,7 @@ export default function AnalysePublicite() {
                         <TableHead>Ville</TableHead>
                         <TableHead>Segment</TableHead>
                         <TableHead className="text-right">Facebook</TableHead>
-                        <TableHead className="text-right">Base de donnees</TableHead>
+                        <TableHead className="text-right">Prospects BDD</TableHead>
                         <TableHead className="text-right">Difference</TableHead>
                         <TableHead className="text-right">Taux</TableHead>
                       </TableRow>
@@ -525,98 +652,6 @@ export default function AnalysePublicite() {
                               </Badge>
                             ) : '-'}
                           </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ============================================================
-            ONGLET 3: HISTORIQUE DES SAISIES
-            ============================================================ */}
-        <TabsContent value="history">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Historique des saisies Facebook
-                </span>
-                <Button onClick={handleRefresh} variant="outline" size="sm">
-                  <RefreshCw className={`h-4 w-4 mr-2 ${statsLoading ? 'animate-spin' : ''}`} />
-                  Actualiser
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <div className="flex justify-center py-8">
-                  <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : stats.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Aucune saisie enregistree
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Ville</TableHead>
-                        <TableHead>Segment</TableHead>
-                        <TableHead className="text-right">Prospects declares</TableHead>
-                        <TableHead>Notes</TableHead>
-                        <TableHead>Saisi par</TableHead>
-                        <TableHead>Date saisie</TableHead>
-                        {commercialisation?.analyse_publicite?.supprimer && (
-                          <TableHead className="text-right">Actions</TableHead>
-                        )}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {stats.map((stat) => (
-                        <TableRow key={stat.id}>
-                          <TableCell className="font-medium">
-                            {new Date(stat.date).toLocaleDateString('fr-FR')}
-                          </TableCell>
-                          <TableCell>{stat.city_name}</TableCell>
-                          <TableCell>
-                            <Badge
-                              style={{
-                                backgroundColor: stat.segment_color || '#3B82F6',
-                              }}
-                              className="text-white"
-                            >
-                              {stat.segment_name}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-bold text-blue-600">
-                            {stat.declared_count}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground max-w-[200px] truncate">
-                            {stat.notes || '-'}
-                          </TableCell>
-                          <TableCell>{stat.created_by_name || '-'}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {new Date(stat.created_at).toLocaleString('fr-FR')}
-                          </TableCell>
-                          {commercialisation?.analyse_publicite?.supprimer && (
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(stat.id)}
-                                disabled={deleteStat.isPending}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
-                            </TableCell>
-                          )}
                         </TableRow>
                       ))}
                     </TableBody>
