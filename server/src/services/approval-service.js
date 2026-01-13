@@ -195,8 +195,19 @@ export class ApprovalService {
     const nextLevel = currentLevel + 1;
     const hasNextApprover = approvalChain.some(m => m.rank === nextLevel);
 
+    // DEBUG: Log approval chain details for leave requests
+    console.log('=== LEAVE APPROVAL DEBUG ===');
+    console.log('Employee ID:', request.employee_id);
+    console.log('Current Level:', currentLevel);
+    console.log('Next Level:', nextLevel);
+    console.log('Approval Chain:', JSON.stringify(approvalChain, null, 2));
+    console.log('Has Next Approver:', hasNextApprover);
+
     // Determine new status
     const newStatus = this.getNextStatus(currentLevel, hasNextApprover);
+    console.log('New Status:', newStatus);
+    console.log('============================');
+
     const isFinal = newStatus === REQUEST_STATUS.APPROVED;
 
     // Build update query based on current level
