@@ -301,6 +301,15 @@ router.post('/:id/approve', authenticateToken, requirePermission('hr.leaves.appr
       const nextLevel = currentLevel + 1;
       const hasNextApprover = approvalChain.some(m => m.rank === nextLevel);
 
+      // DEBUG: Log approval chain details
+      console.log('=== APPROVAL DEBUG (hr-requests-validation) ===');
+      console.log('Employee ID:', request.employee_id);
+      console.log('Current Level:', currentLevel);
+      console.log('Next Level:', nextLevel);
+      console.log('Approval Chain:', JSON.stringify(approvalChain, null, 2));
+      console.log('Has Next Approver:', hasNextApprover);
+      console.log('==============================================');
+
       let newStatus;
       let updateFields;
 
