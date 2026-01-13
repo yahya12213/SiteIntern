@@ -54,6 +54,11 @@ export default function AnalysePublicite() {
   const { commercialisation } = usePermission();
 
   // ============================================================
+  // STATE - Onglet actif
+  // ============================================================
+  const [activeTab, setActiveTab] = useState<string>('input');
+
+  // ============================================================
   // STATE - Filtres comparaison
   // ============================================================
   const [selectedSegment, setSelectedSegment] = useState<string>('');
@@ -212,7 +217,7 @@ export default function AnalysePublicite() {
       title="Analyse Publicite"
       subtitle="Comparaison des prospects Facebook vs Base de donnees"
     >
-      <Tabs defaultValue="input" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
           <TabsTrigger value="input">Saisie</TabsTrigger>
           <TabsTrigger value="comparison">Comparaison</TabsTrigger>
