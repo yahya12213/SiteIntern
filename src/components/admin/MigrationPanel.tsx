@@ -431,6 +431,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 117: Fix Colonnes hr_leave_requests',
     description: '🔧 FIX CRITIQUE: Ajoute les colonnes n1_approved_at, n2_approved_at, hr_approved_at manquantes dans hr_leave_requests - Corrige l\'erreur "column n1_approved_at does not exist"',
     endpoint: '/migration-117-fix-leave-request-columns'
+  },
+  {
+    id: 'migration-118',
+    name: 'Migration 118: Analyse Publicite Facebook',
+    description: '📊 Systeme de tracking Facebook - Table facebook_stats pour enregistrer les declarations par jour/ville, comparaison avec prospects en BDD, 5 permissions commercialisation.analyse_publicite.*',
+    endpoint: '/migration-118-facebook-stats'
   }
 ];
 
