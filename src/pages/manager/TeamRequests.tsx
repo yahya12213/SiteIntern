@@ -445,12 +445,19 @@ export default function TeamRequests() {
   const activeDelegations = receivedDelegations?.delegations || [];
 
   const pendingRequests = useMemo(() =>
-    requests.filter(r => r.status === 'pending'),
+    requests.filter(r =>
+      r.status === 'pending' ||
+      r.status === 'approved_n1' ||
+      r.status === 'approved_n2' ||
+      r.status === 'approved_n3' ||
+      r.status === 'approved_n4' ||
+      r.status === 'approved_n5'
+    ),
     [requests]
   );
 
   const historyRequests = useMemo(() =>
-    requests.filter(r => r.status !== 'pending'),
+    requests.filter(r => r.status === 'approved' || r.status === 'rejected' || r.status === 'cancelled'),
     [requests]
   );
 

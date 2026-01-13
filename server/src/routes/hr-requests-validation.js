@@ -221,7 +221,7 @@ router.get('/history', authenticateToken, requirePermission('hr.leaves.view_page
       FROM hr_leave_requests lr
       JOIN hr_leave_types lt ON lr.leave_type_id = lt.id
       JOIN hr_employees e ON lr.employee_id = e.id
-      WHERE lr.status IN ('approved', 'approved_n1', 'approved_n2', 'approved_n3', 'approved_n4', 'approved_n5', 'rejected')
+      WHERE lr.status IN ('approved', 'rejected')
         AND (lr.n1_approver_id = $2 OR lr.n2_approver_id = $2 OR lr.hr_approver_id = $2)
       ORDER BY lr.updated_at DESC
       LIMIT $1
