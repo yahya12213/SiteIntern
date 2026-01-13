@@ -205,28 +205,14 @@ router.get('/',
 
       const { rows } = await pool.query(query, params);
 
-      // Stats
+      // Stats prospects
       let statsQuery = `
         SELECT
           COUNT(*) as total,
           COUNT(*) FILTER (WHERE statut_contact = 'non contacté') as non_contactes,
           COUNT(*) FILTER (WHERE statut_contact = 'contacté avec rdv') as avec_rdv,
           COUNT(*) FILTER (WHERE statut_contact = 'contacté sans rdv') as sans_rdv,
-          COUNT(*) FILTER (WHERE statut_contact = 'inscrit') as inscrits_prospect,
-          (
-            SELECT COUNT(DISTINCT s.id)
-            FROM students s
-            JOIN formation_enrollments fe ON fe.student_id = s.id
-            JOIN formation_sessions fs ON fs.id = fe.session_id
-            WHERE fs.status != 'cancelled'
-              AND fe.status = 'enrolled'
-              AND (s.phone IS NOT NULL OR s.whatsapp IS NOT NULL)
-              AND EXISTS (
-                SELECT 1 FROM prospects pr
-                WHERE pr.phone_international = s.phone
-                   OR pr.phone_international = s.whatsapp
-              )
-          ) as inscrits_session
+          COUNT(*) FILTER (WHERE statut_contact = 'inscrit') as inscrits_prospect
         FROM prospects p
         WHERE 1=1
       `;
@@ -242,9 +228,39 @@ router.get('/',
 
       const statsResult = await pool.query(statsQuery, scopeFilter.params);
 
+      // Requête séparée pour inscrits_session avec SBAC filtering sur sessions
+      let inscritsSessionQuery = `
+        SELECT COUNT(DISTINCT fe.student_id) as count
+        FROM formation_enrollments fe
+        JOIN formation_sessions fs ON fs.id = fe.session_id
+        WHERE fs.status != 'cancelled'
+          AND fe.status = 'enrolled'
+      `;
+
+      const sessionParams = [];
+      const segmentIds = req.userScope?.segmentIds || [];
+      const cityIds = req.userScope?.cityIds || [];
+
+      if (segmentIds.length > 0 && cityIds.length > 0) {
+        inscritsSessionQuery += ` AND (fs.segment_id = ANY($1) OR fs.city_id = ANY($2))`;
+        sessionParams.push(segmentIds, cityIds);
+      } else if (segmentIds.length > 0) {
+        inscritsSessionQuery += ` AND fs.segment_id = ANY($1)`;
+        sessionParams.push(segmentIds);
+      } else if (cityIds.length > 0) {
+        inscritsSessionQuery += ` AND fs.city_id = ANY($1)`;
+        sessionParams.push(cityIds);
+      }
+      // Si admin (pas de scope), on compte toutes les sessions
+
+      const inscritsSessionResult = await pool.query(inscritsSessionQuery, sessionParams);
+
       res.json({
         prospects: rows,
-        stats: statsResult.rows[0],
+        stats: {
+          ...statsResult.rows[0],
+          inscrits_session: parseInt(inscritsSessionResult.rows[0].count || 0)
+        },
         pagination: {
           page: parseInt(page, 10),
           limit: parseInt(limit, 10),
