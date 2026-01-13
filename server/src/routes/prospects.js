@@ -257,7 +257,7 @@ router.get('/',
       }
 
       if (scopeConditions.length > 0) {
-        inscritsSessionQuery += ` AND (${scopeConditions.join(' OR ')})`;
+        inscritsSessionQuery += ` AND (${scopeConditions.join(' AND ')})`;
       }
       // Si admin (pas de scope), on compte toutes les sessions
 
