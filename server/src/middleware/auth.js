@@ -47,6 +47,7 @@ const EN_TO_FR_PERMISSION_MAP = {
   'hr.documents.': 'ressources_humaines.documents.',
   'hr.discipline.': 'ressources_humaines.discipline.',
   'hr.delegation.': 'ressources_humaines.delegations.',
+  'hr.employee_portal.': 'ressources_humaines.gestion_pointage.',
 
   // === TRAINING DIRECT MAPPINGS ===
   'training.sessions.': 'formation.sessions_formation.',
