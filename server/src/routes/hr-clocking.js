@@ -5,6 +5,11 @@ import { authenticateToken } from '../middleware/auth.js';
 const { Pool } = pg;
 const router = express.Router();
 
+// Timezone offset to convert UTC to displayed local time
+// Database stores in UTC, UI displays with +2 hours offset (Morocco + DST/display adjustment)
+// This ensures clock times match what the user sees when comparing with schedule
+const TIMEZONE_OFFSET_MINUTES = 120;
+
 // Get pool connection
 const getPool = () => new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -282,9 +287,10 @@ const calculateWorkedMinutes = async (records, breakRules, schedule = null, date
     const checkInTime = new Date(records[i].clock_time);
     const checkOutTime = new Date(records[i + 1].clock_time);
 
-    // Get actual times in minutes from midnight
-    let checkInMinutes = checkInTime.getHours() * 60 + checkInTime.getMinutes();
-    let checkOutMinutes = checkOutTime.getHours() * 60 + checkOutTime.getMinutes();
+    // Get actual times in minutes from midnight (using UTC + timezone offset for local time)
+    // This converts UTC timestamps to local Morocco time for comparison with schedule
+    let checkInMinutes = (checkInTime.getUTCHours() * 60 + checkInTime.getUTCMinutes() + TIMEZONE_OFFSET_MINUTES) % 1440;
+    let checkOutMinutes = (checkOutTime.getUTCHours() * 60 + checkOutTime.getUTCMinutes() + TIMEZONE_OFFSET_MINUTES) % 1440;
 
     // Cap to schedule ONLY if NO approved overtime
     if (scheduledStartMinutes !== null && scheduledEndMinutes !== null && !hasApprovedOvertime) {
