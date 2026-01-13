@@ -3,6 +3,7 @@ import pool from '../config/database.js';
 import { nanoid } from 'nanoid';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import { injectUserScope, buildScopeFilter } from '../middleware/requireScope.js';
+import { normalizePhoneInternational } from '../utils/phone-validator.js';
 
 const router = express.Router();
 
@@ -585,14 +586,23 @@ router.post('/sessions/:id/enroll',
               const phoneToMatch = phone || whatsapp;
 
               if (phoneToMatch) {
+                // Normaliser le téléphone en format international pour la correspondance
+                let normalizedPhone = phoneToMatch;
+                if (!phoneToMatch.startsWith('+')) {
+                  const normalized = await normalizePhoneInternational(pool, phoneToMatch);
+                  if (normalized.valid) {
+                    normalizedPhone = normalized.phone_international;
+                  }
+                }
+
                 const updateProspect = await pool.query(`
                   UPDATE prospects
                   SET statut_contact = 'inscrit',
                       updated_at = NOW()
-                  WHERE (phone_international = $1 OR whatsapp = $1)
+                  WHERE (phone_international = $1 OR phone_international = $2 OR whatsapp = $1 OR whatsapp = $2)
                     AND statut_contact != 'inscrit'
                   RETURNING id, nom, prenom
-                `, [phoneToMatch]);
+                `, [normalizedPhone, phoneToMatch]);
 
                 if (updateProspect.rows.length > 0) {
                   console.log(`✅ Prospect ${updateProspect.rows[0].id} (${updateProspect.rows[0].nom} ${updateProspect.rows[0].prenom}) auto-synchronisé: statut → inscrit`);
