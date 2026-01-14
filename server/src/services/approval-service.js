@@ -452,14 +452,18 @@ export class ApprovalService {
       employee_id,
       request_date,
       requested_check_in,
-      requested_check_out,
-      correction_type
+      requested_check_out
     } = correctionRequest;
 
-    // Update or create attendance records based on correction
-    if (correction_type === 'add_check_in' || correction_type === 'modify_check_in') {
-      // Update check-in time
-      await pool.query(`
+    console.log('=== APPLYING CORRECTION ===');
+    console.log('Employee ID:', employee_id);
+    console.log('Date:', request_date);
+    console.log('Requested check_in:', requested_check_in);
+    console.log('Requested check_out:', requested_check_out);
+
+    // Update check_in if requested
+    if (requested_check_in) {
+      const checkInResult = await pool.query(`
         UPDATE hr_attendance_records
         SET clock_time = $1::date + $2::time,
             updated_at = NOW()
@@ -467,36 +471,43 @@ export class ApprovalService {
           AND DATE(clock_time) = $4
           AND status IN ('check_in', 'late', 'weekend')
       `, [request_date, requested_check_in, employee_id, request_date]);
-    }
 
-    if (correction_type === 'add_check_out' || correction_type === 'modify_check_out') {
-      // Check if check-out record exists
-      const existing = await pool.query(`
-        SELECT id FROM hr_attendance_records
-        WHERE employee_id = $1
-          AND DATE(clock_time) = $2
-          AND status = 'check_out'
-      `, [employee_id, request_date]);
+      console.log('Check-in updated rows:', checkInResult.rowCount);
 
-      if (existing.rows.length > 0) {
-        // Update existing check-out
+      // If no existing record, create one
+      if (checkInResult.rowCount === 0) {
         await pool.query(`
-          UPDATE hr_attendance_records
-          SET clock_time = $1::date + $2::time,
-              updated_at = NOW()
-          WHERE employee_id = $3
-            AND DATE(clock_time) = $4
-            AND status = 'check_out'
-        `, [request_date, requested_check_out, employee_id, request_date]);
-      } else {
-        // Create new check-out record
-        await pool.query(`
-          INSERT INTO hr_attendance_records (
-            employee_id, clock_time, status, created_at
-          ) VALUES ($1, $2::date + $3::time, 'check_out', NOW())
-        `, [employee_id, request_date, requested_check_out]);
+          INSERT INTO hr_attendance_records (employee_id, clock_time, status, created_at)
+          VALUES ($1, $2::date + $3::time, 'check_in', NOW())
+        `, [employee_id, request_date, requested_check_in]);
+        console.log('Check-in record created');
       }
     }
+
+    // Update check_out if requested
+    if (requested_check_out) {
+      const checkOutResult = await pool.query(`
+        UPDATE hr_attendance_records
+        SET clock_time = $1::date + $2::time,
+            updated_at = NOW()
+        WHERE employee_id = $3
+          AND DATE(clock_time) = $4
+          AND status = 'check_out'
+      `, [request_date, requested_check_out, employee_id, request_date]);
+
+      console.log('Check-out updated rows:', checkOutResult.rowCount);
+
+      // If no existing record, create one
+      if (checkOutResult.rowCount === 0) {
+        await pool.query(`
+          INSERT INTO hr_attendance_records (employee_id, clock_time, status, created_at)
+          VALUES ($1, $2::date + $3::time, 'check_out', NOW())
+        `, [employee_id, request_date, requested_check_out]);
+        console.log('Check-out record created');
+      }
+    }
+
+    console.log('=== CORRECTION APPLIED ===');
   }
 
   /**
