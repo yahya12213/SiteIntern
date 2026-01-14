@@ -345,6 +345,23 @@ export class ApprovalService {
     const request = requestResult.rows[0];
     const currentLevel = this.getCurrentApprovalLevel(request);
 
+    // Check if user can approve
+    const { canApprove, reason, managerInfo } = await this.canUserApprove(
+      approverId,
+      request.employee_id,
+      currentLevel
+    );
+
+    // Block approval if user is not the expected approver
+    if (!canApprove) {
+      console.log('=== CORRECTION APPROVAL BLOCKED ===');
+      console.log('Approver ID:', approverId);
+      console.log('Reason:', reason);
+      console.log('Expected:', managerInfo?.manager_name);
+      console.log('================================');
+      return { success: false, error: reason || 'Vous n\'êtes pas l\'approbateur attendu pour ce niveau' };
+    }
+
     // Convertir profile_id en employee_id pour la FK
     const approverEmployee = await pool.query(
       'SELECT id FROM hr_employees WHERE profile_id = $1',
