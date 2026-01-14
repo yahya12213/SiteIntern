@@ -363,7 +363,7 @@ export class ApprovalService {
         UPDATE hr_attendance_correction_requests
         SET status = $1,
             n1_approver_id = $2,
-            n1_action_at = NOW(),
+            n1_approved_at = NOW(),
             n1_comment = $3,
             updated_at = NOW()
         WHERE id = $4
@@ -375,7 +375,7 @@ export class ApprovalService {
         UPDATE hr_attendance_correction_requests
         SET status = $1,
             n2_approver_id = $2,
-            n2_action_at = NOW(),
+            n2_approved_at = NOW(),
             n2_comment = $3,
             updated_at = NOW()
         WHERE id = $4
@@ -387,7 +387,7 @@ export class ApprovalService {
         UPDATE hr_attendance_correction_requests
         SET status = $1,
             n3_approver_id = $2,
-            n3_action_at = NOW(),
+            n3_approved_at = NOW(),
             n3_comment = $3,
             updated_at = NOW()
         WHERE id = $4
@@ -520,7 +520,7 @@ export class ApprovalService {
           UPDATE hr_attendance_correction_requests
           SET status = 'rejected',
               n1_approver_id = $1,
-              n1_action_at = NOW(),
+              n1_approved_at = NOW(),
               n1_comment = $2,
               updated_at = NOW()
           WHERE id = $3
