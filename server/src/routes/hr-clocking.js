@@ -11,6 +11,9 @@ const router = express.Router();
 // Example: DB stores 08:45 → Node sees 08:45 GMT+1 → getUTCHours()=7 → +120min → 09:45 ✓
 const TIMEZONE_OFFSET_MINUTES = 120;
 
+// MARKER v2: Log on module load to verify deployment
+console.log('[HR-CLOCKING] Module loaded - TIMEZONE_OFFSET_MINUTES = ' + TIMEZONE_OFFSET_MINUTES + ' (v2 2026-01-14 20:00)');
+
 // Get pool connection
 const getPool = () => new Pool({
   connectionString: process.env.DATABASE_URL,
