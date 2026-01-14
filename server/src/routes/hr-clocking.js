@@ -6,9 +6,10 @@ const { Pool } = pg;
 const router = express.Router();
 
 // Timezone offset to convert UTC to displayed local time
-// Database stores in UTC, UI displays with +1 hour offset (UTC+1 Morocco/WET)
-// This ensures clock times match what the user sees when comparing with schedule
-const TIMEZONE_OFFSET_MINUTES = 60;
+// Database stores timestamps without timezone, Node.js interprets as server local time (UTC+1)
+// getUTCHours() then subtracts 1h, so we need +2h total to get correct Morocco time
+// Example: DB stores 08:45 → Node sees 08:45 GMT+1 → getUTCHours()=7 → +120min → 09:45 ✓
+const TIMEZONE_OFFSET_MINUTES = 120;
 
 // Get pool connection
 const getPool = () => new Pool({
