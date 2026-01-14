@@ -345,6 +345,16 @@ export class ApprovalService {
     const request = requestResult.rows[0];
     const currentLevel = this.getCurrentApprovalLevel(request);
 
+    // Convertir profile_id en employee_id pour la FK
+    const approverEmployee = await pool.query(
+      'SELECT id FROM hr_employees WHERE profile_id = $1',
+      [approverId]
+    );
+    if (approverEmployee.rows.length === 0) {
+      return { success: false, error: 'Approver employee not found' };
+    }
+    const approverEmployeeId = approverEmployee.rows[0].id;
+
     // Get full approval chain to check for next approver
     const approvalChain = await this.getApprovalChain(request.employee_id);
     const nextLevel = currentLevel + 1;
@@ -369,7 +379,7 @@ export class ApprovalService {
         WHERE id = $4
         RETURNING *
       `;
-      updateParams = [newStatus, approverId, comment, requestId];
+      updateParams = [newStatus, approverEmployeeId, comment, requestId];
     } else if (currentLevel === 1) {
       updateQuery = `
         UPDATE hr_attendance_correction_requests
@@ -381,7 +391,7 @@ export class ApprovalService {
         WHERE id = $4
         RETURNING *
       `;
-      updateParams = [newStatus, approverId, comment, requestId];
+      updateParams = [newStatus, approverEmployeeId, comment, requestId];
     } else {
       updateQuery = `
         UPDATE hr_attendance_correction_requests
@@ -393,7 +403,7 @@ export class ApprovalService {
         WHERE id = $4
         RETURNING *
       `;
-      updateParams = [newStatus, approverId, comment, requestId];
+      updateParams = [newStatus, approverEmployeeId, comment, requestId];
     }
 
     const result = await pool.query(updateQuery, updateParams);
@@ -516,6 +526,16 @@ export class ApprovalService {
         break;
 
       case REQUEST_TYPES.CORRECTION:
+        // Convertir profile_id en employee_id pour la FK
+        const correctionApproverEmployee = await pool.query(
+          'SELECT id FROM hr_employees WHERE profile_id = $1',
+          [approverId]
+        );
+        if (correctionApproverEmployee.rows.length === 0) {
+          return { success: false, error: 'Approver employee not found' };
+        }
+        const correctionApproverEmployeeId = correctionApproverEmployee.rows[0].id;
+
         result = await pool.query(`
           UPDATE hr_attendance_correction_requests
           SET status = 'rejected',
@@ -525,7 +545,7 @@ export class ApprovalService {
               updated_at = NOW()
           WHERE id = $3
           RETURNING *
-        `, [approverId, comment, requestId]);
+        `, [correctionApproverEmployeeId, comment, requestId]);
         break;
 
       default:
