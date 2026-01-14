@@ -292,28 +292,40 @@ const calculateWorkedMinutes = async (records, breakRules, schedule = null, date
     let checkInMinutes = (checkInTime.getUTCHours() * 60 + checkInTime.getUTCMinutes() + TIMEZONE_OFFSET_MINUTES) % 1440;
     let checkOutMinutes = (checkOutTime.getUTCHours() * 60 + checkOutTime.getUTCMinutes() + TIMEZONE_OFFSET_MINUTES) % 1440;
 
+    // DEBUG: Log calculation details
+    console.log(`[DEBUG calculateWorkedMinutes] Date: ${date}`);
+    console.log(`  - checkIn UTC: ${checkInTime.toISOString()} → local minutes: ${checkInMinutes} (${Math.floor(checkInMinutes/60)}:${checkInMinutes%60})`);
+    console.log(`  - checkOut UTC: ${checkOutTime.toISOString()} → local minutes: ${checkOutMinutes} (${Math.floor(checkOutMinutes/60)}:${checkOutMinutes%60})`);
+    console.log(`  - schedule: ${scheduledStartMinutes} - ${scheduledEndMinutes}, hasOvertime: ${hasApprovedOvertime}`);
+
     // Cap to schedule ONLY if NO approved overtime
     if (scheduledStartMinutes !== null && scheduledEndMinutes !== null && !hasApprovedOvertime) {
       // If check-in is before scheduled start, use scheduled start
       if (checkInMinutes < scheduledStartMinutes) {
+        console.log(`  - Capping checkIn from ${checkInMinutes} to ${scheduledStartMinutes}`);
         checkInMinutes = scheduledStartMinutes;
       }
       // If check-out is after scheduled end, use scheduled end
       if (checkOutMinutes > scheduledEndMinutes) {
+        console.log(`  - Capping checkOut from ${checkOutMinutes} to ${scheduledEndMinutes}`);
         checkOutMinutes = scheduledEndMinutes;
       }
     }
 
     const minutes = Math.max(0, checkOutMinutes - checkInMinutes);
+    console.log(`  - Worked (before break): ${minutes} min = ${Math.floor(minutes/60)}h ${minutes%60}min`);
     totalMinutes += minutes;
   }
 
   // Deduct break time if enabled
   if (breakRules.deduct_break_automatically) {
-    totalMinutes -= breakRules.default_break_minutes || 0;
+    const breakMin = breakRules.default_break_minutes || 0;
+    console.log(`  - Deducting break: ${breakMin} min`);
+    totalMinutes -= breakMin;
     totalMinutes = Math.max(0, totalMinutes); // Don't go negative
   }
 
+  console.log(`  - FINAL worked: ${totalMinutes} min = ${Math.floor(totalMinutes/60)}h ${totalMinutes%60}min`);
   return totalMinutes;
 };
 
