@@ -69,8 +69,8 @@ export const useApproveRequest = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ requestId, comment }: { requestId: string; comment?: string }) =>
-      managerApi.approveRequest(requestId, comment),
+    mutationFn: ({ requestId, comment, request_type }: { requestId: string; comment?: string; request_type?: string }) =>
+      managerApi.approveRequest(requestId, comment, request_type),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager', 'team-requests'] });
       queryClient.invalidateQueries({ queryKey: ['manager', 'team-stats'] });
@@ -87,8 +87,8 @@ export const useRejectRequest = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ requestId, reason }: { requestId: string; reason: string }) =>
-      managerApi.rejectRequest(requestId, reason),
+    mutationFn: ({ requestId, reason, request_type }: { requestId: string; reason: string; request_type?: string }) =>
+      managerApi.rejectRequest(requestId, reason, request_type),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['manager', 'team-requests'] });
       queryClient.invalidateQueries({ queryKey: ['manager', 'team-stats'] });

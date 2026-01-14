@@ -146,18 +146,20 @@ export const managerApi = {
   /**
    * Approve a team request
    */
-  approveRequest: async (requestId: string, comment?: string): Promise<{ success: boolean; message: string }> => {
+  approveRequest: async (requestId: string, comment?: string, request_type?: string): Promise<{ success: boolean; message: string }> => {
     return apiClient.post<{ success: boolean; message: string }>(`/hr/manager/requests/${requestId}/approve`, {
-      comment
+      comment,
+      request_type
     });
   },
 
   /**
    * Reject a team request
    */
-  rejectRequest: async (requestId: string, reason: string): Promise<{ success: boolean; message: string }> => {
+  rejectRequest: async (requestId: string, reason: string, request_type?: string): Promise<{ success: boolean; message: string }> => {
     return apiClient.post<{ success: boolean; message: string }>(`/hr/manager/requests/${requestId}/reject`, {
-      reason
+      reason,
+      request_type
     });
   },
 

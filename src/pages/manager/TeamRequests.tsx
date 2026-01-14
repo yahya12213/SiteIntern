@@ -480,6 +480,7 @@ export default function TeamRequests() {
       await approveMutation.mutateAsync({
         requestId: approveRequest.id,
         comment,
+        request_type: approveRequest.request_type,
       });
       toast({ title: 'Succès', description: 'Demande approuvée avec succès' });
       setApproveRequest(null);
@@ -499,6 +500,7 @@ export default function TeamRequests() {
       await rejectMutation.mutateAsync({
         requestId: rejectRequest.id,
         reason,
+        request_type: rejectRequest.request_type,
       });
       toast({ title: 'Succès', description: 'Demande refusée' });
       setRejectRequest(null);
