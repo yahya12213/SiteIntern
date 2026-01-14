@@ -381,10 +381,21 @@ router.get('/team-requests',
       const isAdmin = req.user.role === 'admin';
 
       if (isAdmin) {
-        // Admin: retourner TOUTES les demandes en attente
-        let query = `
+        // Admin: retourner TOUTES les demandes en attente (conges + corrections)
+        const allRequests = [];
+
+        // 1. Demandes de conges
+        let leaveQuery = `
           SELECT
-            lr.*,
+            lr.id,
+            lr.employee_id,
+            lr.start_date,
+            lr.end_date,
+            lr.status,
+            lr.reason,
+            lr.created_at,
+            lr.n1_approver_id,
+            lr.n2_approver_id,
             'leave' as request_type,
             lt.name as request_subtype,
             e.first_name || ' ' || e.last_name as employee_name,
@@ -393,6 +404,7 @@ router.get('/team-requests',
             lt.name as leave_type_name,
             lt.requires_justification,
             lr.days_requested as duration_days,
+            NULL::integer as duration_hours,
             CASE
               WHEN lr.status = 'approved_n1' THEN (
                 SELECT m.first_name || ' ' || m.last_name
@@ -409,87 +421,205 @@ router.get('/team-requests',
           LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
           WHERE 1=1
         `;
-        const params = [];
-        let paramCount = 1;
 
         if (status === 'pending') {
-          // "pending" inclut tous les statuts intermédiaires en attente d'approbation
-          query += ` AND lr.status IN ('pending', 'approved_n1', 'approved_n2')`;
+          leaveQuery += ` AND lr.status IN ('pending', 'approved_n1', 'approved_n2')`;
         } else if (status) {
-          query += ` AND lr.status = $${paramCount}`;
-          params.push(status);
-          paramCount++;
+          leaveQuery += ` AND lr.status = '${status}'`;
         }
 
-        if (type) {
-          query += ` AND lr.leave_type_id = $${paramCount}`;
-          params.push(type);
-          paramCount++;
+        if (type && type !== 'correction') {
+          leaveQuery += ` AND lr.leave_type_id = '${type}'`;
         }
 
-        query += ' ORDER BY lr.created_at DESC';
+        leaveQuery += ' ORDER BY lr.created_at DESC';
 
-        const result = await pool.query(query, params);
-        return res.json({ success: true, requests: result.rows });
+        if (!type || type !== 'correction') {
+          const leaveResult = await pool.query(leaveQuery);
+          allRequests.push(...leaveResult.rows);
+        }
+
+        // 2. Demandes de correction
+        if (!type || type === 'correction') {
+          let correctionQuery = `
+            SELECT
+              cr.id,
+              cr.employee_id,
+              cr.request_date as start_date,
+              cr.request_date as end_date,
+              cr.status,
+              cr.reason,
+              cr.created_at,
+              cr.n1_approver_id::text,
+              cr.n2_approver_id::text,
+              'correction' as request_type,
+              'Correction pointage' as request_subtype,
+              e.first_name || ' ' || e.last_name as employee_name,
+              e.employee_number,
+              e.position,
+              'Correction' as leave_type_name,
+              false as requires_justification,
+              1 as duration_days,
+              NULL::integer as duration_hours,
+              CASE
+                WHEN cr.status = 'approved_n1' THEN (
+                  SELECT m.first_name || ' ' || m.last_name
+                  FROM hr_employees m WHERE m.id = cr.n1_approver_id
+                )
+                WHEN cr.status = 'approved_n2' THEN (
+                  SELECT m.first_name || ' ' || m.last_name
+                  FROM hr_employees m WHERE m.id = cr.n2_approver_id
+                )
+                ELSE NULL
+              END as previous_approver_name
+            FROM hr_attendance_correction_requests cr
+            JOIN hr_employees e ON e.id = cr.employee_id
+            WHERE 1=1
+          `;
+
+          if (status === 'pending') {
+            correctionQuery += ` AND cr.status IN ('pending', 'approved_n1', 'approved_n2')`;
+          } else if (status) {
+            correctionQuery += ` AND cr.status = '${status}'`;
+          }
+
+          correctionQuery += ' ORDER BY cr.created_at DESC';
+
+          const correctionResult = await pool.query(correctionQuery);
+          allRequests.push(...correctionResult.rows);
+        }
+
+        // Trier par date de creation
+        allRequests.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        return res.json({ success: true, requests: allRequests });
       }
 
-      // Non-admin: logique existante (équipe seulement)
+      // Non-admin: equipe seulement (conges + corrections)
       const teamMembers = await getTeamMemberIds(userId);
       if (teamMembers.length === 0) {
         return res.json({ success: true, requests: [] });
       }
 
       const employeeIds = teamMembers.map(t => t.id);
+      const allRequests = [];
 
-      let query = `
-        SELECT
-          lr.*,
-          'leave' as request_type,
-          lt.name as request_subtype,
-          e.first_name || ' ' || e.last_name as employee_name,
-          e.employee_number,
-          e.position,
-          lt.name as leave_type_name,
-          lt.requires_justification,
-          lr.days_requested as duration_days,
-          CASE
-            WHEN lr.status = 'approved_n1' THEN (
-              SELECT m.first_name || ' ' || m.last_name
-              FROM hr_employees m WHERE m.id::text = lr.n1_approver_id
-            )
-            WHEN lr.status = 'approved_n2' THEN (
-              SELECT m.first_name || ' ' || m.last_name
-              FROM hr_employees m WHERE m.id::text = lr.n2_approver_id
-            )
-            ELSE NULL
-          END as previous_approver_name
-        FROM hr_leave_requests lr
-        JOIN hr_employees e ON e.id = lr.employee_id
-        LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
-        WHERE lr.employee_id = ANY($1::uuid[])
-      `;
-      const params = [employeeIds];
-      let paramCount = 2;
+      // 1. Demandes de conges
+      if (!type || type !== 'correction') {
+        let leaveQuery = `
+          SELECT
+            lr.id,
+            lr.employee_id,
+            lr.start_date,
+            lr.end_date,
+            lr.status,
+            lr.reason,
+            lr.created_at,
+            lr.n1_approver_id,
+            lr.n2_approver_id,
+            'leave' as request_type,
+            lt.name as request_subtype,
+            e.first_name || ' ' || e.last_name as employee_name,
+            e.employee_number,
+            e.position,
+            lt.name as leave_type_name,
+            lt.requires_justification,
+            lr.days_requested as duration_days,
+            NULL::integer as duration_hours,
+            CASE
+              WHEN lr.status = 'approved_n1' THEN (
+                SELECT m.first_name || ' ' || m.last_name
+                FROM hr_employees m WHERE m.id::text = lr.n1_approver_id
+              )
+              WHEN lr.status = 'approved_n2' THEN (
+                SELECT m.first_name || ' ' || m.last_name
+                FROM hr_employees m WHERE m.id::text = lr.n2_approver_id
+              )
+              ELSE NULL
+            END as previous_approver_name
+          FROM hr_leave_requests lr
+          JOIN hr_employees e ON e.id = lr.employee_id
+          LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
+          WHERE lr.employee_id = ANY($1::uuid[])
+        `;
 
-      if (status === 'pending') {
-        // "pending" inclut tous les statuts intermédiaires en attente d'approbation
-        query += ` AND lr.status IN ('pending', 'approved_n1', 'approved_n2')`;
-      } else if (status) {
-        query += ` AND lr.status = $${paramCount}`;
-        params.push(status);
-        paramCount++;
+        if (status === 'pending') {
+          leaveQuery += ` AND lr.status IN ('pending', 'approved_n1', 'approved_n2')`;
+        } else if (status) {
+          leaveQuery += ` AND lr.status = $2`;
+        }
+
+        if (type && type !== 'correction') {
+          leaveQuery += ` AND lr.leave_type_id = $${status ? 3 : 2}`;
+        }
+
+        leaveQuery += ' ORDER BY lr.created_at DESC';
+
+        const leaveParams = [employeeIds];
+        if (status && status !== 'pending') leaveParams.push(status);
+        if (type && type !== 'correction') leaveParams.push(type);
+
+        const leaveResult = await pool.query(leaveQuery, leaveParams);
+        allRequests.push(...leaveResult.rows);
       }
 
-      if (type) {
-        query += ` AND lr.leave_type_id = $${paramCount}`;
-        params.push(type);
-        paramCount++;
+      // 2. Demandes de correction
+      if (!type || type === 'correction') {
+        let correctionQuery = `
+          SELECT
+            cr.id,
+            cr.employee_id,
+            cr.request_date as start_date,
+            cr.request_date as end_date,
+            cr.status,
+            cr.reason,
+            cr.created_at,
+            cr.n1_approver_id::text,
+            cr.n2_approver_id::text,
+            'correction' as request_type,
+            'Correction pointage' as request_subtype,
+            e.first_name || ' ' || e.last_name as employee_name,
+            e.employee_number,
+            e.position,
+            'Correction' as leave_type_name,
+            false as requires_justification,
+            1 as duration_days,
+            NULL::integer as duration_hours,
+            CASE
+              WHEN cr.status = 'approved_n1' THEN (
+                SELECT m.first_name || ' ' || m.last_name
+                FROM hr_employees m WHERE m.id = cr.n1_approver_id
+              )
+              WHEN cr.status = 'approved_n2' THEN (
+                SELECT m.first_name || ' ' || m.last_name
+                FROM hr_employees m WHERE m.id = cr.n2_approver_id
+              )
+              ELSE NULL
+            END as previous_approver_name
+          FROM hr_attendance_correction_requests cr
+          JOIN hr_employees e ON e.id = cr.employee_id
+          WHERE cr.employee_id = ANY($1::uuid[])
+        `;
+
+        if (status === 'pending') {
+          correctionQuery += ` AND cr.status IN ('pending', 'approved_n1', 'approved_n2')`;
+        } else if (status) {
+          correctionQuery += ` AND cr.status = $2`;
+        }
+
+        correctionQuery += ' ORDER BY cr.created_at DESC';
+
+        const correctionParams = [employeeIds];
+        if (status && status !== 'pending') correctionParams.push(status);
+
+        const correctionResult = await pool.query(correctionQuery, correctionParams);
+        allRequests.push(...correctionResult.rows);
       }
 
-      query += ' ORDER BY lr.created_at DESC';
+      // Trier par date de creation
+      allRequests.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-      const result = await pool.query(query, params);
-      res.json({ success: true, requests: result.rows });
+      res.json({ success: true, requests: allRequests });
     } catch (error) {
       console.error('Error fetching team requests:', error);
       res.status(500).json({ success: false, error: error.message });
