@@ -146,8 +146,10 @@ export default function EmployeePortal() {
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
   const [correctionData, setCorrectionData] = useState({
     date: '',
-    check_in: '',
-    check_out: '',
+    original_check_in: '',
+    original_check_out: '',
+    requested_check_in: '',
+    requested_check_out: '',
     reason: '',
   });
 
@@ -173,7 +175,7 @@ export default function EmployeePortal() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee-attendance'] });
       setShowCorrectionModal(false);
-      setCorrectionData({ date: '', check_in: '', check_out: '', reason: '' });
+      setCorrectionData({ date: '', original_check_in: '', original_check_out: '', requested_check_in: '', requested_check_out: '', reason: '' });
       toast({
         title: 'Demande soumise',
         description: 'Votre demande de correction a ete soumise avec succes.',
@@ -191,8 +193,10 @@ export default function EmployeePortal() {
   const handleOpenCorrectionModal = (date: string, existingCheckIn?: string, existingCheckOut?: string) => {
     setCorrectionData({
       date,
-      check_in: existingCheckIn || '',
-      check_out: existingCheckOut || '',
+      original_check_in: existingCheckIn || '',
+      original_check_out: existingCheckOut || '',
+      requested_check_in: '',
+      requested_check_out: '',
       reason: '',
     });
     setShowCorrectionModal(true);
@@ -207,7 +211,7 @@ export default function EmployeePortal() {
       });
       return;
     }
-    if (!correctionData.check_in && !correctionData.check_out) {
+    if (!correctionData.requested_check_in && !correctionData.requested_check_out) {
       toast({
         title: 'Heure requise',
         description: 'Veuillez indiquer au moins une heure (entree ou sortie)',
@@ -217,8 +221,8 @@ export default function EmployeePortal() {
     }
     correctionMutation.mutate({
       request_date: correctionData.date,
-      requested_check_in: correctionData.check_in,
-      requested_check_out: correctionData.check_out,
+      requested_check_in: correctionData.requested_check_in,
+      requested_check_out: correctionData.requested_check_out,
       reason: correctionData.reason,
     });
   };
@@ -775,38 +779,63 @@ export default function EmployeePortal() {
                 />
               </div>
 
-              <div className="grid gap-4 grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Heure d'entree</Label>
-                  <Input
-                    type="text"
-                    placeholder="HH:MM"
-                    pattern="[0-2][0-9]:[0-5][0-9]"
-                    value={correctionData.check_in}
-                    onChange={e => {
-                      let val = e.target.value.replace(/[^0-9:]/g, '');
-                      if (val.length === 2 && !val.includes(':')) val += ':';
-                      if (val.length > 5) val = val.slice(0, 5);
-                      setCorrectionData({ ...correctionData, check_in: val });
-                    }}
-                    maxLength={5}
-                  />
+              {/* Box orange - Pointage actuel enregistré (lecture seule) */}
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                <div className="text-sm font-medium text-orange-800 mb-2">Pointage actuel enregistre</div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-orange-600">Entree:</span>{' '}
+                    <span className="font-bold text-orange-900">
+                      {correctionData.original_check_in || 'Non enregistree'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-orange-600">Sortie:</span>{' '}
+                    <span className="font-bold text-orange-900">
+                      {correctionData.original_check_out || 'Non enregistree'}
+                    </span>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Heure de sortie</Label>
-                  <Input
-                    type="text"
-                    placeholder="HH:MM"
-                    pattern="[0-2][0-9]:[0-5][0-9]"
-                    value={correctionData.check_out}
-                    onChange={e => {
-                      let val = e.target.value.replace(/[^0-9:]/g, '');
-                      if (val.length === 2 && !val.includes(':')) val += ':';
-                      if (val.length > 5) val = val.slice(0, 5);
-                      setCorrectionData({ ...correctionData, check_out: val });
-                    }}
-                    maxLength={5}
-                  />
+              </div>
+
+              {/* Box bleu - Nouveau pointage demandé (modifiable) */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="text-sm font-medium text-blue-800 mb-2">Nouveau pointage demande</div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-blue-600">Nouvelle entree</Label>
+                    <Input
+                      type="text"
+                      placeholder="HH:MM"
+                      pattern="[0-2][0-9]:[0-5][0-9]"
+                      value={correctionData.requested_check_in}
+                      onChange={e => {
+                        let val = e.target.value.replace(/[^0-9:]/g, '');
+                        if (val.length === 2 && !val.includes(':')) val += ':';
+                        if (val.length > 5) val = val.slice(0, 5);
+                        setCorrectionData({ ...correctionData, requested_check_in: val });
+                      }}
+                      maxLength={5}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-blue-600">Nouvelle sortie</Label>
+                    <Input
+                      type="text"
+                      placeholder="HH:MM"
+                      pattern="[0-2][0-9]:[0-5][0-9]"
+                      value={correctionData.requested_check_out}
+                      onChange={e => {
+                        let val = e.target.value.replace(/[^0-9:]/g, '');
+                        if (val.length === 2 && !val.includes(':')) val += ':';
+                        if (val.length > 5) val = val.slice(0, 5);
+                        setCorrectionData({ ...correctionData, requested_check_out: val });
+                      }}
+                      maxLength={5}
+                      className="bg-white"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -827,7 +856,7 @@ export default function EmployeePortal() {
               </Button>
               <Button
                 onClick={handleSubmitCorrection}
-                disabled={correctionMutation.isPending || !correctionData.reason.trim() || (!correctionData.check_in && !correctionData.check_out)}
+                disabled={correctionMutation.isPending || !correctionData.reason.trim() || (!correctionData.requested_check_in && !correctionData.requested_check_out)}
               >
                 {correctionMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
