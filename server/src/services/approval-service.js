@@ -443,6 +443,7 @@ export class ApprovalService {
 
   /**
    * Apply correction to attendance records after final approval
+   * Stratégie: DELETE tous les records du jour puis INSERT les nouveaux avec source='correction'
    * @param {Object} correctionRequest - The approved correction request
    */
   async applyCorrectionToAttendance(correctionRequest) {
@@ -461,53 +462,39 @@ export class ApprovalService {
     console.log('Requested check_in:', requested_check_in);
     console.log('Requested check_out:', requested_check_out);
 
-    // Update check_in if requested
-    if (requested_check_in) {
-      const checkInResult = await pool.query(`
-        UPDATE hr_attendance_records
-        SET clock_time = $1::date + $2::time,
-            updated_at = NOW()
-        WHERE employee_id = $3
-          AND DATE(clock_time) = $4
-          AND status IN ('check_in', 'late', 'weekend')
-      `, [request_date, requested_check_in, employee_id, request_date]);
+    try {
+      // 1. Supprimer TOUS les records de pointage pour cette date
+      // (peu importe leur status: check_in, check_out, half_day, late, present, etc.)
+      const deleteResult = await pool.query(`
+        DELETE FROM hr_attendance_records
+        WHERE employee_id = $1 AND DATE(clock_time) = $2
+      `, [employee_id, request_date]);
 
-      console.log('Check-in updated rows:', checkInResult.rowCount);
+      console.log('Deleted existing records:', deleteResult.rowCount);
 
-      // If no existing record, create one
-      if (checkInResult.rowCount === 0) {
+      // 2. Créer le nouveau record d'entrée avec source='correction'
+      if (requested_check_in) {
         await pool.query(`
-          INSERT INTO hr_attendance_records (employee_id, clock_time, status, created_at)
-          VALUES ($1, $2::date + $3::time, 'check_in', NOW())
+          INSERT INTO hr_attendance_records (employee_id, clock_time, status, source, created_at)
+          VALUES ($1, $2::date + $3::time, 'check_in', 'correction', NOW())
         `, [employee_id, request_date, requested_check_in]);
-        console.log('Check-in record created');
+        console.log('Check-in record created with source=correction');
       }
-    }
 
-    // Update check_out if requested
-    if (requested_check_out) {
-      const checkOutResult = await pool.query(`
-        UPDATE hr_attendance_records
-        SET clock_time = $1::date + $2::time,
-            updated_at = NOW()
-        WHERE employee_id = $3
-          AND DATE(clock_time) = $4
-          AND status = 'check_out'
-      `, [request_date, requested_check_out, employee_id, request_date]);
-
-      console.log('Check-out updated rows:', checkOutResult.rowCount);
-
-      // If no existing record, create one
-      if (checkOutResult.rowCount === 0) {
+      // 3. Créer le nouveau record de sortie avec source='correction'
+      if (requested_check_out) {
         await pool.query(`
-          INSERT INTO hr_attendance_records (employee_id, clock_time, status, created_at)
-          VALUES ($1, $2::date + $3::time, 'check_out', NOW())
+          INSERT INTO hr_attendance_records (employee_id, clock_time, status, source, created_at)
+          VALUES ($1, $2::date + $3::time, 'check_out', 'correction', NOW())
         `, [employee_id, request_date, requested_check_out]);
-        console.log('Check-out record created');
+        console.log('Check-out record created with source=correction');
       }
-    }
 
-    console.log('=== CORRECTION APPLIED ===');
+      console.log('=== CORRECTION APPLIED SUCCESSFULLY ===');
+    } catch (error) {
+      console.error('=== ERROR APPLYING CORRECTION ===', error);
+      throw error;
+    }
   }
 
   /**
