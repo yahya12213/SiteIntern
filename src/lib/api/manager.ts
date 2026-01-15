@@ -86,6 +86,11 @@ export interface TeamRequest {
     delegation_id?: string;
   };
   previous_approver_name?: string;
+  // Champs spécifiques aux corrections de pointage
+  original_check_in?: string;
+  original_check_out?: string;
+  requested_check_in?: string;
+  requested_check_out?: string;
 }
 
 export interface TeamStats {

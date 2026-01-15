@@ -461,6 +461,10 @@ router.get('/team-requests',
               false as requires_justification,
               1 as duration_days,
               NULL::integer as duration_hours,
+              cr.original_check_in,
+              cr.original_check_out,
+              cr.requested_check_in,
+              cr.requested_check_out,
               CASE
                 WHEN cr.status = 'approved_n1' THEN (
                   SELECT m.first_name || ' ' || m.last_name
@@ -585,6 +589,10 @@ router.get('/team-requests',
             false as requires_justification,
             1 as duration_days,
             NULL::integer as duration_hours,
+            cr.original_check_in,
+            cr.original_check_out,
+            cr.requested_check_in,
+            cr.requested_check_out,
             CASE
               WHEN cr.status = 'approved_n1' THEN (
                 SELECT m.first_name || ' ' || m.last_name

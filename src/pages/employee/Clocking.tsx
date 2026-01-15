@@ -9,14 +9,27 @@ interface CorrectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   date: string;
-  onSubmit: (data: { request_date: string; requested_check_in: string; requested_check_out: string; reason: string }) => void;
+  currentRecords: ClockRecord[];
+  onSubmit: (data: { request_date: string; requested_check_in: string; requested_check_out: string; original_check_in: string; original_check_out: string; reason: string }) => void;
   isSubmitting: boolean;
 }
 
-function CorrectionModal({ isOpen, onClose, date, onSubmit, isSubmitting }: CorrectionModalProps) {
+function CorrectionModal({ isOpen, onClose, date, currentRecords, onSubmit, isSubmitting }: CorrectionModalProps) {
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [reason, setReason] = useState('');
+
+  // Extraire les pointages actuels
+  const currentCheckIn = currentRecords.find(r => r.status === 'check_in');
+  const currentCheckOut = currentRecords.find(r => r.status === 'check_out');
+
+  const formatTimeFromRecord = (record: ClockRecord | undefined) => {
+    if (!record) return null;
+    return new Date(record.clock_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const originalCheckInTime = formatTimeFromRecord(currentCheckIn);
+  const originalCheckOutTime = formatTimeFromRecord(currentCheckOut);
 
   if (!isOpen) return null;
 
@@ -26,6 +39,8 @@ function CorrectionModal({ isOpen, onClose, date, onSubmit, isSubmitting }: Corr
       request_date: date,
       requested_check_in: checkIn || '',
       requested_check_out: checkOut || '',
+      original_check_in: originalCheckInTime || '',
+      original_check_out: originalCheckOutTime || '',
       reason
     });
   };
@@ -47,7 +62,7 @@ function CorrectionModal({ isOpen, onClose, date, onSubmit, isSubmitting }: Corr
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <FileEdit className="h-5 w-5 text-blue-600" />
-              Demande de pointage
+              Demande de correction
             </h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <X className="h-5 w-5" />
@@ -65,28 +80,51 @@ function CorrectionModal({ isOpen, onClose, date, onSubmit, isSubmitting }: Corr
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Heure d'entree
-                </label>
-                <input
-                  type="time"
-                  value={checkIn}
-                  onChange={(e) => setCheckIn(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+            {/* Affichage du pointage actuel */}
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+              <div className="text-sm font-medium text-orange-800 mb-2">Pointage actuel enregistré</div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-orange-600">Entrée:</span>{' '}
+                  <span className="font-bold text-orange-900">
+                    {originalCheckInTime || 'Non enregistrée'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-orange-600">Sortie:</span>{' '}
+                  <span className="font-bold text-orange-900">
+                    {originalCheckOutTime || 'Non enregistrée'}
+                  </span>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Heure de sortie
-                </label>
-                <input
-                  type="time"
-                  value={checkOut}
-                  onChange={(e) => setCheckOut(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+            </div>
+
+            {/* Nouvelles heures demandées */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="text-sm font-medium text-blue-800 mb-2">Nouveau pointage demandé</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-blue-600 mb-1">
+                    Nouvelle entrée
+                  </label>
+                  <input
+                    type="time"
+                    value={checkIn}
+                    onChange={(e) => setCheckIn(e.target.value)}
+                    className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-blue-600 mb-1">
+                    Nouvelle sortie
+                  </label>
+                  <input
+                    type="time"
+                    value={checkOut}
+                    onChange={(e) => setCheckOut(e.target.value)}
+                    className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
             </div>
 
@@ -199,7 +237,7 @@ function Clocking() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [correctionModalOpen, setCorrectionModalOpen] = useState(false);
-  const [selectedDateForCorrection, setSelectedDateForCorrection] = useState<string | null>(null);
+  const [selectedDayForCorrection, setSelectedDayForCorrection] = useState<DayRecord | null>(null);
   const queryClient = useQueryClient();
 
   // Get today's status
@@ -260,14 +298,14 @@ function Clocking() {
 
   // Mutation pour soumettre une demande de correction
   const correctionMutation = useMutation({
-    mutationFn: async (data: { request_date: string; requested_check_in: string; requested_check_out: string; reason: string }) => {
+    mutationFn: async (data: { request_date: string; requested_check_in: string; requested_check_out: string; original_check_in: string; original_check_out: string; reason: string }) => {
       const response = await apiClient.post('/hr/my/correction-requests', data);
       return (response as any).data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clocking-history'] });
       setCorrectionModalOpen(false);
-      setSelectedDateForCorrection(null);
+      setSelectedDayForCorrection(null);
       alert('Demande de correction soumise avec succes !');
     },
     onError: (error: any) => {
@@ -275,8 +313,8 @@ function Clocking() {
     }
   });
 
-  const handleOpenCorrectionModal = (date: string) => {
-    setSelectedDateForCorrection(date);
+  const handleOpenCorrectionModal = (day: DayRecord) => {
+    setSelectedDayForCorrection(day);
     setCorrectionModalOpen(true);
   };
 
@@ -527,7 +565,7 @@ function Clocking() {
                             </span>
                             <button
                               type="button"
-                              onClick={() => handleOpenCorrectionModal(day.date)}
+                              onClick={() => handleOpenCorrectionModal(day)}
                               className="flex items-center gap-1 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full font-medium transition-colors"
                               title="Soumettre une demande de correction de pointage"
                             >
@@ -574,14 +612,15 @@ function Clocking() {
       </div>
 
       {/* Modale de demande de correction */}
-      {selectedDateForCorrection && (
+      {selectedDayForCorrection && (
         <CorrectionModal
           isOpen={correctionModalOpen}
           onClose={() => {
             setCorrectionModalOpen(false);
-            setSelectedDateForCorrection(null);
+            setSelectedDayForCorrection(null);
           }}
-          date={selectedDateForCorrection}
+          date={selectedDayForCorrection.date}
+          currentRecords={selectedDayForCorrection.records}
           onSubmit={(data) => correctionMutation.mutate(data)}
           isSubmitting={correctionMutation.isPending}
         />

@@ -161,7 +161,9 @@ function RequestDetailModal({ request, open, onOpenChange, onApprove, onReject }
           {/* Dates */}
           {(request.start_date || request.end_date) && (
             <div className="space-y-1">
-              <Label className="text-muted-foreground text-xs">Période demandée</Label>
+              <Label className="text-muted-foreground text-xs">
+                {request.request_type === 'correction' ? 'Date concernée' : 'Période demandée'}
+              </Label>
               <div className="flex items-center gap-2 p-2 bg-muted/50 rounded">
                 <Calendar className="h-4 w-4 text-green-600" />
                 <span>
@@ -170,7 +172,7 @@ function RequestDetailModal({ request, open, onOpenChange, onApprove, onReject }
                     <> → {format(parseISO(request.end_date), 'd MMM yyyy', { locale: fr })}</>
                   )}
                 </span>
-                {request.duration_days && (
+                {request.duration_days && request.request_type !== 'correction' && (
                   <Badge variant="outline" className="ml-auto">
                     {request.duration_days} jour{request.duration_days > 1 ? 's' : ''}
                   </Badge>
@@ -180,6 +182,51 @@ function RequestDetailModal({ request, open, onOpenChange, onApprove, onReject }
                     {request.duration_hours}h
                   </Badge>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Détails correction - pointages actuel vs demandé */}
+          {request.request_type === 'correction' && (
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-xs">Détails de la correction</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Pointage actuel */}
+                <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div className="text-xs font-medium text-orange-700 mb-2">Pointage actuel</div>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-orange-600">Entrée:</span>
+                      <span className="font-medium text-orange-900">
+                        {request.original_check_in || 'Non enregistrée'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-orange-600">Sortie:</span>
+                      <span className="font-medium text-orange-900">
+                        {request.original_check_out || 'Non enregistrée'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {/* Pointage demandé */}
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="text-xs font-medium text-blue-700 mb-2">Pointage demandé</div>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-blue-600">Entrée:</span>
+                      <span className="font-medium text-blue-900">
+                        {request.requested_check_in || '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-blue-600">Sortie:</span>
+                      <span className="font-medium text-blue-900">
+                        {request.requested_check_out || '—'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

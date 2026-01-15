@@ -674,7 +674,7 @@ router.post('/correction-requests',
   authenticateToken,
   async (req, res) => {
     const userId = req.user.id;
-    const { request_date, requested_check_in, requested_check_out, reason } = req.body;
+    const { request_date, requested_check_in, requested_check_out, original_check_in, original_check_out, reason } = req.body;
 
     try {
       // Validation
@@ -722,10 +722,10 @@ router.post('/correction-requests',
       // Create the request
       const result = await pool.query(`
         INSERT INTO hr_attendance_correction_requests
-          (employee_id, request_date, requested_check_in, requested_check_out, reason, status)
-        VALUES ($1, $2, $3, $4, $5, 'pending')
+          (employee_id, request_date, requested_check_in, requested_check_out, original_check_in, original_check_out, reason, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
         RETURNING *
-      `, [employeeId, request_date, requested_check_in || null, requested_check_out || null, reason]);
+      `, [employeeId, request_date, requested_check_in || null, requested_check_out || null, original_check_in || null, original_check_out || null, reason]);
 
       res.json({
         success: true,
