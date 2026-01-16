@@ -1,6 +1,7 @@
 import express from 'express';
 import pg from 'pg';
 import { authenticateToken } from '../middleware/auth.js';
+import { getSystemTime, getSystemDate, getSystemTimestamp } from '../services/system-clock.js';
 
 const { Pool } = pg;
 const router = express.Router();
@@ -354,12 +355,14 @@ router.post('/check-in', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check last action today
-    const today = new Date().toISOString().split('T')[0];
+    // Get system time (may be different from server time if custom clock is enabled)
+    const systemTime = await getSystemTime(pool);
+    const systemDate = systemTime.toISOString().split('T')[0];
+    const systemTimestamp = systemTime.toISOString();
 
     // Récupérer l'horaire actif
     const schedule = await getActiveSchedule(pool);
-    const scheduledTimes = schedule ? getScheduledTimesForDate(schedule, today) : null;
+    const scheduledTimes = schedule ? getScheduledTimesForDate(schedule, systemDate) : null;
 
     // Vérifier si déjà pointé entrée aujourd'hui (1 seul pointage autorisé)
     const existingCheckIn = await pool.query(`
@@ -368,7 +371,7 @@ router.post('/check-in', authenticateToken, async (req, res) => {
         AND DATE(clock_time) = $2
         AND status IN ('check_in', 'late', 'weekend')
       LIMIT 1
-    `, [employee.id, today]);
+    `, [employee.id, systemDate]);
 
     if (existingCheckIn.rows.length > 0) {
       return res.status(400).json({
@@ -388,7 +391,7 @@ router.post('/check-in', authenticateToken, async (req, res) => {
         scheduledStart = scheduledTimes.scheduledStart;
 
         lateMinutes = calculateLateMinutes(
-          new Date(),
+          systemTime,
           scheduledStart,
           schedule.tolerance_late_minutes || 0
         );
@@ -402,7 +405,7 @@ router.post('/check-in', authenticateToken, async (req, res) => {
       }
     }
 
-    // Insert check-in record
+    // Insert check-in record using system time
     const result = await pool.query(`
       INSERT INTO hr_attendance_records (
         employee_id,
@@ -413,12 +416,12 @@ router.post('/check-in', authenticateToken, async (req, res) => {
         scheduled_start,
         late_minutes,
         created_at
-      ) VALUES ($1, CURRENT_DATE, NOW(), $2, 'self_service', $3, $4, NOW())
+      ) VALUES ($1, $2::date, $3::timestamp, $4, 'self_service', $5, $6, NOW())
       RETURNING id, attendance_date, clock_time, status, late_minutes, scheduled_start
-    `, [employee.id, initialStatus, scheduledStart, lateMinutes]);
+    `, [employee.id, systemDate, systemTimestamp, initialStatus, scheduledStart, lateMinutes]);
 
     // DEBUG LOG - À supprimer après diagnostic
-    console.log(`📅 CHECK-IN DEBUG: employee_id=${employee.id}, attendance_date=${result.rows[0].attendance_date}, clock_time=${result.rows[0].clock_time}, js_today=${today}`);
+    console.log(`📅 CHECK-IN DEBUG: employee_id=${employee.id}, attendance_date=${result.rows[0].attendance_date}, clock_time=${result.rows[0].clock_time}, systemDate=${systemDate}`);
 
     res.json({
       success: true,
@@ -463,12 +466,14 @@ router.post('/check-out', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check last action today
-    const today = new Date().toISOString().split('T')[0];
+    // Get system time (may be different from server time if custom clock is enabled)
+    const systemTime = await getSystemTime(pool);
+    const systemDate = systemTime.toISOString().split('T')[0];
+    const systemTimestamp = systemTime.toISOString();
 
     // Récupérer l'horaire actif
     const schedule = await getActiveSchedule(pool);
-    const scheduledTimes = schedule ? getScheduledTimesForDate(schedule, today) : null;
+    const scheduledTimes = schedule ? getScheduledTimesForDate(schedule, systemDate) : null;
 
     // Récupérer le check-in pour obtenir scheduled_start et late_minutes
     const checkInRecord = await pool.query(`
@@ -479,7 +484,7 @@ router.post('/check-out', authenticateToken, async (req, res) => {
         AND status IN ('check_in', 'late', 'weekend')
       ORDER BY clock_time DESC
       LIMIT 1
-    `, [employee.id, today]);
+    `, [employee.id, systemDate]);
 
     // Vérifier qu'il y a un pointage d'entrée
     if (checkInRecord.rows.length === 0) {
@@ -496,7 +501,7 @@ router.post('/check-out', authenticateToken, async (req, res) => {
         AND DATE(clock_time) = $2
         AND status = 'check_out'
       LIMIT 1
-    `, [employee.id, today]);
+    `, [employee.id, systemDate]);
 
     if (existingCheckOut.rows.length > 0) {
       return res.status(400).json({
@@ -519,23 +524,21 @@ router.post('/check-out', authenticateToken, async (req, res) => {
       if (scheduledTimes.isWorkingDay) {
         scheduledEnd = scheduledTimes.scheduledEnd;
 
-        const now = new Date();
-
         earlyLeaveMinutes = calculateEarlyLeaveMinutes(
-          now,
+          systemTime,
           scheduledEnd,
           schedule.tolerance_early_leave_minutes || 0
         );
 
         if (earlyLeaveMinutes === 0) {
-          overtimeMinutes = calculateOvertimeMinutes(now, scheduledEnd);
+          overtimeMinutes = calculateOvertimeMinutes(systemTime, scheduledEnd);
         }
       } else {
         finalStatus = 'weekend';
       }
     }
 
-    // Insert check-out record
+    // Insert check-out record using system time
     const result = await pool.query(`
       INSERT INTO hr_attendance_records (
         employee_id,
@@ -548,9 +551,9 @@ router.post('/check-out', authenticateToken, async (req, res) => {
         early_leave_minutes,
         overtime_minutes,
         created_at
-      ) VALUES ($1, CURRENT_DATE, NOW(), $2, 'self_service', $3, $4, $5, $6, NOW())
+      ) VALUES ($1, $2::date, $3::timestamp, $4, 'self_service', $5, $6, $7, $8, NOW())
       RETURNING id, clock_time, status, scheduled_end, early_leave_minutes, overtime_minutes
-    `, [employee.id, finalStatus, scheduledStartFromCheckIn, scheduledEnd, earlyLeaveMinutes, overtimeMinutes]);
+    `, [employee.id, systemDate, systemTimestamp, finalStatus, scheduledStartFromCheckIn, scheduledEnd, earlyLeaveMinutes, overtimeMinutes]);
 
     // Calculate worked minutes for today
     const todayRecords = await pool.query(`
@@ -559,7 +562,7 @@ router.post('/check-out', authenticateToken, async (req, res) => {
       WHERE employee_id = $1
         AND DATE(clock_time) = $2
       ORDER BY clock_time ASC
-    `, [employee.id, today]);
+    `, [employee.id, systemDate]);
 
     const breakRules = await getBreakRules(pool);
     // Utiliser la pause de l'horaire si disponible

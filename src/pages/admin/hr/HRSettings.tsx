@@ -15,6 +15,7 @@ import { apiClient } from '@/lib/api/client';
 import SettingEditorModal from '@/components/admin/hr/SettingEditorModal';
 import PublicHolidaysManager from '@/components/admin/hr/PublicHolidaysManager';
 import BreakRulesEditor from '@/components/admin/hr/BreakRulesEditor';
+import SystemClockEditor from '@/components/admin/hr/SystemClockEditor';
 
 interface LeaveType {
   id: string;
@@ -484,6 +485,10 @@ export default function HRSettings() {
         {/* Content - Clocking & Break Rules */}
         {activeTab === 'clocking' && (
           <div className="space-y-6">
+            {/* System Clock Editor */}
+            <SystemClockEditor />
+
+            {/* Break Rules Editor */}
             {settingsLoading ? (
               <div className="bg-white rounded-lg shadow p-8 text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
