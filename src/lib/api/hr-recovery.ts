@@ -168,19 +168,19 @@ export async function getRecoveryPeriods(params?: {
 
   const url = `/api/hr/recovery/periods${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
   const response = await apiClient.get(url);
-  return response.data;
+  return response.data as { success: boolean; periods: RecoveryPeriod[] };
 }
 
 export async function getRecoveryPeriod(id: string): Promise<{ success: boolean; period: RecoveryPeriod }> {
   const response = await apiClient.get(`/api/hr/recovery/periods/${id}`);
-  return response.data;
+  return response.data as { success: boolean; period: RecoveryPeriod };
 }
 
 export async function createRecoveryPeriod(
   input: CreateRecoveryPeriodInput
 ): Promise<{ success: boolean; period: RecoveryPeriod }> {
   const response = await apiClient.post('/api/hr/recovery/periods', input);
-  return response.data;
+  return response.data as { success: boolean; period: RecoveryPeriod };
 }
 
 export async function updateRecoveryPeriod(
@@ -188,19 +188,19 @@ export async function updateRecoveryPeriod(
   input: UpdateRecoveryPeriodInput
 ): Promise<{ success: boolean; period: RecoveryPeriod }> {
   const response = await apiClient.put(`/api/hr/recovery/periods/${id}`, input);
-  return response.data;
+  return response.data as { success: boolean; period: RecoveryPeriod };
 }
 
 export async function deleteRecoveryPeriod(id: string): Promise<{ success: boolean; message: string }> {
   const response = await apiClient.delete(`/api/hr/recovery/periods/${id}`);
-  return response.data;
+  return response.data as { success: boolean; message: string };
 }
 
 export async function getRecoveryPeriodSummary(
   id: string
 ): Promise<{ success: boolean; summary: RecoveryPeriodSummary }> {
   const response = await apiClient.get(`/api/hr/recovery/periods/${id}/summary`);
-  return response.data;
+  return response.data as { success: boolean; summary: RecoveryPeriodSummary };
 }
 
 // ============================================================
@@ -223,21 +223,21 @@ export async function getRecoveryDeclarations(params?: {
 
   const url = `/api/hr/recovery/declarations${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
   const response = await apiClient.get(url);
-  return response.data;
+  return response.data as { success: boolean; declarations: RecoveryDeclaration[] };
 }
 
 export async function getRecoveryDeclaration(
   id: string
 ): Promise<{ success: boolean; declaration: RecoveryDeclaration }> {
   const response = await apiClient.get(`/api/hr/recovery/declarations/${id}`);
-  return response.data;
+  return response.data as { success: boolean; declaration: RecoveryDeclaration };
 }
 
 export async function createRecoveryDeclaration(
   input: CreateRecoveryDeclarationInput
 ): Promise<{ success: boolean; declaration: RecoveryDeclaration; employees_affected: number }> {
   const response = await apiClient.post('/api/hr/recovery/declarations', input);
-  return response.data;
+  return response.data as { success: boolean; declaration: RecoveryDeclaration; employees_affected: number };
 }
 
 export async function updateRecoveryDeclaration(
@@ -245,17 +245,17 @@ export async function updateRecoveryDeclaration(
   input: UpdateRecoveryDeclarationInput
 ): Promise<{ success: boolean; declaration: RecoveryDeclaration }> {
   const response = await apiClient.put(`/api/hr/recovery/declarations/${id}`, input);
-  return response.data;
+  return response.data as { success: boolean; declaration: RecoveryDeclaration };
 }
 
 export async function deleteRecoveryDeclaration(id: string): Promise<{ success: boolean; message: string }> {
   const response = await apiClient.delete(`/api/hr/recovery/declarations/${id}`);
-  return response.data;
+  return response.data as { success: boolean; message: string };
 }
 
 export async function verifyRecoveryDeclaration(id: string): Promise<VerificationResult> {
   const response = await apiClient.post(`/api/hr/recovery/declarations/${id}/verify`);
-  return response.data;
+  return response.data as VerificationResult;
 }
 
 // ============================================================
@@ -266,12 +266,12 @@ export async function getEmployeeRecoveries(
   employeeId: string
 ): Promise<{ success: boolean; recoveries: EmployeeRecovery[] }> {
   const response = await apiClient.get(`/api/hr/recovery/employees/${employeeId}`);
-  return response.data;
+  return response.data as { success: boolean; recoveries: EmployeeRecovery[] };
 }
 
 export async function getDeclarationEmployees(
   declarationId: string
 ): Promise<{ success: boolean; employees: EmployeeRecovery[] }> {
   const response = await apiClient.get(`/api/hr/recovery/declarations/${declarationId}/employees`);
-  return response.data;
+  return response.data as { success: boolean; employees: EmployeeRecovery[] };
 }

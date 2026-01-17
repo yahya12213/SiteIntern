@@ -689,6 +689,10 @@ export const PERMISSIONS = {
       create: 'ressources_humaines.delegations.creer',
       manage_all: 'ressources_humaines.delegations.gerer_toutes',
     },
+    recovery: {
+      view_page: 'ressources_humaines.gestion_horaires.recuperation.voir',
+      manage: 'ressources_humaines.gestion_horaires.recuperation.creer_periode',
+    },
     settings: {
       view_page: 'ressources_humaines.gestion_paie.configuration.voir',
       update: 'ressources_humaines.gestion_paie.configuration.modifier',

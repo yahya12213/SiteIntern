@@ -8,9 +8,7 @@ import {
   Calendar,
   Users,
   CheckCircle,
-  XCircle,
   Clock,
-  Search,
   Edit,
   Trash2,
 } from 'lucide-react';
