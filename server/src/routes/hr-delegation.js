@@ -17,7 +17,7 @@ router.get('/my',
       let query = `
         SELECT
           d.*,
-          delegate.first_name || ' ' || delegate.last_name AS delegate_name,
+          delegate.full_name AS delegate_name,
           delegate.email AS delegate_email,
           CASE
             WHEN d.is_active = FALSE THEN 'cancelled'
@@ -66,7 +66,7 @@ router.get('/received',
       let query = `
         SELECT
           d.*,
-          delegator.first_name || ' ' || delegator.last_name AS delegator_name,
+          delegator.full_name AS delegator_name,
           delegator.email AS delegator_email,
           CASE
             WHEN d.is_active = FALSE THEN 'cancelled'
@@ -108,9 +108,9 @@ router.get('/',
       let query = `
         SELECT
           d.*,
-          delegator.first_name || ' ' || delegator.last_name AS delegator_name,
+          delegator.full_name AS delegator_name,
           delegator.email AS delegator_email,
-          delegate.first_name || ' ' || delegate.last_name AS delegate_name,
+          delegate.full_name AS delegate_name,
           delegate.email AS delegate_email,
           CASE
             WHEN d.is_active = FALSE THEN 'cancelled'
@@ -178,9 +178,9 @@ router.get('/:id',
       const result = await pool.query(`
         SELECT
           d.*,
-          delegator.first_name || ' ' || delegator.last_name AS delegator_name,
+          delegator.full_name AS delegator_name,
           delegator.email AS delegator_email,
-          delegate.first_name || ' ' || delegate.last_name AS delegate_name,
+          delegate.full_name AS delegate_name,
           delegate.email AS delegate_email,
           CASE
             WHEN d.is_active = FALSE THEN 'cancelled'
@@ -259,7 +259,7 @@ router.post('/',
 
       // Check delegate exists and has receive permission
       const delegate = await client.query(`
-        SELECT p.id, p.first_name, p.last_name, p.email
+        SELECT p.id, p.full_name, p.email
         FROM profiles p
         WHERE p.id = $1
       `, [delegate_id]);
@@ -526,7 +526,7 @@ router.get('/check-approval/:original_approver_id',
       const delegation = await pool.query(`
         SELECT
           d.id as delegation_id,
-          p.first_name || ' ' || p.last_name as delegator_name
+          p.full_name as delegator_name
         FROM hr_approval_delegations d
         JOIN profiles p ON p.id = d.delegator_id
         WHERE d.delegate_id = $1
@@ -639,7 +639,7 @@ router.get('/available-delegates',
       const result = await pool.query(`
         SELECT DISTINCT
           p.id,
-          p.first_name || ' ' || p.last_name as name,
+          p.full_name as name,
           p.email,
           e.position,
           e.department
