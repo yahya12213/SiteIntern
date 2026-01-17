@@ -89,11 +89,8 @@ export default function LeaveRequestFormModal({ employeeId, onClose }: LeaveRequ
   // Create mutation
   const createLeaveRequest = useMutation({
     mutationFn: async (formDataToSend: FormData) => {
-      const response = await apiClient.post<{ success: boolean; data: any }>('/hr/leaves/requests', formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // apiClient automatically detects FormData and sets proper Content-Type
+      const response = await apiClient.post<{ success: boolean; data: any }>('/hr/leaves/requests', formDataToSend);
       return (response as any).data;
     },
     onSuccess: () => {
