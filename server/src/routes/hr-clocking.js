@@ -245,6 +245,61 @@ const timeToMinutes = (timeStr) => {
   return hours * 60 + minutes;
 };
 
+// Helper: Check if date is a public holiday
+const isPublicHoliday = async (pool, date) => {
+  try {
+    const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
+    const result = await pool.query(`
+      SELECT id, name FROM hr_public_holidays
+      WHERE holiday_date = $1
+      LIMIT 1
+    `, [dateStr]);
+    return result.rows.length > 0 ? result.rows[0] : null;
+  } catch (error) {
+    console.error('Error checking public holiday:', error);
+    return null;
+  }
+};
+
+// Helper: Check if date is a recovery day
+const getRecoveryDeclaration = async (pool, employeeId, date) => {
+  try {
+    const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
+
+    // Get employee details for filtering
+    const empResult = await pool.query(`
+      SELECT department, segment_id, centre_id FROM hr_employees WHERE id = $1
+    `, [employeeId]);
+
+    if (empResult.rows.length === 0) return null;
+    const emp = empResult.rows[0];
+
+    // Check for recovery declaration
+    const result = await pool.query(`
+      SELECT
+        rd.id, rd.recovery_date, rd.is_day_off, rd.hours_to_recover,
+        rp.name as period_name, rp.applies_to_all
+      FROM hr_recovery_declarations rd
+      JOIN hr_recovery_periods rp ON rd.recovery_period_id = rp.id
+      WHERE rd.recovery_date = $1
+        AND rd.status = 'active'
+        AND rp.status = 'active'
+        AND (
+          rp.applies_to_all = true
+          OR (rd.department_id = $2 OR rd.department_id IS NULL)
+          OR (rd.segment_id = $3 OR rd.segment_id IS NULL)
+          OR (rd.centre_id = $4 OR rd.centre_id IS NULL)
+        )
+      LIMIT 1
+    `, [dateStr, emp.department, emp.segment_id, emp.centre_id]);
+
+    return result.rows.length > 0 ? result.rows[0] : null;
+  } catch (error) {
+    console.error('Error checking recovery declaration:', error);
+    return null;
+  }
+};
+
 // Helper: Calculate worked minutes for a day (capped to schedule, unless overtime approved)
 const calculateWorkedMinutes = async (records, breakRules, schedule = null, date = null, pool = null, employeeId = null) => {
   if (records.length === 0) return 0;
@@ -360,6 +415,54 @@ router.post('/check-in', authenticateToken, async (req, res) => {
     const schedule = await getActiveSchedule(pool);
     const scheduledTimes = schedule ? getScheduledTimesForDate(schedule, systemDate) : null;
 
+    // PRIORITÉ 1: Vérifier si jour férié
+    const holidayInfo = await isPublicHoliday(pool, systemDate);
+    if (holidayInfo) {
+      const result = await pool.query(`
+        INSERT INTO hr_attendance_records (
+          employee_id, attendance_date, clock_time,
+          status, source, notes, created_at
+        ) VALUES ($1, $2::date, $3::timestamp, 'holiday', 'self_service', $4, NOW())
+        RETURNING id, attendance_date, clock_time, status
+      `, [employee.id, systemDate, systemTimestamp, `Jour férié: ${holidayInfo.name}`]);
+
+      return res.json({
+        success: true,
+        message: `Jour férié: ${holidayInfo.name}`,
+        record: result.rows[0]
+      });
+    }
+
+    // PRIORITÉ 2: Vérifier si jour de récupération
+    const recoveryInfo = await getRecoveryDeclaration(pool, employee.id, systemDate);
+    if (recoveryInfo) {
+      const recoveryStatus = recoveryInfo.is_day_off ? 'recovery_off' : 'recovery_day';
+
+      const result = await pool.query(`
+        INSERT INTO hr_attendance_records (
+          employee_id, attendance_date, clock_time,
+          status, source, notes, created_at
+        ) VALUES ($1, $2::date, $3::timestamp, $4, 'self_service', $5, NOW())
+        RETURNING id, attendance_date, clock_time, status
+      `, [
+        employee.id, systemDate, systemTimestamp, recoveryStatus,
+        `Récupération: ${recoveryInfo.period_name}`
+      ]);
+
+      // Lier à hr_employee_recoveries
+      await pool.query(`
+        UPDATE hr_employee_recoveries
+        SET attendance_record_id = $1, was_present = true
+        WHERE employee_id = $2 AND recovery_date = $3
+      `, [result.rows[0].id, employee.id, systemDate]);
+
+      return res.json({
+        success: true,
+        message: `Récupération: ${recoveryInfo.period_name}`,
+        record: result.rows[0]
+      });
+    }
+
     // Vérifier si déjà pointé entrée aujourd'hui (1 seul pointage autorisé)
     const existingCheckIn = await pool.query(`
       SELECT id, clock_time FROM hr_attendance_records
@@ -469,6 +572,7 @@ router.post('/check-out', authenticateToken, async (req, res) => {
     const systemTime = await getSystemTime(pool);
     const systemDate = systemTime.toISOString().split('T')[0];
     const systemTimestamp = systemTime.toISOString();
+    const today = systemDate; // FIX: Variable utilisée ligne 678 mais manquante
 
     // Récupérer l'horaire actif
     const schedule = await getActiveSchedule(pool);
@@ -574,40 +678,52 @@ router.post('/check-out', authenticateToken, async (req, res) => {
       default_break_minutes: breakMinutes
     }, schedule, today, pool, employee.id);
 
-    // Déterminer le statut final de la journée
+    // Déterminer le statut final de la journée avec priorités
     let dayStatus = 'present';
 
-    if (checkIn?.status === 'late') {
-      dayStatus = 'late';
+    // PRIORITÉ 1: Vérifier si jour férié
+    const holidayInfo = await isPublicHoliday(pool, systemDate);
+    if (holidayInfo) {
+      dayStatus = 'holiday';
     }
+    // PRIORITÉ 2: Vérifier si jour de récupération
+    else {
+      const recoveryInfo = await getRecoveryDeclaration(pool, employee.id, systemDate);
+      if (recoveryInfo) {
+        dayStatus = recoveryInfo.is_day_off ? 'recovery_off' : 'recovery_day';
+      }
+      // PRIORITÉ 3: Weekend
+      else if (scheduledTimes && !scheduledTimes.isWorkingDay) {
+        dayStatus = 'weekend';
+      }
+      // PRIORITÉ 4: Sortie anticipée (NOUVEAU - remplace 'late' pour départ anticipé)
+      else if (earlyLeaveMinutes > 0) {
+        dayStatus = 'sortie_anticipee';
+      }
+      // PRIORITÉ 5: Retard arrivée (conservé uniquement pour retard à l'entrée)
+      else if (checkIn?.status === 'late') {
+        dayStatus = 'late';
+      }
+      // PRIORITÉ 6: Partial vs Present (basé sur heures travaillées)
+      else if (workedMinutes !== null && schedule && scheduledTimes && scheduledTimes.isWorkingDay) {
+        const workedHours = workedMinutes / 60;
 
-    if (earlyLeaveMinutes > 0) {
-      dayStatus = 'late';
-    }
+        // Calculate scheduled hours for the day
+        const scheduledStartMinutes = timeToMinutes(scheduledTimes.scheduledStart);
+        const scheduledEndMinutes = timeToMinutes(scheduledTimes.scheduledEnd);
 
-    // Compare worked hours to scheduled hours for present/partial status
-    if (workedMinutes !== null && schedule && scheduledTimes && scheduledTimes.isWorkingDay) {
-      const workedHours = workedMinutes / 60;
+        if (scheduledStartMinutes !== null && scheduledEndMinutes !== null) {
+          const scheduledMinutes = scheduledEndMinutes - scheduledStartMinutes;
+          const scheduledHours = scheduledMinutes / 60;
 
-      // Calculate scheduled hours for the day
-      const scheduledStartMinutes = timeToMinutes(scheduledTimes.scheduledStart);
-      const scheduledEndMinutes = timeToMinutes(scheduledTimes.scheduledEnd);
-
-      if (scheduledStartMinutes !== null && scheduledEndMinutes !== null) {
-        const scheduledMinutes = scheduledEndMinutes - scheduledStartMinutes;
-        const scheduledHours = scheduledMinutes / 60;
-
-        // Compare worked hours to scheduled hours
-        if (workedHours >= scheduledHours) {
-          dayStatus = 'present';
-        } else {
-          dayStatus = 'partial';
+          // Compare worked hours to scheduled hours
+          if (workedHours >= scheduledHours) {
+            dayStatus = 'present';
+          } else {
+            dayStatus = 'partial';
+          }
         }
       }
-    }
-
-    if (scheduledTimes && !scheduledTimes.isWorkingDay) {
-      dayStatus = 'weekend';
     }
 
     // Mettre à jour le record check-in avec le statut final
@@ -616,7 +732,7 @@ router.post('/check-out', authenticateToken, async (req, res) => {
       SET status = $1
       WHERE employee_id = $2
         AND DATE(clock_time) = $3
-        AND status IN ('check_in', 'late')
+        AND status IN ('check_in', 'late', 'weekend', 'holiday', 'recovery_off', 'recovery_day')
     `, [dayStatus, employee.id, today]);
 
     res.json({
