@@ -2,32 +2,13 @@
  * System Clock Service
  * Provides a configurable system time independent from server time
  * Used for attendance/clocking operations
+ *
+ * NEW APPROACH: Store offset_minutes directly to avoid timezone issues
  */
-
-/**
- * Parse datetime string without timezone conversion
- * Treats the datetime as UTC to avoid local timezone offset issues
- * @param {string} datetimeStr - Datetime string like "2026-01-17T16:42:00"
- * @returns {Date} Date object with the exact time values
- */
-function parseDatetimeAsUTC(datetimeStr) {
-  const match = datetimeStr.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-  if (!match) {
-    return new Date(datetimeStr);
-  }
-  return new Date(Date.UTC(
-    parseInt(match[1]),      // year
-    parseInt(match[2]) - 1,  // month (0-indexed)
-    parseInt(match[3]),      // day
-    parseInt(match[4]),      // hour
-    parseInt(match[5]),      // minute
-    0                        // second
-  ));
-}
 
 /**
  * Get the current system time
- * If custom clock is enabled, returns adjusted time based on configured offset
+ * If custom clock is enabled, returns NOW() + offset_minutes
  * Otherwise returns server NOW()
  *
  * @param {Pool} pool - PostgreSQL connection pool
@@ -44,26 +25,23 @@ export async function getSystemTime(pool) {
     const config = settings.rows[0]?.setting_value;
 
     // If not configured or disabled, use server time
-    if (!config?.enabled || !config.custom_datetime || !config.server_ref_datetime) {
+    if (!config?.enabled) {
       const result = await pool.query('SELECT NOW() as now');
       return result.rows[0].now;
     }
 
-    // Calculate offset between custom time and server reference time
-    // Use parseDatetimeAsUTC to avoid timezone conversion issues
-    const customTime = parseDatetimeAsUTC(config.custom_datetime);
-    const serverRef = new Date(config.server_ref_datetime);
-    const offsetMs = customTime.getTime() - serverRef.getTime();
+    // Use offset_minutes if available (new approach)
+    if (config.offset_minutes !== undefined && config.offset_minutes !== null) {
+      const result = await pool.query(
+        `SELECT NOW() + INTERVAL '${parseInt(config.offset_minutes)} minutes' as now`
+      );
+      console.log(`[SYSTEM-CLOCK] Using offset: ${config.offset_minutes} minutes`);
+      return result.rows[0].now;
+    }
 
-    // Get current server time and apply offset
+    // Fallback to server time
     const result = await pool.query('SELECT NOW() as now');
-    const serverNow = new Date(result.rows[0].now);
-
-    const adjustedTime = new Date(serverNow.getTime() + offsetMs);
-
-    console.log(`[SYSTEM-CLOCK] Custom clock active: Server=${serverNow.toISOString()}, Adjusted=${adjustedTime.toISOString()}, Offset=${Math.round(offsetMs/60000)}min`);
-
-    return adjustedTime;
+    return result.rows[0].now;
   } catch (error) {
     console.error('[SYSTEM-CLOCK] Error getting system time:', error);
     // Fallback to server time on error
@@ -81,7 +59,11 @@ export async function getSystemTime(pool) {
  */
 export async function getSystemDate(pool) {
   const systemTime = await getSystemTime(pool);
-  return systemTime.toISOString().split('T')[0];
+  // Handle both Date objects and PostgreSQL timestamp strings
+  if (systemTime instanceof Date) {
+    return systemTime.toISOString().split('T')[0];
+  }
+  return new Date(systemTime).toISOString().split('T')[0];
 }
 
 /**
@@ -92,7 +74,10 @@ export async function getSystemDate(pool) {
  */
 export async function getSystemTimestamp(pool) {
   const systemTime = await getSystemTime(pool);
-  return systemTime.toISOString();
+  if (systemTime instanceof Date) {
+    return systemTime.toISOString();
+  }
+  return new Date(systemTime).toISOString();
 }
 
 /**
@@ -128,8 +113,7 @@ export async function getSystemClockConfig(pool) {
 
     const config = settings.rows[0]?.setting_value || {
       enabled: false,
-      custom_datetime: null,
-      server_ref_datetime: null,
+      offset_minutes: 0,
       updated_at: null,
       updated_by: null
     };
@@ -138,16 +122,12 @@ export async function getSystemClockConfig(pool) {
     const serverNow = await pool.query('SELECT NOW() as now');
     config.current_server_time = serverNow.rows[0].now;
 
-    // Calculate current offset if enabled
-    if (config.enabled && config.custom_datetime && config.server_ref_datetime) {
-      // Use parseDatetimeAsUTC to avoid timezone conversion issues
-      const customTime = parseDatetimeAsUTC(config.custom_datetime);
-      const serverRef = new Date(config.server_ref_datetime);
-      config.offset_minutes = Math.round((customTime.getTime() - serverRef.getTime()) / 60000);
-
-      // Calculate what the current system time would be
-      const currentServerTime = new Date(serverNow.rows[0].now);
-      config.current_system_time = new Date(currentServerTime.getTime() + (config.offset_minutes * 60000));
+    // Calculate current system time if enabled
+    if (config.enabled && config.offset_minutes !== undefined) {
+      const systemTimeResult = await pool.query(
+        `SELECT NOW() + INTERVAL '${parseInt(config.offset_minutes || 0)} minutes' as now`
+      );
+      config.current_system_time = systemTimeResult.rows[0].now;
     }
 
     return config;
@@ -155,8 +135,7 @@ export async function getSystemClockConfig(pool) {
     console.error('[SYSTEM-CLOCK] Error getting config:', error);
     return {
       enabled: false,
-      custom_datetime: null,
-      server_ref_datetime: null,
+      offset_minutes: 0,
       updated_at: null,
       updated_by: null,
       error: error.message
@@ -169,21 +148,19 @@ export async function getSystemClockConfig(pool) {
  *
  * @param {Pool} pool - PostgreSQL connection pool
  * @param {boolean} enabled - Whether to enable custom clock
- * @param {string|null} customDatetime - The custom datetime to set (ISO string)
+ * @param {number} offsetMinutes - The offset in minutes to apply to server time
  * @param {string} userId - The user making the change
  * @returns {Promise<Object>} The updated configuration
  */
-export async function updateSystemClockConfig(pool, enabled, customDatetime, userId) {
+export async function updateSystemClockConfig(pool, enabled, offsetMinutes, userId) {
   try {
-    // Get current server time as reference
+    // Get current server time for updated_at
     const serverNow = await pool.query('SELECT NOW() as now');
-    const serverRefDatetime = serverNow.rows[0].now;
 
     const config = {
       enabled: enabled,
-      custom_datetime: enabled ? customDatetime : null,
-      server_ref_datetime: enabled ? serverRefDatetime : null,
-      updated_at: serverRefDatetime,
+      offset_minutes: enabled ? (offsetMinutes || 0) : 0,
+      updated_at: serverNow.rows[0].now,
       updated_by: userId
     };
 
@@ -207,7 +184,7 @@ export async function updateSystemClockConfig(pool, enabled, customDatetime, use
       `, [JSON.stringify(config)]);
     }
 
-    console.log(`[SYSTEM-CLOCK] Configuration updated by user ${userId}: enabled=${enabled}, datetime=${customDatetime}`);
+    console.log(`[SYSTEM-CLOCK] Configuration updated by user ${userId}: enabled=${enabled}, offset_minutes=${offsetMinutes}`);
 
     return await getSystemClockConfig(pool);
   } catch (error) {

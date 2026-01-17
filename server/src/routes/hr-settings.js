@@ -337,26 +337,31 @@ router.get('/system-clock/current-time', authenticateToken, async (req, res) => 
 
 /**
  * Update system clock configuration
- * Enables/disables custom clock and sets the desired datetime
+ * Enables/disables custom clock and sets the offset in minutes
  */
 router.put('/system-clock', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
-    const { enabled, custom_datetime } = req.body;
+    const { enabled, offset_minutes } = req.body;
 
-    if (enabled && !custom_datetime) {
+    if (enabled && (offset_minutes === undefined || offset_minutes === null)) {
       return res.status(400).json({
         success: false,
-        error: 'custom_datetime is required when enabling the system clock'
+        error: 'offset_minutes is required when enabling the system clock'
       });
     }
 
-    const config = await updateSystemClockConfig(pool, enabled, custom_datetime, req.user.id);
+    const config = await updateSystemClockConfig(pool, enabled, parseInt(offset_minutes) || 0, req.user.id);
+
+    const sign = (config.offset_minutes || 0) >= 0 ? '+' : '';
+    const hours = Math.floor(Math.abs(config.offset_minutes || 0) / 60);
+    const mins = Math.abs(config.offset_minutes || 0) % 60;
+    const offsetStr = `${sign}${hours}h${mins.toString().padStart(2, '0')}`;
 
     res.json({
       success: true,
       data: config,
       message: enabled
-        ? `Horloge systeme activee: ${new Date(custom_datetime).toLocaleString('fr-FR')}`
+        ? `Horloge systeme activee: offset ${offsetStr}`
         : 'Horloge systeme desactivee - utilisation de l\'heure serveur'
     });
   } catch (error) {
@@ -371,7 +376,7 @@ router.put('/system-clock', authenticateToken, requirePermission('hr.settings.ed
  */
 router.post('/system-clock/reset', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
-    const config = await updateSystemClockConfig(pool, false, null, req.user.id);
+    const config = await updateSystemClockConfig(pool, false, 0, req.user.id);
 
     res.json({
       success: true,

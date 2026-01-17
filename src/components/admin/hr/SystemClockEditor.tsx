@@ -1,6 +1,8 @@
 /**
  * SystemClockEditor Component
  * Allows admin to configure a custom system clock for attendance
+ *
+ * NEW APPROACH: Calculate offset client-side to avoid timezone issues
  */
 
 import { useState, useEffect } from 'react';
@@ -17,11 +19,9 @@ import { useToast } from '@/hooks/use-toast';
 
 interface SystemClockConfig {
   enabled: boolean;
-  custom_datetime: string | null;
-  server_ref_datetime: string | null;
+  offset_minutes: number;
   current_server_time: string;
-  current_system_time?: Date;
-  offset_minutes?: number;
+  current_system_time?: string;
   updated_at: string | null;
   updated_by: string | null;
 }
@@ -49,27 +49,30 @@ export default function SystemClockEditor() {
   useEffect(() => {
     if (config && !isInitialized) {
       setEnabled(config.enabled);
-      if (config.current_system_time) {
-        const dt = new Date(config.current_system_time);
-        setCustomDate(dt.toISOString().split('T')[0]);
-        setCustomTime(dt.toTimeString().slice(0, 5));
-      } else if (config.custom_datetime) {
-        const dt = new Date(config.custom_datetime);
-        setCustomDate(dt.toISOString().split('T')[0]);
-        setCustomTime(dt.toTimeString().slice(0, 5));
-      } else {
-        // Default to current server time
-        const serverTime = new Date(config.current_server_time);
-        setCustomDate(serverTime.toISOString().split('T')[0]);
-        setCustomTime(serverTime.toTimeString().slice(0, 5));
-      }
+
+      // Initialize date/time from current system time
+      const timeToUse = config.enabled && config.current_system_time
+        ? new Date(config.current_system_time)
+        : new Date(config.current_server_time);
+
+      // Format for date input (YYYY-MM-DD) - use local date
+      const year = timeToUse.getFullYear();
+      const month = String(timeToUse.getMonth() + 1).padStart(2, '0');
+      const day = String(timeToUse.getDate()).padStart(2, '0');
+      setCustomDate(`${year}-${month}-${day}`);
+
+      // Format for time input (HH:MM) - use local time
+      const hours = String(timeToUse.getHours()).padStart(2, '0');
+      const minutes = String(timeToUse.getMinutes()).padStart(2, '0');
+      setCustomTime(`${hours}:${minutes}`);
+
       setIsInitialized(true);
     }
   }, [config, isInitialized]);
 
-  // Update mutation
+  // Update mutation - now sends offset_minutes
   const updateMutation = useMutation({
-    mutationFn: async (data: { enabled: boolean; custom_datetime: string | null }) => {
+    mutationFn: async (data: { enabled: boolean; offset_minutes: number }) => {
       const response = await apiClient.put('/hr/settings/system-clock', data);
       return response;
     },
@@ -124,8 +127,21 @@ export default function SystemClockEditor() {
       return;
     }
 
-    const customDatetime = enabled ? `${customDate}T${customTime}:00` : null;
-    updateMutation.mutate({ enabled, custom_datetime: customDatetime });
+    // Calculate offset in minutes between desired time and current time
+    const now = new Date();
+    const [year, month, day] = customDate.split('-').map(Number);
+    const [hours, minutes] = customTime.split(':').map(Number);
+    const desired = new Date(year, month - 1, day, hours, minutes, 0);
+
+    const offsetMinutes = Math.round((desired.getTime() - now.getTime()) / 60000);
+
+    console.log('[SystemClockEditor] Calculating offset:', {
+      now: now.toLocaleString(),
+      desired: desired.toLocaleString(),
+      offsetMinutes
+    });
+
+    updateMutation.mutate({ enabled, offset_minutes: offsetMinutes });
   };
 
   const handleReset = () => {
@@ -145,7 +161,7 @@ export default function SystemClockEditor() {
   };
 
   const formatOffset = (minutes: number | undefined) => {
-    if (minutes === undefined) return '';
+    if (minutes === undefined || minutes === 0) return '';
     const sign = minutes >= 0 ? '+' : '-';
     const absMinutes = Math.abs(minutes);
     const hours = Math.floor(absMinutes / 60);
@@ -206,7 +222,7 @@ export default function SystemClockEditor() {
           <div className={`p-4 rounded-lg border ${config?.enabled ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'}`}>
             <div className="text-sm text-gray-500 mb-1">
               Heure systeme (pointage)
-              {config?.offset_minutes !== undefined && config.enabled && (
+              {config?.enabled && config?.offset_minutes !== undefined && config.offset_minutes !== 0 && (
                 <span className="ml-2 text-blue-600 font-medium">
                   {formatOffset(config.offset_minutes)}
                 </span>
