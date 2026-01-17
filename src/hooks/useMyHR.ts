@@ -37,7 +37,7 @@ export const useCreateRequest = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateRequestInput) => myHRApi.createRequest(data),
+    mutationFn: (data: CreateRequestInput | FormData) => myHRApi.createRequest(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-hr', 'requests'] });
       queryClient.invalidateQueries({ queryKey: ['my-hr', 'leave-balances'] });

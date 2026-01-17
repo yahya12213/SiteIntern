@@ -21,6 +21,8 @@ import {
   Trash2,
   AlertTriangle,
   Send,
+  Upload,
+  X,
 } from 'lucide-react';
 import { format, parseISO, formatDistanceToNow, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -130,6 +132,8 @@ function NewRequestModal({ open, onOpenChange, onSuccess, balances }: NewRequest
     interim_person: '',
   });
 
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+
   const calculatedDays = useMemo(() => {
     if (!formData.start_date || !formData.end_date) return 0;
     const days = differenceInDays(parseISO(formData.end_date), parseISO(formData.start_date)) + 1;
@@ -159,8 +163,32 @@ function NewRequestModal({ open, onOpenChange, onSuccess, balances }: NewRequest
       return;
     }
 
+    // Validation: certificat médical obligatoire pour congé maladie
+    if (formData.request_type === 'leave' && formData.request_subtype === 'sick' && !attachmentFile) {
+      toast({ title: 'Erreur', description: 'Un certificat médical est requis pour les congés maladie', variant: 'destructive' });
+      return;
+    }
+
     try {
-      await createMutation.mutateAsync(formData);
+      // Si fichier attaché, envoyer en FormData, sinon JSON
+      if (attachmentFile) {
+        const formDataToSend = new FormData();
+        formDataToSend.append('request_type', formData.request_type);
+        if (formData.request_subtype) formDataToSend.append('request_subtype', formData.request_subtype);
+        if (formData.start_date) formDataToSend.append('start_date', formData.start_date);
+        if (formData.end_date) formDataToSend.append('end_date', formData.end_date);
+        if (formData.duration_hours) formDataToSend.append('duration_hours', formData.duration_hours.toString());
+        formDataToSend.append('reason', formData.reason);
+        if (formData.contact_during_absence) formDataToSend.append('contact_during_absence', formData.contact_during_absence);
+        if (formData.interim_person) formDataToSend.append('interim_person', formData.interim_person);
+        formDataToSend.append('attachment', attachmentFile);
+
+        // Appel direct avec apiClient pour supporter FormData
+        await createMutation.mutateAsync(formDataToSend as any);
+      } else {
+        await createMutation.mutateAsync(formData);
+      }
+
       toast({ title: 'Succès', description: 'Demande soumise avec succès' });
       onSuccess();
       onOpenChange(false);
@@ -174,6 +202,7 @@ function NewRequestModal({ open, onOpenChange, onSuccess, balances }: NewRequest
         contact_during_absence: '',
         interim_person: '',
       });
+      setAttachmentFile(null);
     } catch (error) {
       toast({
         title: 'Erreur',
@@ -345,6 +374,71 @@ function NewRequestModal({ open, onOpenChange, onSuccess, balances }: NewRequest
               required
             />
           </div>
+
+          {/* Pièce jointe (pour congé maladie) */}
+          {formData.request_type === 'leave' && formData.request_subtype === 'sick' && (
+            <div className="space-y-2">
+              <Label htmlFor="attachment">Certificat médical *</Label>
+              <div className="relative">
+                <input
+                  type="file"
+                  id="attachment"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 10 * 1024 * 1024) {
+                        toast({
+                          title: 'Erreur',
+                          description: 'Le fichier est trop volumineux (max 10MB)',
+                          variant: 'destructive',
+                        });
+                        e.target.value = '';
+                        return;
+                      }
+                      setAttachmentFile(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="attachment"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 transition-colors"
+                >
+                  <Upload className="h-5 w-5 text-gray-400" />
+                  <span className="text-sm text-gray-600">
+                    {attachmentFile ? attachmentFile.name : 'Sélectionner un fichier (PDF, Word, Image)'}
+                  </span>
+                </label>
+              </div>
+              {attachmentFile && (
+                <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm text-blue-900">{attachmentFile.name}</span>
+                    <span className="text-xs text-blue-600">
+                      ({(attachmentFile.size / 1024).toFixed(1)} KB)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttachmentFile(null);
+                      const input = document.getElementById('attachment') as HTMLInputElement;
+                      if (input) input.value = '';
+                    }}
+                    className="text-blue-600 hover:text-blue-800"
+                    aria-label="Supprimer le fichier"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              <p className="text-xs text-gray-500">
+                Formats acceptés: PDF, Word, JPG, PNG (max 10MB)
+              </p>
+            </div>
+          )}
 
           {/* Contact et intérim (pour congés) */}
           {formData.request_type === 'leave' && (

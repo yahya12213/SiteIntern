@@ -155,7 +155,7 @@ export const myHRApi = {
   /**
    * Create a new request
    */
-  createRequest: async (data: CreateRequestInput): Promise<{ success: boolean; request: MyRequest; message: string }> => {
+  createRequest: async (data: CreateRequestInput | FormData): Promise<{ success: boolean; request: MyRequest; message: string }> => {
     return apiClient.post<{ success: boolean; request: MyRequest; message: string }>('/hr/my/requests', data);
   },
 
