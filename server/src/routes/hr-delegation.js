@@ -317,7 +317,7 @@ router.post('/',
       // Create notification for delegate
       if (requires_notification) {
         const delegator = await client.query(
-          "SELECT first_name || ' ' || last_name as name FROM profiles WHERE id = $1",
+          "SELECT full_name as name FROM profiles WHERE id = $1",
           [userId]
         );
 
