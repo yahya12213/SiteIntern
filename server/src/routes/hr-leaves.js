@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 import { uploadDeclarationAttachment } from '../middleware/upload.js';
+import { checkLeaveOverlap } from '../utils/leave-validation.js';
 
 const router = express.Router();
 
@@ -101,6 +102,22 @@ router.post('/requests', authenticateToken, requirePermission('hr.leaves.create'
 
     // Get justification file path if uploaded
     const justification_url = req.file ? `/uploads/declarations/${req.file.filename}` : null;
+
+    // Check for overlapping requests
+    const overlapCheck = await checkLeaveOverlap(pool, employee_id, start_date, end_date);
+    if (overlapCheck.hasOverlap) {
+      const overlapping = overlapCheck.overlappingRequests[0];
+      return res.status(400).json({
+        success: false,
+        error: 'Une demande existe déjà pour cette période',
+        details: {
+          existing_request_id: overlapping.id,
+          existing_dates: `${overlapping.start_date} - ${overlapping.end_date}`,
+          existing_type: overlapping.leave_type_name,
+          existing_status: overlapping.status
+        }
+      });
+    }
 
     const result = await pool.query(`
       INSERT INTO hr_leave_requests (

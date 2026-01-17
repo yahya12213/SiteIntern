@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
 import pool from '../config/database.js';
+import { checkLeaveOverlap } from '../utils/leave-validation.js';
 
 const router = express.Router();
 
@@ -193,19 +194,19 @@ router.post('/requests',
       }
 
       // Check for overlapping requests
-      const overlap = await pool.query(`
-        SELECT id FROM hr_leave_requests
-        WHERE employee_id = $1
-        AND status IN ('pending', 'approved')
-        AND (
-          ($2 BETWEEN start_date AND end_date) OR
-          ($3 BETWEEN start_date AND end_date) OR
-          (start_date BETWEEN $2 AND $3)
-        )
-      `, [employeeId, start_date, end_date]);
-
-      if (overlap.rows.length > 0) {
-        return res.status(400).json({ success: false, error: 'You already have a request for this period' });
+      const overlapCheck = await checkLeaveOverlap(pool, employeeId, start_date, end_date);
+      if (overlapCheck.hasOverlap) {
+        const overlapping = overlapCheck.overlappingRequests[0];
+        return res.status(400).json({
+          success: false,
+          error: 'Vous avez déjà une demande pour cette période',
+          details: {
+            existing_request_id: overlapping.id,
+            existing_dates: `${overlapping.start_date} - ${overlapping.end_date}`,
+            existing_type: overlapping.leave_type_name,
+            existing_status: overlapping.status
+          }
+        });
       }
 
       // Get leave balance

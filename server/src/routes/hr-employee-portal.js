@@ -1,6 +1,7 @@
 import express from 'express';
 import pg from 'pg';
 import { authenticateToken } from '../middleware/auth.js';
+import { checkLeaveOverlap } from '../utils/leave-validation.js';
 
 const { Pool } = pg;
 const router = express.Router();
@@ -656,6 +657,22 @@ router.post('/requests', authenticateToken, async (req, res) => {
       const startDate = new Date(start_date);
       const endDate = new Date(end_date);
       const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
+      // Check for overlapping requests
+      const overlapCheck = await checkLeaveOverlap(pool, employee.id, start_date, end_date);
+      if (overlapCheck.hasOverlap) {
+        const overlapping = overlapCheck.overlappingRequests[0];
+        return res.status(400).json({
+          success: false,
+          error: 'Une demande existe déjà pour cette période',
+          details: {
+            existing_request_id: overlapping.id,
+            existing_dates: `${overlapping.start_date} - ${overlapping.end_date}`,
+            existing_type: overlapping.leave_type_name,
+            existing_status: overlapping.status
+          }
+        });
+      }
 
       // Insert leave request
       const result = await pool.query(`
