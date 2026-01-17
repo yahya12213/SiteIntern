@@ -166,6 +166,33 @@ const getActiveSchedule = async (pool) => {
   }
 };
 
+// Helper: Get global attendance rules from hr_settings
+const getGlobalAttendanceRules = async (pool) => {
+  try {
+    const result = await pool.query(`
+      SELECT setting_value
+      FROM hr_settings
+      WHERE setting_key = 'attendance_rules'
+      LIMIT 1
+    `);
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return result.rows[0].setting_value;
+  } catch (error) {
+    console.error('Error fetching global attendance rules:', error);
+    return null;
+  }
+};
+
+// Helper: Resolve config value with fallback hierarchy
+// Priority: schedule-specific > global settings > hardcoded default
+const resolveConfigValue = (scheduleValue, globalRulesValue, defaultValue) => {
+  return scheduleValue ?? globalRulesValue ?? defaultValue;
+};
+
 // Helper: Get scheduled times for a specific date
 const getScheduledTimesForDate = (schedule, date) => {
   if (!schedule) return null;
@@ -356,8 +383,9 @@ router.post('/check-in', authenticateToken, async (req, res) => {
     const systemDate = systemTime.toISOString().split('T')[0];
     const systemTimestamp = systemTime.toISOString();
 
-    // Récupérer l'horaire actif
+    // Récupérer l'horaire actif et les règles globales
     const schedule = await getActiveSchedule(pool);
+    const globalRules = await getGlobalAttendanceRules(pool);
     const scheduledTimes = schedule ? getScheduledTimesForDate(schedule, systemDate) : null;
 
     // Vérifier si déjà pointé entrée aujourd'hui (1 seul pointage autorisé)
@@ -386,10 +414,17 @@ router.post('/check-in', authenticateToken, async (req, res) => {
       if (scheduledTimes.isWorkingDay) {
         scheduledStart = scheduledTimes.scheduledStart;
 
+        // Use fallback: schedule > global > default (15 min)
+        const toleranceLateMins = resolveConfigValue(
+          schedule?.tolerance_late_minutes,
+          globalRules?.late_tolerance_minutes,
+          15
+        );
+
         lateMinutes = calculateLateMinutes(
           systemTime,
           scheduledStart,
-          schedule.tolerance_late_minutes || 0
+          toleranceLateMins
         );
 
         if (lateMinutes > 0) {
@@ -467,8 +502,9 @@ router.post('/check-out', authenticateToken, async (req, res) => {
     const systemDate = systemTime.toISOString().split('T')[0];
     const systemTimestamp = systemTime.toISOString();
 
-    // Récupérer l'horaire actif
+    // Récupérer l'horaire actif et les règles globales
     const schedule = await getActiveSchedule(pool);
+    const globalRules = await getGlobalAttendanceRules(pool);
     const scheduledTimes = schedule ? getScheduledTimesForDate(schedule, systemDate) : null;
 
     // Récupérer le check-in pour obtenir scheduled_start et late_minutes
@@ -520,10 +556,17 @@ router.post('/check-out', authenticateToken, async (req, res) => {
       if (scheduledTimes.isWorkingDay) {
         scheduledEnd = scheduledTimes.scheduledEnd;
 
+        // Use fallback: schedule > global > default (10 min)
+        const toleranceEarlyLeaveMins = resolveConfigValue(
+          schedule?.tolerance_early_leave_minutes,
+          globalRules?.early_leave_tolerance_minutes,
+          10
+        );
+
         earlyLeaveMinutes = calculateEarlyLeaveMinutes(
           systemTime,
           scheduledEnd,
-          schedule.tolerance_early_leave_minutes || 0
+          toleranceEarlyLeaveMins
         );
 
         if (earlyLeaveMinutes === 0) {
@@ -581,7 +624,14 @@ router.post('/check-out', authenticateToken, async (req, res) => {
 
     if (workedMinutes !== null && schedule) {
       const workedHours = workedMinutes / 60;
-      if (workedHours < (schedule.min_hours_for_half_day || 4)) {
+      // Use fallback: schedule > global > default (3.5 hours)
+      const minHoursHalfDay = resolveConfigValue(
+        schedule?.min_hours_for_half_day,
+        globalRules?.min_hours_for_half_day,
+        3.5
+      );
+
+      if (workedHours < minHoursHalfDay) {
         dayStatus = 'half_day';
       }
     }
