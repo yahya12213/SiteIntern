@@ -5,6 +5,27 @@
  */
 
 /**
+ * Parse datetime string without timezone conversion
+ * Treats the datetime as UTC to avoid local timezone offset issues
+ * @param {string} datetimeStr - Datetime string like "2026-01-17T16:42:00"
+ * @returns {Date} Date object with the exact time values
+ */
+function parseDatetimeAsUTC(datetimeStr) {
+  const match = datetimeStr.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!match) {
+    return new Date(datetimeStr);
+  }
+  return new Date(Date.UTC(
+    parseInt(match[1]),      // year
+    parseInt(match[2]) - 1,  // month (0-indexed)
+    parseInt(match[3]),      // day
+    parseInt(match[4]),      // hour
+    parseInt(match[5]),      // minute
+    0                        // second
+  ));
+}
+
+/**
  * Get the current system time
  * If custom clock is enabled, returns adjusted time based on configured offset
  * Otherwise returns server NOW()
@@ -29,7 +50,8 @@ export async function getSystemTime(pool) {
     }
 
     // Calculate offset between custom time and server reference time
-    const customTime = new Date(config.custom_datetime);
+    // Use parseDatetimeAsUTC to avoid timezone conversion issues
+    const customTime = parseDatetimeAsUTC(config.custom_datetime);
     const serverRef = new Date(config.server_ref_datetime);
     const offsetMs = customTime.getTime() - serverRef.getTime();
 
@@ -118,7 +140,8 @@ export async function getSystemClockConfig(pool) {
 
     // Calculate current offset if enabled
     if (config.enabled && config.custom_datetime && config.server_ref_datetime) {
-      const customTime = new Date(config.custom_datetime);
+      // Use parseDatetimeAsUTC to avoid timezone conversion issues
+      const customTime = parseDatetimeAsUTC(config.custom_datetime);
       const serverRef = new Date(config.server_ref_datetime);
       config.offset_minutes = Math.round((customTime.getTime() - serverRef.getTime()) / 60000);
 
