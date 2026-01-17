@@ -30,60 +30,6 @@ router.get('/', authenticateToken, requirePermission('hr.settings.view_page'), a
   }
 });
 
-// Get single setting
-router.get('/:key', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
-  try {
-    const { key } = req.params;
-    const result = await pool.query(
-      'SELECT * FROM hr_settings WHERE setting_key = $1',
-      [key]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Setting not found' });
-    }
-
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error) {
-    console.error('Error fetching setting:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Update setting
-router.put('/:key', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
-  try {
-    const { key } = req.params;
-    const { value } = req.body;
-
-    // Check if setting exists and is editable
-    const existing = await pool.query(
-      'SELECT * FROM hr_settings WHERE setting_key = $1',
-      [key]
-    );
-
-    if (existing.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Setting not found' });
-    }
-
-    if (!existing.rows[0].is_editable) {
-      return res.status(403).json({ success: false, error: 'This setting is not editable' });
-    }
-
-    const result = await pool.query(`
-      UPDATE hr_settings
-      SET setting_value = $2, updated_at = NOW(), updated_by = $3
-      WHERE setting_key = $1
-      RETURNING *
-    `, [key, JSON.stringify(value), req.user.id]);
-
-    res.json({ success: true, data: result.rows[0] });
-  } catch (error) {
-    console.error('Error updating setting:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 // === LEAVE TYPES MANAGEMENT ===
 
 // Get all leave types
@@ -434,6 +380,62 @@ router.post('/system-clock/reset', authenticateToken, requirePermission('hr.sett
     });
   } catch (error) {
     console.error('Error resetting system clock:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// === GENERIC SETTING ROUTES (must be last to avoid catching specific routes) ===
+
+// Get single setting by key
+router.get('/:key', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
+  try {
+    const { key } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM hr_settings WHERE setting_key = $1',
+      [key]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Setting not found' });
+    }
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error fetching setting:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Update setting by key
+router.put('/:key', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
+  try {
+    const { key } = req.params;
+    const { value } = req.body;
+
+    // Check if setting exists and is editable
+    const existing = await pool.query(
+      'SELECT * FROM hr_settings WHERE setting_key = $1',
+      [key]
+    );
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Setting not found' });
+    }
+
+    if (!existing.rows[0].is_editable) {
+      return res.status(403).json({ success: false, error: 'This setting is not editable' });
+    }
+
+    const result = await pool.query(`
+      UPDATE hr_settings
+      SET setting_value = $2, updated_at = NOW(), updated_by = $3
+      WHERE setting_key = $1
+      RETURNING *
+    `, [key, JSON.stringify(value), req.user.id]);
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating setting:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
