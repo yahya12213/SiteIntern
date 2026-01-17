@@ -40,6 +40,7 @@ import PayrollManagement from './pages/admin/hr/PayrollManagement';
 import EmployeePortal from './pages/admin/hr/EmployeePortal';
 import RequestsValidation from './pages/admin/hr/RequestsValidation';
 import DelegationManagement from './pages/admin/hr/DelegationManagement';
+import HRRecovery from './pages/admin/hr/HRRecovery';
 // Manager pages
 import TeamAttendance from './pages/manager/TeamAttendance';
 import TeamRequests from './pages/manager/TeamRequests';
@@ -461,6 +462,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute requiredPermission={PERMISSIONS.hr.delegation.view_page}>
             <DelegationManagement />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/hr/recovery"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.hr.recovery.view_page}>
+            <HRRecovery />
           </ProtectedRoute>
         }
       />

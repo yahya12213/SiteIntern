@@ -261,6 +261,15 @@ export function usePermission() {
     // Onglet Config HS
     voirConfigHS: can('ressources_humaines.gestion_horaires.config_hs.voir'),
     modifierConfigHS: can('ressources_humaines.gestion_horaires.config_hs.modifier'),
+    // Onglet Récupération
+    voirRecuperation: can('ressources_humaines.gestion_horaires.recuperation.voir'),
+    creerPeriodeRecup: can('ressources_humaines.gestion_horaires.recuperation.creer_periode'),
+    modifierPeriodeRecup: can('ressources_humaines.gestion_horaires.recuperation.modifier_periode'),
+    supprimerPeriodeRecup: can('ressources_humaines.gestion_horaires.recuperation.supprimer_periode'),
+    declarerJourRecup: can('ressources_humaines.gestion_horaires.recuperation.declarer_jour'),
+    modifierDeclarationRecup: can('ressources_humaines.gestion_horaires.recuperation.modifier_declaration'),
+    supprimerDeclarationRecup: can('ressources_humaines.gestion_horaires.recuperation.supprimer_declaration'),
+    verifierRecuperation: can('ressources_humaines.gestion_horaires.recuperation.verifier'),
 
     // Gestion de Paie
     voirGestionPaie: can('ressources_humaines.gestion_paie.voir'),
@@ -517,6 +526,8 @@ export function usePermission() {
     canManageModels: ressourcesHumaines.creerModele,
     canManageHolidays: ressourcesHumaines.creerJourFerie,
     canManageOvertime: ressourcesHumaines.creerPeriodeHS,
+    canViewRecovery: ressourcesHumaines.voirRecuperation,
+    canManageRecovery: ressourcesHumaines.creerPeriodeRecup,
     // Payroll
     canViewPayroll: ressourcesHumaines.voirGestionPaie,
     canManagePeriods: ressourcesHumaines.creerPeriode,

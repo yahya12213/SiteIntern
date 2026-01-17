@@ -185,6 +185,7 @@ import migration115Router from './routes/migration-115-add-all-missing-permissio
 import migration116Router from './routes/migration-116-consolidate-permissions.js';
 import migration117Router from './routes/migration-117-fix-leave-request-columns.js';
 import hrCorrectionRequestsRouter from './routes/hr-correction-requests.js';
+import hrRecoveryRouter from './routes/hr-recovery.js';
 import debugTemplateDateformatRouter from './routes/debug-template-dateformat.js';
 import visitsRouter from './routes/visits.js';
 import googleOAuthRouter from './routes/google-oauth.js';
@@ -193,6 +194,7 @@ import migration118Router from './routes/migration-118-facebook-stats.js';
 import migration119Router from './routes/migration-119-sync-students-prospects.js';
 import migration120Router from './routes/migration-120-nullable-schedule-config.js';
 import migration121Router from './routes/migration-121-add-partial-status.js';
+import migration122Router from './routes/migration-122-hr-recovery.js';
 
 const app = express();
 
@@ -437,9 +439,11 @@ app.use('/api/migration-118-facebook-stats', ...adminOnly, migration118Router);
 app.use('/api/migration-119-sync-students-prospects', ...adminOnly, migration119Router);
 app.use('/api/migration-120-nullable-schedule-config', ...adminOnly, migration120Router);
 app.use('/api/migration-121-add-partial-status', ...adminOnly, migration121Router);
+app.use('/api/migration-122-hr-recovery', ...adminOnly, migration122Router);
 // Note: /my/correction-requests routes are in hr-employee-self.js (mounted at /api/hr/my)
 // Manager routes for correction requests are mounted separately below
 app.use('/api/hr/correction', authenticateToken, hrCorrectionRequestsRouter);
+app.use('/api/hr/recovery', authenticateToken, hrRecoveryRouter);
 app.use('/api/debug-template-dateformat', ...adminOnly, debugTemplateDateformatRouter);
 
 // Health check

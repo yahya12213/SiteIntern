@@ -200,6 +200,17 @@ export const PERMISSIONS = {
         voir: 'ressources_humaines.gestion_horaires.config_hs.voir',
         modifier: 'ressources_humaines.gestion_horaires.config_hs.modifier',
       },
+      // Onglet Récupération
+      recuperation: {
+        voir: 'ressources_humaines.gestion_horaires.recuperation.voir',
+        creer_periode: 'ressources_humaines.gestion_horaires.recuperation.creer_periode',
+        modifier_periode: 'ressources_humaines.gestion_horaires.recuperation.modifier_periode',
+        supprimer_periode: 'ressources_humaines.gestion_horaires.recuperation.supprimer_periode',
+        declarer_jour: 'ressources_humaines.gestion_horaires.recuperation.declarer_jour',
+        modifier_declaration: 'ressources_humaines.gestion_horaires.recuperation.modifier_declaration',
+        supprimer_declaration: 'ressources_humaines.gestion_horaires.recuperation.supprimer_declaration',
+        verifier: 'ressources_humaines.gestion_horaires.recuperation.verifier',
+      },
     },
 
     gestion_paie: {
@@ -1116,6 +1127,8 @@ export const LEGACY_PERMISSION_MAPPING: Record<string, string> = {
   'hr.schedules.manage_models': 'ressources_humaines.gestion_horaires.modeles.creer',
   'hr.schedules.manage_holidays': 'ressources_humaines.gestion_horaires.jours_feries.creer',
   'hr.schedules.manage_overtime': 'ressources_humaines.gestion_horaires.heures_sup.creer_periode',
+  'hr.recovery.view_page': 'ressources_humaines.gestion_horaires.recuperation.voir',
+  'hr.recovery.manage': 'ressources_humaines.gestion_horaires.recuperation.creer_periode',
   'hr.payroll.view_page': 'ressources_humaines.gestion_paie.voir',
   'hr.payroll.manage_periods': 'ressources_humaines.gestion_paie.periodes.creer',
   'hr.payroll.calculate': 'ressources_humaines.gestion_paie.calculs.calculer',
