@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import WorkScheduleFormModal from '@/components/admin/hr/WorkScheduleFormModal';
+import SystemClockEditor from '@/components/admin/hr/SystemClockEditor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
@@ -74,7 +75,7 @@ import {
 import type { WorkSchedule, PublicHoliday, OvertimePeriod, OvertimeConfig } from '@/lib/api/schedule-management';
 
 // Tabs
-type TabType = 'modeles' | 'feries' | 'conges' | 'heures-sup' | 'config-hs';
+type TabType = 'modeles' | 'feries' | 'conges' | 'heures-sup' | 'config-hs' | 'horloge';
 
 const TABS: { id: TabType; label: string; icon: React.ElementType }[] = [
   { id: 'modeles', label: 'Modèles d\'Horaires', icon: Clock },
@@ -82,6 +83,7 @@ const TABS: { id: TabType; label: string; icon: React.ElementType }[] = [
   { id: 'conges', label: 'Congés Validés', icon: Calendar },
   { id: 'heures-sup', label: 'Heures Supplémentaires', icon: Timer },
   { id: 'config-hs', label: 'Config HS', icon: Settings },
+  { id: 'horloge', label: 'Horloge Système', icon: Clock },
 ];
 
 const RATE_TYPES = [
@@ -964,6 +966,13 @@ export default function ScheduleManagement() {
                 Enregistrer la configuration
               </ProtectedButton>
             </div>
+          </div>
+        );
+
+      case 'horloge':
+        return (
+          <div className="space-y-6">
+            <SystemClockEditor />
           </div>
         );
     }
