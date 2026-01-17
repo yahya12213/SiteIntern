@@ -38,7 +38,6 @@ import {
   UserCheck,
   Send,
   Receipt,
-  CalendarClock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -120,7 +119,6 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
       items: [
         { to: '/admin/hr/validation-workflows', icon: GitBranch, label: 'Boucles de Validation', permission: PERMISSIONS.ressources_humaines.boucles_validation.voir },
         { to: '/admin/hr/schedules', icon: Calendar, label: 'Gestion des Horaires', permission: PERMISSIONS.ressources_humaines.gestion_horaires.voir },
-        { to: '/admin/hr/recovery', icon: CalendarClock, label: 'Récupération d\'Heures', permission: PERMISSIONS.hr.recovery.view_page },
         { to: '/admin/hr/payroll', icon: Wallet, label: 'Gestion de Paie', permission: PERMISSIONS.ressources_humaines.gestion_paie.voir },
         { to: '/admin/hr/employee-portal', icon: Clock, label: 'Gestion Pointage', permission: PERMISSIONS.ressources_humaines.gestion_pointage.voir },
         { to: '/admin/hr/employees', icon: User, label: 'Dossier Employé', permission: PERMISSIONS.ressources_humaines.dossier_employe.voir },
