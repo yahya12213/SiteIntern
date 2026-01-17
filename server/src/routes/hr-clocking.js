@@ -6,14 +6,9 @@ import { getSystemTime, getSystemDate, getSystemTimestamp } from '../services/sy
 const { Pool } = pg;
 const router = express.Router();
 
-// Timezone offset to convert UTC to displayed local time
-// Database stores timestamps without timezone, Node.js interprets as server local time (UTC+1)
-// getUTCHours() then subtracts 1h, so we need +2h total to get correct Morocco time
-// Example: DB stores 08:45 → Node sees 08:45 GMT+1 → getUTCHours()=7 → +120min → 09:45 ✓
-const TIMEZONE_OFFSET_MINUTES = 120;
-
-// MARKER v2: Log on module load to verify deployment
-console.log('[HR-CLOCKING] Module loaded - TIMEZONE_OFFSET_MINUTES = ' + TIMEZONE_OFFSET_MINUTES + ' (v2 2026-01-14 20:00)');
+// MARKER v3: Timezone offset removed - using getHours() instead of getUTCHours()
+// System clock offset is now handled via system-clock.js service
+console.log('[HR-CLOCKING] Module loaded (v3 2026-01-17 - timezone offset removed)');
 
 // Get pool connection
 const getPool = () => new Pool({
@@ -292,10 +287,11 @@ const calculateWorkedMinutes = async (records, breakRules, schedule = null, date
     const checkInTime = new Date(records[i].clock_time);
     const checkOutTime = new Date(records[i + 1].clock_time);
 
-    // Get actual times in minutes from midnight (using UTC + timezone offset for local time)
-    // This converts UTC timestamps to local Morocco time for comparison with schedule
-    let checkInMinutes = (checkInTime.getUTCHours() * 60 + checkInTime.getUTCMinutes() + TIMEZONE_OFFSET_MINUTES) % 1440;
-    let checkOutMinutes = (checkOutTime.getUTCHours() * 60 + checkOutTime.getUTCMinutes() + TIMEZONE_OFFSET_MINUTES) % 1440;
+    // Get actual times in minutes from midnight (using local server time)
+    // Node.js interprets DB timestamps according to server's timezone
+    // If system clock offset is configured, getSystemTime() is used when creating records
+    let checkInMinutes = checkInTime.getHours() * 60 + checkInTime.getMinutes();
+    let checkOutMinutes = checkOutTime.getHours() * 60 + checkOutTime.getMinutes();
 
     // DEBUG: Log calculation details
     console.log(`[DEBUG calculateWorkedMinutes] Date: ${date}`);
