@@ -11,7 +11,9 @@ import {
   Clock,
   Edit,
   Trash2,
+  Info,
 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   getRecoveryPeriods,
   getRecoveryDeclarations,
@@ -136,7 +138,15 @@ export default function HRRecovery() {
   };
 
   const handleVerifyDeclaration = async (id: string, date: string) => {
-    if (confirm(`Vérifier les présences et appliquer les déductions pour le ${new Date(date).toLocaleDateString('fr-FR')} ?`)) {
+    const message =
+      `Vérifier les présences pour le ${new Date(date).toLocaleDateString('fr-FR')} ?\n\n` +
+      `Cette action va :\n` +
+      `✓ Vérifier qui était présent via les pointages\n` +
+      `✓ Calculer les heures récupérées pour chaque employé\n` +
+      `✓ Appliquer une déduction salariale aux absents\n\n` +
+      `Voulez-vous continuer ?`;
+
+    if (confirm(message)) {
       await verifyDeclarationMutation.mutateAsync(id);
     }
   };
@@ -170,13 +180,19 @@ export default function HRRecovery() {
   const getDeclarationTypeBadge = (isOffDay: boolean) => {
     if (isOffDay) {
       return (
-        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+        <span
+          className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 cursor-help"
+          title="Les employés ne viennent pas ce jour mais sont payés normalement"
+        >
           Jour off donné
         </span>
       );
     }
     return (
-      <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
+      <span
+        className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800 cursor-help"
+        title="Les employés doivent venir travailler ce jour. Si absents, déduction salariale appliquée"
+      >
         Récupération
       </span>
     );
@@ -278,6 +294,36 @@ export default function HRRecovery() {
                 </div>
               </div>
             </div>
+
+            {/* Help Banner */}
+            <Alert className="bg-blue-50 border-blue-200">
+              <AlertTitle className="flex items-center gap-2 text-blue-900">
+                <Info className="h-4 w-4" />
+                Qu'est-ce qu'une période de récupération ?
+              </AlertTitle>
+              <AlertDescription className="text-blue-800 space-y-3">
+                <p>Une période de récupération correspond à une situation où les employés travaillent
+                des heures réduites mais sont payés normalement (exemple: Ramadan avec horaires réduits
+                de 8h à 6h/jour = 2h/jour à récupérer).</p>
+
+                <div>
+                  <p className="font-medium">Exemples d'usage :</p>
+                  <ul className="list-disc pl-5 space-y-1 text-sm mt-1">
+                    <li><strong>Ramadan</strong> : Horaires réduits (6h au lieu de 8h) pendant 1 mois →
+                    Récupération sur week-ends suivants</li>
+                    <li><strong>Ponts</strong> : Vendredi off donné après jeudi férié →
+                    Récupération samedi ou autre jour</li>
+                    <li><strong>Événements spéciaux</strong> : Demi-journées données qui doivent être
+                    compensées ultérieurement</li>
+                  </ul>
+                </div>
+
+                <p className="text-sm">
+                  <strong>💡 Astuce :</strong> Créez d'abord la période avec le total d'heures à récupérer,
+                  puis déclarez les jours off et les jours de récupération dans l'onglet suivant.
+                </p>
+              </AlertDescription>
+            </Alert>
 
             {/* Periods Table */}
             <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -435,6 +481,48 @@ export default function HRRecovery() {
               </div>
             </div>
 
+            {/* Help Banner */}
+            <Alert className="bg-blue-50 border-blue-200">
+              <AlertTitle className="flex items-center gap-2 text-blue-900">
+                <Info className="h-4 w-4" />
+                Différence entre "Jour off donné" et "Récupération"
+              </AlertTitle>
+              <AlertDescription className="text-blue-800">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  <div className="bg-green-50 p-3 rounded border border-green-200">
+                    <p className="font-medium text-green-800 mb-2">
+                      🟢 Jour off donné
+                    </p>
+                    <ul className="text-sm space-y-1 text-green-900">
+                      <li>• Employés NE viennent PAS travailler</li>
+                      <li>• Ils sont payés NORMALEMENT</li>
+                      <li>• Comptabilisé comme jour travaillé</li>
+                      <li>• Exemple: Vendredi du pont</li>
+                    </ul>
+                  </div>
+
+                  <div className="bg-orange-50 p-3 rounded border border-orange-200">
+                    <p className="font-medium text-orange-800 mb-2">
+                      🟠 Récupération
+                    </p>
+                    <ul className="text-sm space-y-1 text-orange-900">
+                      <li>• Employés DOIVENT venir travailler</li>
+                      <li>• Si présent: heures récupérées validées</li>
+                      <li>• Si absent: déduction salariale appliquée</li>
+                      <li>• Exemple: Samedi de récupération</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-sm">
+                  <strong>⚠️ Important :</strong> Utilisez le bouton
+                  <CheckCircle className="inline h-3 w-3 mx-1" />
+                  "Vérifier présences" pour valider les présences et appliquer automatiquement les
+                  déductions pour les absents.
+                </p>
+              </AlertDescription>
+            </Alert>
+
             {/* Declarations Table */}
             <div className="bg-white rounded-lg shadow overflow-hidden">
               {declarationsLoading ? (
@@ -445,10 +533,19 @@ export default function HRRecovery() {
               ) : declarations.length === 0 ? (
                 <div className="p-8 text-center">
                   <Clock className="h-12 w-12 text-gray-400 mx-auto" />
-                  <p className="mt-2 text-gray-600">Aucune déclaration trouvée</p>
+                  <p className="mt-2 text-gray-600 font-medium">Aucune déclaration trouvée</p>
                   <p className="text-sm text-gray-500 mt-1">
-                    Déclarez des jours off ou de récupération pour une période
+                    Créez d'abord une période, puis déclarez des jours off ou de récupération.
                   </p>
+                  <div className="mt-4 text-left max-w-md mx-auto text-sm text-gray-600 bg-gray-50 p-4 rounded-lg">
+                    <p className="font-medium mb-2">📝 Workflow recommandé :</p>
+                    <ol className="list-decimal pl-5 space-y-1">
+                      <li>Aller dans l'onglet "Périodes" et créer une période (ex: Ramadan 2026)</li>
+                      <li>Revenir ici et déclarer les jours off donnés (vendredi du pont)</li>
+                      <li>Déclarer les jours de récupération (samedis suivants)</li>
+                      <li>Vérifier les présences après chaque jour de récupération</li>
+                    </ol>
+                  </div>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -547,16 +644,28 @@ export default function HRRecovery() {
 
         {/* Tab 3: Employee Tracking */}
         {activeTab === 'employees' && (
-          <div className="bg-white rounded-lg shadow p-8 text-center">
-            <Users className="h-12 w-12 text-gray-400 mx-auto" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">Suivi par Employé</h3>
-            <p className="mt-2 text-gray-600">
-              Cette fonctionnalité affichera le détail des récupérations par employé.
-            </p>
-            <p className="mt-2 text-sm text-gray-500">
-              Vous pourrez voir qui était présent, absent, et les déductions appliquées.
-            </p>
-          </div>
+          <Alert className="bg-blue-50 border-blue-200">
+            <AlertTitle className="flex items-center gap-2 text-blue-900">
+              <Info className="h-4 w-4" />
+              Suivi par Employé - Fonctionnalité à venir
+            </AlertTitle>
+            <AlertDescription className="text-blue-800 space-y-3">
+              <p>Cet onglet affichera bientôt le détail complet des récupérations par employé :</p>
+
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                <li>Historique de tous les jours de récupération assignés</li>
+                <li>Statut de présence (présent/absent) pour chaque jour</li>
+                <li>Heures effectivement récupérées</li>
+                <li>Déductions salariales appliquées</li>
+                <li>Montants déduits en MAD</li>
+              </ul>
+
+              <p className="text-sm">
+                <strong>En attendant :</strong> Utilisez l'onglet "Jours de Récupération" et cliquez
+                sur le bouton "Vérifier présences" pour voir le résumé de présences et déductions.
+              </p>
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Modals */}
