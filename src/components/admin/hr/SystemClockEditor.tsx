@@ -33,6 +33,7 @@ export default function SystemClockEditor() {
   const [enabled, setEnabled] = useState(false);
   const [customDate, setCustomDate] = useState('');
   const [customTime, setCustomTime] = useState('');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Fetch current system clock config
   const { data: config, isLoading, refetch } = useQuery({
@@ -44,9 +45,9 @@ export default function SystemClockEditor() {
     refetchInterval: 5000, // Refresh every 5 seconds to show live time
   });
 
-  // Initialize form values when config is loaded
+  // Initialize form values only once when config is first loaded
   useEffect(() => {
-    if (config) {
+    if (config && !isInitialized) {
       setEnabled(config.enabled);
       if (config.current_system_time) {
         const dt = new Date(config.current_system_time);
@@ -62,8 +63,9 @@ export default function SystemClockEditor() {
         setCustomDate(serverTime.toISOString().split('T')[0]);
         setCustomTime(serverTime.toTimeString().slice(0, 5));
       }
+      setIsInitialized(true);
     }
-  }, [config]);
+  }, [config, isInitialized]);
 
   // Update mutation
   const updateMutation = useMutation({
@@ -72,6 +74,7 @@ export default function SystemClockEditor() {
       return response;
     },
     onSuccess: (response: any) => {
+      setIsInitialized(false); // Allow re-sync with server
       queryClient.invalidateQueries({ queryKey: ['system-clock-config'] });
       toast({
         title: 'Configuration mise a jour',
@@ -94,6 +97,7 @@ export default function SystemClockEditor() {
       return response;
     },
     onSuccess: (response: any) => {
+      setIsInitialized(false); // Allow re-sync with server
       queryClient.invalidateQueries({ queryKey: ['system-clock-config'] });
       setEnabled(false);
       toast({
