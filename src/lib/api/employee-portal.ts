@@ -160,7 +160,7 @@ export const employeePortalApi = {
   },
 
   // Create new request
-  createRequest: async (data: CreateRequestInput): Promise<{ success: boolean; message: string; request_id: number }> => {
+  createRequest: async (data: CreateRequestInput | FormData): Promise<{ success: boolean; message: string; request_id: number }> => {
     return apiClient.post<{ success: boolean; message: string; request_id: number }>('/hr/employee-portal/requests', data);
   },
 

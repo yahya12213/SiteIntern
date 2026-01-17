@@ -36,6 +36,8 @@ import {
   Download,
   Loader2,
   FileEdit,
+  Upload,
+  X,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -141,6 +143,7 @@ export default function EmployeePortal() {
     date_fin: '',
     description: '',
   });
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
 
   // State pour la modale de correction de pointage
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
@@ -272,19 +275,43 @@ export default function EmployeePortal() {
       return;
     }
 
-    try {
-      await createRequestMutation.mutateAsync({
-        type: newDemande.type,
-        start_date: newDemande.date_debut || undefined,
-        end_date: newDemande.date_fin || undefined,
-        description: newDemande.description,
+    // Validation: certificat médical obligatoire pour congé maladie
+    if (newDemande.type === 'conge_maladie' && !attachmentFile) {
+      toast({
+        title: 'Certificat médical requis',
+        description: 'Un certificat médical est obligatoire pour les congés maladie',
+        variant: 'destructive',
       });
+      return;
+    }
+
+    try {
+      // Si fichier attaché, envoyer en FormData
+      if (attachmentFile) {
+        const formData = new FormData();
+        formData.append('type', newDemande.type);
+        if (newDemande.date_debut) formData.append('start_date', newDemande.date_debut);
+        if (newDemande.date_fin) formData.append('end_date', newDemande.date_fin);
+        formData.append('description', newDemande.description);
+        formData.append('attachment', attachmentFile);
+
+        await createRequestMutation.mutateAsync(formData as any);
+      } else {
+        await createRequestMutation.mutateAsync({
+          type: newDemande.type,
+          start_date: newDemande.date_debut || undefined,
+          end_date: newDemande.date_fin || undefined,
+          description: newDemande.description,
+        });
+      }
+
       toast({
         title: 'Demande soumise',
         description: 'Votre demande a ete soumise avec succes.',
       });
       setShowNewDemandeModal(false);
       setNewDemande({ type: '', date_debut: '', date_fin: '', description: '' });
+      setAttachmentFile(null);
     } catch (error: any) {
       toast({
         title: 'Erreur',
@@ -734,6 +761,71 @@ export default function EmployeePortal() {
                   rows={4}
                 />
               </div>
+
+              {/* Pièce jointe (pour congé maladie) */}
+              {newDemande.type === 'conge_maladie' && (
+                <div className="space-y-2">
+                  <Label htmlFor="attachment-employee">Certificat médical *</Label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="attachment-employee"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 10 * 1024 * 1024) {
+                            toast({
+                              title: 'Erreur',
+                              description: 'Le fichier est trop volumineux (max 10MB)',
+                              variant: 'destructive',
+                            });
+                            e.target.value = '';
+                            return;
+                          }
+                          setAttachmentFile(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="attachment-employee"
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 transition-colors"
+                    >
+                      <Upload className="h-5 w-5 text-gray-400" />
+                      <span className="text-sm text-gray-600">
+                        {attachmentFile ? attachmentFile.name : 'Sélectionner un fichier (PDF, Word, Image)'}
+                      </span>
+                    </label>
+                  </div>
+                  {attachmentFile && (
+                    <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-blue-600" />
+                        <span className="text-sm text-blue-900">{attachmentFile.name}</span>
+                        <span className="text-xs text-blue-600">
+                          ({(attachmentFile.size / 1024).toFixed(1)} KB)
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttachmentFile(null);
+                          const input = document.getElementById('attachment-employee') as HTMLInputElement;
+                          if (input) input.value = '';
+                        }}
+                        className="text-blue-600 hover:text-blue-800"
+                        aria-label="Supprimer le fichier"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Formats acceptés: PDF, Word, JPG, PNG (max 10MB)
+                  </p>
+                </div>
+              )}
             </div>
 
             <DialogFooter>

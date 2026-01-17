@@ -71,7 +71,7 @@ export const useCreateRequest = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateRequestInput) => employeePortalApi.createRequest(data),
+    mutationFn: (data: CreateRequestInput | FormData) => employeePortalApi.createRequest(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee-portal', 'requests'] });
       queryClient.invalidateQueries({ queryKey: ['employee-portal', 'profile'] }); // Pour rafraîchir les soldes
