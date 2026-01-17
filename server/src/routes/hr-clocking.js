@@ -585,13 +585,24 @@ router.post('/check-out', authenticateToken, async (req, res) => {
       dayStatus = 'late';
     }
 
-    if (workedMinutes !== null && schedule) {
+    // Compare worked hours to scheduled hours for present/partial status
+    if (workedMinutes !== null && schedule && scheduledTimes && scheduledTimes.isWorkingDay) {
       const workedHours = workedMinutes / 60;
-      // Use ONLY schedule config, default to 0 (no minimum)
-      const minHoursHalfDay = schedule?.min_hours_for_half_day ?? 0;
 
-      if (workedHours < minHoursHalfDay) {
-        dayStatus = 'half_day';
+      // Calculate scheduled hours for the day
+      const scheduledStartMinutes = timeToMinutes(scheduledTimes.scheduledStart);
+      const scheduledEndMinutes = timeToMinutes(scheduledTimes.scheduledEnd);
+
+      if (scheduledStartMinutes !== null && scheduledEndMinutes !== null) {
+        const scheduledMinutes = scheduledEndMinutes - scheduledStartMinutes;
+        const scheduledHours = scheduledMinutes / 60;
+
+        // Compare worked hours to scheduled hours
+        if (workedHours >= scheduledHours) {
+          dayStatus = 'present';
+        } else {
+          dayStatus = 'partial';
+        }
       }
     }
 
