@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, CalendarDays, Calendar, FileText, Phone, User, AlertCircle } from 'lucide-react';
+import { X, CalendarDays, Calendar, FileText, Phone, User, AlertCircle, Upload } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -41,6 +41,7 @@ export default function LeaveRequestFormModal({ employeeId, onClose }: LeaveRequ
   });
 
   const [estimatedDays, setEstimatedDays] = useState<number>(0);
+  const [justificationFile, setJustificationFile] = useState<File | null>(null);
 
   // Fetch leave types
   const { data: leaveTypesData } = useQuery({
@@ -87,8 +88,12 @@ export default function LeaveRequestFormModal({ employeeId, onClose }: LeaveRequ
 
   // Create mutation
   const createLeaveRequest = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      const response = await apiClient.post<{ success: boolean; data: any }>('/hr/leaves/requests', data);
+    mutationFn: async (formDataToSend: FormData) => {
+      const response = await apiClient.post<{ success: boolean; data: any }>('/hr/leaves/requests', formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       return (response as any).data;
     },
     onSuccess: () => {
@@ -121,8 +126,30 @@ export default function LeaveRequestFormModal({ employeeId, onClose }: LeaveRequ
       return;
     }
 
+    if (selectedLeaveType?.requires_justification && !justificationFile) {
+      alert('Un justificatif est requis pour ce type de congé');
+      return;
+    }
+
     try {
-      await createLeaveRequest.mutateAsync(formData);
+      // Create FormData object
+      const formDataToSend = new FormData();
+      formDataToSend.append('employee_id', formData.employee_id);
+      formDataToSend.append('leave_type_id', formData.leave_type_id);
+      formDataToSend.append('start_date', formData.start_date);
+      formDataToSend.append('end_date', formData.end_date);
+      formDataToSend.append('start_half_day', formData.start_half_day.toString());
+      formDataToSend.append('end_half_day', formData.end_half_day.toString());
+      formDataToSend.append('reason', formData.reason);
+      formDataToSend.append('contact_during_leave', formData.contact_during_leave);
+      formDataToSend.append('handover_notes', formData.handover_notes);
+
+      // Add file if selected
+      if (justificationFile) {
+        formDataToSend.append('attachment', justificationFile);
+      }
+
+      await createLeaveRequest.mutateAsync(formDataToSend);
     } catch (error: any) {
       console.error('Erreur lors de la création de la demande:', error);
       alert(error.response?.data?.error || 'Erreur lors de la création de la demande de congé');
@@ -311,6 +338,69 @@ export default function LeaveRequestFormModal({ employeeId, onClose }: LeaveRequ
               />
             </div>
           </div>
+
+          {/* Medical Certificate / Justification (only for types that require it) */}
+          {selectedLeaveType?.requires_justification && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Justificatif médical *
+              </label>
+              <div className="relative">
+                <input
+                  type="file"
+                  id="justification-file"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // Check file size (10MB max)
+                      if (file.size > 10 * 1024 * 1024) {
+                        alert('Le fichier est trop volumineux (max 10MB)');
+                        e.target.value = '';
+                        return;
+                      }
+                      setJustificationFile(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="justification-file"
+                  className="flex items-center justify-center gap-2 w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-400 transition-colors"
+                >
+                  <Upload className="w-5 h-5 text-gray-400" />
+                  <span className="text-sm text-gray-600">
+                    {justificationFile ? justificationFile.name : 'Sélectionner un fichier (PDF, Word, Image)'}
+                  </span>
+                </label>
+              </div>
+              {justificationFile && (
+                <div className="mt-2 flex items-center justify-between bg-purple-50 border border-purple-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-purple-600" />
+                    <span className="text-sm text-purple-900">{justificationFile.name}</span>
+                    <span className="text-xs text-purple-600">
+                      ({(justificationFile.size / 1024).toFixed(1)} KB)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setJustificationFile(null);
+                      const input = document.getElementById('justification-file') as HTMLInputElement;
+                      if (input) input.value = '';
+                    }}
+                    className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                Formats acceptés: PDF, Word, JPG, PNG (max 10MB)
+              </p>
+            </div>
+          )}
 
           {/* Contact during leave */}
           <div>

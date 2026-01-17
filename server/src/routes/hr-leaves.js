@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
+import { uploadDeclarationAttachment } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -75,7 +76,7 @@ router.get('/requests', authenticateToken, requirePermission('hr.leaves.view_pag
 });
 
 // Create leave request
-router.post('/requests', authenticateToken, requirePermission('hr.leaves.create'), async (req, res) => {
+router.post('/requests', authenticateToken, requirePermission('hr.leaves.create'), uploadDeclarationAttachment, async (req, res) => {
   try {
     const {
       employee_id,
@@ -98,18 +99,21 @@ router.post('/requests', authenticateToken, requirePermission('hr.leaves.create'
     if (start_half_day) days_requested -= 0.5;
     if (end_half_day) days_requested -= 0.5;
 
+    // Get justification file path if uploaded
+    const justification_url = req.file ? `/uploads/declarations/${req.file.filename}` : null;
+
     const result = await pool.query(`
       INSERT INTO hr_leave_requests (
         employee_id, leave_type_id, start_date, end_date,
         start_half_day, end_half_day, days_requested, reason,
-        contact_during_leave, handover_notes, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        contact_during_leave, handover_notes, justification_url, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
     `, [
       employee_id, leave_type_id, start_date, end_date,
       start_half_day || false, end_half_day || false,
       days_requested, reason, contact_during_leave,
-      handover_notes, req.user.id
+      handover_notes, justification_url, req.user.id
     ]);
 
     res.status(201).json({ success: true, data: result.rows[0] });

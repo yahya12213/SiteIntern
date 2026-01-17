@@ -357,13 +357,13 @@ Au: ${sickLeaveEndDate.toLocaleDateString('fr-FR')}
     const sickLeaveResult = await client.query(`
       INSERT INTO hr_leave_requests (
         employee_id, leave_type, start_date, end_date,
-        total_days, reason, status, attachment_path, created_at
+        total_days, reason, status, justification_url, created_at
       ) VALUES (
         $1, 'sick', $2, $3, 3,
         'Grippe - Repos médical prescrit',
         'pending', $4, NOW()
       )
-      RETURNING id, leave_type, start_date, end_date, total_days, status, attachment_path
+      RETURNING id, leave_type, start_date, end_date, total_days, status, justification_url
     `, [hrEmployee.id, sickLeaveStartStr, sickLeaveEndStr, testCertificatePath]);
 
     const sickLeave = sickLeaveResult.rows[0];
