@@ -475,8 +475,8 @@ export class ApprovalService {
       // 2. Créer le nouveau record d'entrée avec source='correction'
       if (requested_check_in) {
         await pool.query(`
-          INSERT INTO hr_attendance_records (employee_id, clock_time, status, source, created_at)
-          VALUES ($1, $2::date + $3::time, 'check_in', 'correction', NOW())
+          INSERT INTO hr_attendance_records (employee_id, attendance_date, clock_time, status, source, created_at)
+          VALUES ($1, $2::date, $2::date + $3::time, 'check_in', 'correction', NOW())
         `, [employee_id, request_date, requested_check_in]);
         console.log('Check-in record created with source=correction');
       }
@@ -484,8 +484,8 @@ export class ApprovalService {
       // 3. Créer le nouveau record de sortie avec source='correction'
       if (requested_check_out) {
         await pool.query(`
-          INSERT INTO hr_attendance_records (employee_id, clock_time, status, source, created_at)
-          VALUES ($1, $2::date + $3::time, 'check_out', 'correction', NOW())
+          INSERT INTO hr_attendance_records (employee_id, attendance_date, clock_time, status, source, created_at)
+          VALUES ($1, $2::date, $2::date + $3::time, 'check_out', 'correction', NOW())
         `, [employee_id, request_date, requested_check_out]);
         console.log('Check-out record created with source=correction');
       }
