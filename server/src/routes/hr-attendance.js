@@ -162,6 +162,334 @@ router.put('/:id/correct', authenticateToken, requirePermission('hr.attendance.e
   }
 });
 
+// === HELPER FUNCTIONS ===
+
+/**
+ * Validate time format (HH:MM)
+ */
+function validateTimeFormat(timeString) {
+  if (!timeString) return true; // Optional field
+  const timeRegex = /^([0-1][0-9]|2[0-3]):([0-5][0-9])$/;
+  return timeRegex.test(timeString);
+}
+
+/**
+ * Calculate worked minutes between check-in and check-out times
+ */
+function calculateWorkedMinutes(checkIn, checkOut, breakMinutes = 0) {
+  if (!checkIn || !checkOut) return null;
+
+  const [inH, inM] = checkIn.split(':').map(Number);
+  const [outH, outM] = checkOut.split(':').map(Number);
+  const totalMinutes = (outH * 60 + outM) - (inH * 60 + inM);
+
+  return Math.max(0, totalMinutes - breakMinutes);
+}
+
+/**
+ * Cancel pending correction requests for an employee on a specific date
+ */
+async function cancelPendingCorrectionRequest(employeeId, date, adminUserId) {
+  try {
+    const result = await pool.query(`
+      UPDATE hr_attendance_correction_requests
+      SET
+        status = 'cancelled',
+        admin_cancelled_at = NOW(),
+        admin_cancelled_by = $3,
+        admin_cancellation_reason = 'Remplacée par correction admin directe',
+        updated_at = NOW()
+      WHERE employee_id = $1
+        AND request_date = $2
+        AND status IN ('pending', 'approved_n1', 'approved_n2')
+      RETURNING id
+    `, [employeeId, date, adminUserId]);
+
+    return result.rows.length > 0 ? result.rows : null;
+  } catch (error) {
+    console.error('Error cancelling correction request:', error);
+    return null;
+  }
+}
+
+// === ADMIN ATTENDANCE MANAGEMENT ===
+
+// Get attendance by employee and date
+router.get('/by-date', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
+  try {
+    const { employee_id, date } = req.query;
+
+    // Validation
+    if (!employee_id || !date) {
+      return res.status(400).json({
+        success: false,
+        error: 'employee_id et date sont requis'
+      });
+    }
+
+    // Get employee info
+    const employeeResult = await pool.query(`
+      SELECT
+        id,
+        first_name || ' ' || last_name as name,
+        employee_number
+      FROM hr_employees
+      WHERE id = $1
+    `, [employee_id]);
+
+    if (employeeResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Employé non trouvé'
+      });
+    }
+
+    const employee = employeeResult.rows[0];
+
+    // Get attendance records for this date
+    const recordsResult = await pool.query(`
+      SELECT *
+      FROM hr_attendance_records
+      WHERE employee_id = $1 AND attendance_date = $2
+      ORDER BY created_at ASC
+    `, [employee_id, date]);
+
+    // Get pending correction requests
+    const correctionResult = await pool.query(`
+      SELECT *
+      FROM hr_attendance_correction_requests
+      WHERE employee_id = $1
+        AND request_date = $2
+        AND status IN ('pending', 'approved_n1', 'approved_n2')
+      LIMIT 1
+    `, [employee_id, date]);
+
+    // Check for public holidays
+    const holidayResult = await pool.query(`
+      SELECT name
+      FROM hr_public_holidays
+      WHERE date = $1
+      LIMIT 1
+    `, [date]);
+
+    // Check for recovery declarations
+    const recoveryResult = await pool.query(`
+      SELECT rd.recovery_period_id, rp.name as recovery_name
+      FROM hr_recovery_declarations rd
+      JOIN hr_recovery_periods rp ON rd.recovery_period_id = rp.id
+      WHERE rd.employee_id = $1 AND rd.recovery_date = $2
+      LIMIT 1
+    `, [employee_id, date]);
+
+    res.json({
+      success: true,
+      data: {
+        employee,
+        date,
+        has_records: recordsResult.rows.length > 0,
+        records: recordsResult.rows,
+        pending_correction_request: correctionResult.rows[0] || null,
+        public_holiday: holidayResult.rows[0] || null,
+        recovery_day: recoveryResult.rows[0] || null
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching attendance by date:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Admin edit/declare attendance
+router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.edit'), async (req, res) => {
+  try {
+    const {
+      employee_id,
+      date,
+      action, // 'edit' or 'declare'
+      check_in_time,
+      check_out_time,
+      status,
+      absence_status,
+      notes,
+      correction_reason
+    } = req.body;
+
+    // Validation
+    if (!employee_id || !date) {
+      return res.status(400).json({
+        success: false,
+        error: 'employee_id et date sont requis'
+      });
+    }
+
+    if (!action || !['edit', 'declare'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        error: 'action doit être "edit" ou "declare"'
+      });
+    }
+
+    // Validate time formats
+    if (check_in_time && !validateTimeFormat(check_in_time)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Format check_in_time invalide (HH:MM requis)'
+      });
+    }
+
+    if (check_out_time && !validateTimeFormat(check_out_time)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Format check_out_time invalide (HH:MM requis)'
+      });
+    }
+
+    // Validate check_out > check_in
+    if (check_in_time && check_out_time) {
+      const [inH, inM] = check_in_time.split(':').map(Number);
+      const [outH, outM] = check_out_time.split(':').map(Number);
+      if ((outH * 60 + outM) <= (inH * 60 + inM)) {
+        return res.status(400).json({
+          success: false,
+          error: 'L\'heure de sortie doit être après l\'heure d\'entrée'
+        });
+      }
+    }
+
+    // Verify employee exists
+    const employeeCheck = await pool.query(
+      'SELECT id FROM hr_employees WHERE id = $1',
+      [employee_id]
+    );
+
+    if (employeeCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Employé non trouvé'
+      });
+    }
+
+    // Cancel any pending correction requests
+    await cancelPendingCorrectionRequest(employee_id, date, req.user.id);
+
+    if (action === 'edit') {
+      // EDIT existing record(s)
+
+      if (!correction_reason || correction_reason.trim().length < 10) {
+        return res.status(400).json({
+          success: false,
+          error: 'Une raison de correction (min 10 caractères) est requise'
+        });
+      }
+
+      // Get existing record(s) for audit trail
+      const existing = await pool.query(`
+        SELECT * FROM hr_attendance_records
+        WHERE employee_id = $1 AND attendance_date = $2
+        ORDER BY created_at ASC
+      `, [employee_id, date]);
+
+      if (existing.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Aucun pointage trouvé pour cette date'
+        });
+      }
+
+      // Store original values (from first record)
+      const originalRecord = existing.rows[0];
+      const original_check_in = originalRecord.original_check_in || originalRecord.check_in_time;
+      const original_check_out = originalRecord.original_check_out || originalRecord.check_out_time;
+
+      // Delete all existing records for clean slate
+      await pool.query(`
+        DELETE FROM hr_attendance_records
+        WHERE employee_id = $1 AND attendance_date = $2
+      `, [employee_id, date]);
+
+      // Calculate worked minutes
+      const worked_minutes = calculateWorkedMinutes(check_in_time, check_out_time);
+
+      // Insert corrected record
+      const result = await pool.query(`
+        INSERT INTO hr_attendance_records (
+          employee_id, attendance_date, check_in_time, check_out_time,
+          worked_minutes, status, notes,
+          original_check_in, original_check_out,
+          is_manual_entry, corrected_by, correction_reason, corrected_at,
+          source, is_anomaly, anomaly_resolved, anomaly_resolved_by, anomaly_resolved_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11, NOW(), 'manual', false, true, $10, NOW())
+        RETURNING *
+      `, [
+        employee_id, date, check_in_time, check_out_time,
+        worked_minutes, status || 'present', notes,
+        original_check_in, original_check_out,
+        req.user.id, correction_reason
+      ]);
+
+      return res.json({
+        success: true,
+        message: 'Pointage corrigé avec succès',
+        data: result.rows[0]
+      });
+
+    } else if (action === 'declare') {
+      // DECLARE new record
+
+      if (!notes || notes.trim().length < 5) {
+        return res.status(400).json({
+          success: false,
+          error: 'Des notes (min 5 caractères) sont requises pour une déclaration'
+        });
+      }
+
+      // Check no records exist
+      const existing = await pool.query(`
+        SELECT id FROM hr_attendance_records
+        WHERE employee_id = $1 AND attendance_date = $2
+      `, [employee_id, date]);
+
+      if (existing.rows.length > 0) {
+        return res.status(409).json({
+          success: false,
+          error: 'Des pointages existent déjà pour cette date. Utilisez action="edit" pour les modifier.'
+        });
+      }
+
+      // Determine final status
+      let finalStatus = absence_status || status || 'present';
+
+      // Calculate worked minutes if presence with times
+      const worked_minutes = (finalStatus === 'present' && check_in_time && check_out_time)
+        ? calculateWorkedMinutes(check_in_time, check_out_time)
+        : null;
+
+      // Insert new record
+      const result = await pool.query(`
+        INSERT INTO hr_attendance_records (
+          employee_id, attendance_date, check_in_time, check_out_time,
+          worked_minutes, status, notes,
+          is_manual_entry, source, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, true, 'manual', NOW())
+        RETURNING *
+      `, [
+        employee_id, date, check_in_time, check_out_time,
+        worked_minutes, finalStatus, notes
+      ]);
+
+      return res.json({
+        success: true,
+        message: 'Journée déclarée avec succès',
+        data: result.rows[0]
+      });
+    }
+
+  } catch (error) {
+    console.error('Error in admin/edit:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Get anomalies
 router.get('/anomalies', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
   try {

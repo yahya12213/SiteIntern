@@ -10,11 +10,13 @@ import {
   Filter,
   Plus,
   Check,
+  Edit,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import AttendanceRecordForm from '@/components/admin/hr/AttendanceRecordForm';
 import OvertimeApprovalModal from '@/components/admin/hr/OvertimeApprovalModal';
 import AnomalyResolutionModal from '@/components/admin/hr/AnomalyResolutionModal';
+import AdminAttendanceEditor from '@/components/admin/hr/AdminAttendanceEditor';
 
 interface AttendanceRecord {
   id: string;
@@ -54,6 +56,7 @@ export default function HRAttendance() {
   const [selectedOvertimeRequestId, setSelectedOvertimeRequestId] = useState<string | null>(null);
   const [showAnomalyResolutionModal, setShowAnomalyResolutionModal] = useState(false);
   const [selectedAnomalyId, setSelectedAnomalyId] = useState<string | null>(null);
+  const [showAdminEditor, setShowAdminEditor] = useState(false);
 
   // Fetch attendance records
   const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
@@ -147,12 +150,23 @@ export default function HRAttendance() {
               Gestion de la présence, anomalies et heures supplémentaires
             </p>
           </div>
-          {hr.canRecordAttendance && (
-            <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-              <Plus className="h-5 w-5" />
-              Enregistrer Présence
-            </button>
-          )}
+          <div className="flex gap-3">
+            {hr.canRecordAttendance && (
+              <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                <Plus className="h-5 w-5" />
+                Enregistrer Présence
+              </button>
+            )}
+            {hr.canEditAttendance && (
+              <button
+                onClick={() => setShowAdminEditor(true)}
+                className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <Edit className="h-5 w-5" />
+                Corriger / Déclarer
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tabs */}
@@ -479,6 +493,18 @@ export default function HRAttendance() {
             onClose={() => {
               setShowAnomalyResolutionModal(false);
               setSelectedAnomalyId(null);
+            }}
+          />
+        )}
+
+        {/* Admin Attendance Editor Modal */}
+        {showAdminEditor && (
+          <AdminAttendanceEditor
+            onClose={() => setShowAdminEditor(false)}
+            onSuccess={() => {
+              // Invalidate queries to refresh data
+              // Note: invalidation is already handled in AdminAttendanceEditor
+              // but we can add additional actions here if needed
             }}
           />
         )}
