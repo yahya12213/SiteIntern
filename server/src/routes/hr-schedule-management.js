@@ -858,8 +858,8 @@ async function calculateOvertimeForPeriod(periodId) {
       SELECT
         ar.employee_id,
         DATE(ar.clock_time) as record_date,
-        MIN(CASE WHEN ar.status = 'check_in' THEN ar.clock_time END) as check_in,
-        MAX(CASE WHEN ar.status = 'check_out' THEN ar.clock_time END) as check_out
+        to_char(MIN(CASE WHEN ar.status = 'check_in' THEN ar.clock_time END), 'HH24:MI') as check_in,
+        to_char(MAX(CASE WHEN ar.status = 'check_out' THEN ar.clock_time END), 'HH24:MI') as check_out
       FROM hr_attendance_records ar
       WHERE DATE(ar.clock_time) = $1
       GROUP BY ar.employee_id, DATE(ar.clock_time)
