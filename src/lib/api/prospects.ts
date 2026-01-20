@@ -58,6 +58,8 @@ export interface ProspectFilters {
   decision_nettoyage?: string;
   country_code?: string;
   search?: string;
+  date_from?: string;
+  date_to?: string;
   page?: number;
   limit?: number;
 }

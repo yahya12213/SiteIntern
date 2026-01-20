@@ -402,7 +402,7 @@ export default function Prospects() {
         <CardTitle className="text-lg">Filtres</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4 md:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-7">
           <div>
             <label className="text-sm font-medium mb-2 block">Segment</label>
             <Select
@@ -475,23 +475,27 @@ export default function Prospects() {
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-2 block">Décision</label>
-            <Select
-              value={filters.decision_nettoyage || 'all'}
-              onValueChange={(value) =>
-                setFilters({ ...filters, decision_nettoyage: value === 'all' ? undefined : value, page: 1 })
+            <label className="text-sm font-medium mb-2 block">Date de début</label>
+            <Input
+              type="date"
+              value={filters.date_from || ''}
+              onChange={(e) =>
+                setFilters({ ...filters, date_from: e.target.value || undefined, page: 1 })
               }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Toutes décisions" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes décisions</SelectItem>
-                <SelectItem value="laisser">Laisser</SelectItem>
-                <SelectItem value="supprimer">Supprimer</SelectItem>
-                <SelectItem value="a_revoir_manuelle">À revoir</SelectItem>
-              </SelectContent>
-            </Select>
+              className="w-full"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">Date de fin</label>
+            <Input
+              type="date"
+              value={filters.date_to || ''}
+              onChange={(e) =>
+                setFilters({ ...filters, date_to: e.target.value || undefined, page: 1 })
+              }
+              className="w-full"
+            />
           </div>
 
           <div className="md:col-span-2">

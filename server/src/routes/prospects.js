@@ -114,6 +114,8 @@ router.get('/',
         decision_nettoyage,
         country_code,
         search,
+        date_from,
+        date_to,
         page = 1,
         limit = 50
       } = req.query;
@@ -188,6 +190,14 @@ router.get('/',
       if (country_code) {
         query += ` AND p.country_code = $${paramIndex++}`;
         params.push(country_code);
+      }
+      if (date_from) {
+        query += ` AND p.date_injection >= $${paramIndex++}`;
+        params.push(date_from);
+      }
+      if (date_to) {
+        query += ` AND p.date_injection <= $${paramIndex++}`;
+        params.push(date_to);
       }
       if (search) {
         query += ` AND (p.phone_international LIKE $${paramIndex} OR p.nom ILIKE $${paramIndex} OR p.prenom ILIKE $${paramIndex})`;
