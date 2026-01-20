@@ -706,7 +706,7 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Heure d'entrée *
+                    Pointage d'entrée *
                   </label>
                   <div className="relative">
                     <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -721,7 +721,7 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Heure de sortie *
+                    Pointage de sortie *
                   </label>
                   <div className="relative">
                     <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
