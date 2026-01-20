@@ -142,7 +142,6 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
   useEffect(() => {
     if (searchData) {
       setAttendanceData(searchData);
-      setMode('review');
 
       // Pre-fill form data if records exist
       if (searchData.has_records && searchData.records.length > 0) {
@@ -155,9 +154,18 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
           notes: record.notes || '',
           correction_reason: '',
         });
+        // Si vient d'un bouton "Modifier", aller directement en mode edit
+        if (initialEmployeeId && initialDate) {
+          setMode('edit');
+        } else {
+          setMode('review');
+        }
+      } else {
+        // Aucun record trouvé, aller directement en mode declare-presence
+        setMode('declare-presence');
       }
     }
-  }, [searchData]);
+  }, [searchData, initialEmployeeId, initialDate]);
 
   // Auto-select employee and search when initial values are provided
   useEffect(() => {
@@ -521,7 +529,7 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
           )}
 
           {/* === STEP 3A: EDIT FORM === */}
-          {mode === 'edit' && (
+          {mode === 'edit' && attendanceData && (
             <div className="space-y-4">
               <div className="flex items-start gap-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                 <Edit className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
@@ -530,98 +538,138 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
                 </p>
               </div>
 
-              {/* Time Inputs */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Heure d'entrée
-                  </label>
-                  <div className="relative">
-                    <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input
-                      type="time"
-                      value={formData.check_in_time}
-                      onChange={(e) => setFormData({ ...formData, check_in_time: e.target.value })}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              {/* Ancien Pointage - Affichage des valeurs existantes */}
+              {attendanceData.records.length > 0 && (
+                <div className="p-4 bg-gray-100 border-2 border-gray-300 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Pointage Existant</h4>
+                    <span className="text-xs text-gray-500">Valeurs actuelles</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-white p-3 rounded border border-gray-200">
+                      <div className="text-xs text-gray-500 mb-1">Entrée</div>
+                      <div className="text-lg font-bold text-gray-900">
+                        {attendanceData.records[0].check_in_time || '--:--'}
+                      </div>
+                    </div>
+                    <div className="bg-white p-3 rounded border border-gray-200">
+                      <div className="text-xs text-gray-500 mb-1">Sortie</div>
+                      <div className="text-lg font-bold text-gray-900">
+                        {attendanceData.records[0].check_out_time || '--:--'}
+                      </div>
+                    </div>
+                    <div className="bg-white p-3 rounded border border-gray-200">
+                      <div className="text-xs text-gray-500 mb-1">Statut</div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {getStatusLabel(attendanceData.records[0].status)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Nouveau Pointage - Formulaire de modification */}
+              <div className="p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-blue-700 uppercase tracking-wide">Nouveau Pointage</h4>
+                  <span className="text-xs text-blue-600">À enregistrer</span>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Time Inputs */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Pointage d'entrée
+                      </label>
+                      <div className="relative">
+                        <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                          type="time"
+                          value={formData.check_in_time}
+                          onChange={(e) => setFormData({ ...formData, check_in_time: e.target.value })}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Pointage de sortie
+                      </label>
+                      <div className="relative">
+                        <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                          type="time"
+                          value={formData.check_out_time}
+                          onChange={(e) => setFormData({ ...formData, check_out_time: e.target.value })}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Statut
+                    </label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="present">Présent</option>
+                      <option value="absent">Absent</option>
+                      <option value="late">Retard</option>
+                      <option value="half_day">Demi-journée</option>
+                      <option value="leave">En congé</option>
+                      <option value="sick">Maladie</option>
+                      <option value="mission">Mission</option>
+                      <option value="training">Formation</option>
+                    </select>
+                  </div>
+
+                  {/* Worked Time Display */}
+                  <div className="p-3 bg-white border border-blue-200 rounded-lg">
+                    <div className="text-sm text-gray-500">Temps calculé</div>
+                    <div className="text-lg font-medium text-gray-900">
+                      {formatDuration(workedMinutes)}
+                    </div>
+                  </div>
+
+                  {/* Correction Reason */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Raison de correction *
+                    </label>
+                    <div className="relative">
+                      <FileText className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                      <textarea
+                        value={formData.correction_reason}
+                        onChange={(e) => setFormData({ ...formData, correction_reason: e.target.value })}
+                        placeholder="Défaillance badge biométrique, confirmé par manager..."
+                        rows={2}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Minimum 10 caractères</p>
+                  </div>
+
+                  {/* Notes */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Notes additionnelles
+                    </label>
+                    <textarea
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      placeholder="Correction suite à réclamation employé..."
+                      rows={2}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Heure de sortie
-                  </label>
-                  <div className="relative">
-                    <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input
-                      type="time"
-                      value={formData.check_out_time}
-                      onChange={(e) => setFormData({ ...formData, check_out_time: e.target.value })}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Statut
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="present">Présent</option>
-                  <option value="absent">Absent</option>
-                  <option value="late">Retard</option>
-                  <option value="half_day">Demi-journée</option>
-                  <option value="leave">En congé</option>
-                  <option value="sick">Maladie</option>
-                  <option value="mission">Mission</option>
-                  <option value="training">Formation</option>
-                </select>
-              </div>
-
-              {/* Worked Time Display */}
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                <div className="text-sm text-gray-500">Temps calculé</div>
-                <div className="text-lg font-medium text-gray-900">
-                  {formatDuration(workedMinutes)}
-                </div>
-              </div>
-
-              {/* Correction Reason */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Raison de correction *
-                </label>
-                <div className="relative">
-                  <FileText className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-                  <textarea
-                    value={formData.correction_reason}
-                    onChange={(e) => setFormData({ ...formData, correction_reason: e.target.value })}
-                    placeholder="Défaillance badge biométrique, confirmé par manager..."
-                    rows={2}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Minimum 10 caractères</p>
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Notes additionnelles
-                </label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Correction suite à réclamation employé..."
-                  rows={2}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
               </div>
 
               {/* Buttons */}
