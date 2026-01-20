@@ -67,6 +67,9 @@ import { QuickAddProspectModal } from '@/components/prospects/QuickAddProspectMo
 import { ImportProspectsModal } from '@/components/prospects/ImportProspectsModal';
 import { CallProspectModal } from '@/components/prospects/CallProspectModal';
 import { DeclareVisitModal } from '@/components/prospects/DeclareVisitModal';
+import { EcartDetailsModal } from '@/components/prospects/EcartDetailsModal';
+import { prospectsApi } from '@/lib/api/prospects';
+import { useQuery } from '@tanstack/react-query';
 
 // Fonction pour déterminer le style du RDV selon la date
 const getRdvStyle = (dateRdv: string | null) => {
@@ -155,6 +158,19 @@ export default function Prospects() {
   const [showCallModal, setShowCallModal] = useState(false);
   const [showVisitsModal, setShowVisitsModal] = useState(false);
   const [selectedProspectForVisits, setSelectedProspectForVisits] = useState<any>(null);
+  const [showEcartModal, setShowEcartModal] = useState(false);
+
+  // Query pour les détails de l'écart
+  const { data: ecartDetails, isLoading: ecartLoading } = useQuery({
+    queryKey: ['prospects-ecart', filters.segment_id, filters.ville_id, filters.date_from, filters.date_to],
+    queryFn: () => prospectsApi.getEcartDetails({
+      segment_id: filters.segment_id,
+      ville_id: filters.ville_id,
+      date_from: filters.date_from,
+      date_to: filters.date_to
+    }),
+    enabled: showEcartModal,
+  });
 
   // Modal de réautorisation Google
   const [reauthorizeModalOpen, setReauthorizeModalOpen] = useState(false);
@@ -384,12 +400,20 @@ export default function Prospects() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card
+        className="cursor-pointer hover:bg-gray-50 hover:shadow-md transition-all"
+        onClick={() => setShowEcartModal(true)}
+        title="Cliquer pour voir les détails de l'écart"
+      >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Écart</CardTitle>
+          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+            Détails
+          </Badge>
         </CardHeader>
         <CardContent>
           <div className={`text-2xl font-bold ${ecartColor}`}>{ecartSign}{ecart}</div>
+          <p className="text-xs text-muted-foreground mt-1">Session - Prospect</p>
         </CardContent>
       </Card>
     </div>
@@ -941,6 +965,14 @@ export default function Prospects() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Modal Détails de l'Écart */}
+        <EcartDetailsModal
+          open={showEcartModal}
+          onClose={() => setShowEcartModal(false)}
+          data={ecartDetails || null}
+          isLoading={ecartLoading}
+        />
       </div>
     </AppLayout>
   );

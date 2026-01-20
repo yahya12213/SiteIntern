@@ -236,7 +236,20 @@ router.get('/',
         statsQuery += ` AND (${adjustedScopeConditions.join(' AND ')})`;
       }
 
-      const statsResult = await pool.query(statsQuery, scopeFilter.params);
+      // Ajouter les filtres de date aux statistiques
+      let statsParams = [...scopeFilter.params];
+      let statsParamIndex = scopeFilter.params.length + 1;
+
+      if (date_from) {
+        statsQuery += ` AND p.date_injection >= $${statsParamIndex++}`;
+        statsParams.push(date_from);
+      }
+      if (date_to) {
+        statsQuery += ` AND p.date_injection <= $${statsParamIndex++}`;
+        statsParams.push(date_to);
+      }
+
+      const statsResult = await pool.query(statsQuery, statsParams);
 
       // Requete pour inscrits_session - utiliser les tables francaises (sessions_formation + session_etudiants)
       let inscritsSessionQuery = `
@@ -252,7 +265,20 @@ router.get('/',
         inscritsSessionQuery += ` AND (${sessionScopeFilter.conditions.join(' AND ')})`;
       }
 
-      const inscritsSessionResult = await pool.query(inscritsSessionQuery, sessionScopeFilter.params);
+      // Ajouter les filtres de date pour les inscriptions en session
+      let sessionParams = [...sessionScopeFilter.params];
+      let sessionParamIndex = sessionScopeFilter.params.length + 1;
+
+      if (date_from) {
+        inscritsSessionQuery += ` AND se.created_at >= $${sessionParamIndex++}`;
+        sessionParams.push(date_from);
+      }
+      if (date_to) {
+        inscritsSessionQuery += ` AND se.created_at <= $${sessionParamIndex++}`;
+        sessionParams.push(date_to);
+      }
+
+      const inscritsSessionResult = await pool.query(inscritsSessionQuery, sessionParams);
 
       res.json({
         prospects: rows,
@@ -268,6 +294,150 @@ router.get('/',
       });
     } catch (error) {
       console.error('Error fetching prospects:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// ============================================================
+// GET /api/prospects/ecart-details - Détails de l'écart entre inscrits prospect et session
+// IMPORTANT: Cette route DOIT être avant /:id pour éviter les conflits de routing
+// ============================================================
+router.get('/ecart-details',
+  requirePermission('commercialisation.prospects.view_page'),
+  injectUserScope,
+  async (req, res) => {
+    try {
+      const { segment_id, ville_id, date_from, date_to } = req.query;
+
+      // Parameters pour toutes les queries: segment, ville, date_from, date_to
+      const params = [
+        segment_id || null,
+        ville_id || null,
+        date_from || null,
+        date_to || null
+      ];
+
+      // 1. Calculer les comptages pour déterminer la direction de l'écart
+      const prospectCountQuery = `
+        SELECT COUNT(*) FILTER (WHERE statut_contact = 'inscrit') as count
+        FROM prospects p
+        WHERE 1=1
+          AND ($1::text IS NULL OR p.segment_id = $1)
+          AND ($2::text IS NULL OR p.ville_id = $2)
+          AND ($3::date IS NULL OR p.date_injection >= $3)
+          AND ($4::date IS NULL OR p.date_injection <= $4)
+      `;
+
+      const sessionCountQuery = `
+        SELECT COUNT(DISTINCT se.student_id) as count
+        FROM session_etudiants se
+        JOIN sessions_formation sf ON sf.id = se.session_id
+        WHERE sf.statut != 'annulee'
+          AND ($1::text IS NULL OR sf.segment_id = $1)
+          AND ($2::text IS NULL OR sf.ville_id = $2)
+          AND ($3::date IS NULL OR se.created_at >= $3)
+          AND ($4::date IS NULL OR se.created_at <= $4)
+      `;
+
+      const [prospectCount, sessionCount] = await Promise.all([
+        pool.query(prospectCountQuery, params),
+        pool.query(sessionCountQuery, params)
+      ]);
+
+      const inscrits_prospect = parseInt(prospectCount.rows[0].count || 0);
+      const inscrits_session = parseInt(sessionCount.rows[0].count || 0);
+      const ecart = inscrits_session - inscrits_prospect;
+
+      let students = [];
+
+      if (ecart > 0) {
+        // Écart positif: Étudiants en sessions mais PAS dans prospects
+        const query = `
+          SELECT DISTINCT
+            s.id as student_id,
+            s.nom,
+            s.prenom,
+            s.cin,
+            s.phone,
+            s.whatsapp,
+            json_agg(DISTINCT jsonb_build_object(
+              'session_id', sf.id,
+              'session_name', sf.nom,
+              'ville_name', c.name,
+              'segment_name', seg.name,
+              'enrolled_at', se.created_at
+            )) as sessions
+          FROM students s
+          INNER JOIN session_etudiants se ON se.student_id = s.id
+          INNER JOIN sessions_formation sf ON sf.id = se.session_id
+          LEFT JOIN cities c ON c.id = sf.ville_id
+          LEFT JOIN segments seg ON seg.id = sf.segment_id
+          WHERE sf.statut != 'annulee'
+            AND ($1::text IS NULL OR sf.segment_id = $1)
+            AND ($2::text IS NULL OR sf.ville_id = $2)
+            AND ($3::date IS NULL OR se.created_at >= $3)
+            AND ($4::date IS NULL OR se.created_at <= $4)
+            AND NOT EXISTS (
+              SELECT 1 FROM prospects p
+              WHERE (p.phone_international = s.phone OR p.phone_international = s.whatsapp)
+                AND ($1::text IS NULL OR p.segment_id = $1)
+                AND ($2::text IS NULL OR p.ville_id = $2)
+                AND ($3::date IS NULL OR p.date_injection >= $3)
+                AND ($4::date IS NULL OR p.date_injection <= $4)
+            )
+          GROUP BY s.id, s.nom, s.prenom, s.cin, s.phone, s.whatsapp
+          ORDER BY s.nom, s.prenom
+        `;
+        const result = await pool.query(query, params);
+        students = result.rows;
+
+      } else if (ecart < 0) {
+        // Écart négatif: Prospects 'inscrit' mais PAS dans sessions
+        const query = `
+          SELECT DISTINCT
+            p.id as prospect_id,
+            p.nom,
+            p.prenom,
+            p.phone_international,
+            p.statut_contact,
+            p.date_injection,
+            c.name as ville_name,
+            seg.name as segment_name
+          FROM prospects p
+          LEFT JOIN cities c ON c.id = p.ville_id
+          LEFT JOIN segments seg ON seg.id = p.segment_id
+          WHERE p.statut_contact = 'inscrit'
+            AND ($1::text IS NULL OR p.segment_id = $1)
+            AND ($2::text IS NULL OR p.ville_id = $2)
+            AND ($3::date IS NULL OR p.date_injection >= $3)
+            AND ($4::date IS NULL OR p.date_injection <= $4)
+            AND NOT EXISTS (
+              SELECT 1 FROM students s
+              INNER JOIN session_etudiants se ON se.student_id = s.id
+              INNER JOIN sessions_formation sf ON sf.id = se.session_id
+              WHERE (s.phone = p.phone_international OR s.whatsapp = p.phone_international)
+                AND sf.statut != 'annulee'
+                AND ($1::text IS NULL OR sf.segment_id = $1)
+                AND ($2::text IS NULL OR sf.ville_id = $2)
+                AND ($3::date IS NULL OR se.created_at >= $3)
+                AND ($4::date IS NULL OR se.created_at <= $4)
+            )
+          ORDER BY p.date_injection DESC
+        `;
+        const result = await pool.query(query, params);
+        students = result.rows;
+      }
+
+      res.json({
+        ecart,
+        type: ecart > 0 ? 'positive' : ecart < 0 ? 'negative' : 'zero',
+        count: Math.abs(ecart),
+        students
+      });
+
+    } catch (error) {
+      console.error('Error fetching écart details:', error);
       res.status(500).json({ error: error.message });
     }
   }
