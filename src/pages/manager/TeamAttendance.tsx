@@ -20,7 +20,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  Trash2
+  Trash2,
+  Edit
 } from 'lucide-react';
 import { format, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -66,6 +67,7 @@ import { useTeam, useTeamAttendance, useTeamStats, useExportTeamAttendance } fro
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import type { TeamAttendanceRecord } from '@/lib/api/manager';
+import AdminAttendanceEditor from '@/components/admin/hr/AdminAttendanceEditor';
 
 // ============================================================
 // CONSTANTS
@@ -225,6 +227,7 @@ export default function TeamAttendance() {
   const [detailRecord, setDetailRecord] = useState<TeamAttendanceRecord | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ employeeId: string; date: string; name: string } | null>(null);
+  const [showAdminEditor, setShowAdminEditor] = useState(false);
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -332,6 +335,14 @@ export default function TeamAttendance() {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => refetch()}>
             <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="default"
+            onClick={() => setShowAdminEditor(true)}
+            className="bg-purple-600 hover:bg-purple-700"
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Corriger / Déclarer
           </Button>
           <Button variant="outline" onClick={handleExport} disabled={exportMutation.isPending}>
             {exportMutation.isPending ? (
@@ -661,6 +672,17 @@ export default function TeamAttendance() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Admin Attendance Editor Modal */}
+      {showAdminEditor && (
+        <AdminAttendanceEditor
+          onClose={() => setShowAdminEditor(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['team-attendance'] });
+            queryClient.invalidateQueries({ queryKey: ['team-stats'] });
+          }}
+        />
+      )}
     </div>
   );
 }
