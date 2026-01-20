@@ -157,7 +157,7 @@ export default function HRAttendance() {
                 Enregistrer Présence
               </button>
             )}
-            {hr.canEditAttendance && (
+            {hr.canCorrectAttendance && (
               <button
                 onClick={() => setShowAdminEditor(true)}
                 className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
