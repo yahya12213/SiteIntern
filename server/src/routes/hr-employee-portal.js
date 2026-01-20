@@ -124,8 +124,8 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       records = await pool.query(`
         SELECT
           attendance_date as date,
-          to_char(MIN(CASE WHEN status IN ('check_in', 'late', 'weekend', 'present', 'half_day', 'early_leave', 'late_early', 'incomplete') THEN clock_time END), 'HH24:MI') as check_in,
-          to_char(MAX(CASE WHEN status IN ('check_out', 'weekend') THEN clock_time END), 'HH24:MI') as check_out,
+          to_char(MIN(CASE WHEN status IN ('check_in', 'late', 'weekend', 'present', 'half_day', 'early_leave', 'late_early', 'incomplete') THEN clock_time END), 'YYYY-MM-DD"T"HH24:MI:SS') as check_in,
+          to_char(MAX(CASE WHEN status IN ('check_out', 'weekend') THEN clock_time END), 'YYYY-MM-DD"T"HH24:MI:SS') as check_out,
           COUNT(CASE WHEN status IN ('check_in', 'late', 'weekend', 'present', 'half_day', 'early_leave', 'late_early', 'incomplete') THEN 1 END) as check_ins,
           COUNT(CASE WHEN status IN ('check_out', 'weekend') THEN 1 END) as check_outs,
           MAX(CASE WHEN status NOT IN ('check_out') THEN status END) as day_status,
