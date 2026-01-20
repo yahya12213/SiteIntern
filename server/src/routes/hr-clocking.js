@@ -423,7 +423,7 @@ router.post('/check-in', authenticateToken, async (req, res) => {
           employee_id, attendance_date, clock_time,
           status, source, notes, created_at
         ) VALUES ($1, $2::date, $3::timestamp, 'holiday', 'self_service', $4, NOW())
-        RETURNING id, attendance_date, clock_time, status
+        RETURNING id, attendance_date, to_char(clock_time, 'YYYY-MM-DD"T"HH24:MI:SS') as clock_time, status
       `, [employee.id, systemDate, systemTimestamp, `Jour férié: ${holidayInfo.name}`]);
 
       return res.json({
@@ -443,7 +443,7 @@ router.post('/check-in', authenticateToken, async (req, res) => {
           employee_id, attendance_date, clock_time,
           status, source, notes, created_at
         ) VALUES ($1, $2::date, $3::timestamp, $4, 'self_service', $5, NOW())
-        RETURNING id, attendance_date, clock_time, status
+        RETURNING id, attendance_date, to_char(clock_time, 'YYYY-MM-DD"T"HH24:MI:SS') as clock_time, status
       `, [
         employee.id, systemDate, systemTimestamp, recoveryStatus,
         `Récupération: ${recoveryInfo.period_name}`
@@ -519,7 +519,7 @@ router.post('/check-in', authenticateToken, async (req, res) => {
         late_minutes,
         created_at
       ) VALUES ($1, $2::date, $3::timestamp, $4, 'self_service', $5, $6, NOW())
-      RETURNING id, attendance_date, clock_time, status, late_minutes, scheduled_start
+      RETURNING id, attendance_date, to_char(clock_time, 'YYYY-MM-DD"T"HH24:MI:SS') as clock_time, status, late_minutes, scheduled_start
     `, [employee.id, systemDate, systemTimestamp, initialStatus, scheduledStart, lateMinutes]);
 
     // DEBUG LOG - À supprimer après diagnostic
@@ -658,7 +658,7 @@ router.post('/check-out', authenticateToken, async (req, res) => {
         overtime_minutes,
         created_at
       ) VALUES ($1, $2::date, $3::timestamp, $4, 'self_service', $5, $6, $7, $8, NOW())
-      RETURNING id, clock_time, status, scheduled_end, early_leave_minutes, overtime_minutes
+      RETURNING id, to_char(clock_time, 'YYYY-MM-DD"T"HH24:MI:SS') as clock_time, status, scheduled_end, early_leave_minutes, overtime_minutes
     `, [employee.id, systemDate, systemTimestamp, finalStatus, scheduledStartFromCheckIn, scheduledEnd, earlyLeaveMinutes, overtimeMinutes]);
 
     // Calculate worked minutes for today
@@ -909,7 +909,7 @@ router.get('/my-records', authenticateToken, async (req, res) => {
         array_agg(
           json_build_object(
             'id', id,
-            'clock_time', clock_time,
+            'clock_time', to_char(clock_time, 'YYYY-MM-DD"T"HH24:MI:SS'),
             'status', status,
             'source', source
           ) ORDER BY clock_time ASC

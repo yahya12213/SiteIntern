@@ -21,7 +21,8 @@ import {
   ChevronRight,
   Eye,
   Trash2,
-  Edit
+  Edit,
+  Plus
 } from 'lucide-react';
 import { format, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -228,6 +229,7 @@ export default function TeamAttendance() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ employeeId: string; date: string; name: string } | null>(null);
   const [showAdminEditor, setShowAdminEditor] = useState(false);
+  const [editRecord, setEditRecord] = useState<{ employeeId: string; date: string } | null>(null);
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -338,11 +340,14 @@ export default function TeamAttendance() {
           </Button>
           <Button
             variant="default"
-            onClick={() => setShowAdminEditor(true)}
-            className="bg-purple-600 hover:bg-purple-700"
+            onClick={() => {
+              setEditRecord(null);
+              setShowAdminEditor(true);
+            }}
+            className="bg-blue-600 hover:bg-blue-700"
           >
-            <Edit className="h-4 w-4 mr-2" />
-            Corriger / Déclarer
+            <Plus className="h-4 w-4 mr-2" />
+            Ajouter pointage
           </Button>
           <Button variant="outline" onClick={handleExport} disabled={exportMutation.isPending}>
             {exportMutation.isPending ? (
@@ -596,6 +601,27 @@ export default function TeamAttendance() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                                  onClick={() => {
+                                    setEditRecord({
+                                      employeeId: record.employee_id,
+                                      date: record.date.split('T')[0]
+                                    });
+                                    setShowAdminEditor(true);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Modifier ce pointage</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -676,11 +702,16 @@ export default function TeamAttendance() {
       {/* Admin Attendance Editor Modal */}
       {showAdminEditor && (
         <AdminAttendanceEditor
-          onClose={() => setShowAdminEditor(false)}
+          onClose={() => {
+            setShowAdminEditor(false);
+            setEditRecord(null);
+          }}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['team-attendance'] });
             queryClient.invalidateQueries({ queryKey: ['team-stats'] });
           }}
+          initialEmployeeId={editRecord?.employeeId}
+          initialDate={editRecord?.date}
         />
       )}
     </div>

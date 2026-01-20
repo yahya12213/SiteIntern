@@ -19,6 +19,8 @@ import { apiClient } from '@/lib/api/client';
 interface AdminAttendanceEditorProps {
   onClose: () => void;
   onSuccess?: () => void;
+  initialEmployeeId?: string;
+  initialDate?: string;
 }
 
 interface Employee {
@@ -65,16 +67,17 @@ interface AttendanceByDateData {
 
 type Mode = 'search' | 'review' | 'edit' | 'declare-presence' | 'declare-absence';
 
-export default function AdminAttendanceEditor({ onClose, onSuccess }: AdminAttendanceEditorProps) {
+export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmployeeId, initialDate }: AdminAttendanceEditorProps) {
   const queryClient = useQueryClient();
 
   // State management
   const [mode, setMode] = useState<Mode>('search');
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    initialDate || new Date().toISOString().split('T')[0]
   );
   const [attendanceData, setAttendanceData] = useState<AttendanceByDateData | null>(null);
+  const [initialSearchDone, setInitialSearchDone] = useState(false);
 
   const [formData, setFormData] = useState({
     check_in_time: '',
@@ -155,6 +158,24 @@ export default function AdminAttendanceEditor({ onClose, onSuccess }: AdminAtten
       }
     }
   }, [searchData]);
+
+  // Auto-select employee and search when initial values are provided
+  useEffect(() => {
+    if (initialEmployeeId && employees.length > 0 && !initialSearchDone) {
+      const emp = employees.find((e: Employee) => e.id === initialEmployeeId);
+      if (emp) {
+        setSelectedEmployee(emp);
+        setInitialSearchDone(true);
+      }
+    }
+  }, [initialEmployeeId, employees, initialSearchDone]);
+
+  // Auto-search when employee is selected from initial props
+  useEffect(() => {
+    if (selectedEmployee && initialEmployeeId && initialDate && initialSearchDone) {
+      searchAttendance();
+    }
+  }, [selectedEmployee, initialEmployeeId, initialDate, initialSearchDone]);
 
   // Calculate worked time
   const workedMinutes = (() => {
