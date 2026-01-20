@@ -361,7 +361,7 @@ router.get('/ecart-details',
             s.cin,
             s.phone,
             s.whatsapp,
-            json_agg(DISTINCT jsonb_build_object(
+            json_agg(jsonb_build_object(
               'session_id', sf.id,
               'session_name', sf.titre,
               'ville_name', c.name,
