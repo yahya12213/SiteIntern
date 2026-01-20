@@ -363,7 +363,7 @@ router.get('/ecart-details',
             s.whatsapp,
             json_agg(DISTINCT jsonb_build_object(
               'session_id', sf.id,
-              'session_name', sf.nom,
+              'session_name', sf.titre,
               'ville_name', c.name,
               'segment_name', seg.name,
               'enrolled_at', se.created_at
