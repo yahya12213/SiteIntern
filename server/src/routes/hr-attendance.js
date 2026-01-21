@@ -5,21 +5,32 @@ import pool from '../config/database.js';
 const router = express.Router();
 
 // Get attendance records with filters
-// Reconstruit les entrées/sorties à partir de clock_time (nouveau modèle)
+// Supporte DEUX modèles coexistants:
+// - Nouveau (clocking): clock_time TIMESTAMP avec status='check_in'/'check_out'
+// - Ancien (admin edit): attendance_date DATE avec check_in/check_out TIME
 router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
   const { employee_id, start_date, end_date, status } = req.query;
 
   try {
-    // Requête qui groupe par jour et pivote les clock_time par statut
+    // Requête utilisant COALESCE pour supporter les deux modèles
     let baseQuery = `
       SELECT
         a.employee_id,
-        DATE(a.clock_time) as attendance_date,
+        COALESCE(DATE(a.clock_time), a.attendance_date) as attendance_date,
         e.first_name || ' ' || e.last_name as employee_name,
         e.employee_number,
-        to_char(MIN(a.clock_time), 'HH24:MI') as check_in_time,
-        CASE WHEN COUNT(*) > 1 THEN to_char(MAX(a.clock_time), 'HH24:MI') ELSE NULL END as check_out_time,
-        MAX(CASE WHEN a.status NOT IN ('check_in', 'check_out') THEN a.status ELSE NULL END) as status,
+        COALESCE(
+          to_char(MIN(CASE WHEN a.status = 'check_in' THEN a.clock_time END), 'HH24:MI'),
+          to_char(MIN(a.check_in), 'HH24:MI')
+        ) as check_in_time,
+        COALESCE(
+          to_char(MAX(CASE WHEN a.status = 'check_out' THEN a.clock_time END), 'HH24:MI'),
+          to_char(MAX(a.check_out), 'HH24:MI')
+        ) as check_out_time,
+        COALESCE(
+          MAX(CASE WHEN a.status NOT IN ('check_in', 'check_out') THEN a.status END),
+          'present'
+        ) as status,
         MAX(a.worked_minutes) as worked_minutes,
         MAX(a.late_minutes) as late_minutes,
         MAX(a.early_leave_minutes) as early_leave_minutes,
@@ -41,13 +52,13 @@ router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'),
     }
 
     if (start_date) {
-      baseQuery += ` AND DATE(a.clock_time) >= $${paramCount}`;
+      baseQuery += ` AND COALESCE(DATE(a.clock_time), a.attendance_date) >= $${paramCount}`;
       params.push(start_date);
       paramCount++;
     }
 
     if (end_date) {
-      baseQuery += ` AND DATE(a.clock_time) <= $${paramCount}`;
+      baseQuery += ` AND COALESCE(DATE(a.clock_time), a.attendance_date) <= $${paramCount}`;
       params.push(end_date);
       paramCount++;
     }
@@ -57,15 +68,15 @@ router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'),
       baseQuery += ` AND EXISTS (
         SELECT 1 FROM hr_attendance_records ar
         WHERE ar.employee_id = a.employee_id
-        AND DATE(ar.clock_time) = DATE(a.clock_time)
+        AND COALESCE(DATE(ar.clock_time), ar.attendance_date) = COALESCE(DATE(a.clock_time), a.attendance_date)
         AND ar.status = $${paramCount}
       )`;
       params.push(status);
       paramCount++;
     }
 
-    baseQuery += ` GROUP BY a.employee_id, DATE(a.clock_time), e.first_name, e.last_name, e.employee_number`;
-    baseQuery += ` ORDER BY DATE(a.clock_time) DESC, e.last_name`;
+    baseQuery += ` GROUP BY a.employee_id, COALESCE(DATE(a.clock_time), a.attendance_date), e.first_name, e.last_name, e.employee_number`;
+    baseQuery += ` ORDER BY COALESCE(DATE(a.clock_time), a.attendance_date) DESC, e.last_name`;
 
     const result = await pool.query(baseQuery, params);
     res.json({ success: true, data: result.rows });
