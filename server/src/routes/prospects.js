@@ -359,7 +359,7 @@ router.get('/ecart-details',
         // Écart positif: Étudiants en sessions mais PAS dans prospects
         console.log('📊 [ECART-DETAILS] Running positive ecart query...');
         const query = `
-          SELECT DISTINCT
+          SELECT
             s.id as student_id,
             s.nom,
             s.prenom,
