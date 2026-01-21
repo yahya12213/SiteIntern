@@ -531,6 +531,16 @@ router.get('/by-date', authenticateToken, requirePermission('hr.attendance.view_
       WHERE employee_id = $1 AND work_date = $2
     `, [employee_id, date]);
 
+    // Format records for frontend compatibility
+    const records = result.rows.map(row => ({
+      ...row,
+      check_in_time: row.clock_in_at ? new Date(row.clock_in_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
+      check_out_time: row.clock_out_at ? new Date(row.clock_out_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
+      status: row.day_status,
+      worked_minutes: row.net_worked_minutes,
+      attendance_date: row.work_date
+    }));
+
     // Get pending correction request
     const correctionResult = await pool.query(`
       SELECT * FROM hr_attendance_correction_requests
@@ -550,8 +560,8 @@ router.get('/by-date', authenticateToken, requirePermission('hr.attendance.view_
         },
         date,
         day_info: dayInfo,
-        has_record: result.rows.length > 0,
-        record: result.rows[0] || null,
+        has_records: records.length > 0,
+        records,
         pending_correction_request: correctionResult.rows[0] || null,
         // Backward compatibility
         break_duration_minutes: dayInfo.schedule?.break_duration_minutes || 0,

@@ -176,7 +176,7 @@ export class AttendanceCalculator {
   async hasApprovedOvertime(employeeId, date) {
     try {
       const result = await this.pool.query(`
-        SELECT id, estimated_hours, actual_hours
+        SELECT id, estimated_hours
         FROM hr_overtime_requests
         WHERE employee_id = $1
           AND request_date = $2
