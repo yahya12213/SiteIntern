@@ -852,31 +852,22 @@ async function calculateOvertimeForPeriod(periodId) {
   const periodEndMin = toMinutes(period.end_time);
 
   // Find all employees who clocked during this period
-  // We need to handle the case where clocking spans the period
+  // Using hr_attendance_daily (unified table: 1 row = 1 day = 1 employee)
   const employeesQuery = await pool.query(`
-    WITH daily_records AS (
-      SELECT
-        ar.employee_id,
-        DATE(ar.clock_time) as record_date,
-        to_char(MIN(CASE WHEN ar.status = 'check_in' THEN ar.clock_time END), 'YYYY-MM-DD"T"HH24:MI:SS') as check_in,
-        to_char(MAX(CASE WHEN ar.status = 'check_out' THEN ar.clock_time END), 'YYYY-MM-DD"T"HH24:MI:SS') as check_out
-      FROM hr_attendance_records ar
-      WHERE DATE(ar.clock_time) = $1
-      GROUP BY ar.employee_id, DATE(ar.clock_time)
-    )
     SELECT
-      dr.employee_id,
-      dr.check_in,
-      dr.check_out,
+      ad.employee_id,
+      to_char(ad.clock_in_at, 'YYYY-MM-DD"T"HH24:MI:SS') as check_in,
+      to_char(ad.clock_out_at, 'YYYY-MM-DD"T"HH24:MI:SS') as check_out,
       e.first_name || ' ' || e.last_name as employee_name
-    FROM daily_records dr
-    JOIN hr_employees e ON dr.employee_id = e.id
-    WHERE dr.check_in IS NOT NULL
-      AND dr.check_out IS NOT NULL
+    FROM hr_attendance_daily ad
+    JOIN hr_employees e ON ad.employee_id = e.id
+    WHERE ad.work_date = $1
+      AND ad.clock_in_at IS NOT NULL
+      AND ad.clock_out_at IS NOT NULL
       AND (
         -- Employee clocked in during the HS period
-        EXTRACT(HOUR FROM dr.check_in) * 60 + EXTRACT(MINUTE FROM dr.check_in) < $3
-        AND EXTRACT(HOUR FROM dr.check_out) * 60 + EXTRACT(MINUTE FROM dr.check_out) > $2
+        EXTRACT(HOUR FROM ad.clock_in_at) * 60 + EXTRACT(MINUTE FROM ad.clock_in_at) < $3
+        AND EXTRACT(HOUR FROM ad.clock_out_at) * 60 + EXTRACT(MINUTE FROM ad.clock_out_at) > $2
       )
   `, [period.period_date, periodStartMin, periodEndMin]);
 

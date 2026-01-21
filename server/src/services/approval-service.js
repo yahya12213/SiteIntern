@@ -463,33 +463,27 @@ export class ApprovalService {
     console.log('Requested check_out:', requested_check_out);
 
     try {
-      // 1. Supprimer TOUS les records de pointage pour cette date
-      // (peu importe leur status: check_in, check_out, half_day, late, present, etc.)
-      const deleteResult = await pool.query(`
-        DELETE FROM hr_attendance_records
-        WHERE employee_id = $1 AND DATE(clock_time) = $2
-      `, [employee_id, request_date]);
+      // Construire les timestamps d'entrée et sortie
+      const clockInAt = requested_check_in ? `${request_date}T${requested_check_in}:00` : null;
+      const clockOutAt = requested_check_out ? `${request_date}T${requested_check_out}:00` : null;
 
-      console.log('Deleted existing records:', deleteResult.rowCount);
+      // UPSERT dans hr_attendance_daily (nouvelle table unifiée)
+      await pool.query(`
+        INSERT INTO hr_attendance_daily (
+          employee_id, work_date, clock_in_at, clock_out_at,
+          day_status, source, notes, created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, 'present', 'correction', 'Correction approuvée', NOW(), NOW())
+        ON CONFLICT (employee_id, work_date) DO UPDATE SET
+          clock_in_at = COALESCE($3, hr_attendance_daily.clock_in_at),
+          clock_out_at = COALESCE($4, hr_attendance_daily.clock_out_at),
+          day_status = 'present',
+          source = 'correction',
+          notes = COALESCE(hr_attendance_daily.notes, '') || ' | Correction approuvée',
+          updated_at = NOW()
+      `, [employee_id, request_date, clockInAt, clockOutAt]);
 
-      // 2. Créer le nouveau record d'entrée avec source='correction'
-      if (requested_check_in) {
-        await pool.query(`
-          INSERT INTO hr_attendance_records (employee_id, attendance_date, clock_time, status, source, created_at)
-          VALUES ($1, $2::date, ($2 || ' ' || $3)::timestamp, 'check_in', 'correction', NOW())
-        `, [employee_id, request_date, requested_check_in]);
-        console.log('Check-in record created with source=correction');
-      }
-
-      // 3. Créer le nouveau record de sortie avec source='correction'
-      if (requested_check_out) {
-        await pool.query(`
-          INSERT INTO hr_attendance_records (employee_id, attendance_date, clock_time, status, source, created_at)
-          VALUES ($1, $2::date, ($2 || ' ' || $3)::timestamp, 'check_out', 'correction', NOW())
-        `, [employee_id, request_date, requested_check_out]);
-        console.log('Check-out record created with source=correction');
-      }
-
+      console.log('Attendance record upserted with source=correction');
       console.log('=== CORRECTION APPLIED SUCCESSFULLY ===');
     } catch (error) {
       console.error('=== ERROR APPLYING CORRECTION ===', error);

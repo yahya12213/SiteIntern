@@ -117,28 +117,26 @@ router.get('/attendance', authenticateToken, async (req, res) => {
     const targetYear = year || new Date().getFullYear();
     const targetMonth = month || (new Date().getMonth() + 1);
 
-    // Get attendance records for the month (with try/catch for missing table)
+    // Get attendance records for the month (using unified hr_attendance_daily table)
     let records = { rows: [] };
     try {
-      // Statuts possibles pour le check-in: initial (check_in, late, weekend) + finaux après check-out (present, half_day, early_leave, late_early, incomplete)
       records = await pool.query(`
         SELECT
-          attendance_date as date,
-          to_char(MIN(CASE WHEN status IN ('check_in', 'late', 'weekend', 'present', 'half_day', 'early_leave', 'late_early', 'incomplete') THEN clock_time END), 'YYYY-MM-DD"T"HH24:MI:SS') as check_in,
-          to_char(MAX(CASE WHEN status IN ('check_out', 'weekend') THEN clock_time END), 'YYYY-MM-DD"T"HH24:MI:SS') as check_out,
-          COUNT(CASE WHEN status IN ('check_in', 'late', 'weekend', 'present', 'half_day', 'early_leave', 'late_early', 'incomplete') THEN 1 END) as check_ins,
-          COUNT(CASE WHEN status IN ('check_out', 'weekend') THEN 1 END) as check_outs,
-          MAX(CASE WHEN status NOT IN ('check_out') THEN status END) as day_status,
-          MAX(late_minutes) as late_minutes
-        FROM hr_attendance_records
+          work_date as date,
+          to_char(clock_in_at, 'YYYY-MM-DD"T"HH24:MI:SS') as check_in,
+          to_char(clock_out_at, 'YYYY-MM-DD"T"HH24:MI:SS') as check_out,
+          CASE WHEN clock_in_at IS NOT NULL THEN 1 ELSE 0 END as check_ins,
+          CASE WHEN clock_out_at IS NOT NULL THEN 1 ELSE 0 END as check_outs,
+          day_status,
+          late_minutes
+        FROM hr_attendance_daily
         WHERE employee_id = $1
-          AND EXTRACT(YEAR FROM attendance_date) = $2
-          AND EXTRACT(MONTH FROM attendance_date) = $3
-        GROUP BY attendance_date
-        ORDER BY attendance_date DESC
+          AND EXTRACT(YEAR FROM work_date) = $2
+          AND EXTRACT(MONTH FROM work_date) = $3
+        ORDER BY work_date DESC
       `, [employee.id, targetYear, targetMonth]);
     } catch (err) {
-      console.log('Warning: hr_attendance_records table issue:', err.message);
+      console.log('Warning: hr_attendance_daily table issue:', err.message);
     }
 
     // Get leaves for the month (with try/catch for missing tables)

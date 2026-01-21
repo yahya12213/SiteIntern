@@ -720,26 +720,28 @@ router.post('/correction-requests',
         });
       }
 
-      // Récupérer automatiquement les pointages originaux depuis hr_attendance_records si non fournis
+      // Récupérer automatiquement les pointages originaux depuis hr_attendance_daily si non fournis
       let finalOriginalCheckIn = original_check_in || null;
       let finalOriginalCheckOut = original_check_out || null;
 
       // Si les originaux ne sont pas fournis ou sont vides, les récupérer depuis la BDD
       if (!finalOriginalCheckIn || !finalOriginalCheckOut) {
-        const existingRecords = await pool.query(`
-          SELECT clock_time::time as time, status
-          FROM hr_attendance_records
-          WHERE employee_id = $1 AND DATE(clock_time) = $2
-          ORDER BY clock_time ASC
+        const existingRecord = await pool.query(`
+          SELECT
+            clock_in_at::time as check_in_time,
+            clock_out_at::time as check_out_time
+          FROM hr_attendance_daily
+          WHERE employee_id = $1 AND work_date = $2
+          LIMIT 1
         `, [employeeId, request_date]);
 
-        for (const record of existingRecords.rows) {
-          const timeStr = record.time ? record.time.substring(0, 5) : null; // Format HH:MM
-          if (!finalOriginalCheckIn && ['check_in', 'late', 'half_day', 'present', 'weekend'].includes(record.status)) {
-            finalOriginalCheckIn = timeStr;
+        if (existingRecord.rows.length > 0) {
+          const rec = existingRecord.rows[0];
+          if (!finalOriginalCheckIn && rec.check_in_time) {
+            finalOriginalCheckIn = rec.check_in_time.substring(0, 5);
           }
-          if (!finalOriginalCheckOut && record.status === 'check_out') {
-            finalOriginalCheckOut = timeStr;
+          if (!finalOriginalCheckOut && rec.check_out_time) {
+            finalOriginalCheckOut = rec.check_out_time.substring(0, 5);
           }
         }
       }
