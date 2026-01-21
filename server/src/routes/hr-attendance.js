@@ -5,15 +5,28 @@ import pool from '../config/database.js';
 const router = express.Router();
 
 // Get attendance records with filters
+// Reconstruit les entrées/sorties à partir de clock_time (nouveau modèle)
 router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
   const { employee_id, start_date, end_date, status } = req.query;
 
   try {
-    let query = `
+    // Requête qui groupe par jour et pivote les clock_time par statut
+    let baseQuery = `
       SELECT
-        a.*,
+        a.employee_id,
+        DATE(a.clock_time) as attendance_date,
         e.first_name || ' ' || e.last_name as employee_name,
-        e.employee_number
+        e.employee_number,
+        to_char(MIN(CASE WHEN a.status IN ('check_in', 'late') THEN a.clock_time END), 'HH24:MI') as check_in_time,
+        to_char(MAX(CASE WHEN a.status = 'check_out' THEN a.clock_time END), 'HH24:MI') as check_out_time,
+        MAX(CASE WHEN a.status NOT IN ('check_in', 'check_out') THEN a.status ELSE NULL END) as status,
+        MAX(a.worked_minutes) as worked_minutes,
+        MAX(a.late_minutes) as late_minutes,
+        MAX(a.early_leave_minutes) as early_leave_minutes,
+        MAX(a.overtime_minutes) as overtime_minutes,
+        bool_or(a.is_anomaly) as is_anomaly,
+        MAX(a.anomaly_type) as anomaly_type,
+        MAX(a.id) as id
       FROM hr_attendance_records a
       JOIN hr_employees e ON a.employee_id = e.id
       WHERE 1=1
@@ -22,32 +35,39 @@ router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'),
     let paramCount = 1;
 
     if (employee_id) {
-      query += ` AND a.employee_id = $${paramCount}`;
+      baseQuery += ` AND a.employee_id = $${paramCount}`;
       params.push(employee_id);
       paramCount++;
     }
 
     if (start_date) {
-      query += ` AND a.attendance_date >= $${paramCount}`;
+      baseQuery += ` AND DATE(a.clock_time) >= $${paramCount}`;
       params.push(start_date);
       paramCount++;
     }
 
     if (end_date) {
-      query += ` AND a.attendance_date <= $${paramCount}`;
+      baseQuery += ` AND DATE(a.clock_time) <= $${paramCount}`;
       params.push(end_date);
       paramCount++;
     }
 
+    // Filtre par statut sur le statut final (pas check_in/check_out)
     if (status) {
-      query += ` AND a.status = $${paramCount}`;
+      baseQuery += ` AND EXISTS (
+        SELECT 1 FROM hr_attendance_records ar
+        WHERE ar.employee_id = a.employee_id
+        AND DATE(ar.clock_time) = DATE(a.clock_time)
+        AND ar.status = $${paramCount}
+      )`;
       params.push(status);
       paramCount++;
     }
 
-    query += ' ORDER BY a.attendance_date DESC, e.last_name';
+    baseQuery += ` GROUP BY a.employee_id, DATE(a.clock_time), e.first_name, e.last_name, e.employee_number`;
+    baseQuery += ` ORDER BY DATE(a.clock_time) DESC, e.last_name`;
 
-    const result = await pool.query(query, params);
+    const result = await pool.query(baseQuery, params);
     res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching attendance:', error);
