@@ -400,6 +400,14 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
             </div>
           )}
 
+          {/* === MODE LOADING === */}
+          {mode === 'loading' && (
+            <div className="flex flex-col items-center justify-center py-12">
+              <RefreshCw className="h-8 w-8 animate-spin text-purple-600 mb-4" />
+              <p className="text-gray-600">Chargement du pointage...</p>
+            </div>
+          )}
+
           {/* === STEP 2: REVIEW === */}
           {mode === 'review' && attendanceData && (
             <div className="space-y-4">
@@ -706,6 +714,47 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
                 </p>
               </div>
 
+              {/* Sélecteur employé - INTÉGRÉ */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Employé *
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <select
+                    value={selectedEmployee?.id || ''}
+                    onChange={(e) => {
+                      const emp = employees.find((emp: Employee) => emp.id === e.target.value);
+                      setSelectedEmployee(emp || null);
+                    }}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Sélectionnez un employé</option>
+                    {employees.map((emp: Employee) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.first_name} {emp.last_name} - {emp.employee_number}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Sélecteur date - INTÉGRÉ */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date *
+                </label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
               {/* Time Inputs */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -768,7 +817,7 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
               {/* Buttons */}
               <div className="flex gap-3 pt-4 border-t border-gray-200">
                 <button
-                  onClick={() => setMode('review')}
+                  onClick={onClose}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Annuler
