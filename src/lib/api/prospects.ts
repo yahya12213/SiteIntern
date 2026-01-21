@@ -141,41 +141,47 @@ export interface CleaningStats {
 }
 
 // ============================================================
-// ÉCART DETAILS TYPES
+// ÉCART DETAILS TYPES (2 types d'écart indépendants)
 // ============================================================
 
-export interface EcartStudent {
-  // Pour écart positif (étudiants en sessions mais pas dans prospects)
-  student_id?: string;
+// Écart Session: étudiants en sessions mais sans prospect "inscrit"
+export interface EcartSessionStudent {
+  student_id: string;
+  nom: string;
+  prenom: string;
   cin?: string;
   phone?: string;
   whatsapp?: string;
-  sessions?: Array<{
+  sessions: Array<{
     session_id: string;
     session_name: string;
     ville_name: string;
     segment_name: string;
     enrolled_at: string;
   }>;
+}
 
-  // Pour écart négatif (prospects inscrits mais pas dans sessions)
-  prospect_id?: string;
-  phone_international?: string;
-  statut_contact?: string;
-  date_injection?: string;
+// Écart Prospect: prospects "inscrit" mais pas en session
+export interface EcartProspectStudent {
+  prospect_id: string;
+  nom: string;
+  prenom: string;
+  phone_international: string;
+  statut_contact: string;
+  date_injection: string;
   ville_name?: string;
   segment_name?: string;
-
-  // Champs communs
-  nom?: string;
-  prenom?: string;
 }
 
 export interface EcartDetailsResponse {
-  ecart: number;
-  type: 'positive' | 'negative' | 'zero';
-  count: number;
-  students: EcartStudent[];
+  ecart_session: {
+    count: number;
+    students: EcartSessionStudent[];
+  };
+  ecart_prospect: {
+    count: number;
+    students: EcartProspectStudent[];
+  };
 }
 
 // ============================================================

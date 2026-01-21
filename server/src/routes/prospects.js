@@ -331,295 +331,214 @@ router.get('/ecart-details',
       };
 
       // =====================================================
-      // 1. Comptage des prospects inscrits (avec scope)
+      // ÉCART SESSION: Étudiants en sessions SANS prospect "inscrit"
       // =====================================================
-      let prospectCountQuery = `
-        SELECT COUNT(*) FILTER (WHERE statut_contact = 'inscrit') as count
-        FROM prospects p
-        WHERE 1=1
-      `;
-      let prospectCountParams = [];
-      let prospectParamIndex = 1;
+      console.log('📊 [ECART-DETAILS] Building ecart session query...');
 
-      // Appliquer le scope utilisateur (obligatoire pour non-admin)
-      if (prospectScopeFilter.hasScope) {
-        const adjustedConditions = adjustConditions(prospectScopeFilter.conditions, prospectParamIndex);
-        prospectCountQuery += ` AND (${adjustedConditions.join(' AND ')})`;
-        prospectCountParams.push(...prospectScopeFilter.params);
-        prospectParamIndex += prospectScopeFilter.params.length;
-      }
-
-      // Filtres UI additionnels (optionnels)
-      if (segment_id) {
-        prospectCountQuery += ` AND p.segment_id = $${prospectParamIndex++}`;
-        prospectCountParams.push(segment_id);
-      }
-      if (ville_id) {
-        prospectCountQuery += ` AND p.ville_id = $${prospectParamIndex++}`;
-        prospectCountParams.push(ville_id);
-      }
-      if (date_from) {
-        prospectCountQuery += ` AND p.date_injection >= $${prospectParamIndex++}`;
-        prospectCountParams.push(date_from);
-      }
-      if (date_to) {
-        prospectCountQuery += ` AND p.date_injection <= $${prospectParamIndex++}`;
-        prospectCountParams.push(date_to);
-      }
-
-      // =====================================================
-      // 2. Comptage des étudiants en session (avec scope)
-      // =====================================================
-      let sessionCountQuery = `
-        SELECT COUNT(DISTINCT se.student_id) as count
-        FROM session_etudiants se
-        JOIN sessions_formation sf ON sf.id = se.session_id
+      let ecartSessionQuery = `
+        SELECT
+          s.id as student_id,
+          s.nom,
+          s.prenom,
+          s.cin,
+          s.phone,
+          s.whatsapp,
+          json_agg(jsonb_build_object(
+            'session_id', sf.id,
+            'session_name', sf.titre,
+            'ville_name', c.name,
+            'segment_name', seg.name,
+            'enrolled_at', se.created_at
+          )) as sessions
+        FROM students s
+        INNER JOIN session_etudiants se ON se.student_id = s.id
+        INNER JOIN sessions_formation sf ON sf.id = se.session_id
+        LEFT JOIN cities c ON c.id = sf.ville_id
+        LEFT JOIN segments seg ON seg.id = sf.segment_id
         WHERE sf.statut != 'annulee'
       `;
-      let sessionCountParams = [];
-      let sessionParamIndex = 1;
+      let ecartSessionParams = [];
+      let ecartSessionParamIndex = 1;
 
-      // Appliquer le scope utilisateur
+      // Appliquer le scope utilisateur aux sessions
       if (sessionScopeFilter.hasScope) {
-        const adjustedConditions = adjustConditions(sessionScopeFilter.conditions, sessionParamIndex);
-        sessionCountQuery += ` AND (${adjustedConditions.join(' AND ')})`;
-        sessionCountParams.push(...sessionScopeFilter.params);
-        sessionParamIndex += sessionScopeFilter.params.length;
+        const adjustedConditions = adjustConditions(sessionScopeFilter.conditions, ecartSessionParamIndex);
+        ecartSessionQuery += ` AND (${adjustedConditions.join(' AND ')})`;
+        ecartSessionParams.push(...sessionScopeFilter.params);
+        ecartSessionParamIndex += sessionScopeFilter.params.length;
       }
 
       // Filtres UI additionnels
       if (segment_id) {
-        sessionCountQuery += ` AND sf.segment_id = $${sessionParamIndex++}`;
-        sessionCountParams.push(segment_id);
+        ecartSessionQuery += ` AND sf.segment_id = $${ecartSessionParamIndex++}`;
+        ecartSessionParams.push(segment_id);
       }
       if (ville_id) {
-        sessionCountQuery += ` AND sf.ville_id = $${sessionParamIndex++}`;
-        sessionCountParams.push(ville_id);
+        ecartSessionQuery += ` AND sf.ville_id = $${ecartSessionParamIndex++}`;
+        ecartSessionParams.push(ville_id);
       }
       if (date_from) {
-        sessionCountQuery += ` AND se.created_at >= $${sessionParamIndex++}`;
-        sessionCountParams.push(date_from);
+        ecartSessionQuery += ` AND se.created_at >= $${ecartSessionParamIndex++}`;
+        ecartSessionParams.push(date_from);
       }
       if (date_to) {
-        sessionCountQuery += ` AND se.created_at <= $${sessionParamIndex++}`;
-        sessionCountParams.push(date_to);
+        ecartSessionQuery += ` AND se.created_at <= $${ecartSessionParamIndex++}`;
+        ecartSessionParams.push(date_to);
       }
 
-      const [prospectCount, sessionCount] = await Promise.all([
-        pool.query(prospectCountQuery, prospectCountParams),
-        pool.query(sessionCountQuery, sessionCountParams)
+      // NOT EXISTS pour exclure ceux qui ont un prospect "inscrit" correspondant
+      let notExistsProspectScope = '';
+      if (prospectScopeFilter.hasScope) {
+        const adjustedConditions = adjustConditions(prospectScopeFilter.conditions, ecartSessionParamIndex);
+        notExistsProspectScope = ` AND (${adjustedConditions.join(' AND ')})`;
+        ecartSessionParams.push(...prospectScopeFilter.params);
+        ecartSessionParamIndex += prospectScopeFilter.params.length;
+      }
+
+      let notExistsProspectFilters = '';
+      if (segment_id) {
+        notExistsProspectFilters += ` AND p.segment_id = $${ecartSessionParamIndex++}`;
+        ecartSessionParams.push(segment_id);
+      }
+      if (ville_id) {
+        notExistsProspectFilters += ` AND p.ville_id = $${ecartSessionParamIndex++}`;
+        ecartSessionParams.push(ville_id);
+      }
+      if (date_from) {
+        notExistsProspectFilters += ` AND p.date_injection >= $${ecartSessionParamIndex++}`;
+        ecartSessionParams.push(date_from);
+      }
+      if (date_to) {
+        notExistsProspectFilters += ` AND p.date_injection <= $${ecartSessionParamIndex++}`;
+        ecartSessionParams.push(date_to);
+      }
+
+      ecartSessionQuery += `
+          AND NOT EXISTS (
+            SELECT 1 FROM prospects p
+            WHERE (RIGHT(p.phone_international, 9) = RIGHT(s.phone, 9)
+                OR RIGHT(p.phone_international, 9) = RIGHT(COALESCE(s.whatsapp, ''), 9))
+              AND p.statut_contact = 'inscrit'
+              ${notExistsProspectScope}
+              ${notExistsProspectFilters}
+          )
+        GROUP BY s.id, s.nom, s.prenom, s.cin, s.phone, s.whatsapp
+        ORDER BY s.nom, s.prenom
+      `;
+
+      // =====================================================
+      // ÉCART PROSPECT: Prospects "inscrit" SANS session
+      // =====================================================
+      console.log('📊 [ECART-DETAILS] Building ecart prospect query...');
+
+      let ecartProspectQuery = `
+        SELECT DISTINCT
+          p.id as prospect_id,
+          p.nom,
+          p.prenom,
+          p.phone_international,
+          p.statut_contact,
+          p.date_injection,
+          c.name as ville_name,
+          seg.name as segment_name
+        FROM prospects p
+        LEFT JOIN cities c ON c.id = p.ville_id
+        LEFT JOIN segments seg ON seg.id = p.segment_id
+        WHERE p.statut_contact = 'inscrit'
+      `;
+      let ecartProspectParams = [];
+      let ecartProspectParamIndex = 1;
+
+      // Appliquer le scope utilisateur aux prospects
+      if (prospectScopeFilter.hasScope) {
+        const adjustedConditions = adjustConditions(prospectScopeFilter.conditions, ecartProspectParamIndex);
+        ecartProspectQuery += ` AND (${adjustedConditions.join(' AND ')})`;
+        ecartProspectParams.push(...prospectScopeFilter.params);
+        ecartProspectParamIndex += prospectScopeFilter.params.length;
+      }
+
+      // Filtres UI additionnels
+      if (segment_id) {
+        ecartProspectQuery += ` AND p.segment_id = $${ecartProspectParamIndex++}`;
+        ecartProspectParams.push(segment_id);
+      }
+      if (ville_id) {
+        ecartProspectQuery += ` AND p.ville_id = $${ecartProspectParamIndex++}`;
+        ecartProspectParams.push(ville_id);
+      }
+      if (date_from) {
+        ecartProspectQuery += ` AND p.date_injection >= $${ecartProspectParamIndex++}`;
+        ecartProspectParams.push(date_from);
+      }
+      if (date_to) {
+        ecartProspectQuery += ` AND p.date_injection <= $${ecartProspectParamIndex++}`;
+        ecartProspectParams.push(date_to);
+      }
+
+      // NOT EXISTS pour exclure ceux qui ont une session correspondante
+      let notExistsSessionScope = '';
+      if (sessionScopeFilter.hasScope) {
+        const adjustedConditions = adjustConditions(sessionScopeFilter.conditions, ecartProspectParamIndex);
+        notExistsSessionScope = ` AND (${adjustedConditions.join(' AND ')})`;
+        ecartProspectParams.push(...sessionScopeFilter.params);
+        ecartProspectParamIndex += sessionScopeFilter.params.length;
+      }
+
+      let notExistsSessionFilters = '';
+      if (segment_id) {
+        notExistsSessionFilters += ` AND sf.segment_id = $${ecartProspectParamIndex++}`;
+        ecartProspectParams.push(segment_id);
+      }
+      if (ville_id) {
+        notExistsSessionFilters += ` AND sf.ville_id = $${ecartProspectParamIndex++}`;
+        ecartProspectParams.push(ville_id);
+      }
+      if (date_from) {
+        notExistsSessionFilters += ` AND se.created_at >= $${ecartProspectParamIndex++}`;
+        ecartProspectParams.push(date_from);
+      }
+      if (date_to) {
+        notExistsSessionFilters += ` AND se.created_at <= $${ecartProspectParamIndex++}`;
+        ecartProspectParams.push(date_to);
+      }
+
+      ecartProspectQuery += `
+          AND NOT EXISTS (
+            SELECT 1 FROM students s
+            INNER JOIN session_etudiants se ON se.student_id = s.id
+            INNER JOIN sessions_formation sf ON sf.id = se.session_id
+            WHERE (RIGHT(s.phone, 9) = RIGHT(p.phone_international, 9)
+                OR RIGHT(COALESCE(s.whatsapp, ''), 9) = RIGHT(p.phone_international, 9))
+              AND sf.statut != 'annulee'
+              ${notExistsSessionScope}
+              ${notExistsSessionFilters}
+          )
+        ORDER BY p.date_injection DESC
+      `;
+
+      // =====================================================
+      // Exécuter les deux requêtes en parallèle
+      // =====================================================
+      const [ecartSessionResult, ecartProspectResult] = await Promise.all([
+        pool.query(ecartSessionQuery, ecartSessionParams),
+        pool.query(ecartProspectQuery, ecartProspectParams)
       ]);
 
-      const inscrits_prospect = parseInt(prospectCount.rows[0].count || 0);
-      const inscrits_session = parseInt(sessionCount.rows[0].count || 0);
-      const ecart = inscrits_session - inscrits_prospect;
-      console.log('📊 [ECART-DETAILS] Counts - prospect:', inscrits_prospect, 'session:', inscrits_session, 'ecart:', ecart);
+      const ecartSessionStudents = ecartSessionResult.rows;
+      const ecartProspectStudents = ecartProspectResult.rows;
 
-      let students = [];
+      console.log('📊 [ECART-DETAILS] Ecart Session:', ecartSessionStudents.length, 'students');
+      console.log('📊 [ECART-DETAILS] Ecart Prospect:', ecartProspectStudents.length, 'prospects');
 
-      if (ecart > 0) {
-        // =====================================================
-        // Écart positif: Étudiants en sessions mais PAS dans prospects
-        // =====================================================
-        console.log('📊 [ECART-DETAILS] Running positive ecart query...');
-
-        let positiveQuery = `
-          SELECT
-            s.id as student_id,
-            s.nom,
-            s.prenom,
-            s.cin,
-            s.phone,
-            s.whatsapp,
-            json_agg(jsonb_build_object(
-              'session_id', sf.id,
-              'session_name', sf.titre,
-              'ville_name', c.name,
-              'segment_name', seg.name,
-              'enrolled_at', se.created_at
-            )) as sessions
-          FROM students s
-          INNER JOIN session_etudiants se ON se.student_id = s.id
-          INNER JOIN sessions_formation sf ON sf.id = se.session_id
-          LEFT JOIN cities c ON c.id = sf.ville_id
-          LEFT JOIN segments seg ON seg.id = sf.segment_id
-          WHERE sf.statut != 'annulee'
-        `;
-        let positiveParams = [];
-        let positiveParamIndex = 1;
-
-        // Appliquer le scope utilisateur aux sessions
-        if (sessionScopeFilter.hasScope) {
-          const adjustedConditions = adjustConditions(sessionScopeFilter.conditions, positiveParamIndex);
-          positiveQuery += ` AND (${adjustedConditions.join(' AND ')})`;
-          positiveParams.push(...sessionScopeFilter.params);
-          positiveParamIndex += sessionScopeFilter.params.length;
-        }
-
-        // Filtres UI additionnels
-        if (segment_id) {
-          positiveQuery += ` AND sf.segment_id = $${positiveParamIndex++}`;
-          positiveParams.push(segment_id);
-        }
-        if (ville_id) {
-          positiveQuery += ` AND sf.ville_id = $${positiveParamIndex++}`;
-          positiveParams.push(ville_id);
-        }
-        if (date_from) {
-          positiveQuery += ` AND se.created_at >= $${positiveParamIndex++}`;
-          positiveParams.push(date_from);
-        }
-        if (date_to) {
-          positiveQuery += ` AND se.created_at <= $${positiveParamIndex++}`;
-          positiveParams.push(date_to);
-        }
-
-        // NOT EXISTS pour exclure ceux qui ont un prospect correspondant
-        // Note: On applique le même scope aux prospects dans la sous-requête
-        let notExistsProspectScope = '';
-        if (prospectScopeFilter.hasScope) {
-          const adjustedConditions = adjustConditions(prospectScopeFilter.conditions, positiveParamIndex);
-          notExistsProspectScope = ` AND (${adjustedConditions.join(' AND ')})`;
-          positiveParams.push(...prospectScopeFilter.params);
-          positiveParamIndex += prospectScopeFilter.params.length;
-        }
-
-        let notExistsFilters = '';
-        if (segment_id) {
-          notExistsFilters += ` AND p.segment_id = $${positiveParamIndex++}`;
-          positiveParams.push(segment_id);
-        }
-        if (ville_id) {
-          notExistsFilters += ` AND p.ville_id = $${positiveParamIndex++}`;
-          positiveParams.push(ville_id);
-        }
-        if (date_from) {
-          notExistsFilters += ` AND p.date_injection >= $${positiveParamIndex++}`;
-          positiveParams.push(date_from);
-        }
-        if (date_to) {
-          notExistsFilters += ` AND p.date_injection <= $${positiveParamIndex++}`;
-          positiveParams.push(date_to);
-        }
-
-        positiveQuery += `
-            AND NOT EXISTS (
-              SELECT 1 FROM prospects p
-              WHERE (RIGHT(p.phone_international, 9) = RIGHT(s.phone, 9)
-                  OR RIGHT(p.phone_international, 9) = RIGHT(COALESCE(s.whatsapp, ''), 9))
-                AND p.statut_contact = 'inscrit'
-                ${notExistsProspectScope}
-                ${notExistsFilters}
-            )
-          GROUP BY s.id, s.nom, s.prenom, s.cin, s.phone, s.whatsapp
-          ORDER BY s.nom, s.prenom
-        `;
-
-        const result = await pool.query(positiveQuery, positiveParams);
-        console.log('📊 [ECART-DETAILS] Positive query returned', result.rows.length, 'rows');
-        students = result.rows;
-
-      } else if (ecart < 0) {
-        // =====================================================
-        // Écart négatif: Prospects 'inscrit' mais PAS dans sessions
-        // =====================================================
-        console.log('📊 [ECART-DETAILS] Running negative ecart query...');
-
-        let negativeQuery = `
-          SELECT DISTINCT
-            p.id as prospect_id,
-            p.nom,
-            p.prenom,
-            p.phone_international,
-            p.statut_contact,
-            p.date_injection,
-            c.name as ville_name,
-            seg.name as segment_name
-          FROM prospects p
-          LEFT JOIN cities c ON c.id = p.ville_id
-          LEFT JOIN segments seg ON seg.id = p.segment_id
-          WHERE p.statut_contact = 'inscrit'
-        `;
-        let negativeParams = [];
-        let negativeParamIndex = 1;
-
-        // Appliquer le scope utilisateur aux prospects
-        if (prospectScopeFilter.hasScope) {
-          const adjustedConditions = adjustConditions(prospectScopeFilter.conditions, negativeParamIndex);
-          negativeQuery += ` AND (${adjustedConditions.join(' AND ')})`;
-          negativeParams.push(...prospectScopeFilter.params);
-          negativeParamIndex += prospectScopeFilter.params.length;
-        }
-
-        // Filtres UI additionnels
-        if (segment_id) {
-          negativeQuery += ` AND p.segment_id = $${negativeParamIndex++}`;
-          negativeParams.push(segment_id);
-        }
-        if (ville_id) {
-          negativeQuery += ` AND p.ville_id = $${negativeParamIndex++}`;
-          negativeParams.push(ville_id);
-        }
-        if (date_from) {
-          negativeQuery += ` AND p.date_injection >= $${negativeParamIndex++}`;
-          negativeParams.push(date_from);
-        }
-        if (date_to) {
-          negativeQuery += ` AND p.date_injection <= $${negativeParamIndex++}`;
-          negativeParams.push(date_to);
-        }
-
-        // NOT EXISTS pour exclure ceux qui ont une session correspondante
-        let notExistsSessionScope = '';
-        if (sessionScopeFilter.hasScope) {
-          const adjustedConditions = adjustConditions(sessionScopeFilter.conditions, negativeParamIndex);
-          notExistsSessionScope = ` AND (${adjustedConditions.join(' AND ')})`;
-          negativeParams.push(...sessionScopeFilter.params);
-          negativeParamIndex += sessionScopeFilter.params.length;
-        }
-
-        let notExistsFilters = '';
-        if (segment_id) {
-          notExistsFilters += ` AND sf.segment_id = $${negativeParamIndex++}`;
-          negativeParams.push(segment_id);
-        }
-        if (ville_id) {
-          notExistsFilters += ` AND sf.ville_id = $${negativeParamIndex++}`;
-          negativeParams.push(ville_id);
-        }
-        if (date_from) {
-          notExistsFilters += ` AND se.created_at >= $${negativeParamIndex++}`;
-          negativeParams.push(date_from);
-        }
-        if (date_to) {
-          notExistsFilters += ` AND se.created_at <= $${negativeParamIndex++}`;
-          negativeParams.push(date_to);
-        }
-
-        negativeQuery += `
-            AND NOT EXISTS (
-              SELECT 1 FROM students s
-              INNER JOIN session_etudiants se ON se.student_id = s.id
-              INNER JOIN sessions_formation sf ON sf.id = se.session_id
-              WHERE (RIGHT(s.phone, 9) = RIGHT(p.phone_international, 9)
-                  OR RIGHT(COALESCE(s.whatsapp, ''), 9) = RIGHT(p.phone_international, 9))
-                AND sf.statut != 'annulee'
-                ${notExistsSessionScope}
-                ${notExistsFilters}
-            )
-          ORDER BY p.date_injection DESC
-        `;
-
-        const result = await pool.query(negativeQuery, negativeParams);
-        students = result.rows;
-      }
-
-      console.log('📊 [ECART-DETAILS] Returning', students.length, 'students');
       res.json({
-        ecart,
-        type: ecart > 0 ? 'positive' : ecart < 0 ? 'negative' : 'zero',
-        count: Math.abs(ecart),
-        students
+        ecart_session: {
+          count: ecartSessionStudents.length,
+          students: ecartSessionStudents
+        },
+        ecart_prospect: {
+          count: ecartProspectStudents.length,
+          students: ecartProspectStudents
+        }
       });
 
     } catch (error) {

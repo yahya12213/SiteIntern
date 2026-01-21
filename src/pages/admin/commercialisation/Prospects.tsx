@@ -160,7 +160,7 @@ export default function Prospects() {
   const [selectedProspectForVisits, setSelectedProspectForVisits] = useState<any>(null);
   const [showEcartModal, setShowEcartModal] = useState(false);
 
-  // Query pour les détails de l'écart
+  // Query pour les détails de l'écart (chargé au démarrage pour afficher les comptages)
   const { data: ecartDetails, isLoading: ecartLoading, error: ecartError } = useQuery({
     queryKey: ['prospects-ecart', filters.segment_id, filters.ville_id, filters.date_from, filters.date_to],
     queryFn: () => prospectsApi.getEcartDetails({
@@ -169,7 +169,6 @@ export default function Prospects() {
       date_from: filters.date_from,
       date_to: filters.date_to
     }),
-    enabled: showEcartModal,
     retry: 1,
   });
 
@@ -340,9 +339,8 @@ export default function Prospects() {
   const isSomeSelected = selectedIds.size > 0 && selectedIds.size < prospects.length;
 
   // Render stats cards
-  const ecart = stats.inscrits_session - stats.inscrits_prospect;
-  const ecartColor = ecart > 0 ? 'text-green-600' : ecart < 0 ? 'text-red-600' : 'text-gray-600';
-  const ecartSign = ecart > 0 ? '+' : '';
+  const ecartSessionCount = ecartDetails?.ecart_session?.count || 0;
+  const ecartProspectCount = ecartDetails?.ecart_prospect?.count || 0;
 
   const renderStatsCards = () => (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mb-6">
@@ -404,17 +402,25 @@ export default function Prospects() {
       <Card
         className="cursor-pointer hover:bg-gray-50 hover:shadow-md transition-all"
         onClick={() => setShowEcartModal(true)}
-        title="Cliquer pour voir les détails de l'écart"
+        title="Cliquer pour voir les détails des écarts"
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Écart</CardTitle>
+          <CardTitle className="text-sm font-medium">Écarts</CardTitle>
           <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
             Détails
           </Badge>
         </CardHeader>
         <CardContent>
-          <div className={`text-2xl font-bold ${ecartColor}`}>{ecartSign}{ecart}</div>
-          <p className="text-xs text-muted-foreground mt-1">Session - Prospect</p>
+          <div className="space-y-1">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500">Session:</span>
+              <span className="text-lg font-bold text-green-600">{ecartSessionCount}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500">Prospect:</span>
+              <span className="text-lg font-bold text-orange-600">{ecartProspectCount}</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
