@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Clock, LogIn, LogOut, Calendar, TrendingUp, AlertCircle, CheckCircle, FileEdit, X } from 'lucide-react';
+import { Clock, LogIn, LogOut, Calendar, TrendingUp, AlertCircle, CheckCircle, FileEdit, X, Coffee } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -9,27 +9,23 @@ interface CorrectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   date: string;
-  currentRecords: ClockRecord[];
+  currentRecord: DayRecord | null;
   onSubmit: (data: { request_date: string; requested_check_in: string; requested_check_out: string; original_check_in: string; original_check_out: string; reason: string }) => void;
   isSubmitting: boolean;
 }
 
-function CorrectionModal({ isOpen, onClose, date, currentRecords, onSubmit, isSubmitting }: CorrectionModalProps) {
+function CorrectionModal({ isOpen, onClose, date, currentRecord, onSubmit, isSubmitting }: CorrectionModalProps) {
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [reason, setReason] = useState('');
 
-  // Extraire les pointages actuels
-  const currentCheckIn = currentRecords.find(r => r.status === 'check_in');
-  const currentCheckOut = currentRecords.find(r => r.status === 'check_out');
-
-  const formatTimeFromRecord = (record: ClockRecord | undefined) => {
-    if (!record) return null;
-    return new Date(record.clock_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const formatTimeFromTimestamp = (timestamp: string | null) => {
+    if (!timestamp) return null;
+    return new Date(timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const originalCheckInTime = formatTimeFromRecord(currentCheckIn);
-  const originalCheckOutTime = formatTimeFromRecord(currentCheckOut);
+  const originalCheckInTime = formatTimeFromTimestamp(currentRecord?.clock_in_at || null);
+  const originalCheckOutTime = formatTimeFromTimestamp(currentRecord?.clock_out_at || null);
 
   if (!isOpen) return null;
 
@@ -165,21 +161,23 @@ function CorrectionModal({ isOpen, onClose, date, currentRecords, onSubmit, isSu
   );
 }
 
-interface ClockRecord {
-  id: string;
-  clock_time: string;
-  status: 'check_in' | 'check_out';
-  source: string;
-}
-
+// Types pour le nouveau modèle de données unifié
 interface TodayStatus {
-  date: string;
-  records: ClockRecord[];
-  last_action: ClockRecord | null;
-  can_check_in: boolean;
-  can_check_out: boolean;
-  worked_minutes: number | null;
-  is_complete: boolean;
+  id: string | null;
+  work_date: string;
+  clock_in_at: string | null;
+  clock_out_at: string | null;
+  day_status: string;
+  scheduled_start: string | null;
+  scheduled_end: string | null;
+  scheduled_break_minutes: number;
+  net_worked_minutes: number | null;
+  late_minutes: number;
+  early_leave_minutes: number;
+  overtime_minutes: number;
+  is_anomaly: boolean;
+  can_clock_in: boolean;
+  can_clock_out: boolean;
 }
 
 interface CorrectionRequestInfo {
@@ -192,11 +190,19 @@ interface CorrectionRequestInfo {
 }
 
 interface DayRecord {
-  date: string;
-  records: ClockRecord[];
-  worked_minutes: number | null;
-  is_complete: boolean;
-  has_anomaly: boolean;
+  id: string;
+  work_date: string;
+  clock_in_at: string | null;
+  clock_out_at: string | null;
+  day_status: string;
+  scheduled_start: string | null;
+  scheduled_end: string | null;
+  scheduled_break_minutes: number;
+  net_worked_minutes: number | null;
+  late_minutes: number;
+  early_leave_minutes: number;
+  overtime_minutes: number;
+  is_anomaly: boolean;
   correction_request: CorrectionRequestInfo | null;
 }
 
@@ -209,12 +215,12 @@ function CorrectionStatusBadge({ correction }: { correction: CorrectionRequestIn
       icon: '🟡'
     },
     approved: {
-      label: 'Correction approuvee',
+      label: 'Correction approuvée',
       className: 'bg-green-100 text-green-800 border-green-300',
       icon: '🟢'
     },
     rejected: {
-      label: 'Correction refusee',
+      label: 'Correction refusée',
       className: 'bg-red-100 text-red-800 border-red-300',
       icon: '🔴'
     }
@@ -233,6 +239,33 @@ function CorrectionStatusBadge({ correction }: { correction: CorrectionRequestIn
   );
 }
 
+// Badge de statut du jour
+function DayStatusBadge({ status }: { status: string }) {
+  const statusConfig: Record<string, { label: string; className: string }> = {
+    present: { label: 'Présent', className: 'bg-green-100 text-green-800' },
+    late: { label: 'En retard', className: 'bg-orange-100 text-orange-800' },
+    early_leave: { label: 'Départ anticipé', className: 'bg-yellow-100 text-yellow-800' },
+    partial: { label: 'Journée partielle', className: 'bg-yellow-100 text-yellow-800' },
+    absent: { label: 'Absent', className: 'bg-red-100 text-red-800' },
+    pending: { label: 'En cours', className: 'bg-blue-100 text-blue-800' },
+    holiday: { label: 'Jour férié', className: 'bg-purple-100 text-purple-800' },
+    leave: { label: 'Congé', className: 'bg-indigo-100 text-indigo-800' },
+    weekend: { label: 'Weekend', className: 'bg-gray-100 text-gray-600' },
+    recovery_off: { label: 'Récupération', className: 'bg-teal-100 text-teal-800' },
+    mission: { label: 'Mission', className: 'bg-cyan-100 text-cyan-800' },
+    training: { label: 'Formation', className: 'bg-violet-100 text-violet-800' },
+    sick: { label: 'Maladie', className: 'bg-pink-100 text-pink-800' }
+  };
+
+  const config = statusConfig[status] || { label: status, className: 'bg-gray-100 text-gray-600' };
+
+  return (
+    <span className={`text-xs px-2 py-1 rounded-full font-medium ${config.className}`}>
+      {config.label}
+    </span>
+  );
+}
+
 function Clocking() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -240,56 +273,63 @@ function Clocking() {
   const [selectedDayForCorrection, setSelectedDayForCorrection] = useState<DayRecord | null>(null);
   const queryClient = useQueryClient();
 
-  // Get today's status
+  // Get today's status from new unified API
   const { data: todayData, isLoading: todayLoading } = useQuery({
-    queryKey: ['clocking-today'],
+    queryKey: ['attendance-today'],
     queryFn: async () => {
-      const response = await apiClient.get('/hr/clocking/my-today');
-      return (response as any).data as { success: boolean; requires_clocking: boolean; employee: any; today: TodayStatus };
+      const response = await apiClient.get('/hr/attendance/my-today');
+      return (response as any).data as {
+        success: boolean;
+        requires_clocking: boolean;
+        employee: any;
+        today: TodayStatus;
+        schedule: any;
+      };
     },
     refetchInterval: 30000 // Refresh every 30 seconds
   });
 
-  // Get full history
+  // Get full history from new unified API
   const { data: historyData, isLoading: historyLoading } = useQuery({
-    queryKey: ['clocking-history', selectedMonth, selectedYear],
+    queryKey: ['attendance-history', selectedMonth, selectedYear],
     queryFn: async () => {
       const startDate = new Date(selectedYear, selectedMonth, 1).toISOString().split('T')[0];
       const endDate = new Date(selectedYear, selectedMonth + 1, 0).toISOString().split('T')[0];
 
-      const response = await apiClient.get(`/hr/clocking/my-records?start_date=${startDate}&end_date=${endDate}&limit=100`);
+      const response = await apiClient.get(`/hr/attendance/my-records?start_date=${startDate}&end_date=${endDate}&limit=100`);
       return (response as any).data as { success: boolean; employee: any; records: DayRecord[] };
     }
   });
 
-  // Check-in mutation
-  const checkInMutation = useMutation({
+  // Clock-in mutation (new endpoint)
+  const clockInMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiClient.post('/hr/clocking/check-in');
+      const response = await apiClient.post('/hr/attendance/clock-in');
       return (response as any).data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clocking-today'] });
-      queryClient.invalidateQueries({ queryKey: ['clocking-history'] });
-      alert('✅ Entrée enregistrée avec succès !');
+      queryClient.invalidateQueries({ queryKey: ['attendance-today'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-history'] });
+      alert('Entrée enregistrée avec succès !');
     },
     onError: (error: any) => {
       alert(error.response?.data?.error || 'Erreur lors de l\'enregistrement de l\'entrée');
     }
   });
 
-  // Check-out mutation
-  const checkOutMutation = useMutation({
+  // Clock-out mutation (new endpoint)
+  const clockOutMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiClient.post('/hr/clocking/check-out');
+      const response = await apiClient.post('/hr/attendance/clock-out');
       return (response as any).data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['clocking-today'] });
-      queryClient.invalidateQueries({ queryKey: ['clocking-history'] });
-      const hours = Math.floor((data.worked_minutes_today || 0) / 60);
-      const minutes = (data.worked_minutes_today || 0) % 60;
-      alert(`✅ Sortie enregistrée avec succès !\n\nTemps travaillé aujourd'hui : ${hours}h ${minutes}min`);
+      queryClient.invalidateQueries({ queryKey: ['attendance-today'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-history'] });
+      const minutes = data.record?.net_worked_minutes || 0;
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      alert(`Sortie enregistrée avec succès !\n\nTemps travaillé aujourd'hui : ${hours}h ${mins}min`);
     },
     onError: (error: any) => {
       alert(error.response?.data?.error || 'Erreur lors de l\'enregistrement de la sortie');
@@ -303,10 +343,10 @@ function Clocking() {
       return (response as any).data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clocking-history'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-history'] });
       setCorrectionModalOpen(false);
       setSelectedDayForCorrection(null);
-      alert('Demande de correction soumise avec succes !');
+      alert('Demande de correction soumise avec succès !');
     },
     onError: (error: any) => {
       alert(error.response?.data?.error || 'Erreur lors de la soumission de la demande');
@@ -318,8 +358,9 @@ function Clocking() {
     setCorrectionModalOpen(true);
   };
 
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const formatTime = (timestamp: string | null) => {
+    if (!timestamp) return '--:--';
+    return new Date(timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   };
 
   const formatDate = (dateString: string) => {
@@ -332,7 +373,7 @@ function Clocking() {
   };
 
   const formatWorkedTime = (minutes: number | null) => {
-    if (minutes === null) return '-- h --';
+    if (minutes === null || minutes === undefined) return '-- h --';
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return `${hours}h ${mins.toString().padStart(2, '0')}min`;
@@ -372,7 +413,33 @@ function Clocking() {
   }
 
   const today = todayData.today;
+  const schedule = todayData.schedule;
   const currentTime = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  // Determine current status display
+  const getStatusDisplay = () => {
+    if (today.clock_in_at && !today.clock_out_at) {
+      return {
+        icon: <CheckCircle className="h-5 w-5" />,
+        text: `Présent depuis ${formatTime(today.clock_in_at)}`,
+        className: 'bg-green-100 text-green-700'
+      };
+    }
+    if (today.clock_in_at && today.clock_out_at) {
+      return {
+        icon: <LogOut className="h-5 w-5" />,
+        text: `Sorti à ${formatTime(today.clock_out_at)}`,
+        className: 'bg-gray-100 text-gray-700'
+      };
+    }
+    return {
+      icon: <AlertCircle className="h-5 w-5" />,
+      text: 'Non pointé aujourd\'hui',
+      className: 'bg-yellow-100 text-yellow-700'
+    };
+  };
+
+  const statusDisplay = getStatusDisplay();
 
   return (
     <AppLayout>
@@ -393,49 +460,52 @@ function Clocking() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
-                {formatDate(today.date)}
+                {formatDate(today.work_date)}
               </h2>
               <p className="text-lg text-gray-600 mt-1">
                 Heure actuelle : {currentTime}
               </p>
+              {schedule && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Horaire prévu : {schedule.scheduled_start || '--:--'} - {schedule.scheduled_end || '--:--'}
+                </p>
+              )}
             </div>
             <div className="text-right">
-              {today.last_action ? (
-                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
-                  today.last_action.status === 'check_in'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {today.last_action.status === 'check_in' ? (
-                    <>
-                      <CheckCircle className="h-5 w-5" />
-                      <span className="font-semibold">Présent depuis {formatTime(today.last_action.clock_time)}</span>
-                    </>
-                  ) : (
-                    <>
-                      <LogOut className="h-5 w-5" />
-                      <span className="font-semibold">Sorti à {formatTime(today.last_action.clock_time)}</span>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-100 text-yellow-700">
-                  <AlertCircle className="h-5 w-5" />
-                  <span className="font-semibold">Non pointé aujourd'hui</span>
-                </div>
-              )}
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${statusDisplay.className}`}>
+                {statusDisplay.icon}
+                <span className="font-semibold">{statusDisplay.text}</span>
+              </div>
             </div>
           </div>
 
-          {/* Worked Time */}
-          {today.is_complete && today.worked_minutes !== null && (
+          {/* Worked Time & Details */}
+          {today.net_worked_minutes !== null && today.net_worked_minutes > 0 && (
             <div className="bg-white/60 backdrop-blur rounded-lg p-4 mb-6">
-              <div className="flex items-center justify-center gap-3">
-                <TrendingUp className="h-6 w-6 text-blue-600" />
-                <span className="text-gray-700">Temps travaillé aujourd'hui :</span>
-                <span className="text-2xl font-bold text-blue-600">
-                  {formatWorkedTime(today.worked_minutes)}
-                </span>
+              <div className="flex items-center justify-center gap-6 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                  <span className="text-gray-700">Temps travaillé :</span>
+                  <span className="text-xl font-bold text-blue-600">
+                    {formatWorkedTime(today.net_worked_minutes)}
+                  </span>
+                </div>
+                {today.scheduled_break_minutes > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Coffee className="h-4 w-4" />
+                    <span>Pause déduite : {today.scheduled_break_minutes} min</span>
+                  </div>
+                )}
+                {today.late_minutes > 0 && (
+                  <div className="text-sm text-orange-600 font-medium">
+                    Retard : {today.late_minutes} min
+                  </div>
+                )}
+                {today.overtime_minutes > 0 && (
+                  <div className="text-sm text-green-600 font-medium">
+                    Heures sup : {today.overtime_minutes} min
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -443,57 +513,58 @@ function Clocking() {
           {/* Action Buttons */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
-              onClick={() => checkInMutation.mutate()}
-              disabled={!today.can_check_in || checkInMutation.isPending}
+              onClick={() => clockInMutation.mutate()}
+              disabled={!today.can_clock_in || clockInMutation.isPending}
               className={`py-6 px-8 rounded-xl font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-3 ${
-                today.can_check_in && !checkInMutation.isPending
+                today.can_clock_in && !clockInMutation.isPending
                   ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
               <LogIn className="h-6 w-6" />
-              {checkInMutation.isPending ? 'Enregistrement...' : 'POINTER ENTRÉE'}
+              {clockInMutation.isPending ? 'Enregistrement...' : 'POINTER ENTRÉE'}
             </button>
 
             <button
-              onClick={() => checkOutMutation.mutate()}
-              disabled={!today.can_check_out || checkOutMutation.isPending}
+              onClick={() => clockOutMutation.mutate()}
+              disabled={!today.can_clock_out || clockOutMutation.isPending}
               className={`py-6 px-8 rounded-xl font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center gap-3 ${
-                today.can_check_out && !checkOutMutation.isPending
+                today.can_clock_out && !clockOutMutation.isPending
                   ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
               <LogOut className="h-6 w-6" />
-              {checkOutMutation.isPending ? 'Enregistrement...' : 'POINTER SORTIE'}
+              {clockOutMutation.isPending ? 'Enregistrement...' : 'POINTER SORTIE'}
             </button>
           </div>
 
-          {/* Today's Records */}
-          {today.records.length > 0 && (
+          {/* Today's Details */}
+          {(today.clock_in_at || today.clock_out_at) && (
             <div className="mt-6 bg-white/60 backdrop-blur rounded-lg p-4">
               <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 Pointages d'aujourd'hui
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {today.records.map((record, index) => (
-                  <div
-                    key={record.id}
-                    className={`p-3 rounded-lg text-center ${
-                      record.status === 'check_in'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    <div className="text-xs font-medium mb-1">
-                      {record.status === 'check_in' ? '➡️ Entrée' : '⬅️ Sortie'} #{index + 1}
-                    </div>
-                    <div className="text-lg font-bold">
-                      {formatTime(record.clock_time)}
-                    </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className={`p-4 rounded-lg text-center ${today.clock_in_at ? 'bg-green-100' : 'bg-gray-100'}`}>
+                  <div className="text-sm font-medium text-gray-600 mb-1">Entrée</div>
+                  <div className={`text-2xl font-bold ${today.clock_in_at ? 'text-green-700' : 'text-gray-400'}`}>
+                    {formatTime(today.clock_in_at)}
                   </div>
-                ))}
+                  {today.late_minutes > 0 && (
+                    <div className="text-xs text-orange-600 mt-1">+{today.late_minutes} min de retard</div>
+                  )}
+                </div>
+                <div className={`p-4 rounded-lg text-center ${today.clock_out_at ? 'bg-red-100' : 'bg-gray-100'}`}>
+                  <div className="text-sm font-medium text-gray-600 mb-1">Sortie</div>
+                  <div className={`text-2xl font-bold ${today.clock_out_at ? 'text-red-700' : 'text-gray-400'}`}>
+                    {formatTime(today.clock_out_at)}
+                  </div>
+                  {today.early_leave_minutes > 0 && (
+                    <div className="text-xs text-orange-600 mt-1">-{today.early_leave_minutes} min anticipé</div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -543,22 +614,25 @@ function Clocking() {
               <div className="space-y-4">
                 {historyData.records.map((day) => (
                   <div
-                    key={day.date}
+                    key={day.id || day.work_date}
                     className={`border rounded-lg p-4 ${
-                      day.has_anomaly
+                      day.is_anomaly
                         ? 'border-red-300 bg-red-50'
                         : 'border-gray-200 bg-gray-50'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <div className="font-semibold text-gray-900">
-                        {formatDate(day.date)}
+                      <div className="flex items-center gap-3">
+                        <div className="font-semibold text-gray-900">
+                          {formatDate(day.work_date)}
+                        </div>
+                        <DayStatusBadge status={day.day_status} />
                       </div>
                       <div className="flex items-center gap-3 flex-wrap">
                         {/* Afficher le badge de correction si une demande existe */}
                         {day.correction_request ? (
                           <CorrectionStatusBadge correction={day.correction_request} />
-                        ) : day.has_anomaly && (
+                        ) : day.is_anomaly && (
                           <>
                             <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">
                               Anomalie
@@ -575,29 +649,38 @@ function Clocking() {
                           </>
                         )}
                         <div className="text-sm font-bold text-blue-600">
-                          {formatWorkedTime(day.worked_minutes)}
+                          {formatWorkedTime(day.net_worked_minutes)}
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      {day.records.map((record, index) => (
-                        <div
-                          key={record.id}
-                          className={`p-2 rounded text-center text-sm ${
-                            record.status === 'check_in'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
-                          }`}
-                        >
-                          <div className="text-xs mb-1">
-                            {record.status === 'check_in' ? '➡️ Entrée' : '⬅️ Sortie'} #{index + 1}
-                          </div>
-                          <div className="font-bold">
-                            {formatTime(record.clock_time)}
-                          </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className={`p-3 rounded text-center ${day.clock_in_at ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>
+                        <div className="text-xs mb-1">Entrée</div>
+                        <div className="font-bold">{formatTime(day.clock_in_at)}</div>
+                        {day.late_minutes > 0 && (
+                          <div className="text-xs text-orange-600">+{day.late_minutes} min</div>
+                        )}
+                      </div>
+                      <div className={`p-3 rounded text-center ${day.clock_out_at ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-500'}`}>
+                        <div className="text-xs mb-1">Sortie</div>
+                        <div className="font-bold">{formatTime(day.clock_out_at)}</div>
+                        {day.early_leave_minutes > 0 && (
+                          <div className="text-xs text-orange-600">-{day.early_leave_minutes} min</div>
+                        )}
+                      </div>
+                      {day.scheduled_break_minutes > 0 && (
+                        <div className="p-3 rounded text-center bg-gray-100 text-gray-600">
+                          <div className="text-xs mb-1">Pause</div>
+                          <div className="font-bold">{day.scheduled_break_minutes} min</div>
                         </div>
-                      ))}
+                      )}
+                      {day.overtime_minutes > 0 && (
+                        <div className="p-3 rounded text-center bg-purple-100 text-purple-700">
+                          <div className="text-xs mb-1">Heures sup</div>
+                          <div className="font-bold">+{day.overtime_minutes} min</div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -619,8 +702,8 @@ function Clocking() {
             setCorrectionModalOpen(false);
             setSelectedDayForCorrection(null);
           }}
-          date={selectedDayForCorrection.date}
-          currentRecords={selectedDayForCorrection.records}
+          date={selectedDayForCorrection.work_date}
+          currentRecord={selectedDayForCorrection}
           onSubmit={(data) => correctionMutation.mutate(data)}
           isSubmitting={correctionMutation.isPending}
         />

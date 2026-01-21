@@ -134,7 +134,7 @@ import hrOvertimeRouter from './routes/hr-overtime.js';
 import hrLeavesRouter from './routes/hr-leaves.js';
 import hrDashboardRouter from './routes/hr-dashboard.js';
 import hrSettingsRouter from './routes/hr-settings.js';
-import hrClockingRouter from './routes/hr-clocking.js';
+// REMOVED: hrClockingRouter - consolidated into hr-attendance.js (unified routes)
 import hrPublicHolidaysRouter from './routes/hr-public-holidays.js';
 import hrEmployeePortalRouter from './routes/hr-employee-portal.js';
 import hrRequestsValidationRouter from './routes/hr-requests-validation.js';
@@ -198,6 +198,7 @@ import migration121Router from './routes/migration-121-add-partial-status.js';
 import migration122Router from './routes/migration-122-hr-recovery.js';
 import migration124Router from './routes/migration-124-create-recovery-tables.js';
 import migration125Router from './routes/migration-125-update-status-constraint.js';
+import migration130Router from './routes/migration-130-attendance-refactor.js';
 import testWorkflowRouter from './routes/test-workflow.js';
 
 // Import cron jobs
@@ -290,7 +291,7 @@ app.use('/api/hr/overtime', authenticateToken, hrOvertimeRouter);
 app.use('/api/hr/leaves', authenticateToken, hrLeavesRouter);
 app.use('/api/hr/dashboard', authenticateToken, hrDashboardRouter);
 app.use('/api/hr/settings', authenticateToken, hrSettingsRouter);
-app.use('/api/hr/clocking', authenticateToken, hrClockingRouter);
+// REMOVED: /api/hr/clocking - consolidated into /api/hr/attendance (unified routes)
 app.use('/api/hr/public-holidays', authenticateToken, hrPublicHolidaysRouter);
 app.use('/api/hr/employee-portal', authenticateToken, hrEmployeePortalRouter);
 app.use('/api/hr/requests-validation', authenticateToken, hrRequestsValidationRouter);
@@ -450,6 +451,7 @@ app.use('/api/migration-121-add-partial-status', ...adminOnly, migration121Route
 app.use('/api/migration-122-hr-recovery', ...adminOnly, migration122Router);
 app.use('/api/migration-124-create-recovery-tables', ...adminOnly, migration124Router);
 app.use('/api/migration-125-update-status-constraint', ...adminOnly, migration125Router);
+app.use('/api/migration-130-attendance-refactor', ...adminOnly, migration130Router);
 app.use('/api/test-workflow', ...adminOnly, testWorkflowRouter);
 // Note: /my/correction-requests routes are in hr-employee-self.js (mounted at /api/hr/my)
 // Manager routes for correction requests are mounted separately below

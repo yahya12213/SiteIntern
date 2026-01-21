@@ -1,44 +1,112 @@
+/**
+ * HR Attendance Routes - Version Unifiée
+ *
+ * Route unique pour tout le système de pointage.
+ * Utilise la table hr_attendance_daily (1 ligne = 1 jour = 1 employé)
+ *
+ * Principes:
+ * - Horloge = NOW() PostgreSQL uniquement
+ * - Calculs = backend uniquement (via AttendanceCalculator)
+ * - Audit = complet (via AttendanceLogger)
+ */
+
 import express from 'express';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
+import { AttendanceCalculator } from '../services/attendance-calculator.js';
+import { AttendanceLogger } from '../services/attendance-logger.js';
 
 const router = express.Router();
 
-// Get attendance records with filters
-// Supporte DEUX modèles coexistants:
-// - Nouveau (clocking): clock_time TIMESTAMP avec status='check_in'/'check_out'
-// - Ancien (admin edit): attendance_date DATE avec check_in/check_out TIME
+// Initialize services
+const calculator = new AttendanceCalculator(pool);
+const logger = new AttendanceLogger(pool);
+
+// =====================================================
+// HELPERS
+// =====================================================
+
+/**
+ * Get employee by profile_id
+ */
+async function getEmployeeByProfileId(profileId) {
+  const result = await pool.query(`
+    SELECT id, first_name, last_name, requires_clocking, employee_number, profile_id
+    FROM hr_employees
+    WHERE profile_id = $1
+  `, [profileId]);
+  return result.rows[0] || null;
+}
+
+/**
+ * Get employee by id
+ */
+async function getEmployeeById(employeeId) {
+  const result = await pool.query(`
+    SELECT id, first_name, last_name, requires_clocking, employee_number, profile_id
+    FROM hr_employees
+    WHERE id = $1
+  `, [employeeId]);
+  return result.rows[0] || null;
+}
+
+/**
+ * Validate time format HH:MM
+ */
+function validateTimeFormat(timeString) {
+  if (!timeString) return true;
+  return /^([0-1][0-9]|2[0-3]):([0-5][0-9])$/.test(timeString);
+}
+
+/**
+ * Get current date in YYYY-MM-DD format (server timezone)
+ */
+function getCurrentDate() {
+  return new Date().toISOString().split('T')[0];
+}
+
+/**
+ * Get IP address from request
+ */
+function getClientIP(req) {
+  return req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress || null;
+}
+
+// =====================================================
+// LECTURE - Liste des pointages (admin/manager)
+// =====================================================
+
 router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
-  const { employee_id, start_date, end_date, status } = req.query;
+  const { employee_id, start_date, end_date, status, limit = 500, offset = 0 } = req.query;
 
   try {
-    // Requête utilisant COALESCE pour supporter les deux modèles
-    let baseQuery = `
+    let query = `
       SELECT
+        a.id,
         a.employee_id,
-        COALESCE(DATE(a.clock_time), a.attendance_date) as attendance_date,
+        a.work_date,
+        a.clock_in_at,
+        a.clock_out_at,
+        a.scheduled_start,
+        a.scheduled_end,
+        a.scheduled_break_minutes,
+        a.gross_worked_minutes,
+        a.net_worked_minutes,
+        a.late_minutes,
+        a.early_leave_minutes,
+        a.overtime_minutes,
+        a.day_status,
+        a.source,
+        a.notes,
+        a.is_anomaly,
+        a.anomaly_type,
+        a.anomaly_resolved,
+        a.is_corrected,
+        a.corrected_by,
+        a.correction_reason,
         e.first_name || ' ' || e.last_name as employee_name,
-        e.employee_number,
-        COALESCE(
-          to_char(MIN(CASE WHEN a.status = 'check_in' THEN a.clock_time END), 'HH24:MI'),
-          to_char(MIN(a.check_in), 'HH24:MI')
-        ) as check_in_time,
-        COALESCE(
-          to_char(MAX(CASE WHEN a.status = 'check_out' THEN a.clock_time END), 'HH24:MI'),
-          to_char(MAX(a.check_out), 'HH24:MI')
-        ) as check_out_time,
-        COALESCE(
-          MAX(CASE WHEN a.status NOT IN ('check_in', 'check_out') THEN a.status END),
-          'present'
-        ) as status,
-        MAX(a.worked_minutes) as worked_minutes,
-        MAX(a.late_minutes) as late_minutes,
-        MAX(a.early_leave_minutes) as early_leave_minutes,
-        MAX(a.overtime_minutes) as overtime_minutes,
-        bool_or(a.is_anomaly) as is_anomaly,
-        MAX(a.anomaly_type) as anomaly_type,
-        MAX(a.id) as id
-      FROM hr_attendance_records a
+        e.employee_number
+      FROM hr_attendance_daily a
       JOIN hr_employees e ON a.employee_id = e.id
       WHERE 1=1
     `;
@@ -46,342 +114,462 @@ router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'),
     let paramCount = 1;
 
     if (employee_id) {
-      baseQuery += ` AND a.employee_id = $${paramCount}`;
+      query += ` AND a.employee_id = $${paramCount}`;
       params.push(employee_id);
       paramCount++;
     }
 
     if (start_date) {
-      baseQuery += ` AND COALESCE(DATE(a.clock_time), a.attendance_date) >= $${paramCount}`;
+      query += ` AND a.work_date >= $${paramCount}`;
       params.push(start_date);
       paramCount++;
     }
 
     if (end_date) {
-      baseQuery += ` AND COALESCE(DATE(a.clock_time), a.attendance_date) <= $${paramCount}`;
+      query += ` AND a.work_date <= $${paramCount}`;
       params.push(end_date);
       paramCount++;
     }
 
-    // Filtre par statut sur le statut final (pas check_in/check_out)
     if (status) {
-      baseQuery += ` AND EXISTS (
-        SELECT 1 FROM hr_attendance_records ar
-        WHERE ar.employee_id = a.employee_id
-        AND COALESCE(DATE(ar.clock_time), ar.attendance_date) = COALESCE(DATE(a.clock_time), a.attendance_date)
-        AND ar.status = $${paramCount}
-      )`;
+      query += ` AND a.day_status = $${paramCount}`;
       params.push(status);
       paramCount++;
     }
 
-    baseQuery += ` GROUP BY a.employee_id, COALESCE(DATE(a.clock_time), a.attendance_date), e.first_name, e.last_name, e.employee_number`;
-    baseQuery += ` ORDER BY COALESCE(DATE(a.clock_time), a.attendance_date) DESC, e.last_name`;
+    query += ` ORDER BY a.work_date DESC, e.last_name`;
+    query += ` LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    params.push(parseInt(limit), parseInt(offset));
 
-    const result = await pool.query(baseQuery, params);
+    const result = await pool.query(query, params);
 
-    // 🔍 DEBUG: Log first result to see what's returned
-    if (result.rows.length > 0) {
-      console.log('🔍 [GET /hr/attendance] First record returned:', {
-        attendance_date: result.rows[0].attendance_date,
-        check_in_time: result.rows[0].check_in_time,
-        check_out_time: result.rows[0].check_out_time,
-        employee_name: result.rows[0].employee_name
+    // Format response with calculated fields
+    const data = result.rows.map(row => ({
+      ...row,
+      check_in_time: row.clock_in_at ? new Date(row.clock_in_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
+      check_out_time: row.clock_out_at ? new Date(row.clock_out_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
+      worked_minutes: row.net_worked_minutes,
+      attendance_date: row.work_date // Alias for backward compatibility
+    }));
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('[GET /hr/attendance] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =====================================================
+// SELF-SERVICE - Statut du jour (my-today)
+// =====================================================
+
+router.get('/my-today', authenticateToken, async (req, res) => {
+  try {
+    const employee = await getEmployeeByProfileId(req.user.id);
+
+    if (!employee) {
+      return res.json({
+        success: true,
+        requires_clocking: false,
+        message: 'Aucun employé trouvé'
       });
     }
 
-    res.json({ success: true, data: result.rows });
+    if (!employee.requires_clocking) {
+      return res.json({
+        success: true,
+        requires_clocking: false,
+        message: 'Pointage non requis'
+      });
+    }
+
+    const today = getCurrentDate();
+
+    // Get today's record
+    const result = await pool.query(`
+      SELECT *
+      FROM hr_attendance_daily
+      WHERE employee_id = $1 AND work_date = $2
+    `, [employee.id, today]);
+
+    const record = result.rows[0] || null;
+
+    // Get day info (schedule, holidays, etc.)
+    const dayInfo = await calculator.getDayInfo(employee.id, today);
+
+    const hasCheckIn = record?.clock_in_at !== null;
+    const hasCheckOut = record?.clock_out_at !== null;
+
+    res.json({
+      success: true,
+      requires_clocking: true,
+      employee: {
+        id: employee.id,
+        name: `${employee.first_name} ${employee.last_name}`,
+        employee_number: employee.employee_number
+      },
+      today: {
+        date: today,
+        record,
+        day_info: dayInfo,
+        can_check_in: !hasCheckIn,
+        can_check_out: hasCheckIn && !hasCheckOut,
+        is_complete: hasCheckIn && hasCheckOut,
+        worked_minutes: record?.net_worked_minutes || 0,
+        day_status: record?.day_status || 'pending'
+      }
+    });
+
   } catch (error) {
-    console.error('Error fetching attendance:', error);
+    console.error('[GET /hr/attendance/my-today] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Record attendance (check-in/check-out)
-router.post('/record', authenticateToken, requirePermission('hr.attendance.create'), async (req, res) => {
-  try {
-    const {
-      employee_id,
-      attendance_date,
-      check_in_time,
-      check_out_time,
-      break_minutes,
-      status,
-      notes,
-      source
-    } = req.body;
+// =====================================================
+// SELF-SERVICE - Historique (my-records)
+// =====================================================
 
-    // Calculate worked hours if both times provided
-    let worked_minutes = null;
-    if (check_in_time && check_out_time) {
-      const [inH, inM] = check_in_time.split(':').map(Number);
-      const [outH, outM] = check_out_time.split(':').map(Number);
-      worked_minutes = (outH * 60 + outM) - (inH * 60 + inM) - (break_minutes || 0);
+router.get('/my-records', authenticateToken, async (req, res) => {
+  try {
+    const { start_date, end_date, limit = 100, offset = 0 } = req.query;
+
+    const employee = await getEmployeeByProfileId(req.user.id);
+
+    if (!employee) {
+      return res.status(404).json({ success: false, error: 'Employé non trouvé' });
     }
 
+    let query = `
+      SELECT
+        a.*,
+        (
+          SELECT json_build_object(
+            'id', cr.id,
+            'status', cr.status,
+            'requested_check_in', cr.requested_check_in,
+            'requested_check_out', cr.requested_check_out,
+            'reason', cr.reason
+          )
+          FROM hr_attendance_correction_requests cr
+          WHERE cr.employee_id = a.employee_id AND cr.request_date = a.work_date
+          ORDER BY cr.created_at DESC
+          LIMIT 1
+        ) as correction_request
+      FROM hr_attendance_daily a
+      WHERE a.employee_id = $1
+    `;
+    const params = [employee.id];
+    let paramCount = 2;
+
+    if (start_date) {
+      query += ` AND a.work_date >= $${paramCount}`;
+      params.push(start_date);
+      paramCount++;
+    }
+
+    if (end_date) {
+      query += ` AND a.work_date <= $${paramCount}`;
+      params.push(end_date);
+      paramCount++;
+    }
+
+    query += ` ORDER BY a.work_date DESC`;
+    query += ` LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    params.push(parseInt(limit), parseInt(offset));
+
+    const result = await pool.query(query, params);
+
+    // Format records for frontend
+    const records = result.rows.map(row => ({
+      date: row.work_date,
+      clock_in_at: row.clock_in_at,
+      clock_out_at: row.clock_out_at,
+      check_in_time: row.clock_in_at ? new Date(row.clock_in_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
+      check_out_time: row.clock_out_at ? new Date(row.clock_out_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
+      worked_minutes: row.net_worked_minutes,
+      late_minutes: row.late_minutes,
+      early_leave_minutes: row.early_leave_minutes,
+      day_status: row.day_status,
+      is_complete: row.clock_in_at && row.clock_out_at,
+      has_anomaly: row.is_anomaly && !row.anomaly_resolved,
+      correction_request: row.correction_request
+    }));
+
+    res.json({
+      success: true,
+      employee: {
+        id: employee.id,
+        name: `${employee.first_name} ${employee.last_name}`
+      },
+      records
+    });
+
+  } catch (error) {
+    console.error('[GET /hr/attendance/my-records] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =====================================================
+// SELF-SERVICE - Pointer entrée (clock-in)
+// =====================================================
+
+router.post('/clock-in', authenticateToken, async (req, res) => {
+  try {
+    const employee = await getEmployeeByProfileId(req.user.id);
+
+    if (!employee) {
+      return res.status(404).json({ success: false, error: 'Aucun employé trouvé' });
+    }
+
+    if (!employee.requires_clocking) {
+      return res.status(403).json({ success: false, error: 'Pointage non autorisé' });
+    }
+
+    const today = getCurrentDate();
+    const now = new Date();
+
+    // Check if already has record for today
+    const existing = await pool.query(`
+      SELECT id, clock_in_at FROM hr_attendance_daily
+      WHERE employee_id = $1 AND work_date = $2
+    `, [employee.id, today]);
+
+    if (existing.rows.length > 0 && existing.rows[0].clock_in_at) {
+      return res.status(400).json({
+        success: false,
+        error: 'Entrée déjà pointée aujourd\'hui',
+        existing_clock_in: existing.rows[0].clock_in_at
+      });
+    }
+
+    // Calculate day status
+    const calcResult = await calculator.calculateDayStatus(employee.id, today, now, null);
+
+    // Check for special days (holiday, leave, etc.)
+    if (['holiday', 'leave', 'recovery_off', 'sick', 'mission', 'training'].includes(calcResult.day_status)) {
+      // Create or update record with special status
+      const result = await pool.query(`
+        INSERT INTO hr_attendance_daily (
+          employee_id, work_date, clock_in_at,
+          scheduled_start, scheduled_end, scheduled_break_minutes,
+          day_status, source, notes, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'self_service', $8, $9)
+        ON CONFLICT (employee_id, work_date) DO UPDATE SET
+          clock_in_at = EXCLUDED.clock_in_at,
+          day_status = EXCLUDED.day_status,
+          notes = EXCLUDED.notes,
+          updated_at = NOW()
+        RETURNING *
+      `, [
+        employee.id, today, now,
+        calcResult.scheduled_start, calcResult.scheduled_end, calcResult.scheduled_break_minutes,
+        calcResult.day_status, calcResult.notes, req.user.id
+      ]);
+
+      await logger.logClockIn(result.rows[0].id, employee.id, today, result.rows[0], req.user.id, getClientIP(req));
+
+      return res.json({
+        success: true,
+        message: calcResult.notes || `Journée: ${calcResult.day_status}`,
+        record: result.rows[0],
+        special_day: calcResult.special_day
+      });
+    }
+
+    // Normal check-in
     const result = await pool.query(`
-      INSERT INTO hr_attendance_records (
-        employee_id, attendance_date, check_in_time, check_out_time,
-        break_minutes, worked_minutes, status, notes, source
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      ON CONFLICT (employee_id, attendance_date)
-      DO UPDATE SET
-        check_in_time = COALESCE(EXCLUDED.check_in_time, hr_attendance_records.check_in_time),
-        check_out_time = COALESCE(EXCLUDED.check_out_time, hr_attendance_records.check_out_time),
-        break_minutes = COALESCE(EXCLUDED.break_minutes, hr_attendance_records.break_minutes),
-        worked_minutes = COALESCE(EXCLUDED.worked_minutes, hr_attendance_records.worked_minutes),
-        status = COALESCE(EXCLUDED.status, hr_attendance_records.status),
-        notes = COALESCE(EXCLUDED.notes, hr_attendance_records.notes),
+      INSERT INTO hr_attendance_daily (
+        employee_id, work_date, clock_in_at,
+        scheduled_start, scheduled_end, scheduled_break_minutes,
+        late_minutes, day_status, source, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'self_service', $9)
+      ON CONFLICT (employee_id, work_date) DO UPDATE SET
+        clock_in_at = EXCLUDED.clock_in_at,
+        late_minutes = EXCLUDED.late_minutes,
+        day_status = EXCLUDED.day_status,
         updated_at = NOW()
       RETURNING *
     `, [
-      employee_id, attendance_date, check_in_time, check_out_time,
-      break_minutes || 0, worked_minutes, status || 'present',
-      notes, source || 'manual'
+      employee.id, today, now,
+      calcResult.scheduled_start, calcResult.scheduled_end, calcResult.scheduled_break_minutes,
+      calcResult.late_minutes, calcResult.day_status, req.user.id
     ]);
 
-    res.status(201).json({ success: true, data: result.rows[0] });
+    await logger.logClockIn(result.rows[0].id, employee.id, today, result.rows[0], req.user.id, getClientIP(req));
+
+    res.json({
+      success: true,
+      message: calcResult.late_minutes > 0
+        ? `Entrée enregistrée (${calcResult.late_minutes} min de retard)`
+        : 'Entrée enregistrée avec succès',
+      record: result.rows[0],
+      late_minutes: calcResult.late_minutes,
+      scheduled_start: calcResult.scheduled_start
+    });
+
   } catch (error) {
-    console.error('Error recording attendance:', error);
+    console.error('[POST /hr/attendance/clock-in] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Correct attendance record
-router.put('/:id/correct', authenticateToken, requirePermission('hr.attendance.edit'), async (req, res) => {
+// =====================================================
+// SELF-SERVICE - Pointer sortie (clock-out)
+// =====================================================
+
+router.post('/clock-out', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    const { check_in_time, check_out_time, correction_reason } = req.body;
+    const employee = await getEmployeeByProfileId(req.user.id);
 
-    // Save original values first
-    const original = await pool.query(
-      'SELECT check_in_time, check_out_time FROM hr_attendance_records WHERE id = $1',
-      [id]
-    );
-
-    if (original.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Record not found' });
+    if (!employee) {
+      return res.status(404).json({ success: false, error: 'Aucun employé trouvé' });
     }
 
-    // Calculate new worked minutes
-    let worked_minutes = null;
-    if (check_in_time && check_out_time) {
-      const [inH, inM] = check_in_time.split(':').map(Number);
-      const [outH, outM] = check_out_time.split(':').map(Number);
-      worked_minutes = (outH * 60 + outM) - (inH * 60 + inM);
+    if (!employee.requires_clocking) {
+      return res.status(403).json({ success: false, error: 'Pointage non autorisé' });
     }
 
+    const today = getCurrentDate();
+    const now = new Date();
+
+    // Get today's record
+    const existing = await pool.query(`
+      SELECT * FROM hr_attendance_daily
+      WHERE employee_id = $1 AND work_date = $2
+    `, [employee.id, today]);
+
+    if (existing.rows.length === 0 || !existing.rows[0].clock_in_at) {
+      return res.status(400).json({ success: false, error: 'Vous devez d\'abord pointer l\'entrée' });
+    }
+
+    const record = existing.rows[0];
+
+    if (record.clock_out_at) {
+      return res.status(400).json({
+        success: false,
+        error: 'Sortie déjà pointée aujourd\'hui',
+        existing_clock_out: record.clock_out_at
+      });
+    }
+
+    // Calculate with clock-out
+    const calcResult = await calculator.calculateDayStatus(employee.id, today, record.clock_in_at, now);
+
+    // Update record
     const result = await pool.query(`
-      UPDATE hr_attendance_records
-      SET
-        original_check_in = COALESCE(original_check_in, $2),
-        original_check_out = COALESCE(original_check_out, $3),
-        check_in_time = $4,
-        check_out_time = $5,
-        worked_minutes = $6,
-        corrected_by = $7,
-        correction_reason = $8,
-        corrected_at = NOW(),
-        is_manual_entry = true,
+      UPDATE hr_attendance_daily SET
+        clock_out_at = $2,
+        gross_worked_minutes = $3,
+        net_worked_minutes = $4,
+        early_leave_minutes = $5,
+        overtime_minutes = $6,
+        day_status = $7,
         updated_at = NOW()
       WHERE id = $1
       RETURNING *
     `, [
-      id,
-      original.rows[0].check_in_time,
-      original.rows[0].check_out_time,
-      check_in_time,
-      check_out_time,
-      worked_minutes,
-      req.user.id,
-      correction_reason
+      record.id, now,
+      calcResult.gross_worked_minutes,
+      calcResult.net_worked_minutes,
+      calcResult.early_leave_minutes,
+      calcResult.overtime_minutes,
+      calcResult.day_status
     ]);
 
-    res.json({ success: true, data: result.rows[0] });
+    await logger.logClockOut(record.id, employee.id, today, record, result.rows[0], req.user.id, getClientIP(req));
+
+    const hours = Math.floor((calcResult.net_worked_minutes || 0) / 60);
+    const minutes = (calcResult.net_worked_minutes || 0) % 60;
+
+    res.json({
+      success: true,
+      message: 'Sortie enregistrée avec succès',
+      record: result.rows[0],
+      summary: {
+        worked_hours: hours,
+        worked_minutes: minutes,
+        formatted: `${hours}h ${minutes}min`,
+        late_minutes: record.late_minutes,
+        early_leave_minutes: calcResult.early_leave_minutes,
+        overtime_minutes: calcResult.overtime_minutes,
+        day_status: calcResult.day_status
+      }
+    });
+
   } catch (error) {
-    console.error('Error correcting attendance:', error);
+    console.error('[POST /hr/attendance/clock-out] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// === HELPER FUNCTIONS ===
+// =====================================================
+// LECTURE - Pointage par employé et date
+// =====================================================
 
-/**
- * Validate time format (HH:MM)
- */
-function validateTimeFormat(timeString) {
-  if (!timeString) return true; // Optional field
-  const timeRegex = /^([0-1][0-9]|2[0-3]):([0-5][0-9])$/;
-  return timeRegex.test(timeString);
-}
-
-/**
- * Calculate worked minutes between check-in and check-out times
- */
-function calculateWorkedMinutes(checkIn, checkOut, breakMinutes = 0) {
-  if (!checkIn || !checkOut) return null;
-
-  const [inH, inM] = checkIn.split(':').map(Number);
-  const [outH, outM] = checkOut.split(':').map(Number);
-  const totalMinutes = (outH * 60 + outM) - (inH * 60 + inM);
-
-  return Math.max(0, totalMinutes - breakMinutes);
-}
-
-/**
- * Cancel pending correction requests for an employee on a specific date
- */
-async function cancelPendingCorrectionRequest(employeeId, date, adminUserId) {
-  try {
-    const result = await pool.query(`
-      UPDATE hr_attendance_correction_requests
-      SET
-        status = 'cancelled',
-        admin_cancelled_at = NOW(),
-        admin_cancelled_by = $3,
-        admin_cancellation_reason = 'Remplacée par correction admin directe',
-        updated_at = NOW()
-      WHERE employee_id = $1
-        AND request_date = $2
-        AND status IN ('pending', 'approved_n1', 'approved_n2')
-      RETURNING id
-    `, [employeeId, date, adminUserId]);
-
-    return result.rows.length > 0 ? result.rows : null;
-  } catch (error) {
-    console.error('Error cancelling correction request:', error);
-    return null;
-  }
-}
-
-/**
- * Get employee's work schedule break duration for a specific date
- */
-async function getEmployeeBreakDuration(employeeId, date) {
-  try {
-    const result = await pool.query(`
-      SELECT ws.break_duration_minutes
-      FROM hr_employee_schedules es
-      JOIN hr_work_schedules ws ON es.schedule_id = ws.id
-      WHERE es.employee_id = $1
-        AND es.start_date <= $2
-        AND (es.end_date IS NULL OR es.end_date >= $2)
-      ORDER BY es.start_date DESC
-      LIMIT 1
-    `, [employeeId, date]);
-
-    if (result.rows.length > 0) {
-      return result.rows[0].break_duration_minutes || 0;
-    }
-
-    // Fallback: get default schedule
-    const defaultResult = await pool.query(`
-      SELECT break_duration_minutes
-      FROM hr_work_schedules
-      WHERE is_default = true AND is_active = true
-      LIMIT 1
-    `);
-
-    return defaultResult.rows[0]?.break_duration_minutes || 0;
-  } catch (error) {
-    console.error('Error getting employee break duration:', error);
-    return 0; // Fallback to 0 if error
-  }
-}
-
-// === ADMIN ATTENDANCE MANAGEMENT ===
-
-// Get attendance by employee and date
 router.get('/by-date', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
   try {
     const { employee_id, date } = req.query;
 
-    // Validation
     if (!employee_id || !date) {
-      return res.status(400).json({
-        success: false,
-        error: 'employee_id et date sont requis'
-      });
+      return res.status(400).json({ success: false, error: 'employee_id et date sont requis' });
     }
 
     // Get employee info
-    const employeeResult = await pool.query(`
-      SELECT
-        id,
-        first_name || ' ' || last_name as name,
-        employee_number
-      FROM hr_employees
-      WHERE id = $1
-    `, [employee_id]);
-
-    if (employeeResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Employé non trouvé'
-      });
+    const employee = await getEmployeeById(employee_id);
+    if (!employee) {
+      return res.status(404).json({ success: false, error: 'Employé non trouvé' });
     }
 
-    const employee = employeeResult.rows[0];
+    // Get day info
+    const dayInfo = await calculator.getDayInfo(employee_id, date);
 
-    // Get employee's break duration for this date
-    const break_duration_minutes = await getEmployeeBreakDuration(employee_id, date);
-
-    // Get attendance records for this date
-    const recordsResult = await pool.query(`
-      SELECT *
-      FROM hr_attendance_records
-      WHERE employee_id = $1 AND attendance_date = $2
-      ORDER BY created_at ASC
+    // Get attendance record
+    const result = await pool.query(`
+      SELECT * FROM hr_attendance_daily
+      WHERE employee_id = $1 AND work_date = $2
     `, [employee_id, date]);
 
-    // Get pending correction requests
+    // Get pending correction request
     const correctionResult = await pool.query(`
-      SELECT *
-      FROM hr_attendance_correction_requests
-      WHERE employee_id = $1
-        AND request_date = $2
+      SELECT * FROM hr_attendance_correction_requests
+      WHERE employee_id = $1 AND request_date = $2
         AND status IN ('pending', 'approved_n1', 'approved_n2')
-      LIMIT 1
-    `, [employee_id, date]);
-
-    // Check for public holidays
-    const holidayResult = await pool.query(`
-      SELECT name
-      FROM hr_public_holidays
-      WHERE holiday_date = $1
-      LIMIT 1
-    `, [date]);
-
-    // Check for recovery declarations
-    const recoveryResult = await pool.query(`
-      SELECT er.recovery_declaration_id, rd.recovery_period_id, rp.name as recovery_name
-      FROM hr_employee_recoveries er
-      JOIN hr_recovery_declarations rd ON er.recovery_declaration_id = rd.id
-      JOIN hr_recovery_periods rp ON rd.recovery_period_id = rp.id
-      WHERE er.employee_id = $1 AND er.recovery_date = $2
+      ORDER BY created_at DESC
       LIMIT 1
     `, [employee_id, date]);
 
     res.json({
       success: true,
       data: {
-        employee,
+        employee: {
+          id: employee.id,
+          name: `${employee.first_name} ${employee.last_name}`,
+          employee_number: employee.employee_number
+        },
         date,
-        break_duration_minutes,
-        has_records: recordsResult.rows.length > 0,
-        records: recordsResult.rows,
+        day_info: dayInfo,
+        has_record: result.rows.length > 0,
+        record: result.rows[0] || null,
         pending_correction_request: correctionResult.rows[0] || null,
-        public_holiday: holidayResult.rows[0] || null,
-        recovery_day: recoveryResult.rows[0] || null
+        // Backward compatibility
+        break_duration_minutes: dayInfo.schedule?.break_duration_minutes || 0,
+        public_holiday: dayInfo.holiday,
+        recovery_day: dayInfo.recovery
       }
     });
+
   } catch (error) {
-    console.error('Error fetching attendance by date:', error);
+    console.error('[GET /hr/attendance/by-date] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Admin edit/declare attendance
+// =====================================================
+// ADMIN - Édition/Déclaration de pointage
+// =====================================================
+
 router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.edit'), async (req, res) => {
   try {
     const {
@@ -398,165 +586,128 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
 
     // Validation
     if (!employee_id || !date) {
-      return res.status(400).json({
-        success: false,
-        error: 'employee_id et date sont requis'
-      });
+      return res.status(400).json({ success: false, error: 'employee_id et date sont requis' });
     }
 
     if (!action || !['edit', 'declare'].includes(action)) {
-      return res.status(400).json({
-        success: false,
-        error: 'action doit être "edit" ou "declare"'
-      });
+      return res.status(400).json({ success: false, error: 'action doit être "edit" ou "declare"' });
     }
 
-    // Validate time formats
     if (check_in_time && !validateTimeFormat(check_in_time)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Format check_in_time invalide (HH:MM requis)'
-      });
+      return res.status(400).json({ success: false, error: 'Format check_in_time invalide (HH:MM)' });
     }
 
     if (check_out_time && !validateTimeFormat(check_out_time)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Format check_out_time invalide (HH:MM requis)'
-      });
+      return res.status(400).json({ success: false, error: 'Format check_out_time invalide (HH:MM)' });
     }
 
-    // Validate check_out > check_in
-    if (check_in_time && check_out_time) {
-      const [inH, inM] = check_in_time.split(':').map(Number);
-      const [outH, outM] = check_out_time.split(':').map(Number);
-      if ((outH * 60 + outM) <= (inH * 60 + inM)) {
-        return res.status(400).json({
-          success: false,
-          error: 'L\'heure de sortie doit être après l\'heure d\'entrée'
-        });
-      }
+    // Check employee exists
+    const employee = await getEmployeeById(employee_id);
+    if (!employee) {
+      return res.status(404).json({ success: false, error: 'Employé non trouvé' });
     }
 
-    // Verify employee exists
-    const employeeCheck = await pool.query(
-      'SELECT id FROM hr_employees WHERE id = $1',
-      [employee_id]
-    );
+    // Build timestamps
+    const clockInAt = check_in_time ? new Date(`${date}T${check_in_time}:00`) : null;
+    const clockOutAt = check_out_time ? new Date(`${date}T${check_out_time}:00`) : null;
 
-    if (employeeCheck.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Employé non trouvé'
-      });
+    // Validate times
+    if (clockInAt && clockOutAt && clockOutAt <= clockInAt) {
+      return res.status(400).json({ success: false, error: 'L\'heure de sortie doit être après l\'heure d\'entrée' });
     }
 
-    // Cancel any pending correction requests
-    await cancelPendingCorrectionRequest(employee_id, date, req.user.id);
+    // Get existing record
+    const existing = await pool.query(`
+      SELECT * FROM hr_attendance_daily
+      WHERE employee_id = $1 AND work_date = $2
+    `, [employee_id, date]);
 
     if (action === 'edit') {
-      // EDIT existing record(s)
-
+      // EDIT existing record
       if (!correction_reason || correction_reason.trim().length < 10) {
-        return res.status(400).json({
-          success: false,
-          error: 'Une raison de correction (min 10 caractères) est requise'
-        });
+        return res.status(400).json({ success: false, error: 'Raison de correction requise (min 10 caractères)' });
       }
-
-      // Get existing record(s) for audit trail
-      const existing = await pool.query(`
-        SELECT * FROM hr_attendance_records
-        WHERE employee_id = $1 AND attendance_date = $2
-        ORDER BY created_at ASC
-      `, [employee_id, date]);
 
       if (existing.rows.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'Aucun pointage trouvé pour cette date'
-        });
+        return res.status(404).json({ success: false, error: 'Aucun pointage trouvé pour cette date' });
       }
 
-      // 🔍 DEBUG: Log request body values
-      console.log('🔍 [POST /admin/edit] Request body:', {
-        employee_id,
-        date,
-        action,
-        check_in_time,
-        check_out_time,
-        status,
-        notes: notes?.substring(0, 50)
-      });
+      const oldRecord = existing.rows[0];
 
-      // Store original values (from first record)
-      const originalRecord = existing.rows[0];
-      const original_check_in = originalRecord.original_check_in || originalRecord.check_in;
-      const original_check_out = originalRecord.original_check_out || originalRecord.check_out;
+      // Calculate new values
+      const calcResult = await calculator.calculateDayStatus(employee_id, date, clockInAt, clockOutAt);
 
-      console.log('🔍 [POST /admin/edit] Original record:', {
-        original_check_in: originalRecord.original_check_in,
-        check_in: originalRecord.check_in,
-        computed_original_check_in: original_check_in,
-        check_out: originalRecord.check_out,
-        computed_original_check_out: original_check_out
-      });
-
-      // Delete all existing records for clean slate
-      await pool.query(`
-        DELETE FROM hr_attendance_records
-        WHERE employee_id = $1 AND attendance_date = $2
-      `, [employee_id, date]);
-
-      // Get employee's break duration
-      const breakMinutes = await getEmployeeBreakDuration(employee_id, date);
-
-      // Calculate worked minutes with break deduction
-      const worked_minutes = calculateWorkedMinutes(check_in_time, check_out_time, breakMinutes);
-
-      // Filter reserved status values (check_in/check_out are for clocking model only)
-      // Admin edits must use 'present', 'absent', 'late', etc. - never 'check_in'/'check_out'
+      // Determine final status
       const finalStatus = (status && !['check_in', 'check_out'].includes(status))
         ? status
-        : 'present';
+        : calcResult.day_status;
 
-      console.log('🔍 [POST /admin/edit] Values to INSERT:', {
-        employee_id,
-        date,
-        check_in: check_in_time,
-        check_out: check_out_time,
-        worked_minutes,
-        status_received: status,
-        status_filtered: finalStatus,
-        original_check_in,
-        original_check_out
-      });
-
-      // Insert corrected record
+      // Update record
       const result = await pool.query(`
-        INSERT INTO hr_attendance_records (
-          employee_id, attendance_date, check_in, check_out,
-          worked_minutes, status, notes,
-          original_check_in, original_check_out,
-          is_manual_entry, corrected_by, correction_reason, corrected_at,
-          source, is_anomaly, anomaly_resolved, anomaly_resolved_by, anomaly_resolved_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10, $11, NOW(), 'manual', false, true, $10, NOW())
+        UPDATE hr_attendance_daily SET
+          clock_in_at = $2,
+          clock_out_at = $3,
+          gross_worked_minutes = $4,
+          net_worked_minutes = $5,
+          late_minutes = $6,
+          early_leave_minutes = $7,
+          day_status = $8,
+          source = 'manual',
+          notes = $9,
+          is_corrected = true,
+          corrected_by = $10,
+          correction_reason = $11,
+          corrected_at = NOW(),
+          original_clock_in = COALESCE(original_clock_in, $12),
+          original_clock_out = COALESCE(original_clock_out, $13),
+          is_anomaly = false,
+          anomaly_resolved = true,
+          anomaly_resolved_by = $10,
+          anomaly_resolved_at = NOW(),
+          updated_at = NOW()
+        WHERE id = $1
         RETURNING *
       `, [
-        employee_id, date, check_in_time, check_out_time,
-        worked_minutes, finalStatus, notes,
-        original_check_in, original_check_out,
-        req.user.id, correction_reason
+        oldRecord.id,
+        clockInAt, clockOutAt,
+        calcResult.gross_worked_minutes,
+        calcResult.net_worked_minutes,
+        calcResult.late_minutes,
+        calcResult.early_leave_minutes,
+        finalStatus,
+        notes,
+        req.user.id, correction_reason,
+        oldRecord.clock_in_at ? new Date(oldRecord.clock_in_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
+        oldRecord.clock_out_at ? new Date(oldRecord.clock_out_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null
       ]);
 
-      console.log('🔍 [POST /admin/edit] INSERT returned:', {
-        id: result.rows[0].id,
-        attendance_date: result.rows[0].attendance_date,
-        check_in: result.rows[0].check_in,
-        check_out: result.rows[0].check_out,
-        worked_minutes: result.rows[0].worked_minutes,
-        status: result.rows[0].status
-      });
+      // Log audit
+      await logger.logManualEdit(
+        oldRecord.id, employee_id, date,
+        {
+          clock_in_at: oldRecord.clock_in_at,
+          clock_out_at: oldRecord.clock_out_at,
+          day_status: oldRecord.day_status
+        },
+        {
+          clock_in_at: clockInAt,
+          clock_out_at: clockOutAt,
+          day_status: finalStatus
+        },
+        correction_reason,
+        req.user.id
+      );
+
+      // Cancel pending correction requests
+      await pool.query(`
+        UPDATE hr_attendance_correction_requests
+        SET status = 'cancelled',
+            admin_cancelled_at = NOW(),
+            admin_cancelled_by = $3,
+            admin_cancellation_reason = 'Remplacée par correction admin directe'
+        WHERE employee_id = $1 AND request_date = $2
+          AND status IN ('pending', 'approved_n1', 'approved_n2')
+      `, [employee_id, date, req.user.id]);
 
       return res.json({
         success: true,
@@ -566,57 +717,51 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
 
     } else if (action === 'declare') {
       // DECLARE new record
-
       if (!notes || notes.trim().length < 5) {
-        return res.status(400).json({
-          success: false,
-          error: 'Des notes (min 5 caractères) sont requises pour une déclaration'
-        });
+        return res.status(400).json({ success: false, error: 'Notes requises (min 5 caractères)' });
       }
-
-      // Check no records exist
-      const existing = await pool.query(`
-        SELECT id FROM hr_attendance_records
-        WHERE employee_id = $1 AND attendance_date = $2
-      `, [employee_id, date]);
 
       if (existing.rows.length > 0) {
         return res.status(409).json({
           success: false,
-          error: 'Des pointages existent déjà pour cette date. Utilisez action="edit" pour les modifier.'
+          error: 'Des pointages existent déjà. Utilisez action="edit" pour modifier.'
         });
       }
 
-      // Determine final status - filter reserved status values
-      let finalStatus = absence_status || status || 'present';
+      // Calculate values
+      const calcResult = await calculator.calculateDayStatus(employee_id, date, clockInAt, clockOutAt);
 
-      // Filter 'check_in'/'check_out' (reserved for clocking model)
+      // Determine final status
+      let finalStatus = absence_status || status || calcResult.day_status;
       if (['check_in', 'check_out'].includes(finalStatus)) {
         finalStatus = 'present';
       }
 
-      // Get employee's break duration
-      const breakMinutes = (finalStatus === 'present' && check_in_time && check_out_time)
-        ? await getEmployeeBreakDuration(employee_id, date)
-        : 0;
-
-      // Calculate worked minutes with break deduction
-      const worked_minutes = (finalStatus === 'present' && check_in_time && check_out_time)
-        ? calculateWorkedMinutes(check_in_time, check_out_time, breakMinutes)
-        : null;
-
       // Insert new record
       const result = await pool.query(`
-        INSERT INTO hr_attendance_records (
-          employee_id, attendance_date, check_in, check_out,
-          worked_minutes, status, notes,
-          is_manual_entry, source, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, true, 'manual', NOW())
+        INSERT INTO hr_attendance_daily (
+          employee_id, work_date, clock_in_at, clock_out_at,
+          scheduled_start, scheduled_end, scheduled_break_minutes,
+          gross_worked_minutes, net_worked_minutes,
+          late_minutes, early_leave_minutes,
+          day_status, source, notes, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'manual', $13, $14)
         RETURNING *
       `, [
-        employee_id, date, check_in_time, check_out_time,
-        worked_minutes, finalStatus, notes
+        employee_id, date, clockInAt, clockOutAt,
+        calcResult.scheduled_start, calcResult.scheduled_end, calcResult.scheduled_break_minutes,
+        calcResult.gross_worked_minutes, calcResult.net_worked_minutes,
+        calcResult.late_minutes, calcResult.early_leave_minutes,
+        finalStatus, notes, req.user.id
       ]);
+
+      // Log audit
+      await logger.logManualCreate(
+        result.rows[0].id, employee_id, date,
+        result.rows[0],
+        notes,
+        req.user.id
+      );
 
       return res.json({
         success: true,
@@ -626,12 +771,68 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
     }
 
   } catch (error) {
-    console.error('Error in admin/edit:', error);
+    console.error('[PUT /hr/attendance/admin/edit] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Get anomalies
+// =====================================================
+// ADMIN - Supprimer pointage
+// =====================================================
+
+router.delete('/admin/delete', authenticateToken, requirePermission('hr.attendance.edit'), async (req, res) => {
+  try {
+    const { employee_id, date } = req.query;
+
+    if (!employee_id || !date) {
+      return res.status(400).json({ success: false, error: 'employee_id et date sont requis' });
+    }
+
+    // Get existing record for audit
+    const existing = await pool.query(`
+      SELECT * FROM hr_attendance_daily
+      WHERE employee_id = $1 AND work_date = $2
+    `, [employee_id, date]);
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Aucun pointage trouvé' });
+    }
+
+    // Delete correction requests first
+    await pool.query(`
+      DELETE FROM hr_attendance_correction_requests
+      WHERE employee_id = $1 AND request_date = $2
+    `, [employee_id, date]);
+
+    // Delete attendance record
+    await pool.query(`
+      DELETE FROM hr_attendance_daily
+      WHERE employee_id = $1 AND work_date = $2
+    `, [employee_id, date]);
+
+    // Log audit
+    await logger.logDeleted(
+      existing.rows[0].id, employee_id, date,
+      existing.rows[0],
+      'Suppression admin',
+      req.user.id
+    );
+
+    res.json({
+      success: true,
+      message: 'Pointage supprimé'
+    });
+
+  } catch (error) {
+    console.error('[DELETE /hr/attendance/admin/delete] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =====================================================
+// ANOMALIES
+// =====================================================
+
 router.get('/anomalies', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
   try {
     const result = await pool.query(`
@@ -639,27 +840,26 @@ router.get('/anomalies', authenticateToken, requirePermission('hr.attendance.vie
         a.*,
         e.first_name || ' ' || e.last_name as employee_name,
         e.employee_number
-      FROM hr_attendance_records a
+      FROM hr_attendance_daily a
       JOIN hr_employees e ON a.employee_id = e.id
       WHERE a.is_anomaly = true AND a.anomaly_resolved = false
-      ORDER BY a.attendance_date DESC
+      ORDER BY a.work_date DESC
     `);
+
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Error fetching anomalies:', error);
+    console.error('[GET /hr/attendance/anomalies] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Resolve anomaly
 router.put('/anomalies/:id/resolve', authenticateToken, requirePermission('hr.attendance.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const { resolution_note } = req.body;
 
     const result = await pool.query(`
-      UPDATE hr_attendance_records
-      SET
+      UPDATE hr_attendance_daily SET
         anomaly_resolved = true,
         anomaly_resolved_by = $2,
         anomaly_resolved_at = NOW(),
@@ -670,23 +870,20 @@ router.put('/anomalies/:id/resolve', authenticateToken, requirePermission('hr.at
     `, [id, req.user.id, resolution_note]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Record not found' });
+      return res.status(404).json({ success: false, error: 'Enregistrement non trouvé' });
     }
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    console.error('Error resolving anomaly:', error);
+    console.error('[PUT /hr/attendance/anomalies/:id/resolve] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// === OVERTIME ===
+// =====================================================
+// SCHEDULES & SUMMARY
+// =====================================================
 
-// Get overtime requests
-// === OVERTIME ROUTES MOVED TO hr-overtime.js ===
-// See server/src/routes/hr-overtime.js for overtime request endpoints
-
-// Get work schedules
 router.get('/schedules', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
   try {
     const result = await pool.query(`
@@ -696,30 +893,30 @@ router.get('/schedules', authenticateToken, requirePermission('hr.attendance.vie
     `);
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Error fetching schedules:', error);
+    console.error('[GET /hr/attendance/schedules] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Monthly summary
 router.get('/summary/:year/:month', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
   try {
     const { year, month } = req.params;
+
     const result = await pool.query(`
       SELECT
         e.id,
         e.first_name || ' ' || e.last_name as employee_name,
         e.employee_number,
-        COUNT(CASE WHEN a.status = 'present' THEN 1 END) as days_present,
-        COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as days_absent,
-        COUNT(CASE WHEN a.status = 'late' THEN 1 END) as days_late,
-        COUNT(CASE WHEN a.status = 'leave' THEN 1 END) as days_leave,
-        SUM(a.worked_minutes) / 60.0 as total_hours,
+        COUNT(CASE WHEN a.day_status = 'present' THEN 1 END) as days_present,
+        COUNT(CASE WHEN a.day_status = 'absent' THEN 1 END) as days_absent,
+        COUNT(CASE WHEN a.day_status = 'late' THEN 1 END) as days_late,
+        COUNT(CASE WHEN a.day_status = 'leave' THEN 1 END) as days_leave,
+        SUM(COALESCE(a.net_worked_minutes, 0)) / 60.0 as total_hours,
         SUM(CASE WHEN a.late_minutes > 0 THEN a.late_minutes ELSE 0 END) as total_late_minutes
       FROM hr_employees e
-      LEFT JOIN hr_attendance_records a ON e.id = a.employee_id
-        AND EXTRACT(YEAR FROM a.attendance_date) = $1
-        AND EXTRACT(MONTH FROM a.attendance_date) = $2
+      LEFT JOIN hr_attendance_daily a ON e.id = a.employee_id
+        AND EXTRACT(YEAR FROM a.work_date) = $1
+        AND EXTRACT(MONTH FROM a.work_date) = $2
       WHERE e.employment_status = 'active'
       GROUP BY e.id, e.first_name, e.last_name, e.employee_number
       ORDER BY e.last_name
@@ -727,7 +924,33 @@ router.get('/summary/:year/:month', authenticateToken, requirePermission('hr.att
 
     res.json({ success: true, data: result.rows });
   } catch (error) {
-    console.error('Error fetching monthly summary:', error);
+    console.error('[GET /hr/attendance/summary] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// =====================================================
+// AUDIT LOG
+// =====================================================
+
+router.get('/audit/:id', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const auditHistory = await logger.getAuditHistory(id);
+    res.json({ success: true, data: auditHistory });
+  } catch (error) {
+    console.error('[GET /hr/attendance/audit/:id] Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/audit', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+    const recentActions = await logger.getRecentActions(parseInt(limit));
+    res.json({ success: true, data: recentActions });
+  } catch (error) {
+    console.error('[GET /hr/attendance/audit] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

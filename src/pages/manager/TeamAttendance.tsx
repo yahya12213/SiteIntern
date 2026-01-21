@@ -231,12 +231,12 @@ export default function TeamAttendance() {
   const [showAdminEditor, setShowAdminEditor] = useState(false);
   const [editRecord, setEditRecord] = useState<{ employeeId: string; date: string } | null>(null);
 
-  // Delete mutation
+  // Delete mutation - uses unified attendance API
   const deleteMutation = useMutation({
     mutationFn: async ({ employeeId, date }: { employeeId: string; date: string }) => {
       // Format date to yyyy-MM-dd (remove time part if present)
       const formattedDate = date.includes('T') ? date.split('T')[0] : date;
-      const response = await apiClient.delete(`/hr/clocking/admin/delete?employee_id=${employeeId}&date=${formattedDate}`);
+      const response = await apiClient.delete(`/hr/attendance/admin/delete?employee_id=${employeeId}&date=${formattedDate}`);
       return response;
     },
     onSuccess: () => {

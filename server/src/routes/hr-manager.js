@@ -66,15 +66,13 @@ router.get('/team',
             e.hire_date,
             e.employment_type,
             e.employment_status = 'active' as is_active,
-            -- Today's attendance
-            (SELECT clock_time FROM hr_attendance_records
-             WHERE employee_id = e.id AND status = 'check_in'
-             AND DATE(clock_time) = CURRENT_DATE
-             ORDER BY clock_time DESC LIMIT 1) as today_check_in,
-            (SELECT clock_time FROM hr_attendance_records
-             WHERE employee_id = e.id AND status = 'check_out'
-             AND DATE(clock_time) = CURRENT_DATE
-             ORDER BY clock_time DESC LIMIT 1) as today_check_out,
+            -- Today's attendance (from unified hr_attendance_daily)
+            (SELECT clock_in_at FROM hr_attendance_daily
+             WHERE employee_id = e.id AND work_date = CURRENT_DATE
+             LIMIT 1) as today_check_in,
+            (SELECT clock_out_at FROM hr_attendance_daily
+             WHERE employee_id = e.id AND work_date = CURRENT_DATE
+             LIMIT 1) as today_check_out,
             -- Leave info
             (SELECT COUNT(*) FROM hr_leave_requests
              WHERE employee_id = e.id AND status = 'approved'
@@ -119,15 +117,13 @@ router.get('/team',
           e.hire_date,
           e.employment_type,
           e.employment_status = 'active' as is_active,
-          -- Today's attendance (inclut tous les statuts possibles pour check-in)
-          (SELECT clock_time FROM hr_attendance_records
-           WHERE employee_id = e.id AND status IN ('check_in', 'late', 'weekend', 'present', 'half_day', 'early_leave', 'late_early', 'incomplete')
-           AND DATE(clock_time) = CURRENT_DATE
-           ORDER BY clock_time ASC LIMIT 1) as today_check_in,
-          (SELECT clock_time FROM hr_attendance_records
-           WHERE employee_id = e.id AND status = 'check_out'
-           AND DATE(clock_time) = CURRENT_DATE
-           ORDER BY clock_time DESC LIMIT 1) as today_check_out,
+          -- Today's attendance (from unified hr_attendance_daily)
+          (SELECT clock_in_at FROM hr_attendance_daily
+           WHERE employee_id = e.id AND work_date = CURRENT_DATE
+           LIMIT 1) as today_check_in,
+          (SELECT clock_out_at FROM hr_attendance_daily
+           WHERE employee_id = e.id AND work_date = CURRENT_DATE
+           LIMIT 1) as today_check_out,
           -- Leave info
           (SELECT COUNT(*) FROM hr_leave_requests
            WHERE employee_id = e.id AND status = 'approved'
@@ -172,115 +168,43 @@ router.get('/team-attendance',
 
       const employeeIds = teamMembers.map(t => t.id);
 
-      // Build query that returns data matching TeamAttendanceRecord interface
+      // Build query using the new unified hr_attendance_daily table
+      // All calculations are pre-done, so the query is much simpler
       let query = `
-        WITH daily_records AS (
-          SELECT
-            ar.employee_id,
-            ar.attendance_date as record_date,
-            MIN(CASE WHEN ar.status IN ('check_in', 'late', 'weekend', 'present', 'half_day', 'early_leave', 'late_early', 'incomplete') THEN ar.clock_time END) as clock_in,
-            MAX(CASE WHEN ar.status IN ('check_out', 'weekend') THEN ar.clock_time END) as clock_out,
-            SUM(COALESCE(ar.worked_minutes, 0)) as total_worked_minutes
-          FROM hr_attendance_records ar
-          WHERE ar.employee_id = ANY($1::uuid[])
+        SELECT
+          ad.id::text,
+          ad.employee_id,
+          e.first_name || ' ' || e.last_name as employee_name,
+          ad.work_date as date,
+          ad.clock_in_at as clock_in,
+          ad.clock_out_at as clock_out,
+          ROUND(COALESCE(ad.net_worked_minutes, 0) / 60.0, 2) as worked_hours,
+          ad.day_status as status,
+          COALESCE(ad.late_minutes, 0) as late_minutes,
+          COALESCE(ad.early_leave_minutes, 0) as early_leave_minutes,
+          COALESCE(ad.overtime_minutes, 0) as overtime_minutes,
+          ad.notes,
+          ad.is_anomaly
+        FROM hr_attendance_daily ad
+        JOIN hr_employees e ON e.id = ad.employee_id
+        WHERE ad.employee_id = ANY($1::uuid[])
       `;
       const params = [employeeIds];
       let paramCount = 2;
 
       if (start_date) {
-        query += ` AND ar.attendance_date >= $${paramCount}`;
+        query += ` AND ad.work_date >= $${paramCount}`;
         params.push(start_date);
         paramCount++;
       }
 
       if (end_date) {
-        query += ` AND ar.attendance_date <= $${paramCount}`;
+        query += ` AND ad.work_date <= $${paramCount}`;
         params.push(end_date);
         paramCount++;
       }
 
-      query += `
-          GROUP BY ar.employee_id, ar.attendance_date
-        ),
-        on_leave AS (
-          SELECT lr.employee_id, lr.start_date, lr.end_date, lt.name as leave_type
-          FROM hr_leave_requests lr
-          LEFT JOIN hr_leave_types lt ON lt.id = lr.leave_type_id
-          WHERE lr.status = 'approved'
-        ),
-        employee_schedules AS (
-          SELECT
-            e.id as employee_id,
-            ws.tolerance_late_minutes,
-            ws.monday_start, ws.tuesday_start, ws.wednesday_start,
-            ws.thursday_start, ws.friday_start, ws.saturday_start, ws.sunday_start
-          FROM hr_employees e
-          LEFT JOIN hr_employee_schedules hes ON hes.employee_id = e.id
-          LEFT JOIN hr_work_schedules ws ON ws.id = hes.schedule_id
-        )
-        SELECT
-          dr.employee_id || '-' || dr.record_date as id,
-          dr.employee_id,
-          e.first_name || ' ' || e.last_name as employee_name,
-          dr.record_date as date,
-          dr.clock_in,
-          dr.clock_out,
-          ROUND(dr.total_worked_minutes / 60.0, 2) as worked_hours,
-          CASE
-            WHEN EXTRACT(DOW FROM dr.record_date) IN (0, 6) THEN 'weekend'
-            WHEN ol.employee_id IS NOT NULL THEN 'leave'
-            WHEN dr.clock_in IS NULL THEN 'absent'
-            WHEN dr.clock_out IS NULL THEN 'partial'
-            WHEN es.monday_start IS NULL THEN 'present'
-            WHEN (
-              EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) >
-              (CASE EXTRACT(DOW FROM dr.record_date)
-                WHEN 1 THEN EXTRACT(HOUR FROM es.monday_start::time) * 60 + EXTRACT(MINUTE FROM es.monday_start::time)
-                WHEN 2 THEN EXTRACT(HOUR FROM es.tuesday_start::time) * 60 + EXTRACT(MINUTE FROM es.tuesday_start::time)
-                WHEN 3 THEN EXTRACT(HOUR FROM es.wednesday_start::time) * 60 + EXTRACT(MINUTE FROM es.wednesday_start::time)
-                WHEN 4 THEN EXTRACT(HOUR FROM es.thursday_start::time) * 60 + EXTRACT(MINUTE FROM es.thursday_start::time)
-                WHEN 5 THEN EXTRACT(HOUR FROM es.friday_start::time) * 60 + EXTRACT(MINUTE FROM es.friday_start::time)
-                ELSE 8 * 60
-              END) + COALESCE(es.tolerance_late_minutes, 0)
-            ) THEN 'late'
-            ELSE 'present'
-          END as status,
-          CASE
-            WHEN EXTRACT(DOW FROM dr.record_date) IN (0, 6) THEN 0
-            WHEN es.monday_start IS NULL THEN 0
-            WHEN dr.clock_in IS NOT NULL AND (
-              EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) >
-              (CASE EXTRACT(DOW FROM dr.record_date)
-                WHEN 1 THEN EXTRACT(HOUR FROM es.monday_start::time) * 60 + EXTRACT(MINUTE FROM es.monday_start::time)
-                WHEN 2 THEN EXTRACT(HOUR FROM es.tuesday_start::time) * 60 + EXTRACT(MINUTE FROM es.tuesday_start::time)
-                WHEN 3 THEN EXTRACT(HOUR FROM es.wednesday_start::time) * 60 + EXTRACT(MINUTE FROM es.wednesday_start::time)
-                WHEN 4 THEN EXTRACT(HOUR FROM es.thursday_start::time) * 60 + EXTRACT(MINUTE FROM es.thursday_start::time)
-                WHEN 5 THEN EXTRACT(HOUR FROM es.friday_start::time) * 60 + EXTRACT(MINUTE FROM es.friday_start::time)
-                ELSE 8 * 60
-              END)
-            )
-            THEN (
-              EXTRACT(HOUR FROM dr.clock_in) * 60 + EXTRACT(MINUTE FROM dr.clock_in) -
-              (CASE EXTRACT(DOW FROM dr.record_date)
-                WHEN 1 THEN EXTRACT(HOUR FROM es.monday_start::time) * 60 + EXTRACT(MINUTE FROM es.monday_start::time)
-                WHEN 2 THEN EXTRACT(HOUR FROM es.tuesday_start::time) * 60 + EXTRACT(MINUTE FROM es.tuesday_start::time)
-                WHEN 3 THEN EXTRACT(HOUR FROM es.wednesday_start::time) * 60 + EXTRACT(MINUTE FROM es.wednesday_start::time)
-                WHEN 4 THEN EXTRACT(HOUR FROM es.thursday_start::time) * 60 + EXTRACT(MINUTE FROM es.thursday_start::time)
-                WHEN 5 THEN EXTRACT(HOUR FROM es.friday_start::time) * 60 + EXTRACT(MINUTE FROM es.friday_start::time)
-                ELSE 8 * 60
-              END)
-            )::integer
-            ELSE 0
-          END as late_minutes,
-          ol.leave_type,
-          NULL as notes
-        FROM daily_records dr
-        JOIN hr_employees e ON e.id = dr.employee_id
-        LEFT JOIN employee_schedules es ON es.employee_id = dr.employee_id
-        LEFT JOIN on_leave ol ON ol.employee_id = dr.employee_id
-          AND dr.record_date BETWEEN ol.start_date AND ol.end_date
-        ORDER BY dr.record_date DESC, e.last_name, e.first_name
-      `;
+      query += ` ORDER BY ad.work_date DESC, e.last_name, e.first_name`;
 
       const result = await pool.query(query, params);
       res.json({ success: true, records: result.rows });
@@ -300,50 +224,27 @@ router.get('/team-attendance/today',
     const userId = req.user.id;
 
     try {
+      // Use the new unified hr_attendance_daily table
       const summary = await pool.query(`
         WITH team AS (
           SELECT e.id, e.first_name, e.last_name, e.employee_number, e.position
           FROM hr_employees e
           WHERE e.manager_id = (SELECT id FROM hr_employees WHERE profile_id = $1)
           AND e.employment_status = 'active'
-        ),
-        today_records AS (
-          SELECT
-            t.id,
-            t.first_name || ' ' || t.last_name as employee_name,
-            t.employee_number,
-            t.position,
-            (SELECT clock_time FROM hr_attendance_records
-             WHERE employee_id = t.id AND status IN ('check_in', 'late', 'weekend', 'present', 'half_day', 'early_leave', 'late_early', 'incomplete')
-             AND DATE(clock_time) = CURRENT_DATE
-             ORDER BY clock_time ASC LIMIT 1) as first_check_in,
-            (SELECT clock_time FROM hr_attendance_records
-             WHERE employee_id = t.id AND status = 'check_out'
-             AND DATE(clock_time) = CURRENT_DATE
-             ORDER BY clock_time DESC LIMIT 1) as last_check_out,
-            (SELECT SUM(worked_minutes) FROM hr_attendance_records
-             WHERE employee_id = t.id
-             AND DATE(clock_time) = CURRENT_DATE) as worked_minutes
-          FROM team t
-        ),
-        on_leave AS (
-          SELECT lr.employee_id
-          FROM hr_leave_requests lr
-          WHERE lr.status = 'approved'
-          AND CURRENT_DATE BETWEEN lr.start_date AND lr.end_date
         )
         SELECT
-          tr.*,
-          CASE
-            WHEN tr.id IN (SELECT employee_id FROM on_leave) THEN 'on_leave'
-            WHEN tr.first_check_in IS NOT NULL AND tr.last_check_out IS NULL THEN 'present'
-            WHEN tr.first_check_in IS NOT NULL AND tr.last_check_out IS NOT NULL THEN 'completed'
-            ELSE 'absent'
-          END as status,
-          EXTRACT(HOUR FROM tr.first_check_in) * 60 + EXTRACT(MINUTE FROM tr.first_check_in) -
-            (8 * 60) as late_minutes
-        FROM today_records tr
-        ORDER BY tr.employee_name
+          t.id,
+          t.first_name || ' ' || t.last_name as employee_name,
+          t.employee_number,
+          t.position,
+          ad.clock_in_at as first_check_in,
+          ad.clock_out_at as last_check_out,
+          ad.net_worked_minutes as worked_minutes,
+          COALESCE(ad.day_status, 'absent') as status,
+          COALESCE(ad.late_minutes, 0) as late_minutes
+        FROM team t
+        LEFT JOIN hr_attendance_daily ad ON ad.employee_id = t.id AND ad.work_date = CURRENT_DATE
+        ORDER BY t.last_name, t.first_name
       `, [userId]);
 
       // Calculate summary stats
@@ -797,6 +698,7 @@ router.get('/team-stats',
     const userId = req.user.id;
 
     try {
+      // Use the new unified hr_attendance_daily table
       const stats = await pool.query(`
         WITH team AS (
           SELECT e.id
@@ -806,10 +708,10 @@ router.get('/team-stats',
         ),
         today_present AS (
           SELECT COUNT(DISTINCT employee_id) as count
-          FROM hr_attendance_records
+          FROM hr_attendance_daily
           WHERE employee_id IN (SELECT id FROM team)
-          AND DATE(clock_time) = CURRENT_DATE
-          AND status IN ('check_in', 'late', 'weekend')
+          AND work_date = CURRENT_DATE
+          AND day_status IN ('present', 'late', 'early_leave', 'partial', 'pending')
         ),
         today_on_leave AS (
           SELECT COUNT(DISTINCT employee_id) as count
@@ -820,9 +722,9 @@ router.get('/team-stats',
         ),
         month_late AS (
           SELECT COUNT(*) as count
-          FROM hr_attendance_records
+          FROM hr_attendance_daily
           WHERE employee_id IN (SELECT id FROM team)
-          AND DATE(clock_time) >= DATE_TRUNC('month', CURRENT_DATE)
+          AND work_date >= DATE_TRUNC('month', CURRENT_DATE)
           AND late_minutes > 0
         ),
         pending_requests AS (

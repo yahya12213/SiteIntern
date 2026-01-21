@@ -349,29 +349,26 @@ router.put('/manager/correction-requests/:id/approve', authenticateToken, requir
         `, [id, approverId, comment || '']);
       }
 
-      // Créer les enregistrements de pointage corrigés
+      // Créer/mettre à jour les enregistrements de pointage corrigés (unified hr_attendance_daily)
       const { employee_id, request_date, requested_check_in, requested_check_out } = request;
 
-      // Supprimer les anciens enregistrements pour cette date
+      // Build clock_in and clock_out timestamps
+      const clockInAt = requested_check_in ? `${request_date}T${requested_check_in}:00` : null;
+      const clockOutAt = requested_check_out ? `${request_date}T${requested_check_out}:00` : null;
+
+      // Upsert into hr_attendance_daily
       await pool.query(`
-        DELETE FROM hr_attendance_records
-        WHERE employee_id = $1 AND DATE(clock_time) = $2
-      `, [employee_id, request_date]);
-
-      // Créer les nouveaux enregistrements
-      if (requested_check_in) {
-        await pool.query(`
-          INSERT INTO hr_attendance_records (employee_id, clock_time, status, source)
-          VALUES ($1, ($2::date + $3::time), 'check_in', 'correction')
-        `, [employee_id, request_date, requested_check_in]);
-      }
-
-      if (requested_check_out) {
-        await pool.query(`
-          INSERT INTO hr_attendance_records (employee_id, clock_time, status, source)
-          VALUES ($1, ($2::date + $3::time), 'check_out', 'correction')
-        `, [employee_id, request_date, requested_check_out]);
-      }
+        INSERT INTO hr_attendance_daily (
+          employee_id, work_date, clock_in_at, clock_out_at, day_status, source, notes, created_by, created_at
+        )
+        VALUES ($1, $2, $3, $4, 'present', 'correction', 'Correction approuvée', $5, NOW())
+        ON CONFLICT (employee_id, work_date) DO UPDATE SET
+          clock_in_at = COALESCE($3, hr_attendance_daily.clock_in_at),
+          clock_out_at = COALESCE($4, hr_attendance_daily.clock_out_at),
+          source = 'correction',
+          notes = COALESCE(hr_attendance_daily.notes, '') || ' | Correction approuvée',
+          updated_at = NOW()
+      `, [employee_id, request_date, clockInAt, clockOutAt, approverId]);
 
       res.json({
         success: true,

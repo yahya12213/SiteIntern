@@ -1,0 +1,427 @@
+/**
+ * AttendanceCalculator - Service centralisé pour TOUS les calculs de temps
+ *
+ * Principe: Le frontend NE FAIT JAMAIS de calculs.
+ * Tout est calculé ici et renvoyé pré-calculé.
+ *
+ * Utilise NOW() PostgreSQL uniquement - pas de décalage configurable.
+ */
+
+export class AttendanceCalculator {
+  constructor(pool) {
+    this.pool = pool;
+  }
+
+  /**
+   * Obtenir l'horaire applicable pour un employé à une date donnée
+   * @param {string} employeeId - UUID de l'employé
+   * @param {string} date - Date au format YYYY-MM-DD
+   * @returns {Object|null} Schedule object ou null
+   */
+  async getScheduleForDate(employeeId, date) {
+    try {
+      const result = await this.pool.query(`
+        WITH employee_schedule AS (
+          SELECT ws.*
+          FROM hr_employee_schedules es
+          JOIN hr_work_schedules ws ON es.schedule_id = ws.id
+          WHERE es.employee_id = $1
+            AND es.start_date <= $2
+            AND (es.end_date IS NULL OR es.end_date >= $2)
+            AND ws.is_active = true
+          ORDER BY es.start_date DESC
+          LIMIT 1
+        ),
+        default_schedule AS (
+          SELECT * FROM hr_work_schedules
+          WHERE is_default = true AND is_active = true
+          LIMIT 1
+        )
+        SELECT * FROM employee_schedule
+        UNION ALL
+        SELECT * FROM default_schedule
+        WHERE NOT EXISTS (SELECT 1 FROM employee_schedule)
+        LIMIT 1
+      `, [employeeId, date]);
+
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('[AttendanceCalculator] Error getting schedule:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Obtenir les horaires prévus pour un jour spécifique
+   * @param {Object} schedule - Objet schedule
+   * @param {string} date - Date au format YYYY-MM-DD
+   * @returns {Object} { isWorkingDay, scheduledStart, scheduledEnd }
+   */
+  getScheduledTimesForDate(schedule, date) {
+    if (!schedule) {
+      return { isWorkingDay: false, scheduledStart: null, scheduledEnd: null };
+    }
+
+    const dateObj = new Date(date);
+    const dayOfWeek = dateObj.getDay(); // 0=Dimanche, 1=Lundi, ..., 6=Samedi
+    const isoDay = dayOfWeek === 0 ? 7 : dayOfWeek; // 1=Lundi, 7=Dimanche
+
+    const isWorkingDay = schedule.working_days?.includes(isoDay) ?? false;
+
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = dayNames[dayOfWeek];
+
+    const startTime = schedule[`${dayName}_start`];
+    const endTime = schedule[`${dayName}_end`];
+
+    if (!startTime || !endTime) {
+      return { isWorkingDay: false, scheduledStart: null, scheduledEnd: null };
+    }
+
+    return { isWorkingDay, scheduledStart: startTime, scheduledEnd: endTime };
+  }
+
+  /**
+   * Vérifier si une date est un jour férié
+   * @param {string} date - Date au format YYYY-MM-DD
+   * @returns {Object|null} Holiday info ou null
+   */
+  async isHoliday(date) {
+    try {
+      const result = await this.pool.query(`
+        SELECT id, name, holiday_date
+        FROM hr_public_holidays
+        WHERE holiday_date = $1
+        LIMIT 1
+      `, [date]);
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('[AttendanceCalculator] Error checking holiday:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Vérifier si une date est un jour de récupération pour un employé
+   * @param {string} employeeId - UUID de l'employé
+   * @param {string} date - Date au format YYYY-MM-DD
+   * @returns {Object|null} Recovery info ou null
+   */
+  async getRecoveryInfo(employeeId, date) {
+    try {
+      // Get employee details for filtering
+      const empResult = await this.pool.query(`
+        SELECT department, segment_id, centre_id FROM hr_employees WHERE id = $1
+      `, [employeeId]);
+
+      if (empResult.rows.length === 0) return null;
+      const emp = empResult.rows[0];
+
+      // Check for recovery declaration
+      const result = await this.pool.query(`
+        SELECT
+          rd.id, rd.recovery_date, rd.is_day_off, rd.hours_to_recover,
+          rp.name as period_name, rp.applies_to_all
+        FROM hr_recovery_declarations rd
+        JOIN hr_recovery_periods rp ON rd.recovery_period_id = rp.id
+        WHERE rd.recovery_date = $1
+          AND rd.status = 'active'
+          AND rp.status = 'active'
+          AND (
+            rp.applies_to_all = true
+            OR (rd.department_id = $2 OR rd.department_id IS NULL)
+            OR (rd.segment_id = $3 OR rd.segment_id IS NULL)
+            OR (rd.centre_id = $4 OR rd.centre_id IS NULL)
+          )
+        LIMIT 1
+      `, [date, emp.department, emp.segment_id, emp.centre_id]);
+
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('[AttendanceCalculator] Error checking recovery:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Vérifier si l'employé a un congé approuvé pour cette date
+   * @param {string} employeeId - UUID de l'employé
+   * @param {string} date - Date au format YYYY-MM-DD
+   * @returns {Object|null} Leave info ou null
+   */
+  async getApprovedLeave(employeeId, date) {
+    try {
+      const result = await this.pool.query(`
+        SELECT lr.*, lt.name as leave_type_name, lt.code as leave_type_code
+        FROM hr_leave_requests lr
+        JOIN hr_leave_types lt ON lr.leave_type_id = lt.id
+        WHERE lr.employee_id = $1
+          AND lr.status = 'approved'
+          AND $2 BETWEEN lr.start_date AND lr.end_date
+        LIMIT 1
+      `, [employeeId, date]);
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('[AttendanceCalculator] Error checking leave:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Vérifier si l'employé a des heures supplémentaires approuvées pour cette date
+   * @param {string} employeeId - UUID de l'employé
+   * @param {string} date - Date au format YYYY-MM-DD
+   * @returns {Object|null} Overtime info ou null
+   */
+  async hasApprovedOvertime(employeeId, date) {
+    try {
+      const result = await this.pool.query(`
+        SELECT id, estimated_hours, actual_hours
+        FROM hr_overtime_requests
+        WHERE employee_id = $1
+          AND request_date = $2
+          AND status = 'approved'
+        LIMIT 1
+      `, [employeeId, date]);
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('[AttendanceCalculator] Error checking overtime:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Convertir une chaîne de temps "HH:MM" en minutes depuis minuit
+   */
+  timeToMinutes(timeStr) {
+    if (!timeStr) return null;
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+  }
+
+  /**
+   * Convertir un timestamp en minutes depuis minuit
+   */
+  timestampToMinutes(timestamp) {
+    if (!timestamp) return null;
+    const date = new Date(timestamp);
+    return date.getHours() * 60 + date.getMinutes();
+  }
+
+  /**
+   * CALCUL PRINCIPAL: Déterminer le statut et les minutes
+   *
+   * Priorités:
+   * 1. Jour férié → 'holiday'
+   * 2. Congé approuvé → 'leave'
+   * 3. Récupération jour off → 'recovery_off'
+   * 4. Weekend → 'weekend'
+   * 5. Pas de pointage → 'absent'
+   * 6. Calculs: retard, départ anticipé, heures sup
+   * 7. Statut final: 'present', 'late', 'partial', 'early_leave'
+   *
+   * @param {string} employeeId - UUID de l'employé
+   * @param {string} date - Date au format YYYY-MM-DD
+   * @param {Date|string|null} clockIn - Timestamp d'entrée
+   * @param {Date|string|null} clockOut - Timestamp de sortie
+   * @returns {Object} Résultat du calcul
+   */
+  async calculateDayStatus(employeeId, date, clockIn, clockOut) {
+    const result = {
+      day_status: 'pending',
+      scheduled_start: null,
+      scheduled_end: null,
+      scheduled_break_minutes: 0,
+      gross_worked_minutes: null,
+      net_worked_minutes: null,
+      late_minutes: 0,
+      early_leave_minutes: 0,
+      overtime_minutes: 0,
+      notes: null,
+      special_day: null
+    };
+
+    // Get schedule
+    const schedule = await this.getScheduleForDate(employeeId, date);
+    const scheduledTimes = this.getScheduledTimesForDate(schedule, date);
+
+    if (schedule) {
+      result.scheduled_start = scheduledTimes.scheduledStart;
+      result.scheduled_end = scheduledTimes.scheduledEnd;
+      result.scheduled_break_minutes = schedule.break_duration_minutes || 0;
+    }
+
+    // PRIORITÉ 1: Jour férié
+    const holiday = await this.isHoliday(date);
+    if (holiday) {
+      result.day_status = 'holiday';
+      result.notes = `Jour férié: ${holiday.name}`;
+      result.special_day = { type: 'holiday', name: holiday.name };
+      return result;
+    }
+
+    // PRIORITÉ 2: Congé approuvé
+    const leave = await this.getApprovedLeave(employeeId, date);
+    if (leave) {
+      // Mapper le type de congé au statut approprié
+      const leaveCode = leave.leave_type_code?.toLowerCase();
+      if (leaveCode === 'sick' || leaveCode === 'maladie') {
+        result.day_status = 'sick';
+      } else if (leaveCode === 'mission') {
+        result.day_status = 'mission';
+      } else if (leaveCode === 'training' || leaveCode === 'formation') {
+        result.day_status = 'training';
+      } else {
+        result.day_status = 'leave';
+      }
+      result.notes = `Congé: ${leave.leave_type_name}`;
+      result.special_day = { type: 'leave', name: leave.leave_type_name };
+      return result;
+    }
+
+    // PRIORITÉ 3: Récupération jour off
+    const recovery = await this.getRecoveryInfo(employeeId, date);
+    if (recovery) {
+      if (recovery.is_day_off) {
+        result.day_status = 'recovery_off';
+        result.notes = `Jour de repos récupération: ${recovery.period_name}`;
+      } else {
+        result.day_status = 'recovery_day';
+        result.notes = `Jour de récupération: ${recovery.period_name}`;
+      }
+      result.special_day = { type: 'recovery', name: recovery.period_name, is_day_off: recovery.is_day_off };
+      return result;
+    }
+
+    // PRIORITÉ 4: Weekend (pas un jour ouvrable)
+    if (schedule && !scheduledTimes.isWorkingDay) {
+      result.day_status = 'weekend';
+      return result;
+    }
+
+    // PRIORITÉ 5: Pas de pointage
+    if (!clockIn) {
+      result.day_status = 'absent';
+      result.is_anomaly = true;
+      return result;
+    }
+
+    // =====================================================
+    // CALCULS avec pointage
+    // =====================================================
+
+    const clockInDate = new Date(clockIn);
+    const clockInMinutes = this.timestampToMinutes(clockIn);
+    const scheduledStartMinutes = this.timeToMinutes(result.scheduled_start);
+    const scheduledEndMinutes = this.timeToMinutes(result.scheduled_end);
+    const toleranceLate = schedule?.tolerance_late_minutes || 0;
+    const toleranceEarlyLeave = schedule?.tolerance_early_leave_minutes || 0;
+
+    // Calculer le retard
+    if (scheduledStartMinutes !== null && clockInMinutes !== null) {
+      const diff = clockInMinutes - scheduledStartMinutes;
+      if (diff > toleranceLate) {
+        result.late_minutes = diff;
+      }
+    }
+
+    // Si pas de sortie, statut pending
+    if (!clockOut) {
+      result.day_status = clockInMinutes !== null && result.late_minutes > 0 ? 'late' : 'pending';
+      return result;
+    }
+
+    // Calculs avec sortie
+    const clockOutDate = new Date(clockOut);
+    const clockOutMinutes = this.timestampToMinutes(clockOut);
+
+    // Temps brut travaillé
+    if (clockInMinutes !== null && clockOutMinutes !== null) {
+      result.gross_worked_minutes = Math.max(0, clockOutMinutes - clockInMinutes);
+      result.net_worked_minutes = Math.max(0, result.gross_worked_minutes - result.scheduled_break_minutes);
+    }
+
+    // Calculer le départ anticipé
+    if (scheduledEndMinutes !== null && clockOutMinutes !== null) {
+      const diff = scheduledEndMinutes - clockOutMinutes;
+      if (diff > toleranceEarlyLeave) {
+        result.early_leave_minutes = diff;
+      }
+    }
+
+    // Calculer les heures supplémentaires (seulement si approuvées)
+    const overtime = await this.hasApprovedOvertime(employeeId, date);
+    if (overtime && scheduledEndMinutes !== null && clockOutMinutes !== null) {
+      if (clockOutMinutes > scheduledEndMinutes) {
+        const maxOvertimeMinutes = (overtime.estimated_hours || 0) * 60;
+        result.overtime_minutes = Math.min(clockOutMinutes - scheduledEndMinutes, maxOvertimeMinutes);
+      }
+    }
+
+    // Déterminer le statut final
+    if (result.late_minutes > 0 && result.early_leave_minutes > 0) {
+      result.day_status = 'partial';
+    } else if (result.late_minutes > 0) {
+      result.day_status = 'late';
+    } else if (result.early_leave_minutes > 0) {
+      result.day_status = 'early_leave';
+    } else {
+      // Vérifier si temps suffisant pour "present" vs "partial"
+      if (scheduledStartMinutes !== null && scheduledEndMinutes !== null) {
+        const scheduledMinutes = scheduledEndMinutes - scheduledStartMinutes - result.scheduled_break_minutes;
+        if (result.net_worked_minutes >= scheduledMinutes * 0.9) {
+          result.day_status = 'present';
+        } else {
+          result.day_status = 'partial';
+        }
+      } else {
+        result.day_status = 'present';
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Obtenir les informations complètes pour un employé à une date
+   * (utile pour l'affichage frontend)
+   */
+  async getDayInfo(employeeId, date) {
+    const schedule = await this.getScheduleForDate(employeeId, date);
+    const holiday = await this.isHoliday(date);
+    const leave = await this.getApprovedLeave(employeeId, date);
+    const recovery = await this.getRecoveryInfo(employeeId, date);
+    const overtime = await this.hasApprovedOvertime(employeeId, date);
+
+    const scheduledTimes = schedule ? this.getScheduledTimesForDate(schedule, date) : null;
+
+    return {
+      date,
+      schedule: schedule ? {
+        name: schedule.name,
+        scheduled_start: scheduledTimes?.scheduledStart,
+        scheduled_end: scheduledTimes?.scheduledEnd,
+        break_duration_minutes: schedule.break_duration_minutes,
+        is_working_day: scheduledTimes?.isWorkingDay,
+        tolerance_late_minutes: schedule.tolerance_late_minutes,
+        tolerance_early_leave_minutes: schedule.tolerance_early_leave_minutes
+      } : null,
+      holiday: holiday ? { name: holiday.name } : null,
+      leave: leave ? { type: leave.leave_type_name, code: leave.leave_type_code } : null,
+      recovery: recovery ? { name: recovery.period_name, is_day_off: recovery.is_day_off } : null,
+      overtime_approved: overtime ? { hours: overtime.estimated_hours } : null
+    };
+  }
+}
+
+// Export singleton factory
+let instance = null;
+
+export function getAttendanceCalculator(pool) {
+  if (!instance) {
+    instance = new AttendanceCalculator(pool);
+  }
+  return instance;
+}
+
+export default AttendanceCalculator;

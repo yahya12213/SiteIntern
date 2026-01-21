@@ -22,16 +22,16 @@ router.get('/stats', authenticateToken, requirePermission('hr.dashboard.view_pag
       FROM hr_employees
     `, [currentMonth, currentYear]);
 
-    // Attendance stats for current month
+    // Attendance stats for current month (using unified hr_attendance_daily)
     const attendanceStats = await pool.query(`
       SELECT
         COUNT(DISTINCT employee_id) as employees_with_records,
-        AVG(worked_minutes / 60.0) as avg_hours_per_day,
-        COUNT(CASE WHEN status = 'late' THEN 1 END) as total_late,
-        COUNT(CASE WHEN status = 'absent' THEN 1 END) as total_absent
-      FROM hr_attendance_records
-      WHERE EXTRACT(YEAR FROM attendance_date) = $1
-        AND EXTRACT(MONTH FROM attendance_date) = $2
+        AVG(COALESCE(net_worked_minutes, 0) / 60.0) as avg_hours_per_day,
+        COUNT(CASE WHEN day_status = 'late' THEN 1 END) as total_late,
+        COUNT(CASE WHEN day_status = 'absent' THEN 1 END) as total_absent
+      FROM hr_attendance_daily
+      WHERE EXTRACT(YEAR FROM work_date) = $1
+        AND EXTRACT(MONTH FROM work_date) = $2
     `, [currentYear, currentMonth]);
 
     // Leave stats
@@ -95,19 +95,19 @@ router.get('/alerts', authenticateToken, requirePermission('hr.dashboard.view_pa
       ORDER BY c.end_date ASC
     `, [in30Days]);
 
-    // Attendance anomalies unresolved
+    // Attendance anomalies unresolved (using unified hr_attendance_daily)
     const anomalies = await pool.query(`
       SELECT
         a.id,
-        a.attendance_date,
+        a.work_date as attendance_date,
         a.anomaly_type,
         e.first_name || ' ' || e.last_name as employee_name,
         e.employee_number
-      FROM hr_attendance_records a
+      FROM hr_attendance_daily a
       JOIN hr_employees e ON a.employee_id = e.id
       WHERE a.is_anomaly = true
         AND a.anomaly_resolved = false
-      ORDER BY a.attendance_date DESC
+      ORDER BY a.work_date DESC
       LIMIT 20
     `);
 
@@ -169,33 +169,33 @@ router.get('/charts/attendance', authenticateToken, requirePermission('hr.dashbo
 
   try {
     if (type === 'daily') {
-      // Daily attendance breakdown for the month
+      // Daily attendance breakdown for the month (using unified hr_attendance_daily)
       const result = await pool.query(`
         SELECT
-          attendance_date,
+          work_date as attendance_date,
           COUNT(*) as total,
-          COUNT(CASE WHEN status = 'present' THEN 1 END) as present,
-          COUNT(CASE WHEN status = 'late' THEN 1 END) as late,
-          COUNT(CASE WHEN status = 'absent' THEN 1 END) as absent,
-          COUNT(CASE WHEN status = 'leave' THEN 1 END) as on_leave
-        FROM hr_attendance_records
-        WHERE EXTRACT(YEAR FROM attendance_date) = $1
-          AND EXTRACT(MONTH FROM attendance_date) = $2
-        GROUP BY attendance_date
-        ORDER BY attendance_date
+          COUNT(CASE WHEN day_status = 'present' THEN 1 END) as present,
+          COUNT(CASE WHEN day_status = 'late' THEN 1 END) as late,
+          COUNT(CASE WHEN day_status = 'absent' THEN 1 END) as absent,
+          COUNT(CASE WHEN day_status = 'leave' THEN 1 END) as on_leave
+        FROM hr_attendance_daily
+        WHERE EXTRACT(YEAR FROM work_date) = $1
+          AND EXTRACT(MONTH FROM work_date) = $2
+        GROUP BY work_date
+        ORDER BY work_date
       `, [targetYear, targetMonth]);
 
       res.json({ success: true, data: result.rows });
     } else {
-      // Status distribution
+      // Status distribution (using unified hr_attendance_daily)
       const result = await pool.query(`
         SELECT
-          status,
+          day_status as status,
           COUNT(*) as count
-        FROM hr_attendance_records
-        WHERE EXTRACT(YEAR FROM attendance_date) = $1
-          AND EXTRACT(MONTH FROM attendance_date) = $2
-        GROUP BY status
+        FROM hr_attendance_daily
+        WHERE EXTRACT(YEAR FROM work_date) = $1
+          AND EXTRACT(MONTH FROM work_date) = $2
+        GROUP BY day_status
         ORDER BY count DESC
       `, [targetYear, targetMonth]);
 
@@ -260,6 +260,7 @@ router.get('/monthly-summary/:year/:month', authenticateToken, requirePermission
     const { year, month } = req.params;
     const { format } = req.query; // format: 'json' or 'csv'
 
+    // Monthly summary using unified hr_attendance_daily
     const result = await pool.query(`
       SELECT
         e.id,
@@ -267,20 +268,20 @@ router.get('/monthly-summary/:year/:month', authenticateToken, requirePermission
         e.first_name || ' ' || e.last_name as employee_name,
         e.department,
         e.position,
-        COUNT(CASE WHEN a.status = 'present' THEN 1 END) as days_present,
-        COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as days_absent,
-        COUNT(CASE WHEN a.status = 'late' THEN 1 END) as days_late,
-        COUNT(CASE WHEN a.status = 'leave' THEN 1 END) as days_leave,
-        SUM(a.worked_minutes) / 60.0 as total_hours,
-        SUM(CASE WHEN a.late_minutes > 0 THEN a.late_minutes ELSE 0 END) as total_late_minutes,
+        COUNT(CASE WHEN a.day_status = 'present' THEN 1 END) as days_present,
+        COUNT(CASE WHEN a.day_status = 'absent' THEN 1 END) as days_absent,
+        COUNT(CASE WHEN a.day_status = 'late' THEN 1 END) as days_late,
+        COUNT(CASE WHEN a.day_status = 'leave' THEN 1 END) as days_leave,
+        SUM(COALESCE(a.net_worked_minutes, 0)) / 60.0 as total_hours,
+        SUM(COALESCE(a.late_minutes, 0)) as total_late_minutes,
         COUNT(lr.id) as leave_requests,
         SUM(COALESCE(lr.days_requested, 0)) as leave_days_taken,
         COUNT(ot.id) as overtime_requests,
         SUM(COALESCE(ot.estimated_hours, 0)) as overtime_hours
       FROM hr_employees e
-      LEFT JOIN hr_attendance_records a ON e.id = a.employee_id
-        AND EXTRACT(YEAR FROM a.attendance_date) = $1
-        AND EXTRACT(MONTH FROM a.attendance_date) = $2
+      LEFT JOIN hr_attendance_daily a ON e.id = a.employee_id
+        AND EXTRACT(YEAR FROM a.work_date) = $1
+        AND EXTRACT(MONTH FROM a.work_date) = $2
       LEFT JOIN hr_leave_requests lr ON e.id = lr.employee_id
         AND EXTRACT(YEAR FROM lr.start_date) = $1
         AND EXTRACT(MONTH FROM lr.start_date) = $2

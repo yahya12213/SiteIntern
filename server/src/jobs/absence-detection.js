@@ -1,5 +1,18 @@
+/**
+ * Absence Detection Job - Version Refactorisée
+ *
+ * Utilise la nouvelle table hr_attendance_daily
+ * et les services AttendanceCalculator et AttendanceLogger.
+ *
+ * Jobs:
+ * - 20:30 - Finaliser les journées incomplètes (pending → partial)
+ * - 21:00 - Détecter les absences (créer records 'absent')
+ */
+
 import pg from 'pg';
 import cron from 'node-cron';
+import { AttendanceCalculator } from '../services/attendance-calculator.js';
+import { AttendanceLogger } from '../services/attendance-logger.js';
 
 const { Pool } = pg;
 
@@ -8,71 +21,64 @@ const getPool = () => new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Helper: Check if date is a public holiday
-const isPublicHoliday = async (pool, date) => {
-  const result = await pool.query(`
-    SELECT id FROM hr_public_holidays
-    WHERE holiday_date = $1
-    LIMIT 1
-  `, [date]);
-  return result.rows.length > 0;
-};
+/**
+ * Finaliser les journées incomplètes
+ * Change 'pending' -> 'partial' si pas de checkout à la fin de la journée
+ */
+export const finalizePendingDays = async () => {
+  const pool = getPool();
+  const logger = new AttendanceLogger(pool);
 
-// Helper: Check if date is a recovery day off for an employee
-const isRecoveryDayOff = async (pool, employeeId, date) => {
-  const empResult = await pool.query(`
-    SELECT department, segment_id, centre_id
-    FROM hr_employees
-    WHERE id = $1
-  `, [employeeId]);
+  try {
+    const today = new Date().toISOString().split('T')[0];
 
-  if (empResult.rows.length === 0) return false;
-  const emp = empResult.rows[0];
+    console.log(`[FINALIZE JOB] Checking ${today} for pending records...`);
 
-  const result = await pool.query(`
-    SELECT rd.id
-    FROM hr_recovery_declarations rd
-    JOIN hr_recovery_periods rp ON rd.recovery_period_id = rp.id
-    WHERE rd.recovery_date = $1
-      AND rd.is_day_off = true
-      AND rd.status = 'active'
-      AND rp.status = 'active'
-      AND (
-        rp.applies_to_all = true
-        OR rd.department_id = $2
-        OR rd.segment_id = $3
-        OR rd.centre_id = $4
-      )
-    LIMIT 1
-  `, [date, emp.department, emp.segment_id, emp.centre_id]);
+    const result = await pool.query(`
+      UPDATE hr_attendance_daily
+      SET
+        day_status = 'partial',
+        notes = COALESCE(notes || ' | ', '') || 'Journée incomplète - pas de sortie enregistrée',
+        is_anomaly = true,
+        anomaly_type = 'no_check_out',
+        updated_at = NOW()
+      WHERE work_date = $1
+        AND day_status = 'pending'
+        AND clock_in_at IS NOT NULL
+        AND clock_out_at IS NULL
+      RETURNING id, employee_id, work_date
+    `, [today]);
 
-  return result.rows.length > 0;
-};
+    console.log(`[FINALIZE JOB] ${result.rows.length} journée(s) marquée(s) comme partielle(s)`);
 
-// Helper: Check if date is a working day according to schedule
-const getScheduleForDate = async (pool, date) => {
-  const result = await pool.query(`
-    SELECT working_days
-    FROM hr_work_schedules
-    WHERE is_active = true
-    LIMIT 1
-  `);
+    // Log each finalization
+    for (const row of result.rows) {
+      await logger.logStatusChange(
+        row.id,
+        row.employee_id,
+        row.work_date,
+        'pending',
+        'partial',
+        'Journée incomplète - pas de sortie enregistrée',
+        'SYSTEM'
+      );
+    }
 
-  if (result.rows.length === 0) return null;
-
-  const dateObj = new Date(date);
-  const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  const isoDay = dayOfWeek === 0 ? 7 : dayOfWeek; // Convert to ISO day (1-7, Monday = 1)
-
-  return result.rows[0].working_days?.includes(isoDay);
+  } catch (error) {
+    console.error('[FINALIZE JOB] Error:', error);
+  } finally {
+    await pool.end();
+  }
 };
 
 /**
- * Detect and mark employees as absent if they have no attendance records
- * Runs daily at 20:01 to check the previous day
+ * Détecter et enregistrer les absences
+ * Crée un enregistrement 'absent' pour les employés sans pointage
  */
 export const detectAbsences = async () => {
   const pool = getPool();
+  const calculator = new AttendanceCalculator(pool);
+  const logger = new AttendanceLogger(pool);
 
   try {
     const now = new Date();
@@ -81,19 +87,6 @@ export const detectAbsences = async () => {
     const yesterdayStr = yesterday.toISOString().split('T')[0];
 
     console.log(`[ABSENCE DETECTION] Checking ${yesterdayStr}...`);
-
-    // Check if yesterday was a public holiday
-    if (await isPublicHoliday(pool, yesterdayStr)) {
-      console.log(`[ABSENCE DETECTION] ${yesterdayStr} is a public holiday - skipping`);
-      return;
-    }
-
-    // Check if yesterday was a working day
-    const isWorkingDay = await getScheduleForDate(pool, yesterdayStr);
-    if (!isWorkingDay) {
-      console.log(`[ABSENCE DETECTION] ${yesterdayStr} is not a working day - skipping`);
-      return;
-    }
 
     // Get all active employees who require clocking
     const employees = await pool.query(`
@@ -105,54 +98,78 @@ export const detectAbsences = async () => {
     console.log(`[ABSENCE DETECTION] Checking ${employees.rows.length} employees...`);
 
     let absenceCount = 0;
+    let skippedCount = 0;
 
     for (const employee of employees.rows) {
-      // Skip if employee has a recovery day off
-      if (await isRecoveryDayOff(pool, employee.id, yesterdayStr)) {
+      // Check if already has a record for yesterday
+      const existing = await pool.query(`
+        SELECT id, day_status FROM hr_attendance_daily
+        WHERE employee_id = $1 AND work_date = $2
+      `, [employee.id, yesterdayStr]);
+
+      // If record exists, skip
+      if (existing.rows.length > 0) {
         continue;
       }
 
-      // Check if employee has ANY attendance record for yesterday
-      const attendance = await pool.query(`
-        SELECT id
-        FROM hr_attendance_records
-        WHERE employee_id = $1
-          AND DATE(clock_time) = $2
-        LIMIT 1
-      `, [employee.id, yesterdayStr]);
+      // Use calculator to determine what the status should be
+      // This handles holidays, leaves, recovery days, weekends, etc.
+      const calcResult = await calculator.calculateDayStatus(
+        employee.id,
+        yesterdayStr,
+        null,  // no clock in
+        null   // no clock out
+      );
 
-      // If no record exists, mark as absent
-      if (attendance.rows.length === 0) {
-        await pool.query(`
-          INSERT INTO hr_attendance_records (
+      // Only create absence record if it's actually an absence
+      // (not holiday, leave, recovery, weekend, etc.)
+      if (calcResult.day_status === 'absent') {
+        const result = await pool.query(`
+          INSERT INTO hr_attendance_daily (
             employee_id,
-            attendance_date,
-            clock_time,
-            status,
+            work_date,
+            day_status,
             source,
             notes,
             is_anomaly,
             anomaly_type,
+            created_by,
             created_at
-          ) VALUES (
-            $1,
-            $2,
-            $2::timestamp,
-            'absent',
-            'system',
-            'Détecté automatiquement - aucun pointage',
-            true,
-            'missing_record',
-            NOW()
-          )
+          ) VALUES ($1, $2, 'absent', 'system', 'Détecté automatiquement - aucun pointage', true, 'missing_record', 'SYSTEM', NOW())
+          RETURNING id
         `, [employee.id, yesterdayStr]);
+
+        // Log the absence
+        await logger.logSystemAbsence(
+          result.rows[0].id,
+          employee.id,
+          yesterdayStr
+        );
 
         console.log(`  → ABSENT: ${employee.first_name} ${employee.last_name} (${employee.employee_number})`);
         absenceCount++;
+      } else {
+        // Create record with special status (holiday, weekend, etc.)
+        // but only if it should have a record
+        if (['holiday', 'weekend', 'recovery_off', 'leave'].includes(calcResult.day_status)) {
+          await pool.query(`
+            INSERT INTO hr_attendance_daily (
+              employee_id,
+              work_date,
+              day_status,
+              source,
+              notes,
+              created_by,
+              created_at
+            ) VALUES ($1, $2, $3, 'system', $4, 'SYSTEM', NOW())
+            ON CONFLICT (employee_id, work_date) DO NOTHING
+          `, [employee.id, yesterdayStr, calcResult.day_status, calcResult.notes]);
+        }
+        skippedCount++;
       }
     }
 
-    console.log(`[ABSENCE DETECTION] Complete - ${absenceCount} absences recorded`);
+    console.log(`[ABSENCE DETECTION] Complete - ${absenceCount} absences recorded, ${skippedCount} skipped`);
   } catch (error) {
     console.error('[ABSENCE DETECTION] Error:', error);
   } finally {
@@ -161,12 +178,20 @@ export const detectAbsences = async () => {
 };
 
 /**
- * Start the absence detection cron job
- * Runs every day at 20:01 (Africa/Casablanca timezone)
+ * Démarrer tous les jobs CRON de pointage
  */
 export const startAbsenceDetectionJob = () => {
-  // Schedule: Run at 20:01 every day
-  cron.schedule('1 20 * * *', async () => {
+  // Job 1: Finaliser les journées incomplètes à 20:30
+  cron.schedule('30 20 * * *', async () => {
+    console.log('[CRON] Running pending days finalization...');
+    await finalizePendingDays();
+  }, {
+    scheduled: true,
+    timezone: "Africa/Casablanca"
+  });
+
+  // Job 2: Détecter les absences à 21:00
+  cron.schedule('0 21 * * *', async () => {
     console.log('[CRON] Running absence detection...');
     await detectAbsences();
   }, {
@@ -174,5 +199,14 @@ export const startAbsenceDetectionJob = () => {
     timezone: "Africa/Casablanca"
   });
 
-  console.log('[CRON] Absence detection scheduled: daily at 20:01 (Africa/Casablanca)');
+  console.log('[CRON] Attendance jobs scheduled:');
+  console.log('  - Pending finalization: daily at 20:30 (Africa/Casablanca)');
+  console.log('  - Absence detection: daily at 21:00 (Africa/Casablanca)');
+};
+
+// Export for manual execution (migrations, testing)
+export default {
+  detectAbsences,
+  finalizePendingDays,
+  startAbsenceDetectionJob
 };

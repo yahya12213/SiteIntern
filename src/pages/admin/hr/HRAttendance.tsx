@@ -23,13 +23,21 @@ interface AttendanceRecord {
   employee_id: string;
   employee_name: string;
   employee_number: string;
-  attendance_date: string;
-  check_in_time: string;
-  check_out_time: string;
-  worked_minutes: number;
-  status: string;
+  attendance_date: string;  // Alias for work_date
+  work_date: string;
+  clock_in_at: string | null;
+  clock_out_at: string | null;
+  check_in_time: string | null;  // Formatted time string
+  check_out_time: string | null;  // Formatted time string
+  worked_minutes: number | null;  // Alias for net_worked_minutes
+  net_worked_minutes: number | null;
+  day_status: string;
+  status: string;  // Alias for day_status (backward compat)
+  late_minutes: number;
+  early_leave_minutes: number;
+  overtime_minutes: number;
   is_anomaly: boolean;
-  anomaly_type: string;
+  anomaly_type: string | null;
 }
 
 interface OvertimeRequest {
@@ -104,15 +112,33 @@ export default function HRAttendance() {
     const styles: Record<string, string> = {
       present: 'bg-green-100 text-green-800',
       absent: 'bg-red-100 text-red-800',
-      late: 'bg-yellow-100 text-yellow-800',
-      leave: 'bg-blue-100 text-blue-800',
+      late: 'bg-orange-100 text-orange-800',
+      early_leave: 'bg-yellow-100 text-yellow-800',
+      partial: 'bg-yellow-100 text-yellow-800',
+      pending: 'bg-blue-100 text-blue-800',
+      leave: 'bg-indigo-100 text-indigo-800',
+      holiday: 'bg-purple-100 text-purple-800',
+      weekend: 'bg-gray-100 text-gray-600',
+      recovery_off: 'bg-teal-100 text-teal-800',
+      mission: 'bg-cyan-100 text-cyan-800',
+      training: 'bg-violet-100 text-violet-800',
+      sick: 'bg-pink-100 text-pink-800',
       half_day: 'bg-purple-100 text-purple-800',
     };
     const labels: Record<string, string> = {
       present: 'Présent',
       absent: 'Absent',
-      late: 'Retard',
+      late: 'En retard',
+      early_leave: 'Départ anticipé',
+      partial: 'Partiel',
+      pending: 'En cours',
       leave: 'Congé',
+      holiday: 'Jour férié',
+      weekend: 'Weekend',
+      recovery_off: 'Récupération',
+      mission: 'Mission',
+      training: 'Formation',
+      sick: 'Maladie',
       half_day: 'Demi-journée',
     };
     return (
@@ -246,9 +272,14 @@ export default function HRAttendance() {
                 <option value="">Tous les statuts</option>
                 <option value="present">Présent</option>
                 <option value="absent">Absent</option>
-                <option value="late">Retard</option>
+                <option value="late">En retard</option>
+                <option value="early_leave">Départ anticipé</option>
+                <option value="partial">Partiel</option>
+                <option value="pending">En cours</option>
                 <option value="leave">Congé</option>
-                <option value="half_day">Demi-journée</option>
+                <option value="holiday">Jour férié</option>
+                <option value="mission">Mission</option>
+                <option value="training">Formation</option>
               </select>
             </div>
             <button className="flex items-center justify-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200">

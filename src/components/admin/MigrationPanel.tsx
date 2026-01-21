@@ -449,6 +449,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 127: Admin Correction Tracking',
     description: '🔧 FIX CRITIQUE: Ajoute les colonnes admin_cancelled_at, admin_cancelled_by, admin_cancellation_reason à hr_attendance_correction_requests - Résout erreur "column admin_cancelled_at does not exist" bloquant modifications/déclarations pointages',
     endpoint: '/migration-127'
+  },
+  {
+    id: 'migration-130',
+    name: 'Migration 130: Refactorisation Pointage Unifié',
+    description: '🔄 REFONTE POINTAGE: Crée table hr_attendance_daily unifiée (1 ligne = 1 jour = 1 employé), table hr_attendance_audit pour traçabilité, migre données depuis hr_attendance_records. Utilise NOW() PostgreSQL uniquement. Calculs centralisés côté backend.',
+    endpoint: '/migration-130-attendance-refactor'
   }
 ];
 

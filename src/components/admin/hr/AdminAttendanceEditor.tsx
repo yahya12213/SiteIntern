@@ -219,11 +219,17 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
     const labels: Record<string, string> = {
       present: 'Présent',
       absent: 'Absent',
-      late: 'Retard',
+      late: 'En retard',
+      early_leave: 'Départ anticipé',
+      partial: 'Partiel',
+      pending: 'En cours',
       leave: 'Congé',
       sick: 'Maladie',
       mission: 'Mission',
       training: 'Formation',
+      holiday: 'Jour férié',
+      weekend: 'Weekend',
+      recovery_off: 'Récupération',
       half_day: 'Demi-journée',
     };
     return labels[status] || status;
@@ -638,12 +644,15 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
                     >
                       <option value="present">Présent</option>
                       <option value="absent">Absent</option>
-                      <option value="late">Retard</option>
-                      <option value="half_day">Demi-journée</option>
+                      <option value="late">En retard</option>
+                      <option value="early_leave">Départ anticipé</option>
+                      <option value="partial">Journée partielle</option>
                       <option value="leave">En congé</option>
                       <option value="sick">Maladie</option>
                       <option value="mission">Mission</option>
                       <option value="training">Formation</option>
+                      <option value="holiday">Jour férié</option>
+                      <option value="recovery_off">Récupération</option>
                     </select>
                   </div>
 
