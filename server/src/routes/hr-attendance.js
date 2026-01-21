@@ -514,13 +514,20 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
       // Calculate worked minutes with break deduction
       const worked_minutes = calculateWorkedMinutes(check_in_time, check_out_time, breakMinutes);
 
+      // Filter reserved status values (check_in/check_out are for clocking model only)
+      // Admin edits must use 'present', 'absent', 'late', etc. - never 'check_in'/'check_out'
+      const finalStatus = (status && !['check_in', 'check_out'].includes(status))
+        ? status
+        : 'present';
+
       console.log('🔍 [POST /admin/edit] Values to INSERT:', {
         employee_id,
         date,
         check_in: check_in_time,
         check_out: check_out_time,
         worked_minutes,
-        status: status || 'present',
+        status_received: status,
+        status_filtered: finalStatus,
         original_check_in,
         original_check_out
       });
@@ -537,7 +544,7 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
         RETURNING *
       `, [
         employee_id, date, check_in_time, check_out_time,
-        worked_minutes, status || 'present', notes,
+        worked_minutes, finalStatus, notes,
         original_check_in, original_check_out,
         req.user.id, correction_reason
       ]);
@@ -580,8 +587,13 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
         });
       }
 
-      // Determine final status
+      // Determine final status - filter reserved status values
       let finalStatus = absence_status || status || 'present';
+
+      // Filter 'check_in'/'check_out' (reserved for clocking model)
+      if (['check_in', 'check_out'].includes(finalStatus)) {
+        finalStatus = 'present';
+      }
 
       // Get employee's break duration
       const breakMinutes = (finalStatus === 'present' && check_in_time && check_out_time)
