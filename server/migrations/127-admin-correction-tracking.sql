@@ -4,7 +4,7 @@
 -- Add columns to hr_attendance_correction_requests table
 ALTER TABLE hr_attendance_correction_requests
   ADD COLUMN IF NOT EXISTS admin_cancelled_at TIMESTAMP,
-  ADD COLUMN IF NOT EXISTS admin_cancelled_by UUID REFERENCES profiles(id),
+  ADD COLUMN IF NOT EXISTS admin_cancelled_by TEXT REFERENCES profiles(id),
   ADD COLUMN IF NOT EXISTS admin_cancellation_reason TEXT;
 
 -- Add comment for documentation
