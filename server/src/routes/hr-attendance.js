@@ -232,6 +232,41 @@ async function cancelPendingCorrectionRequest(employeeId, date, adminUserId) {
   }
 }
 
+/**
+ * Get employee's work schedule break duration for a specific date
+ */
+async function getEmployeeBreakDuration(employeeId, date) {
+  try {
+    const result = await pool.query(`
+      SELECT ws.break_duration_minutes
+      FROM hr_employee_schedules es
+      JOIN hr_work_schedules ws ON es.schedule_id = ws.id
+      WHERE es.employee_id = $1
+        AND es.start_date <= $2
+        AND (es.end_date IS NULL OR es.end_date >= $2)
+      ORDER BY es.start_date DESC
+      LIMIT 1
+    `, [employeeId, date]);
+
+    if (result.rows.length > 0) {
+      return result.rows[0].break_duration_minutes || 0;
+    }
+
+    // Fallback: get default schedule
+    const defaultResult = await pool.query(`
+      SELECT break_duration_minutes
+      FROM hr_work_schedules
+      WHERE is_default = true AND is_active = true
+      LIMIT 1
+    `);
+
+    return defaultResult.rows[0]?.break_duration_minutes || 0;
+  } catch (error) {
+    console.error('Error getting employee break duration:', error);
+    return 0; // Fallback to 0 if error
+  }
+}
+
 // === ADMIN ATTENDANCE MANAGEMENT ===
 
 // Get attendance by employee and date
@@ -288,7 +323,7 @@ router.get('/by-date', authenticateToken, requirePermission('hr.attendance.view_
     const holidayResult = await pool.query(`
       SELECT name
       FROM hr_public_holidays
-      WHERE date = $1
+      WHERE holiday_date = $1
       LIMIT 1
     `, [date]);
 
@@ -427,8 +462,11 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
         WHERE employee_id = $1 AND attendance_date = $2
       `, [employee_id, date]);
 
-      // Calculate worked minutes
-      const worked_minutes = calculateWorkedMinutes(check_in_time, check_out_time);
+      // Get employee's break duration
+      const breakMinutes = await getEmployeeBreakDuration(employee_id, date);
+
+      // Calculate worked minutes with break deduction
+      const worked_minutes = calculateWorkedMinutes(check_in_time, check_out_time, breakMinutes);
 
       // Insert corrected record
       const result = await pool.query(`
@@ -479,9 +517,14 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
       // Determine final status
       let finalStatus = absence_status || status || 'present';
 
-      // Calculate worked minutes if presence with times
+      // Get employee's break duration
+      const breakMinutes = (finalStatus === 'present' && check_in_time && check_out_time)
+        ? await getEmployeeBreakDuration(employee_id, date)
+        : 0;
+
+      // Calculate worked minutes with break deduction
       const worked_minutes = (finalStatus === 'present' && check_in_time && check_out_time)
-        ? calculateWorkedMinutes(check_in_time, check_out_time)
+        ? calculateWorkedMinutes(check_in_time, check_out_time, breakMinutes)
         : null;
 
       // Insert new record
