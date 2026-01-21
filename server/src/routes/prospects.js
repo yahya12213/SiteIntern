@@ -310,42 +310,104 @@ router.get('/ecart-details',
     console.log('📊 [ECART-DETAILS] Endpoint called');
     console.log('📊 [ECART-DETAILS] Query params:', req.query);
     console.log('📊 [ECART-DETAILS] User:', req.user?.id, 'Role:', req.user?.role);
+    console.log('📊 [ECART-DETAILS] UserScope:', req.userScope);
     try {
       const { segment_id, ville_id, date_from, date_to } = req.query;
 
-      // Parameters pour toutes les queries: segment, ville, date_from, date_to
-      const params = [
-        segment_id || null,
-        ville_id || null,
-        date_from || null,
-        date_to || null
-      ];
+      // Construire les scope filters pour appliquer les restrictions utilisateur
+      const sessionScopeFilter = buildScopeFilter(req, 'sf.segment_id', 'sf.ville_id');
+      const prospectScopeFilter = buildScopeFilter(req, 'p.segment_id', 'p.ville_id');
 
-      // 1. Calculer les comptages pour déterminer la direction de l'écart
-      const prospectCountQuery = `
+      console.log('📊 [ECART-DETAILS] Session scope:', sessionScopeFilter.hasScope ? sessionScopeFilter.conditions : 'admin (no scope)');
+      console.log('📊 [ECART-DETAILS] Prospect scope:', prospectScopeFilter.hasScope ? prospectScopeFilter.conditions : 'admin (no scope)');
+
+      // Helper pour ajuster les index des paramètres dans les conditions
+      const adjustConditions = (conditions, startIndex) => {
+        return conditions.map(condition => {
+          return condition.replace(/\$(\d+)/g, (match, num) => {
+            return `$${parseInt(num) + startIndex - 1}`;
+          });
+        });
+      };
+
+      // =====================================================
+      // 1. Comptage des prospects inscrits (avec scope)
+      // =====================================================
+      let prospectCountQuery = `
         SELECT COUNT(*) FILTER (WHERE statut_contact = 'inscrit') as count
         FROM prospects p
         WHERE 1=1
-          AND ($1::text IS NULL OR p.segment_id = $1)
-          AND ($2::text IS NULL OR p.ville_id = $2)
-          AND ($3::date IS NULL OR p.date_injection >= $3)
-          AND ($4::date IS NULL OR p.date_injection <= $4)
       `;
+      let prospectCountParams = [];
+      let prospectParamIndex = 1;
 
-      const sessionCountQuery = `
+      // Appliquer le scope utilisateur (obligatoire pour non-admin)
+      if (prospectScopeFilter.hasScope) {
+        const adjustedConditions = adjustConditions(prospectScopeFilter.conditions, prospectParamIndex);
+        prospectCountQuery += ` AND (${adjustedConditions.join(' AND ')})`;
+        prospectCountParams.push(...prospectScopeFilter.params);
+        prospectParamIndex += prospectScopeFilter.params.length;
+      }
+
+      // Filtres UI additionnels (optionnels)
+      if (segment_id) {
+        prospectCountQuery += ` AND p.segment_id = $${prospectParamIndex++}`;
+        prospectCountParams.push(segment_id);
+      }
+      if (ville_id) {
+        prospectCountQuery += ` AND p.ville_id = $${prospectParamIndex++}`;
+        prospectCountParams.push(ville_id);
+      }
+      if (date_from) {
+        prospectCountQuery += ` AND p.date_injection >= $${prospectParamIndex++}`;
+        prospectCountParams.push(date_from);
+      }
+      if (date_to) {
+        prospectCountQuery += ` AND p.date_injection <= $${prospectParamIndex++}`;
+        prospectCountParams.push(date_to);
+      }
+
+      // =====================================================
+      // 2. Comptage des étudiants en session (avec scope)
+      // =====================================================
+      let sessionCountQuery = `
         SELECT COUNT(DISTINCT se.student_id) as count
         FROM session_etudiants se
         JOIN sessions_formation sf ON sf.id = se.session_id
         WHERE sf.statut != 'annulee'
-          AND ($1::text IS NULL OR sf.segment_id = $1)
-          AND ($2::text IS NULL OR sf.ville_id = $2)
-          AND ($3::date IS NULL OR se.created_at >= $3)
-          AND ($4::date IS NULL OR se.created_at <= $4)
       `;
+      let sessionCountParams = [];
+      let sessionParamIndex = 1;
+
+      // Appliquer le scope utilisateur
+      if (sessionScopeFilter.hasScope) {
+        const adjustedConditions = adjustConditions(sessionScopeFilter.conditions, sessionParamIndex);
+        sessionCountQuery += ` AND (${adjustedConditions.join(' AND ')})`;
+        sessionCountParams.push(...sessionScopeFilter.params);
+        sessionParamIndex += sessionScopeFilter.params.length;
+      }
+
+      // Filtres UI additionnels
+      if (segment_id) {
+        sessionCountQuery += ` AND sf.segment_id = $${sessionParamIndex++}`;
+        sessionCountParams.push(segment_id);
+      }
+      if (ville_id) {
+        sessionCountQuery += ` AND sf.ville_id = $${sessionParamIndex++}`;
+        sessionCountParams.push(ville_id);
+      }
+      if (date_from) {
+        sessionCountQuery += ` AND se.created_at >= $${sessionParamIndex++}`;
+        sessionCountParams.push(date_from);
+      }
+      if (date_to) {
+        sessionCountQuery += ` AND se.created_at <= $${sessionParamIndex++}`;
+        sessionCountParams.push(date_to);
+      }
 
       const [prospectCount, sessionCount] = await Promise.all([
-        pool.query(prospectCountQuery, params),
-        pool.query(sessionCountQuery, params)
+        pool.query(prospectCountQuery, prospectCountParams),
+        pool.query(sessionCountQuery, sessionCountParams)
       ]);
 
       const inscrits_prospect = parseInt(prospectCount.rows[0].count || 0);
@@ -356,9 +418,12 @@ router.get('/ecart-details',
       let students = [];
 
       if (ecart > 0) {
+        // =====================================================
         // Écart positif: Étudiants en sessions mais PAS dans prospects
+        // =====================================================
         console.log('📊 [ECART-DETAILS] Running positive ecart query...');
-        const query = `
+
+        let positiveQuery = `
           SELECT
             s.id as student_id,
             s.nom,
@@ -379,30 +444,87 @@ router.get('/ecart-details',
           LEFT JOIN cities c ON c.id = sf.ville_id
           LEFT JOIN segments seg ON seg.id = sf.segment_id
           WHERE sf.statut != 'annulee'
-            AND ($1::text IS NULL OR sf.segment_id = $1)
-            AND ($2::text IS NULL OR sf.ville_id = $2)
-            AND ($3::date IS NULL OR se.created_at >= $3)
-            AND ($4::date IS NULL OR se.created_at <= $4)
+        `;
+        let positiveParams = [];
+        let positiveParamIndex = 1;
+
+        // Appliquer le scope utilisateur aux sessions
+        if (sessionScopeFilter.hasScope) {
+          const adjustedConditions = adjustConditions(sessionScopeFilter.conditions, positiveParamIndex);
+          positiveQuery += ` AND (${adjustedConditions.join(' AND ')})`;
+          positiveParams.push(...sessionScopeFilter.params);
+          positiveParamIndex += sessionScopeFilter.params.length;
+        }
+
+        // Filtres UI additionnels
+        if (segment_id) {
+          positiveQuery += ` AND sf.segment_id = $${positiveParamIndex++}`;
+          positiveParams.push(segment_id);
+        }
+        if (ville_id) {
+          positiveQuery += ` AND sf.ville_id = $${positiveParamIndex++}`;
+          positiveParams.push(ville_id);
+        }
+        if (date_from) {
+          positiveQuery += ` AND se.created_at >= $${positiveParamIndex++}`;
+          positiveParams.push(date_from);
+        }
+        if (date_to) {
+          positiveQuery += ` AND se.created_at <= $${positiveParamIndex++}`;
+          positiveParams.push(date_to);
+        }
+
+        // NOT EXISTS pour exclure ceux qui ont un prospect correspondant
+        // Note: On applique le même scope aux prospects dans la sous-requête
+        let notExistsProspectScope = '';
+        if (prospectScopeFilter.hasScope) {
+          const adjustedConditions = adjustConditions(prospectScopeFilter.conditions, positiveParamIndex);
+          notExistsProspectScope = ` AND (${adjustedConditions.join(' AND ')})`;
+          positiveParams.push(...prospectScopeFilter.params);
+          positiveParamIndex += prospectScopeFilter.params.length;
+        }
+
+        let notExistsFilters = '';
+        if (segment_id) {
+          notExistsFilters += ` AND p.segment_id = $${positiveParamIndex++}`;
+          positiveParams.push(segment_id);
+        }
+        if (ville_id) {
+          notExistsFilters += ` AND p.ville_id = $${positiveParamIndex++}`;
+          positiveParams.push(ville_id);
+        }
+        if (date_from) {
+          notExistsFilters += ` AND p.date_injection >= $${positiveParamIndex++}`;
+          positiveParams.push(date_from);
+        }
+        if (date_to) {
+          notExistsFilters += ` AND p.date_injection <= $${positiveParamIndex++}`;
+          positiveParams.push(date_to);
+        }
+
+        positiveQuery += `
             AND NOT EXISTS (
               SELECT 1 FROM prospects p
               WHERE (RIGHT(p.phone_international, 9) = RIGHT(s.phone, 9)
                   OR RIGHT(p.phone_international, 9) = RIGHT(COALESCE(s.whatsapp, ''), 9))
-                AND ($1::text IS NULL OR p.segment_id = $1)
-                AND ($2::text IS NULL OR p.ville_id = $2)
-                AND ($3::date IS NULL OR p.date_injection >= $3)
-                AND ($4::date IS NULL OR p.date_injection <= $4)
+                ${notExistsProspectScope}
+                ${notExistsFilters}
             )
           GROUP BY s.id, s.nom, s.prenom, s.cin, s.phone, s.whatsapp
           ORDER BY s.nom, s.prenom
         `;
-        const result = await pool.query(query, params);
+
+        const result = await pool.query(positiveQuery, positiveParams);
         console.log('📊 [ECART-DETAILS] Positive query returned', result.rows.length, 'rows');
         students = result.rows;
 
       } else if (ecart < 0) {
-        console.log('📊 [ECART-DETAILS] Running negative ecart query...');
+        // =====================================================
         // Écart négatif: Prospects 'inscrit' mais PAS dans sessions
-        const query = `
+        // =====================================================
+        console.log('📊 [ECART-DETAILS] Running negative ecart query...');
+
+        let negativeQuery = `
           SELECT DISTINCT
             p.id as prospect_id,
             p.nom,
@@ -416,10 +538,64 @@ router.get('/ecart-details',
           LEFT JOIN cities c ON c.id = p.ville_id
           LEFT JOIN segments seg ON seg.id = p.segment_id
           WHERE p.statut_contact = 'inscrit'
-            AND ($1::text IS NULL OR p.segment_id = $1)
-            AND ($2::text IS NULL OR p.ville_id = $2)
-            AND ($3::date IS NULL OR p.date_injection >= $3)
-            AND ($4::date IS NULL OR p.date_injection <= $4)
+        `;
+        let negativeParams = [];
+        let negativeParamIndex = 1;
+
+        // Appliquer le scope utilisateur aux prospects
+        if (prospectScopeFilter.hasScope) {
+          const adjustedConditions = adjustConditions(prospectScopeFilter.conditions, negativeParamIndex);
+          negativeQuery += ` AND (${adjustedConditions.join(' AND ')})`;
+          negativeParams.push(...prospectScopeFilter.params);
+          negativeParamIndex += prospectScopeFilter.params.length;
+        }
+
+        // Filtres UI additionnels
+        if (segment_id) {
+          negativeQuery += ` AND p.segment_id = $${negativeParamIndex++}`;
+          negativeParams.push(segment_id);
+        }
+        if (ville_id) {
+          negativeQuery += ` AND p.ville_id = $${negativeParamIndex++}`;
+          negativeParams.push(ville_id);
+        }
+        if (date_from) {
+          negativeQuery += ` AND p.date_injection >= $${negativeParamIndex++}`;
+          negativeParams.push(date_from);
+        }
+        if (date_to) {
+          negativeQuery += ` AND p.date_injection <= $${negativeParamIndex++}`;
+          negativeParams.push(date_to);
+        }
+
+        // NOT EXISTS pour exclure ceux qui ont une session correspondante
+        let notExistsSessionScope = '';
+        if (sessionScopeFilter.hasScope) {
+          const adjustedConditions = adjustConditions(sessionScopeFilter.conditions, negativeParamIndex);
+          notExistsSessionScope = ` AND (${adjustedConditions.join(' AND ')})`;
+          negativeParams.push(...sessionScopeFilter.params);
+          negativeParamIndex += sessionScopeFilter.params.length;
+        }
+
+        let notExistsFilters = '';
+        if (segment_id) {
+          notExistsFilters += ` AND sf.segment_id = $${negativeParamIndex++}`;
+          negativeParams.push(segment_id);
+        }
+        if (ville_id) {
+          notExistsFilters += ` AND sf.ville_id = $${negativeParamIndex++}`;
+          negativeParams.push(ville_id);
+        }
+        if (date_from) {
+          notExistsFilters += ` AND se.created_at >= $${negativeParamIndex++}`;
+          negativeParams.push(date_from);
+        }
+        if (date_to) {
+          notExistsFilters += ` AND se.created_at <= $${negativeParamIndex++}`;
+          negativeParams.push(date_to);
+        }
+
+        negativeQuery += `
             AND NOT EXISTS (
               SELECT 1 FROM students s
               INNER JOIN session_etudiants se ON se.student_id = s.id
@@ -427,14 +603,13 @@ router.get('/ecart-details',
               WHERE (RIGHT(s.phone, 9) = RIGHT(p.phone_international, 9)
                   OR RIGHT(COALESCE(s.whatsapp, ''), 9) = RIGHT(p.phone_international, 9))
                 AND sf.statut != 'annulee'
-                AND ($1::text IS NULL OR sf.segment_id = $1)
-                AND ($2::text IS NULL OR sf.ville_id = $2)
-                AND ($3::date IS NULL OR se.created_at >= $3)
-                AND ($4::date IS NULL OR se.created_at <= $4)
+                ${notExistsSessionScope}
+                ${notExistsFilters}
             )
           ORDER BY p.date_injection DESC
         `;
-        const result = await pool.query(query, params);
+
+        const result = await pool.query(negativeQuery, negativeParams);
         students = result.rows;
       }
 
