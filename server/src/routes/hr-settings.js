@@ -1,7 +1,6 @@
 import express from 'express';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
-import { getSystemClockConfig, updateSystemClockConfig, getSystemTime } from '../services/system-clock.js';
 
 const router = express.Router();
 
@@ -296,37 +295,24 @@ router.delete('/schedules/:id', authenticateToken, requirePermission('hr.setting
   }
 });
 
-// === SYSTEM CLOCK MANAGEMENT ===
-
-/**
- * Get system clock configuration
- * Returns current settings, server time, and calculated system time
- */
-router.get('/system-clock', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
-  try {
-    const config = await getSystemClockConfig(pool);
-    res.json({ success: true, data: config });
-  } catch (error) {
-    console.error('Error fetching system clock config:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+// === SYSTEM CLOCK (PostgreSQL NOW() uniquement) ===
 
 /**
  * Get current system time
- * Returns the time that would be used for attendance records
+ * Retourne l'heure PostgreSQL utilisée pour tous les pointages
+ * Note: L'horloge configurable a été supprimée - utilisation de NOW() uniquement
  */
 router.get('/system-clock/current-time', authenticateToken, async (req, res) => {
   try {
-    const systemTime = await getSystemTime(pool);
-    const serverNow = await pool.query('SELECT NOW() as now');
+    const result = await pool.query('SELECT NOW() as system_time');
 
     res.json({
       success: true,
       data: {
-        system_time: systemTime,
-        server_time: serverNow.rows[0].now,
-        is_custom: systemTime.getTime() !== new Date(serverNow.rows[0].now).getTime()
+        system_time: result.rows[0].system_time,
+        server_time: result.rows[0].system_time,
+        is_custom: false,
+        message: 'Horloge système PostgreSQL (NOW())'
       }
     });
   } catch (error) {
@@ -336,55 +322,24 @@ router.get('/system-clock/current-time', authenticateToken, async (req, res) => 
 });
 
 /**
- * Update system clock configuration
- * Enables/disables custom clock and sets the offset in minutes
+ * Get system clock info (legacy endpoint for compatibility)
  */
-router.put('/system-clock', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
+router.get('/system-clock', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
   try {
-    const { enabled, offset_minutes } = req.body;
-
-    if (enabled && (offset_minutes === undefined || offset_minutes === null)) {
-      return res.status(400).json({
-        success: false,
-        error: 'offset_minutes is required when enabling the system clock'
-      });
-    }
-
-    const config = await updateSystemClockConfig(pool, enabled, parseInt(offset_minutes) || 0, req.user.id);
-
-    const sign = (config.offset_minutes || 0) >= 0 ? '+' : '';
-    const hours = Math.floor(Math.abs(config.offset_minutes || 0) / 60);
-    const mins = Math.abs(config.offset_minutes || 0) % 60;
-    const offsetStr = `${sign}${hours}h${mins.toString().padStart(2, '0')}`;
+    const result = await pool.query('SELECT NOW() as now');
 
     res.json({
       success: true,
-      data: config,
-      message: enabled
-        ? `Horloge systeme activee: offset ${offsetStr}`
-        : 'Horloge systeme desactivee - utilisation de l\'heure serveur'
+      data: {
+        enabled: false,
+        offset_minutes: 0,
+        server_time: result.rows[0].now,
+        system_time: result.rows[0].now,
+        message: 'Horloge configurable désactivée - utilisation de PostgreSQL NOW() uniquement'
+      }
     });
   } catch (error) {
-    console.error('Error updating system clock config:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * Reset system clock to server time
- * Convenience endpoint to disable custom clock
- */
-router.post('/system-clock/reset', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
-  try {
-    const config = await updateSystemClockConfig(pool, false, 0, req.user.id);
-
-    res.json({
-      success: true,
-      data: config,
-      message: 'Horloge systeme reinitialisee - utilisation de l\'heure serveur'
-    });
-  } catch (error) {
-    console.error('Error resetting system clock:', error);
+    console.error('Error fetching system clock config:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
