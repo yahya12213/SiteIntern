@@ -59,6 +59,7 @@ interface AttendanceByDateData {
     employee_number: string;
   };
   date: string;
+  break_duration_minutes: number;
   has_records: boolean;
   records: AttendanceRecord[];
   pending_correction_request: CorrectionRequest | null;
@@ -194,7 +195,11 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
     if (!formData.check_in_time || !formData.check_out_time) return null;
     const [inH, inM] = formData.check_in_time.split(':').map(Number);
     const [outH, outM] = formData.check_out_time.split(':').map(Number);
-    return (outH * 60 + outM) - (inH * 60 + inM);
+    const totalMinutes = (outH * 60 + outM) - (inH * 60 + inM);
+
+    // Déduire la pause de l'employé
+    const breakMinutes = attendanceData?.break_duration_minutes || 0;
+    return Math.max(0, totalMinutes - breakMinutes);
   })();
 
   const formatDuration = (minutes: number | null): string => {

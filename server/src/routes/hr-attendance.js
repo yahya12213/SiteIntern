@@ -312,6 +312,9 @@ router.get('/by-date', authenticateToken, requirePermission('hr.attendance.view_
 
     const employee = employeeResult.rows[0];
 
+    // Get employee's break duration for this date
+    const break_duration_minutes = await getEmployeeBreakDuration(employee_id, date);
+
     // Get attendance records for this date
     const recordsResult = await pool.query(`
       SELECT *
@@ -353,6 +356,7 @@ router.get('/by-date', authenticateToken, requirePermission('hr.attendance.view_
       data: {
         employee,
         date,
+        break_duration_minutes,
         has_records: recordsResult.rows.length > 0,
         records: recordsResult.rows,
         pending_correction_request: correctionResult.rows[0] || null,
