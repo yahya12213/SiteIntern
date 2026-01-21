@@ -161,7 +161,7 @@ export default function Prospects() {
   const [showEcartModal, setShowEcartModal] = useState(false);
 
   // Query pour les détails de l'écart
-  const { data: ecartDetails, isLoading: ecartLoading } = useQuery({
+  const { data: ecartDetails, isLoading: ecartLoading, error: ecartError } = useQuery({
     queryKey: ['prospects-ecart', filters.segment_id, filters.ville_id, filters.date_from, filters.date_to],
     queryFn: () => prospectsApi.getEcartDetails({
       segment_id: filters.segment_id,
@@ -170,6 +170,7 @@ export default function Prospects() {
       date_to: filters.date_to
     }),
     enabled: showEcartModal,
+    retry: 1,
   });
 
   // Modal de réautorisation Google
@@ -972,6 +973,7 @@ export default function Prospects() {
           onClose={() => setShowEcartModal(false)}
           data={ecartDetails || null}
           isLoading={ecartLoading}
+          error={ecartError ? (ecartError as Error).message : null}
         />
       </div>
     </AppLayout>

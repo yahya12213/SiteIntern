@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Users, TrendingUp, TrendingDown, Info } from 'lucide-react';
+import { Users, TrendingUp, TrendingDown, Info, AlertTriangle } from 'lucide-react';
 import type { EcartDetailsResponse } from '@/lib/api/prospects';
 
 interface Props {
@@ -9,9 +9,10 @@ interface Props {
   onClose: () => void;
   data: EcartDetailsResponse | null;
   isLoading: boolean;
+  error?: string | null;
 }
 
-export function EcartDetailsModal({ open, onClose, data, isLoading }: Props) {
+export function EcartDetailsModal({ open, onClose, data, isLoading, error }: Props) {
   const isPositive = data?.type === 'positive';
   const isNegative = data?.type === 'negative';
   const isZero = data?.type === 'zero';
@@ -28,7 +29,13 @@ export function EcartDetailsModal({ open, onClose, data, isLoading }: Props) {
           </DialogTitle>
         </DialogHeader>
 
-        {isLoading || !data ? (
+        {error ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <AlertTriangle className="h-12 w-12 text-red-500 mb-3" />
+            <p className="text-red-600 font-medium">Erreur lors du chargement</p>
+            <p className="text-sm text-gray-500 mt-2 text-center max-w-md">{error}</p>
+          </div>
+        ) : isLoading || !data ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
             <p className="ml-3 text-gray-600">Chargement des détails...</p>
