@@ -109,7 +109,8 @@
       "Bash(railway --version:*)",
       "Bash(railway run psql:*)",
       "Bash(PGPASSWORD=kMfsYpEZqZorPiMaUPvQnOoBqysrEjQx psql:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(git cherry-pick:*)"
     ],
     "deny": [],
     "ask": []

@@ -307,6 +307,9 @@ router.get('/ecart-details',
   requirePermission('commercialisation.prospects.view_page'),
   injectUserScope,
   async (req, res) => {
+    console.log('📊 [ECART-DETAILS] Endpoint called');
+    console.log('📊 [ECART-DETAILS] Query params:', req.query);
+    console.log('📊 [ECART-DETAILS] User:', req.user?.id, 'Role:', req.user?.role);
     try {
       const { segment_id, ville_id, date_from, date_to } = req.query;
 
@@ -348,11 +351,13 @@ router.get('/ecart-details',
       const inscrits_prospect = parseInt(prospectCount.rows[0].count || 0);
       const inscrits_session = parseInt(sessionCount.rows[0].count || 0);
       const ecart = inscrits_session - inscrits_prospect;
+      console.log('📊 [ECART-DETAILS] Counts - prospect:', inscrits_prospect, 'session:', inscrits_session, 'ecart:', ecart);
 
       let students = [];
 
       if (ecart > 0) {
         // Écart positif: Étudiants en sessions mais PAS dans prospects
+        console.log('📊 [ECART-DETAILS] Running positive ecart query...');
         const query = `
           SELECT DISTINCT
             s.id as student_id,
@@ -391,9 +396,11 @@ router.get('/ecart-details',
           ORDER BY s.nom, s.prenom
         `;
         const result = await pool.query(query, params);
+        console.log('📊 [ECART-DETAILS] Positive query returned', result.rows.length, 'rows');
         students = result.rows;
 
       } else if (ecart < 0) {
+        console.log('📊 [ECART-DETAILS] Running negative ecart query...');
         // Écart négatif: Prospects 'inscrit' mais PAS dans sessions
         const query = `
           SELECT DISTINCT
@@ -431,6 +438,7 @@ router.get('/ecart-details',
         students = result.rows;
       }
 
+      console.log('📊 [ECART-DETAILS] Returning', students.length, 'students');
       res.json({
         ecart,
         type: ecart > 0 ? 'positive' : ecart < 0 ? 'negative' : 'zero',
@@ -439,7 +447,8 @@ router.get('/ecart-details',
       });
 
     } catch (error) {
-      console.error('Error fetching écart details:', error);
+      console.error('❌ [ECART-DETAILS] Error:', error.message);
+      console.error('❌ [ECART-DETAILS] Stack:', error.stack);
       res.status(500).json({ error: error.message });
     }
   }
