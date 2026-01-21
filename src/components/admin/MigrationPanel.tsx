@@ -443,6 +443,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 119: Sync Etudiants-Prospects',
     description: '🔄 Synchroniser les etudiants avec prospects - Normalise les telephones (0xxx → +212xxx) et met a jour le statut des prospects correspondants en "inscrit"',
     endpoint: '/migration-119-sync-students-prospects'
+  },
+  {
+    id: 'migration-127',
+    name: 'Migration 127: Admin Correction Tracking',
+    description: '🔧 FIX CRITIQUE: Ajoute les colonnes admin_cancelled_at, admin_cancelled_by, admin_cancellation_reason à hr_attendance_correction_requests - Résout erreur "column admin_cancelled_at does not exist" bloquant modifications/déclarations pointages',
+    endpoint: '/migration-127'
   }
 ];
 
