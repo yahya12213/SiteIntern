@@ -79,6 +79,17 @@ router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'),
     baseQuery += ` ORDER BY COALESCE(DATE(a.clock_time), a.attendance_date) DESC, e.last_name`;
 
     const result = await pool.query(baseQuery, params);
+
+    // 🔍 DEBUG: Log first result to see what's returned
+    if (result.rows.length > 0) {
+      console.log('🔍 [GET /hr/attendance] First record returned:', {
+        attendance_date: result.rows[0].attendance_date,
+        check_in_time: result.rows[0].check_in_time,
+        check_out_time: result.rows[0].check_out_time,
+        employee_name: result.rows[0].employee_name
+      });
+    }
+
     res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching attendance:', error);
@@ -467,10 +478,29 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
         });
       }
 
+      // 🔍 DEBUG: Log request body values
+      console.log('🔍 [POST /admin/edit] Request body:', {
+        employee_id,
+        date,
+        action,
+        check_in_time,
+        check_out_time,
+        status,
+        notes: notes?.substring(0, 50)
+      });
+
       // Store original values (from first record)
       const originalRecord = existing.rows[0];
-      const original_check_in = originalRecord.original_check_in || originalRecord.check_in_time;
-      const original_check_out = originalRecord.original_check_out || originalRecord.check_out_time;
+      const original_check_in = originalRecord.original_check_in || originalRecord.check_in;
+      const original_check_out = originalRecord.original_check_out || originalRecord.check_out;
+
+      console.log('🔍 [POST /admin/edit] Original record:', {
+        original_check_in: originalRecord.original_check_in,
+        check_in: originalRecord.check_in,
+        computed_original_check_in: original_check_in,
+        check_out: originalRecord.check_out,
+        computed_original_check_out: original_check_out
+      });
 
       // Delete all existing records for clean slate
       await pool.query(`
@@ -483,6 +513,17 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
 
       // Calculate worked minutes with break deduction
       const worked_minutes = calculateWorkedMinutes(check_in_time, check_out_time, breakMinutes);
+
+      console.log('🔍 [POST /admin/edit] Values to INSERT:', {
+        employee_id,
+        date,
+        check_in: check_in_time,
+        check_out: check_out_time,
+        worked_minutes,
+        status: status || 'present',
+        original_check_in,
+        original_check_out
+      });
 
       // Insert corrected record
       const result = await pool.query(`
@@ -500,6 +541,15 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
         original_check_in, original_check_out,
         req.user.id, correction_reason
       ]);
+
+      console.log('🔍 [POST /admin/edit] INSERT returned:', {
+        id: result.rows[0].id,
+        attendance_date: result.rows[0].attendance_date,
+        check_in: result.rows[0].check_in,
+        check_out: result.rows[0].check_out,
+        worked_minutes: result.rows[0].worked_minutes,
+        status: result.rows[0].status
+      });
 
       return res.json({
         success: true,
