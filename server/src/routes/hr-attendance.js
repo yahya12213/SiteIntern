@@ -329,10 +329,11 @@ router.get('/by-date', authenticateToken, requirePermission('hr.attendance.view_
 
     // Check for recovery declarations
     const recoveryResult = await pool.query(`
-      SELECT rd.recovery_period_id, rp.name as recovery_name
-      FROM hr_recovery_declarations rd
+      SELECT er.recovery_declaration_id, rd.recovery_period_id, rp.name as recovery_name
+      FROM hr_employee_recoveries er
+      JOIN hr_recovery_declarations rd ON er.recovery_declaration_id = rd.id
       JOIN hr_recovery_periods rp ON rd.recovery_period_id = rp.id
-      WHERE rd.employee_id = $1 AND rd.recovery_date = $2
+      WHERE er.employee_id = $1 AND er.recovery_date = $2
       LIMIT 1
     `, [employee_id, date]);
 
@@ -471,7 +472,7 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
       // Insert corrected record
       const result = await pool.query(`
         INSERT INTO hr_attendance_records (
-          employee_id, attendance_date, check_in_time, check_out_time,
+          employee_id, attendance_date, check_in, check_out,
           worked_minutes, status, notes,
           original_check_in, original_check_out,
           is_manual_entry, corrected_by, correction_reason, corrected_at,
@@ -530,7 +531,7 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
       // Insert new record
       const result = await pool.query(`
         INSERT INTO hr_attendance_records (
-          employee_id, attendance_date, check_in_time, check_out_time,
+          employee_id, attendance_date, check_in, check_out,
           worked_minutes, status, notes,
           is_manual_entry, source, created_at
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, true, 'manual', NOW())
