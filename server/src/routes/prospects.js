@@ -507,6 +507,7 @@ router.get('/ecart-details',
               SELECT 1 FROM prospects p
               WHERE (RIGHT(p.phone_international, 9) = RIGHT(s.phone, 9)
                   OR RIGHT(p.phone_international, 9) = RIGHT(COALESCE(s.whatsapp, ''), 9))
+                AND p.statut_contact = 'inscrit'
                 ${notExistsProspectScope}
                 ${notExistsFilters}
             )
