@@ -13,7 +13,6 @@ import {
   Info,
   CheckCircle,
   XCircle,
-  RefreshCw,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 
