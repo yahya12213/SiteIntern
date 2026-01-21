@@ -13,6 +13,7 @@ import {
   Info,
   CheckCircle,
   XCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 
@@ -65,13 +66,20 @@ interface AttendanceByDateData {
   recovery_day: { recovery_name: string } | null;
 }
 
-type Mode = 'search' | 'review' | 'edit' | 'declare-presence' | 'declare-absence';
+type Mode = 'search' | 'review' | 'edit' | 'declare-presence' | 'declare-absence' | 'loading';
 
 export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmployeeId, initialDate }: AdminAttendanceEditorProps) {
   const queryClient = useQueryClient();
 
   // State management
-  const [mode, setMode] = useState<Mode>('search');
+  const [mode, setMode] = useState<Mode>(() => {
+    // Bouton "Modifier" : initialEmployeeId + initialDate fournis
+    if (initialEmployeeId && initialDate) {
+      return 'loading'; // Va auto-fetch puis passer en 'edit'
+    }
+    // Bouton "Ajouter pointage" : pas d'initial values
+    return 'declare-presence'; // Formulaire direct avec sélecteurs intégrés
+  });
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(
     initialDate || new Date().toISOString().split('T')[0]
@@ -154,18 +162,14 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
           notes: record.notes || '',
           correction_reason: '',
         });
-        // Si vient d'un bouton "Modifier", aller directement en mode edit
-        if (initialEmployeeId && initialDate) {
-          setMode('edit');
-        } else {
-          setMode('review');
-        }
+        // ✅ Passer directement en mode 'edit'
+        setMode('edit');
       } else {
-        // Aucun record trouvé, aller directement en mode declare-presence
+        // ✅ Passer directement en mode 'declare-presence'
         setMode('declare-presence');
       }
     }
-  }, [searchData, initialEmployeeId, initialDate]);
+  }, [searchData]);
 
   // Auto-select employee and search when initial values are provided
   useEffect(() => {

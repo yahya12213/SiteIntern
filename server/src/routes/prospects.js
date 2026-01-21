@@ -380,7 +380,8 @@ router.get('/ecart-details',
             AND ($4::date IS NULL OR se.created_at <= $4)
             AND NOT EXISTS (
               SELECT 1 FROM prospects p
-              WHERE (p.phone_international = s.phone OR p.phone_international = s.whatsapp)
+              WHERE (RIGHT(p.phone_international, 9) = RIGHT(s.phone, 9)
+                  OR RIGHT(p.phone_international, 9) = RIGHT(COALESCE(s.whatsapp, ''), 9))
                 AND ($1::text IS NULL OR p.segment_id = $1)
                 AND ($2::text IS NULL OR p.ville_id = $2)
                 AND ($3::date IS NULL OR p.date_injection >= $3)
@@ -416,7 +417,8 @@ router.get('/ecart-details',
               SELECT 1 FROM students s
               INNER JOIN session_etudiants se ON se.student_id = s.id
               INNER JOIN sessions_formation sf ON sf.id = se.session_id
-              WHERE (s.phone = p.phone_international OR s.whatsapp = p.phone_international)
+              WHERE (RIGHT(s.phone, 9) = RIGHT(p.phone_international, 9)
+                  OR RIGHT(COALESCE(s.whatsapp, ''), 9) = RIGHT(p.phone_international, 9))
                 AND sf.statut != 'annulee'
                 AND ($1::text IS NULL OR sf.segment_id = $1)
                 AND ($2::text IS NULL OR sf.ville_id = $2)
