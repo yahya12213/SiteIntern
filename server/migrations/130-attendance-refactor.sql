@@ -210,6 +210,18 @@ BEGIN
       v_clock_out := NULL;
     END IF;
 
+    -- CORRECTION: Si clock_out < clock_in (données invalides), les inverser
+    IF v_clock_in IS NOT NULL AND v_clock_out IS NOT NULL AND v_clock_out < v_clock_in THEN
+      DECLARE
+        v_temp TIMESTAMP WITH TIME ZONE;
+      BEGIN
+        v_temp := v_clock_in;
+        v_clock_in := v_clock_out;
+        v_clock_out := v_temp;
+        RAISE NOTICE 'Données inversées pour employé % date %: clock_in et clock_out échangés', rec.employee_id, v_work_date;
+      END;
+    END IF;
+
     -- Déterminer le statut final avec mapping des anciens statuts vers les nouveaux
     IF rec.final_status IS NOT NULL THEN
       -- Mapper les anciens statuts vers les statuts valides
@@ -236,6 +248,7 @@ BEGIN
         WHEN 'half_day' THEN 'partial'      -- Demi-journée → partial
         WHEN 'on_leave' THEN 'leave'        -- Variante congé → leave
         WHEN 'recovery' THEN 'recovery_off' -- Variante récup → recovery_off
+        WHEN 'sortie_anticipee' THEN 'early_leave' -- Départ anticipé (FR)
         -- Défaut pour tout autre statut inconnu
         ELSE 'present'
       END;
