@@ -89,6 +89,12 @@ const STATUS_CONFIG: Record<string, { label: string; className: string; icon: an
   partial: { label: 'Partiel', className: 'bg-yellow-100 text-yellow-800', icon: Clock },
   check_in: { label: 'Pointé entrée', className: 'bg-blue-100 text-blue-800', icon: Clock },
   check_out: { label: 'Pointé sortie', className: 'bg-green-100 text-green-800', icon: CheckCircle2 },
+  // Nouveaux statuts de hr_attendance_daily
+  pending: { label: 'En cours', className: 'bg-blue-100 text-blue-800', icon: Clock },
+  training: { label: 'Formation', className: 'bg-violet-100 text-violet-800', icon: Calendar },
+  sick: { label: 'Maladie', className: 'bg-pink-100 text-pink-800', icon: XCircle },
+  recovery_off: { label: 'Récupération', className: 'bg-teal-100 text-teal-800', icon: Calendar },
+  recovery_day: { label: 'Jour de récup', className: 'bg-teal-100 text-teal-800', icon: Calendar },
 };
 
 // ============================================================
@@ -122,10 +128,13 @@ interface AttendanceDetailModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// Fallback pour statuts inconnus
+const DEFAULT_STATUS = { label: 'Inconnu', className: 'bg-gray-100 text-gray-800', icon: Clock };
+
 function AttendanceDetailModal({ record, open, onOpenChange }: AttendanceDetailModalProps) {
   if (!record) return null;
 
-  const statusConfig = STATUS_CONFIG[record.status];
+  const statusConfig = STATUS_CONFIG[record.status] || DEFAULT_STATUS;
   const StatusIcon = statusConfig.icon;
 
   return (
@@ -541,7 +550,7 @@ export default function TeamAttendance() {
               </TableHeader>
               <TableBody>
                 {filteredRecords.map((record) => {
-                  const statusConfig = STATUS_CONFIG[record.status];
+                  const statusConfig = STATUS_CONFIG[record.status] || DEFAULT_STATUS;
                   const StatusIcon = statusConfig.icon;
                   const recordDate = parseISO(record.date);
                   const isRecordToday = isToday(recordDate);
