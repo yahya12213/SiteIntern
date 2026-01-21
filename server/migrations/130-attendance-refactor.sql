@@ -210,9 +210,35 @@ BEGIN
       v_clock_out := NULL;
     END IF;
 
-    -- Déterminer le statut final
+    -- Déterminer le statut final avec mapping des anciens statuts vers les nouveaux
     IF rec.final_status IS NOT NULL THEN
-      v_day_status := rec.final_status;
+      -- Mapper les anciens statuts vers les statuts valides
+      v_day_status := CASE rec.final_status
+        -- Statuts valides (garder tels quels)
+        WHEN 'pending' THEN 'pending'
+        WHEN 'present' THEN 'present'
+        WHEN 'absent' THEN 'absent'
+        WHEN 'late' THEN 'late'
+        WHEN 'partial' THEN 'partial'
+        WHEN 'early_leave' THEN 'early_leave'
+        WHEN 'holiday' THEN 'holiday'
+        WHEN 'leave' THEN 'leave'
+        WHEN 'weekend' THEN 'weekend'
+        WHEN 'recovery_off' THEN 'recovery_off'
+        WHEN 'recovery_day' THEN 'recovery_day'
+        WHEN 'mission' THEN 'mission'
+        WHEN 'training' THEN 'training'
+        WHEN 'sick' THEN 'sick'
+        -- Anciens statuts à mapper
+        WHEN 'check_in' THEN 'pending'      -- Action → état pending
+        WHEN 'check_out' THEN 'present'     -- Action → état present
+        WHEN 'completed' THEN 'present'     -- Journée terminée → present
+        WHEN 'half_day' THEN 'partial'      -- Demi-journée → partial
+        WHEN 'on_leave' THEN 'leave'        -- Variante congé → leave
+        WHEN 'recovery' THEN 'recovery_off' -- Variante récup → recovery_off
+        -- Défaut pour tout autre statut inconnu
+        ELSE 'present'
+      END;
     ELSIF v_clock_out IS NOT NULL THEN
       IF rec.late_minutes > 0 THEN
         v_day_status := 'late';
