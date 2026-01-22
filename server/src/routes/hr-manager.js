@@ -66,11 +66,11 @@ router.get('/team',
             e.hire_date,
             e.employment_type,
             e.employment_status = 'active' as is_active,
-            -- Today's attendance (from unified hr_attendance_daily)
-            (SELECT clock_in_at FROM hr_attendance_daily
+            -- Today's attendance (from unified hr_attendance_daily) - UTC extraction to avoid timezone shift
+            (SELECT TO_CHAR(clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') FROM hr_attendance_daily
              WHERE employee_id = e.id AND work_date = CURRENT_DATE
              LIMIT 1) as today_check_in,
-            (SELECT clock_out_at FROM hr_attendance_daily
+            (SELECT TO_CHAR(clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') FROM hr_attendance_daily
              WHERE employee_id = e.id AND work_date = CURRENT_DATE
              LIMIT 1) as today_check_out,
             -- Leave info
@@ -117,11 +117,11 @@ router.get('/team',
           e.hire_date,
           e.employment_type,
           e.employment_status = 'active' as is_active,
-          -- Today's attendance (from unified hr_attendance_daily)
-          (SELECT clock_in_at FROM hr_attendance_daily
+          -- Today's attendance (from unified hr_attendance_daily) - UTC extraction to avoid timezone shift
+          (SELECT TO_CHAR(clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') FROM hr_attendance_daily
            WHERE employee_id = e.id AND work_date = CURRENT_DATE
            LIMIT 1) as today_check_in,
-          (SELECT clock_out_at FROM hr_attendance_daily
+          (SELECT TO_CHAR(clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') FROM hr_attendance_daily
            WHERE employee_id = e.id AND work_date = CURRENT_DATE
            LIMIT 1) as today_check_out,
           -- Leave info
@@ -170,14 +170,15 @@ router.get('/team-attendance',
 
       // Build query using the new unified hr_attendance_daily table
       // All calculations are pre-done, so the query is much simpler
+      // UTC extraction to avoid timezone shift: user enters 10:00 → display 10:00
       let query = `
         SELECT
           ad.id::text,
           ad.employee_id,
           e.first_name || ' ' || e.last_name as employee_name,
           ad.work_date as date,
-          ad.clock_in_at as clock_in,
-          ad.clock_out_at as clock_out,
+          TO_CHAR(ad.clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') as clock_in,
+          TO_CHAR(ad.clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') as clock_out,
           ROUND(COALESCE(ad.net_worked_minutes, 0) / 60.0, 2) as worked_hours,
           ad.day_status as status,
           COALESCE(ad.late_minutes, 0) as late_minutes,
@@ -237,8 +238,8 @@ router.get('/team-attendance/today',
           t.first_name || ' ' || t.last_name as employee_name,
           t.employee_number,
           t.position,
-          ad.clock_in_at as first_check_in,
-          ad.clock_out_at as last_check_out,
+          TO_CHAR(ad.clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') as first_check_in,
+          TO_CHAR(ad.clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') as last_check_out,
           ad.net_worked_minutes as worked_minutes,
           COALESCE(ad.day_status, 'absent') as status,
           COALESCE(ad.late_minutes, 0) as late_minutes
