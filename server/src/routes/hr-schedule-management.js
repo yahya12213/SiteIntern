@@ -543,8 +543,8 @@ router.get('/overtime-periods', authenticateToken, requirePermission('hr.attenda
         op.*,
         (SELECT COALESCE(e.first_name, '') || ' ' || COALESCE(e.last_name, '')
          FROM hr_employees e WHERE e.profile_id::text = op.declared_by::text LIMIT 1) as declared_by_name,
-        COALESCE((SELECT COUNT(*)::integer FROM hr_overtime_records otr WHERE otr.period_id = op.id), 0) as employee_count,
-        COALESCE((SELECT SUM(otr2.actual_minutes) FROM hr_overtime_records otr2 WHERE otr2.period_id = op.id), 0) as total_minutes
+        COALESCE((SELECT COUNT(*)::integer FROM hr_overtime_period_employees ope WHERE ope.period_id = op.id), 0) as employee_count,
+        COALESCE((SELECT SUM(otr.actual_minutes) FROM hr_overtime_records otr WHERE otr.period_id = op.id), 0) as total_minutes
       FROM hr_overtime_periods op
       WHERE 1=1
     `;
@@ -711,6 +711,130 @@ router.delete('/overtime-periods/:id', authenticateToken, requirePermission('hr.
     res.json({ success: true, message: 'Periode annulee' });
   } catch (error) {
     console.error('Error cancelling overtime period:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/hr/schedule-management/overtime-periods/:id
+ * Update an existing overtime period
+ */
+router.put('/overtime-periods/:id', authenticateToken, requirePermission('hr.attendance.edit'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { period_date, start_time, end_time, rate_type, reason, employee_ids } = req.body;
+
+    if (!period_date || !start_time || !end_time) {
+      return res.status(400).json({
+        success: false,
+        error: 'Date, heure de debut et heure de fin sont obligatoires'
+      });
+    }
+
+    if (!employee_ids || !Array.isArray(employee_ids) || employee_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Au moins un employe doit etre selectionne'
+      });
+    }
+
+    await client.query('BEGIN');
+
+    // Update the overtime period
+    await client.query(`
+      UPDATE hr_overtime_periods
+      SET period_date = $1, start_time = $2, end_time = $3, rate_type = $4, reason = $5, updated_at = NOW()
+      WHERE id = $6
+    `, [period_date, start_time, end_time, rate_type || 'normal', reason || null, id]);
+
+    // Delete existing selected employees
+    await client.query(`DELETE FROM hr_overtime_period_employees WHERE period_id = $1`, [id]);
+
+    // Insert new selected employees
+    for (const empId of employee_ids) {
+      await client.query(`
+        INSERT INTO hr_overtime_period_employees (period_id, employee_id, selected_by)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (period_id, employee_id) DO NOTHING
+      `, [id, empId, req.user.id]);
+    }
+
+    // Delete existing overtime records
+    await client.query(`DELETE FROM hr_overtime_records WHERE period_id = $1`, [id]);
+
+    await client.query('COMMIT');
+
+    // Recalculate overtime for selected employees
+    const calcResult = await calculateOvertimeForSelectedEmployees(id);
+
+    // Fetch updated period with counts
+    const updatedPeriod = await pool.query(`
+      SELECT
+        op.*,
+        (SELECT COUNT(*) FROM hr_overtime_period_employees WHERE period_id = op.id) as employee_count,
+        (SELECT COALESCE(SUM(actual_minutes), 0) FROM hr_overtime_records WHERE period_id = op.id) as total_minutes
+      FROM hr_overtime_periods op
+      WHERE op.id = $1
+    `, [id]);
+
+    res.json({
+      success: true,
+      period: updatedPeriod.rows[0],
+      message: `Periode HS mise a jour. ${calcResult.processed} employe(s) avec pointage, ${calcResult.warnings.length} sans pointage.`,
+      warnings: calcResult.warnings
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error updating overtime period:', error);
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * GET /api/hr/schedule-management/overtime-periods/:id
+ * Get details of a specific overtime period
+ */
+router.get('/overtime-periods/:id', authenticateToken, requirePermission('hr.attendance.view_page'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const period = await pool.query(`
+      SELECT
+        op.*,
+        (SELECT COALESCE(e.first_name, '') || ' ' || COALESCE(e.last_name, '')
+         FROM hr_employees e WHERE e.profile_id::text = op.declared_by::text LIMIT 1) as declared_by_name,
+        (SELECT COUNT(*)::integer FROM hr_overtime_period_employees WHERE period_id = op.id) as employee_count,
+        (SELECT COALESCE(SUM(actual_minutes), 0) FROM hr_overtime_records WHERE period_id = op.id) as total_minutes
+      FROM hr_overtime_periods op
+      WHERE op.id = $1
+    `, [id]);
+
+    if (period.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Periode non trouvee' });
+    }
+
+    // Get selected employees for this period
+    const employees = await pool.query(`
+      SELECT
+        ope.employee_id,
+        e.first_name || ' ' || e.last_name as employee_name,
+        e.employee_number
+      FROM hr_overtime_period_employees ope
+      JOIN hr_employees e ON ope.employee_id = e.id
+      WHERE ope.period_id = $1
+      ORDER BY e.last_name, e.first_name
+    `, [id]);
+
+    res.json({
+      success: true,
+      period: period.rows[0],
+      selected_employees: employees.rows
+    });
+  } catch (error) {
+    console.error('Error fetching overtime period:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

@@ -281,6 +281,24 @@ export const useDeleteOvertimePeriod = () => {
 };
 
 /**
+ * Hook pour modifier une période HS
+ */
+export const useUpdateOvertimePeriod = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { period_date: string; start_time: string; end_time: string; department_id?: string; reason?: string; rate_type?: 'normal' | 'extended' | 'special'; employee_ids: string[] } }) =>
+      scheduleManagementApi.updateOvertimePeriod(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'overtime-periods'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'overtime'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['hr', 'attendance'] });
+    },
+  });
+};
+
+/**
  * Hook pour recalculer une période HS
  */
 export const useRecalculateOvertimePeriod = () => {

@@ -307,6 +307,14 @@ export const scheduleManagementApi = {
     return apiClient.post<{ success: boolean; period: OvertimePeriod; message: string; warnings?: { employee_id: string; employee_name: string; reason: string }[] }>('/hr/schedule-management/overtime-periods', data);
   },
 
+  updateOvertimePeriod: async (id: string, data: CreateOvertimePeriodInput): Promise<{ success: boolean; period: OvertimePeriod; message: string; warnings?: { employee_id: string; employee_name: string; reason: string }[] }> => {
+    return apiClient.put<{ success: boolean; period: OvertimePeriod; message: string; warnings?: { employee_id: string; employee_name: string; reason: string }[] }>(`/hr/schedule-management/overtime-periods/${id}`, data);
+  },
+
+  getOvertimePeriodById: async (id: string): Promise<{ success: boolean; period: OvertimePeriod; selected_employees: { employee_id: string; employee_name: string; employee_number: string }[] }> => {
+    return apiClient.get<{ success: boolean; period: OvertimePeriod; selected_employees: { employee_id: string; employee_name: string; employee_number: string }[] }>(`/hr/schedule-management/overtime-periods/${id}`);
+  },
+
   deleteOvertimePeriod: async (id: string): Promise<{ success: boolean; message: string }> => {
     return apiClient.delete<{ success: boolean; message: string }>(`/hr/schedule-management/overtime-periods/${id}`);
   },

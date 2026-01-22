@@ -68,6 +68,7 @@ import {
   useEmployeesForOvertime,
   useOvertimePeriods,
   useCreateOvertimePeriod,
+  useUpdateOvertimePeriod,
   useDeleteOvertimePeriod,
   useRecalculateOvertimePeriod,
   useOvertimeConfig,
@@ -109,6 +110,7 @@ export default function ScheduleManagement() {
   const [showOvertimePeriodModal, setShowOvertimePeriodModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<WorkSchedule | null>(null);
   const [editingHoliday, setEditingHoliday] = useState<PublicHoliday | null>(null);
+  const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
 
   // Form states
   const [holidayForm, setHolidayForm] = useState({
@@ -148,6 +150,7 @@ export default function ScheduleManagement() {
   const approveOvertime = useApproveOvertime();
   const rejectOvertime = useRejectOvertime();
   const createOvertimePeriod = useCreateOvertimePeriod();
+  const updateOvertimePeriod = useUpdateOvertimePeriod();
   const deleteOvertimePeriod = useDeleteOvertimePeriod();
   const recalculateOvertimePeriod = useRecalculateOvertimePeriod();
   const updateOvertimeConfig = useUpdateOvertimeConfig();
@@ -250,7 +253,7 @@ export default function ScheduleManagement() {
   };
 
   // Handlers - Overtime Periods
-  const handleCreateOvertimePeriod = async () => {
+  const handleCreateOrUpdateOvertimePeriod = async () => {
     if (!overtimePeriodForm.period_date || !overtimePeriodForm.start_time || !overtimePeriodForm.end_time) {
       toast({ title: 'Erreur', description: 'Date et horaires requis', variant: 'destructive' });
       return;
@@ -262,10 +265,19 @@ export default function ScheduleManagement() {
     }
 
     try {
-      const result = await createOvertimePeriod.mutateAsync(overtimePeriodForm);
+      let result;
+      if (editingPeriodId) {
+        // Update existing period
+        result = await updateOvertimePeriod.mutateAsync({ id: editingPeriodId, data: overtimePeriodForm });
+      } else {
+        // Create new period
+        result = await createOvertimePeriod.mutateAsync(overtimePeriodForm);
+      }
 
       // Afficher message avec avertissements si présents
-      let message = `Période HS déclarée pour ${overtimePeriodForm.employee_ids.length} employé(s)`;
+      let message = editingPeriodId
+        ? `Période HS mise à jour pour ${overtimePeriodForm.employee_ids.length} employé(s)`
+        : `Période HS déclarée pour ${overtimePeriodForm.employee_ids.length} employé(s)`;
       if (result.warnings && result.warnings.length > 0) {
         const warningNames = result.warnings.map(w => w.employee_name).join(', ');
         message += `. Attention: ${warningNames} n'ont pas de pointage pour cette date.`;
@@ -273,6 +285,7 @@ export default function ScheduleManagement() {
       toast({ title: 'Succès', description: message });
 
       setShowOvertimePeriodModal(false);
+      setEditingPeriodId(null);
       // Reset form
       setOvertimePeriodForm({
         period_date: new Date().toISOString().split('T')[0],
@@ -283,7 +296,34 @@ export default function ScheduleManagement() {
         employee_ids: [],
       });
     } catch (error: any) {
-      toast({ title: 'Erreur', description: error.message || 'Erreur lors de la création', variant: 'destructive' });
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors de l\'opération', variant: 'destructive' });
+    }
+  };
+
+  const handleEditOvertimePeriod = async (period: OvertimePeriod) => {
+    // Fetch selected employees for this period
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/hr/schedule-management/overtime-periods/${period.id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setOvertimePeriodForm({
+          period_date: period.period_date,
+          start_time: period.start_time,
+          end_time: period.end_time,
+          rate_type: period.rate_type as 'normal' | 'extended' | 'special',
+          reason: period.reason || '',
+          employee_ids: data.selected_employees.map((e: any) => e.employee_id),
+        });
+        setEditingPeriodId(period.id);
+        setShowOvertimePeriodModal(true);
+      }
+    } catch (error) {
+      toast({ title: 'Erreur', description: 'Erreur lors du chargement des données', variant: 'destructive' });
     }
   };
 
@@ -672,6 +712,15 @@ export default function ScheduleManagement() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">
+                              <ProtectedButton
+                                permission={PERMISSIONS.ressources_humaines.gestion_horaires.heures_sup.recalculer}
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditOvertimePeriod(period)}
+                                title="Modifier la période"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </ProtectedButton>
                               <ProtectedButton
                                 permission={PERMISSIONS.ressources_humaines.gestion_horaires.heures_sup.recalculer}
                                 variant="ghost"
@@ -1127,7 +1176,7 @@ export default function ScheduleManagement() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Timer className="h-5 w-5" />
-              Déclarer une période d'heures supplémentaires
+              {editingPeriodId ? 'Modifier la période d\'heures supplémentaires' : 'Déclarer une période d\'heures supplémentaires'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1260,17 +1309,28 @@ export default function ScheduleManagement() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowOvertimePeriodModal(false)}>
+            <Button variant="outline" onClick={() => {
+              setShowOvertimePeriodModal(false);
+              setEditingPeriodId(null);
+              setOvertimePeriodForm({
+                period_date: new Date().toISOString().split('T')[0],
+                start_time: '17:00',
+                end_time: '21:00',
+                rate_type: 'normal',
+                reason: '',
+                employee_ids: [],
+              });
+            }}>
               Annuler
             </Button>
             <Button
-              onClick={handleCreateOvertimePeriod}
-              disabled={createOvertimePeriod.isPending || overtimePeriodForm.employee_ids.length === 0}
+              onClick={handleCreateOrUpdateOvertimePeriod}
+              disabled={(createOvertimePeriod.isPending || updateOvertimePeriod.isPending) || overtimePeriodForm.employee_ids.length === 0}
             >
-              {createOvertimePeriod.isPending && (
+              {(createOvertimePeriod.isPending || updateOvertimePeriod.isPending) && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
-              Déclarer ({overtimePeriodForm.employee_ids.length})
+              {editingPeriodId ? `Modifier (${overtimePeriodForm.employee_ids.length})` : `Déclarer (${overtimePeriodForm.employee_ids.length})`}
             </Button>
           </DialogFooter>
         </DialogContent>
