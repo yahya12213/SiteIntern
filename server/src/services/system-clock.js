@@ -1,16 +1,25 @@
 /**
- * Service d'horloge système configurable
+ * Service d'horloge système configurable - Version Absolue
  *
- * L'admin définit l'heure souhaitée via l'interface "Gestion des Horaires" → "Horloge Système".
- * Le système calcule l'offset et l'applique à TOUTES les opérations de pointage.
+ * L'admin définit l'heure souhaitée et le système la prend telle quelle.
+ * Le temps avance en temps réel à partir de ce point.
  *
- * Principe: Admin configure l'horloge → Système l'utilise partout → Pas de dépendance timezone externe
+ * Principe: Admin dit "il est 10:30" → Système utilise 10:30 → Temps avance normalement
+ *
+ * Stockage:
+ * - enabled: boolean
+ * - reference_server_time: moment où l'horloge a été configurée (timestamp serveur)
+ * - desired_time: heure que l'admin a définie à ce moment
+ *
+ * Calcul:
+ * - elapsed = NOW() - reference_server_time
+ * - system_time = desired_time + elapsed
  */
 
 /**
  * Récupère la configuration de l'horloge depuis hr_settings
  * @param {Pool} pool - Connection pool PostgreSQL
- * @returns {Promise<{enabled: boolean, offset_minutes: number, updated_at?: string, updated_by?: string}>}
+ * @returns {Promise<Object>} Configuration de l'horloge
  */
 export async function getClockConfig(pool) {
   try {
@@ -19,27 +28,41 @@ export async function getClockConfig(pool) {
     `);
 
     if (result.rows.length === 0) {
-      return { enabled: false, offset_minutes: 0 };
+      return {
+        enabled: false,
+        offset_minutes: 0,
+        reference_server_time: null,
+        desired_time: null
+      };
     }
 
     const config = JSON.parse(result.rows[0].setting_value);
     return {
       enabled: config.enabled || false,
       offset_minutes: parseInt(config.offset_minutes) || 0,
+      reference_server_time: config.reference_server_time || null,
+      desired_time: config.desired_time || null,
       updated_at: config.updated_at || null,
       updated_by: config.updated_by || null
     };
   } catch (error) {
     console.error('[SystemClock] Error getting config:', error.message);
-    return { enabled: false, offset_minutes: 0 };
+    return {
+      enabled: false,
+      offset_minutes: 0,
+      reference_server_time: null,
+      desired_time: null
+    };
   }
 }
 
 /**
  * FONCTION PRINCIPALE: Obtient l'heure système actuelle
  *
- * Si l'horloge est activée: applique l'offset à NOW() PostgreSQL
- * Sinon: retourne l'heure PostgreSQL standard
+ * Si l'horloge est activée:
+ *   system_time = desired_time + (NOW() - reference_server_time)
+ * Sinon:
+ *   system_time = NOW()
  *
  * @param {Pool} pool - Connection pool PostgreSQL
  * @returns {Promise<Date>} L'heure système à utiliser pour le pointage
@@ -47,25 +70,25 @@ export async function getClockConfig(pool) {
 export async function getSystemTime(pool) {
   const config = await getClockConfig(pool);
 
-  if (!config.enabled || config.offset_minutes === 0) {
-    // Horloge désactivée: utiliser NOW() PostgreSQL directement
+  // Si désactivé ou pas de config, utiliser NOW()
+  if (!config.enabled || !config.desired_time || !config.reference_server_time) {
     const result = await pool.query(`SELECT NOW() as now`);
     return new Date(result.rows[0].now);
   }
 
-  // Horloge activée: appliquer l'offset
-  // Utilisation de paramètre préparé pour éviter injection SQL
-  const offsetMinutes = parseInt(config.offset_minutes);
+  // Calculer le temps écoulé depuis la configuration et l'ajouter au temps désiré
+  // system_time = desired_time + (NOW() - reference_server_time)
   const result = await pool.query(`
-    SELECT NOW() + ($1 || ' minutes')::INTERVAL as now
-  `, [offsetMinutes]);
+    SELECT (
+      $1::TIMESTAMPTZ + (NOW() - $2::TIMESTAMPTZ)
+    ) as system_time
+  `, [config.desired_time, config.reference_server_time]);
 
-  return new Date(result.rows[0].now);
+  return new Date(result.rows[0].system_time);
 }
 
 /**
  * Obtient la date système actuelle au format YYYY-MM-DD
- * Utilisé pour déterminer la date de travail (work_date)
  *
  * @param {Pool} pool - Connection pool PostgreSQL
  * @returns {Promise<string>} Date au format YYYY-MM-DD
@@ -77,7 +100,6 @@ export async function getSystemDate(pool) {
 
 /**
  * Obtient l'heure système actuelle au format HH:MM
- * Utilisé pour l'affichage dans l'interface
  *
  * @param {Pool} pool - Connection pool PostgreSQL
  * @returns {Promise<string>} Heure au format HH:MM
@@ -89,7 +111,7 @@ export async function getSystemTimeFormatted(pool) {
 
 /**
  * Obtient un timestamp ISO complet pour le pointage
- * Format: YYYY-MM-DDTHH:MM:SS+00:00 (forcé en UTC pour cohérence)
+ * Format: YYYY-MM-DDTHH:MM:SS+00:00 (forcé en UTC)
  *
  * @param {Pool} pool - Connection pool PostgreSQL
  * @returns {Promise<string>} Timestamp ISO complet
@@ -97,50 +119,95 @@ export async function getSystemTimeFormatted(pool) {
 export async function getSystemTimestamp(pool) {
   const config = await getClockConfig(pool);
 
-  if (!config.enabled || config.offset_minutes === 0) {
-    // Horloge désactivée: retourner timestamp UTC standard
+  if (!config.enabled || !config.desired_time || !config.reference_server_time) {
     const result = await pool.query(`
       SELECT TO_CHAR(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"+00:00"') as ts
     `);
     return result.rows[0].ts;
   }
 
-  // Horloge activée: appliquer l'offset et forcer UTC
-  const offsetMinutes = parseInt(config.offset_minutes);
+  // Calculer le temps système et le formater en UTC
   const result = await pool.query(`
-    SELECT TO_CHAR((NOW() + ($1 || ' minutes')::INTERVAL) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"+00:00"') as ts
-  `, [offsetMinutes]);
+    SELECT TO_CHAR(
+      ($1::TIMESTAMPTZ + (NOW() - $2::TIMESTAMPTZ)) AT TIME ZONE 'UTC',
+      'YYYY-MM-DD"T"HH24:MI:SS"+00:00"'
+    ) as ts
+  `, [config.desired_time, config.reference_server_time]);
 
   return result.rows[0].ts;
 }
 
 /**
- * Met à jour la configuration de l'horloge
+ * Configure l'horloge avec un temps absolu
  *
  * @param {Pool} pool - Connection pool PostgreSQL
  * @param {boolean} enabled - Activer/désactiver l'horloge personnalisée
- * @param {number} offset_minutes - Décalage en minutes (positif ou négatif)
+ * @param {string} desiredDateTime - Date/heure souhaitée au format ISO (YYYY-MM-DDTHH:MM:SS)
  * @param {string} updatedBy - ID de l'utilisateur qui fait la modification
  * @returns {Promise<Object>} La nouvelle configuration
  */
-export async function updateClockConfig(pool, enabled, offset_minutes, updatedBy) {
+export async function setAbsoluteTime(pool, enabled, desiredDateTime, updatedBy) {
+  // Récupérer le temps serveur actuel comme référence
+  const serverTimeResult = await pool.query(`SELECT NOW() as now`);
+  const referenceServerTime = serverTimeResult.rows[0].now;
+
   const config = {
     enabled: Boolean(enabled),
-    offset_minutes: parseInt(offset_minutes) || 0,
+    desired_time: desiredDateTime,
+    reference_server_time: referenceServerTime,
+    // Garder offset_minutes pour compatibilité (calculé mais pas utilisé)
+    offset_minutes: 0,
     updated_at: new Date().toISOString(),
     updated_by: updatedBy
   };
 
-  // Upsert: créer si n'existe pas, sinon mettre à jour
+  // Upsert dans hr_settings
   await pool.query(`
-    INSERT INTO hr_settings (setting_key, setting_value, description, updated_at)
-    VALUES ('system_clock', $1, 'Configuration de l''horloge système pour le pointage', NOW())
+    INSERT INTO hr_settings (setting_key, setting_value, description, category, updated_at)
+    VALUES ('system_clock', $1, 'Configuration de l''horloge système pour le pointage', 'attendance', NOW())
     ON CONFLICT (setting_key) DO UPDATE SET
       setting_value = $1,
       updated_at = NOW()
   `, [JSON.stringify(config)]);
 
-  console.log(`[SystemClock] Config updated: enabled=${config.enabled}, offset=${config.offset_minutes}min, by=${updatedBy}`);
+  console.log(`[SystemClock] Absolute time set: enabled=${enabled}, desired=${desiredDateTime}, reference=${referenceServerTime}, by=${updatedBy}`);
+
+  return config;
+}
+
+/**
+ * Met à jour la configuration de l'horloge (ancienne méthode avec offset)
+ * @deprecated Utiliser setAbsoluteTime() à la place
+ */
+export async function updateClockConfig(pool, enabled, offset_minutes, updatedBy) {
+  // Si enabled=false, juste désactiver
+  if (!enabled) {
+    return resetClock(pool, updatedBy);
+  }
+
+  // Calculer le temps désiré basé sur l'offset (pour compatibilité)
+  const serverTimeResult = await pool.query(`SELECT NOW() as now`);
+  const referenceServerTime = serverTimeResult.rows[0].now;
+  const desiredTime = new Date(new Date(referenceServerTime).getTime() + (offset_minutes * 60000));
+
+  const config = {
+    enabled: true,
+    desired_time: desiredTime.toISOString(),
+    reference_server_time: referenceServerTime,
+    offset_minutes: parseInt(offset_minutes) || 0,
+    updated_at: new Date().toISOString(),
+    updated_by: updatedBy
+  };
+
+  await pool.query(`
+    INSERT INTO hr_settings (setting_key, setting_value, description, category, updated_at)
+    VALUES ('system_clock', $1, 'Configuration de l''horloge système pour le pointage', 'attendance', NOW())
+    ON CONFLICT (setting_key) DO UPDATE SET
+      setting_value = $1,
+      updated_at = NOW()
+  `, [JSON.stringify(config)]);
+
+  console.log(`[SystemClock] Config updated (offset mode): offset=${offset_minutes}min, by=${updatedBy}`);
 
   return config;
 }
@@ -149,11 +216,30 @@ export async function updateClockConfig(pool, enabled, offset_minutes, updatedBy
  * Réinitialise l'horloge (désactive l'offset)
  *
  * @param {Pool} pool - Connection pool PostgreSQL
- * @param {string} updatedBy - ID de l'utilisateur qui fait la modification
- * @returns {Promise<Object>} La nouvelle configuration (enabled=false, offset=0)
+ * @param {string} updatedBy - ID de l'utilisateur
+ * @returns {Promise<Object>} La nouvelle configuration (désactivée)
  */
 export async function resetClock(pool, updatedBy) {
-  return updateClockConfig(pool, false, 0, updatedBy);
+  const config = {
+    enabled: false,
+    desired_time: null,
+    reference_server_time: null,
+    offset_minutes: 0,
+    updated_at: new Date().toISOString(),
+    updated_by: updatedBy
+  };
+
+  await pool.query(`
+    INSERT INTO hr_settings (setting_key, setting_value, description, category, updated_at)
+    VALUES ('system_clock', $1, 'Configuration de l''horloge système pour le pointage', 'attendance', NOW())
+    ON CONFLICT (setting_key) DO UPDATE SET
+      setting_value = $1,
+      updated_at = NOW()
+  `, [JSON.stringify(config)]);
+
+  console.log(`[SystemClock] Clock reset by ${updatedBy}`);
+
+  return config;
 }
 
 /**
@@ -164,7 +250,7 @@ export async function resetClock(pool, updatedBy) {
  */
 export async function isClockEnabled(pool) {
   const config = await getClockConfig(pool);
-  return config.enabled && config.offset_minutes !== 0;
+  return config.enabled && config.desired_time && config.reference_server_time;
 }
 
 export default {
@@ -173,6 +259,7 @@ export default {
   getSystemDate,
   getSystemTimeFormatted,
   getSystemTimestamp,
+  setAbsoluteTime,
   updateClockConfig,
   resetClock,
   isClockEnabled

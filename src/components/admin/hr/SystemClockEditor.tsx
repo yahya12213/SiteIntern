@@ -2,7 +2,9 @@
  * SystemClockEditor Component
  * Allows admin to configure a custom system clock for attendance
  *
- * NEW APPROACH: Calculate offset client-side to avoid timezone issues
+ * APPROACH: Send absolute datetime directly to backend
+ * Admin enters date + time → Backend stores it as reference → Clock advances from there
+ * NO offset calculation, NO timezone dependency
  */
 
 import { useState, useEffect } from 'react';
@@ -21,7 +23,9 @@ interface SystemClockConfig {
   enabled: boolean;
   offset_minutes: number;
   current_server_time: string;
-  current_system_time?: string;
+  current_system_time: string;
+  desired_time: string | null;
+  reference_server_time: string | null;
   updated_at: string | null;
   updated_by: string | null;
 }
@@ -70,9 +74,9 @@ export default function SystemClockEditor() {
     }
   }, [config, isInitialized]);
 
-  // Update mutation - now sends offset_minutes
+  // Update mutation - sends desired_datetime (absolute time)
   const updateMutation = useMutation({
-    mutationFn: async (data: { enabled: boolean; offset_minutes: number }) => {
+    mutationFn: async (data: { enabled: boolean; desired_datetime?: string }) => {
       const response = await apiClient.put('/hr/settings/system-clock', data);
       return response;
     },
@@ -127,21 +131,22 @@ export default function SystemClockEditor() {
       return;
     }
 
-    // Calculate offset in minutes between desired time and current time
-    const now = new Date();
-    const [year, month, day] = customDate.split('-').map(Number);
-    const [hours, minutes] = customTime.split(':').map(Number);
-    const desired = new Date(year, month - 1, day, hours, minutes, 0);
+    if (enabled) {
+      // Envoyer le datetime absolu directement - pas de calcul d'offset
+      // Format: YYYY-MM-DDTHH:MM:SS
+      const desired_datetime = `${customDate}T${customTime}:00`;
 
-    const offsetMinutes = Math.round((desired.getTime() - now.getTime()) / 60000);
+      console.log('[SystemClockEditor] Setting absolute time:', {
+        desired_datetime,
+        date: customDate,
+        time: customTime
+      });
 
-    console.log('[SystemClockEditor] Calculating offset:', {
-      now: now.toLocaleString(),
-      desired: desired.toLocaleString(),
-      offsetMinutes
-    });
-
-    updateMutation.mutate({ enabled, offset_minutes: offsetMinutes });
+      updateMutation.mutate({ enabled: true, desired_datetime });
+    } else {
+      // Désactiver l'horloge personnalisée
+      updateMutation.mutate({ enabled: false });
+    }
   };
 
   const handleReset = () => {

@@ -5,6 +5,7 @@ import {
   getClockConfig,
   getSystemTime,
   updateClockConfig,
+  setAbsoluteTime,
   resetClock
 } from '../services/system-clock.js';
 
@@ -306,23 +307,24 @@ router.delete('/schedules/:id', authenticateToken, requirePermission('hr.setting
 /**
  * Get current system time
  * Retourne l'heure système utilisée pour tous les pointages
- * Si l'horloge personnalisée est activée, applique l'offset
+ * Si l'horloge personnalisée est activée, applique le temps configuré
  */
 router.get('/system-clock/current-time', authenticateToken, async (req, res) => {
   try {
     const config = await getClockConfig(pool);
     const systemTime = await getSystemTime(pool);
     const serverTimeResult = await pool.query('SELECT NOW() as now');
+    const isEnabled = config.enabled && config.desired_time && config.reference_server_time;
 
     res.json({
       success: true,
       data: {
         system_time: systemTime,
         server_time: serverTimeResult.rows[0].now,
-        is_custom: config.enabled && config.offset_minutes !== 0,
-        offset_minutes: config.offset_minutes,
-        message: config.enabled && config.offset_minutes !== 0
-          ? `Horloge personnalisée active (offset: ${config.offset_minutes} minutes)`
+        is_custom: isEnabled,
+        offset_minutes: config.offset_minutes || 0,
+        message: isEnabled
+          ? `Horloge personnalisée active`
           : 'Horloge système PostgreSQL (NOW())'
       }
     });
@@ -341,14 +343,17 @@ router.get('/system-clock', authenticateToken, requirePermission('hr.settings.vi
     const config = await getClockConfig(pool);
     const systemTime = await getSystemTime(pool);
     const serverTimeResult = await pool.query('SELECT NOW() as now');
+    const isEnabled = config.enabled && config.desired_time && config.reference_server_time;
 
     res.json({
       success: true,
       data: {
-        enabled: config.enabled,
-        offset_minutes: config.offset_minutes,
-        server_time: serverTimeResult.rows[0].now,
-        system_time: systemTime,
+        enabled: isEnabled,
+        offset_minutes: config.offset_minutes || 0,
+        current_server_time: serverTimeResult.rows[0].now,
+        current_system_time: systemTime,
+        desired_time: config.desired_time || null,
+        reference_server_time: config.reference_server_time || null,
         updated_at: config.updated_at || null,
         updated_by: config.updated_by || null
       }
@@ -361,30 +366,47 @@ router.get('/system-clock', authenticateToken, requirePermission('hr.settings.vi
 
 /**
  * Update system clock configuration
- * Permet à l'admin de configurer un offset horaire pour le pointage
+ * Accepte soit:
+ * - { enabled: true, desired_datetime: "2026-01-22T10:30:00" } - NOUVELLE méthode (temps absolu)
+ * - { enabled: true, offset_minutes: 60 } - Ancienne méthode (compatibilité)
+ * - { enabled: false } - Désactiver
  */
 router.put('/system-clock', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
   try {
-    const { enabled, offset_minutes } = req.body;
+    const { enabled, desired_datetime, offset_minutes } = req.body;
 
-    if (enabled && (offset_minutes === undefined || offset_minutes === null)) {
+    let config;
+
+    if (!enabled) {
+      // Désactiver l'horloge personnalisée
+      config = await resetClock(pool, req.user.id);
+    } else if (desired_datetime) {
+      // NOUVELLE méthode: temps absolu (préféré)
+      config = await setAbsoluteTime(pool, true, desired_datetime, req.user.id);
+    } else if (offset_minutes !== undefined && offset_minutes !== null) {
+      // Ancienne méthode: offset en minutes (compatibilité)
+      config = await updateClockConfig(pool, true, offset_minutes, req.user.id);
+    } else {
       return res.status(400).json({
         success: false,
-        error: 'offset_minutes est requis quand enabled est true'
+        error: 'desired_datetime ou offset_minutes est requis quand enabled est true'
       });
     }
 
-    const config = await updateClockConfig(pool, enabled, offset_minutes || 0, req.user.id);
     const systemTime = await getSystemTime(pool);
+    const serverTimeResult = await pool.query('SELECT NOW() as now');
 
     res.json({
       success: true,
       message: config.enabled
-        ? `Horloge personnalisée activée (offset: ${config.offset_minutes} minutes)`
+        ? `Horloge personnalisée activée`
         : 'Horloge réinitialisée à l\'heure serveur',
       data: {
-        ...config,
-        system_time: systemTime
+        enabled: config.enabled,
+        current_system_time: systemTime,
+        current_server_time: serverTimeResult.rows[0].now,
+        desired_time: config.desired_time,
+        reference_server_time: config.reference_server_time
       }
     });
   } catch (error) {
