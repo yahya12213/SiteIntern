@@ -65,6 +65,7 @@ import {
   useOvertimeDeclarations,
   useApproveOvertime,
   useRejectOvertime,
+  useEmployeesForOvertime,
   useOvertimePeriods,
   useCreateOvertimePeriod,
   useDeleteOvertimePeriod,
@@ -124,6 +125,7 @@ export default function ScheduleManagement() {
     end_time: '21:00',
     rate_type: 'normal' as 'normal' | 'extended' | 'special',
     reason: '',
+    employee_ids: [] as string[],
   });
 
   // Overtime config form
@@ -136,6 +138,7 @@ export default function ScheduleManagement() {
   const { data: overtimeData, isLoading: overtimeLoading, error: overtimeError } = useOvertimeDeclarations();
   const { data: overtimePeriodsData, isLoading: periodsLoading, error: periodsError } = useOvertimePeriods();
   const { data: overtimeConfigData, isLoading: configLoading } = useOvertimeConfig();
+  const { data: employeesForOvertimeData } = useEmployeesForOvertime();
 
   // Mutations
   const deleteSchedule = useDeleteSchedule();
@@ -155,6 +158,7 @@ export default function ScheduleManagement() {
   const congesValides = leavesData?.leaves || [];
   const declarationsHS = overtimeData?.overtime || [];
   const overtimePeriods = overtimePeriodsData?.periods || [];
+  const availableEmployees = employeesForOvertimeData?.employees || [];
   const overtimeConfig = overtimeConfigData?.config;
 
   // Handlers - Schedules
@@ -252,9 +256,22 @@ export default function ScheduleManagement() {
       return;
     }
 
+    if (overtimePeriodForm.employee_ids.length === 0) {
+      toast({ title: 'Erreur', description: 'Veuillez sélectionner au moins un employé', variant: 'destructive' });
+      return;
+    }
+
     try {
-      await createOvertimePeriod.mutateAsync(overtimePeriodForm);
-      toast({ title: 'Succès', description: 'Période HS déclarée avec succès' });
+      const result = await createOvertimePeriod.mutateAsync(overtimePeriodForm);
+
+      // Afficher message avec avertissements si présents
+      let message = `Période HS déclarée pour ${overtimePeriodForm.employee_ids.length} employé(s)`;
+      if (result.warnings && result.warnings.length > 0) {
+        const warningNames = result.warnings.map(w => w.employee_name).join(', ');
+        message += `. Attention: ${warningNames} n'ont pas de pointage pour cette date.`;
+      }
+      toast({ title: 'Succès', description: message });
+
       setShowOvertimePeriodModal(false);
       // Reset form
       setOvertimePeriodForm({
@@ -263,6 +280,7 @@ export default function ScheduleManagement() {
         end_time: '21:00',
         rate_type: 'normal',
         reason: '',
+        employee_ids: [],
       });
     } catch (error: any) {
       toast({ title: 'Erreur', description: error.message || 'Erreur lors de la création', variant: 'destructive' });
@@ -1105,7 +1123,7 @@ export default function ScheduleManagement() {
 
       {/* Overtime Period Modal */}
       <Dialog open={showOvertimePeriodModal} onOpenChange={setShowOvertimePeriodModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Timer className="h-5 w-5" />
@@ -1159,6 +1177,75 @@ export default function ScheduleManagement() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Section Sélection des Employés */}
+            <div className="border rounded-lg p-4">
+              <Label className="text-base font-semibold mb-3 block">
+                Employés concernés * ({overtimePeriodForm.employee_ids.length} sélectionné(s))
+              </Label>
+              <div className="max-h-48 overflow-y-auto space-y-2 border rounded p-2 bg-gray-50">
+                {availableEmployees.length === 0 ? (
+                  <div className="text-center py-4 text-gray-500 text-sm">
+                    Aucun employé actif disponible
+                  </div>
+                ) : (
+                  availableEmployees.map(emp => (
+                    <div key={emp.id} className="flex items-center gap-2 p-2 hover:bg-white rounded">
+                      <Checkbox
+                        id={`emp-${emp.id}`}
+                        checked={overtimePeriodForm.employee_ids.includes(emp.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setOvertimePeriodForm({
+                              ...overtimePeriodForm,
+                              employee_ids: [...overtimePeriodForm.employee_ids, emp.id]
+                            });
+                          } else {
+                            setOvertimePeriodForm({
+                              ...overtimePeriodForm,
+                              employee_ids: overtimePeriodForm.employee_ids.filter(id => id !== emp.id)
+                            });
+                          }
+                        }}
+                      />
+                      <label htmlFor={`emp-${emp.id}`} className="flex-1 cursor-pointer text-sm">
+                        <span className="font-medium">{emp.first_name} {emp.last_name}</span>
+                        {emp.employee_number && (
+                          <span className="text-gray-500 ml-2">#{emp.employee_number}</span>
+                        )}
+                        {emp.department && (
+                          <span className="text-gray-400 ml-2 text-xs">({emp.department})</span>
+                        )}
+                      </label>
+                    </div>
+                  ))
+                )}
+              </div>
+              {availableEmployees.length > 0 && (
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setOvertimePeriodForm({
+                      ...overtimePeriodForm,
+                      employee_ids: availableEmployees.map(e => e.id)
+                    })}
+                  >
+                    Tout sélectionner
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setOvertimePeriodForm({ ...overtimePeriodForm, employee_ids: [] })}
+                  >
+                    Tout désélectionner
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <div>
               <Label>Motif (optionnel)</Label>
               <Textarea
@@ -1169,7 +1256,7 @@ export default function ScheduleManagement() {
             </div>
             <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-700">
               <p className="font-medium">Comment ça marche ?</p>
-              <p className="mt-1">Les employés ayant pointé pendant cette période auront automatiquement leurs heures supplémentaires calculées et ajoutées à la paie.</p>
+              <p className="mt-1">Les employés sélectionnés ayant pointé pendant cette période auront leurs heures supplémentaires calculées (intersection avec leur pointage) et ajoutées à leur fiche.</p>
             </div>
           </div>
           <DialogFooter>
@@ -1178,12 +1265,12 @@ export default function ScheduleManagement() {
             </Button>
             <Button
               onClick={handleCreateOvertimePeriod}
-              disabled={createOvertimePeriod.isPending}
+              disabled={createOvertimePeriod.isPending || overtimePeriodForm.employee_ids.length === 0}
             >
               {createOvertimePeriod.isPending && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
-              Déclarer
+              Déclarer ({overtimePeriodForm.employee_ids.length})
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -455,6 +455,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 130: Refactorisation Pointage Unifié',
     description: '🔄 REFONTE POINTAGE: Crée table hr_attendance_daily unifiée (1 ligne = 1 jour = 1 employé), table hr_attendance_audit pour traçabilité, migre données depuis hr_attendance_records. Utilise NOW() PostgreSQL uniquement. Calculs centralisés côté backend.',
     endpoint: '/migration-130-attendance-refactor'
+  },
+  {
+    id: 'migration-132',
+    name: 'Migration 132: Sélection Employés Heures Sup',
+    description: '🕐 HEURES SUP: Crée table hr_overtime_period_employees pour permettre la sélection manuelle des employés concernés par une période d\'heures supplémentaires. Remplace l\'auto-détection basée sur le pointage.',
+    endpoint: '/migration-132-overtime-period-employees'
   }
 ];
 

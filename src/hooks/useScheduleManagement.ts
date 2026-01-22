@@ -219,6 +219,20 @@ export const useDeleteOvertime = () => {
 };
 
 // ============================================================
+// EMPLOYEES FOR OVERTIME SELECTION HOOK
+// ============================================================
+
+/**
+ * Hook pour récupérer les employés disponibles pour sélection HS
+ */
+export const useEmployeesForOvertime = (departmentId?: string, date?: string) => {
+  return useQuery({
+    queryKey: ['schedule-management', 'employees-for-overtime', departmentId, date],
+    queryFn: () => scheduleManagementApi.getEmployeesForOvertime(departmentId, date),
+  });
+};
+
+// ============================================================
 // OVERTIME PERIODS HOOKS (Manager declarations)
 // ============================================================
 
@@ -233,18 +247,20 @@ export const useOvertimePeriods = (filters?: { year?: number; month?: number; st
 };
 
 /**
- * Hook pour créer une période HS
+ * Hook pour créer une période HS avec sélection d'employés
  */
 export const useCreateOvertimePeriod = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { period_date: string; start_time: string; end_time: string; department_id?: string; reason?: string; rate_type?: 'normal' | 'extended' | 'special' }) =>
+    mutationFn: (data: { period_date: string; start_time: string; end_time: string; department_id?: string; reason?: string; rate_type?: 'normal' | 'extended' | 'special'; employee_ids: string[] }) =>
       scheduleManagementApi.createOvertimePeriod(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['schedule-management', 'overtime-periods'] });
       queryClient.invalidateQueries({ queryKey: ['schedule-management', 'overtime'] });
       queryClient.invalidateQueries({ queryKey: ['schedule-management', 'stats'] });
+      // Rafraîchir aussi les données d'attendance car overtime_minutes est mis à jour
+      queryClient.invalidateQueries({ queryKey: ['hr', 'attendance'] });
     },
   });
 };

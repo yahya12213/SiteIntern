@@ -199,6 +199,7 @@ import migration122Router from './routes/migration-122-hr-recovery.js';
 import migration124Router from './routes/migration-124-create-recovery-tables.js';
 import migration125Router from './routes/migration-125-update-status-constraint.js';
 import migration130Router from './routes/migration-130-attendance-refactor.js';
+import migration132Router from './routes/migration-132-overtime-period-employees.js';
 import testWorkflowRouter from './routes/test-workflow.js';
 
 // Import cron jobs
@@ -452,6 +453,7 @@ app.use('/api/migration-122-hr-recovery', ...adminOnly, migration122Router);
 app.use('/api/migration-124-create-recovery-tables', ...adminOnly, migration124Router);
 app.use('/api/migration-125-update-status-constraint', ...adminOnly, migration125Router);
 app.use('/api/migration-130-attendance-refactor', ...adminOnly, migration130Router);
+app.use('/api/migration-132-overtime-period-employees', ...adminOnly, migration132Router);
 app.use('/api/test-workflow', ...adminOnly, testWorkflowRouter);
 // Note: /my/correction-requests routes are in hr-employee-self.js (mounted at /api/hr/my)
 // Manager routes for correction requests are mounted separately below

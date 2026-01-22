@@ -145,16 +145,29 @@ export interface CreateOvertimePeriodInput {
   department_id?: string;
   reason?: string;
   rate_type?: 'normal' | 'extended' | 'special';
+  employee_ids: string[]; // Required: IDs of employees to include in this overtime period
+}
+
+export interface EmployeeForOvertime {
+  id: string;
+  first_name: string;
+  last_name: string;
+  employee_number: string;
+  department: string;
+  position: string;
 }
 
 export interface OvertimePeriodEmployee {
-  id: string;
+  selection_id: string;
   employee_id: string;
   employee_name: string;
   employee_number: string;
-  actual_minutes: number;
-  rate_type: string;
-  validated_for_payroll: boolean;
+  department: string;
+  actual_minutes: number | null;
+  rate_type: string | null;
+  validated_for_payroll: boolean | null;
+  selected_at: string;
+  has_overtime_record: boolean;
 }
 
 // ============================================================
@@ -271,6 +284,15 @@ export const scheduleManagementApi = {
     return apiClient.delete<{ success: boolean; message: string }>(`/hr/overtime/requests/${id}`);
   },
 
+  // === EMPLOYEES FOR OVERTIME SELECTION ===
+  getEmployeesForOvertime: async (departmentId?: string, date?: string): Promise<{ success: boolean; employees: EmployeeForOvertime[] }> => {
+    const params = new URLSearchParams();
+    if (departmentId) params.append('department_id', departmentId);
+    if (date) params.append('date', date);
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    return apiClient.get<{ success: boolean; employees: EmployeeForOvertime[] }>(`/hr/schedule-management/employees-for-overtime${queryString}`);
+  },
+
   // === OVERTIME PERIODS (Manager declarations) ===
   getOvertimePeriods: async (filters?: { year?: number; month?: number; status?: string }): Promise<{ success: boolean; periods: OvertimePeriod[] }> => {
     const params = new URLSearchParams();
@@ -281,8 +303,8 @@ export const scheduleManagementApi = {
     return apiClient.get<{ success: boolean; periods: OvertimePeriod[] }>(`/hr/schedule-management/overtime-periods${queryString}`);
   },
 
-  createOvertimePeriod: async (data: CreateOvertimePeriodInput): Promise<{ success: boolean; period: OvertimePeriod; message: string }> => {
-    return apiClient.post<{ success: boolean; period: OvertimePeriod; message: string }>('/hr/schedule-management/overtime-periods', data);
+  createOvertimePeriod: async (data: CreateOvertimePeriodInput): Promise<{ success: boolean; period: OvertimePeriod; message: string; warnings?: { employee_id: string; employee_name: string; reason: string }[] }> => {
+    return apiClient.post<{ success: boolean; period: OvertimePeriod; message: string; warnings?: { employee_id: string; employee_name: string; reason: string }[] }>('/hr/schedule-management/overtime-periods', data);
   },
 
   deleteOvertimePeriod: async (id: string): Promise<{ success: boolean; message: string }> => {
