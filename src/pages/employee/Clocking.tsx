@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Clock, LogIn, LogOut, Calendar, TrendingUp, AlertCircle, CheckCircle, FileEdit, X, Coffee } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
@@ -273,6 +273,10 @@ function Clocking() {
   const [selectedDayForCorrection, setSelectedDayForCorrection] = useState<DayRecord | null>(null);
   const queryClient = useQueryClient();
 
+  // State pour l'heure système (reçue du backend)
+  const [systemTime, setSystemTime] = useState<Date | null>(null);
+  const systemTimeRef = useRef<Date | null>(null);
+
   // Get today's status from new unified API
   const { data: todayData, isLoading: todayLoading } = useQuery({
     queryKey: ['attendance-today'],
@@ -281,6 +285,7 @@ function Clocking() {
       return (response as any).data as {
         success: boolean;
         requires_clocking: boolean;
+        system_time: string;
         employee: any;
         today: TodayStatus;
         schedule: any;
@@ -288,6 +293,27 @@ function Clocking() {
     },
     refetchInterval: 30000 // Refresh every 30 seconds
   });
+
+  // Synchroniser l'heure système depuis le backend
+  useEffect(() => {
+    if (todayData?.system_time) {
+      const time = new Date(todayData.system_time);
+      setSystemTime(time);
+      systemTimeRef.current = time;
+    }
+  }, [todayData?.system_time]);
+
+  // Timer pour faire avancer l'heure chaque seconde
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (systemTimeRef.current) {
+        const newTime = new Date(systemTimeRef.current.getTime() + 1000);
+        systemTimeRef.current = newTime;
+        setSystemTime(newTime);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Get full history from new unified API
   const { data: historyData, isLoading: historyLoading } = useQuery({
@@ -414,7 +440,10 @@ function Clocking() {
 
   const today = todayData.today;
   const schedule = todayData.schedule;
-  const currentTime = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  // Utiliser l'heure système du backend (configurée par l'admin)
+  const currentTime = systemTime
+    ? systemTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : '--:--:--';
 
   // Determine current status display
   const getStatusDisplay = () => {

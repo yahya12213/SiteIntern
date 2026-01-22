@@ -216,9 +216,13 @@ router.get('/my-today', authenticateToken, async (req, res) => {
     const hasCheckIn = record?.clock_in_at !== null;
     const hasCheckOut = record?.clock_out_at !== null;
 
+    // Récupérer l'heure système actuelle pour affichage frontend
+    const systemTime = await getSystemTime(pool);
+
     res.json({
       success: true,
       requires_clocking: true,
+      system_time: systemTime.toISOString(),
       employee: {
         id: employee.id,
         name: `${employee.first_name} ${employee.last_name}`,
