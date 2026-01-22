@@ -201,11 +201,18 @@ export class AttendanceCalculator {
 
   /**
    * Convertir un timestamp en minutes depuis minuit
+   * Extrait l'heure directement de la string ISO pour éviter les problèmes de timezone
    */
   timestampToMinutes(timestamp) {
     if (!timestamp) return null;
-    const date = new Date(timestamp);
-    return date.getHours() * 60 + date.getMinutes();
+    // Convert to string if it's a Date object
+    const str = typeof timestamp === 'string' ? timestamp : timestamp.toISOString();
+    // Extract time from ISO format (e.g., "2026-01-08T10:00:00" or "2026-01-08T10:00:00.000Z")
+    const match = str.match(/T(\d{2}):(\d{2})/);
+    if (!match) return null;
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    return hours * 60 + minutes;
   }
 
   /**
@@ -310,7 +317,6 @@ export class AttendanceCalculator {
     // CALCULS avec pointage
     // =====================================================
 
-    const clockInDate = new Date(clockIn);
     const clockInMinutes = this.timestampToMinutes(clockIn);
     const scheduledStartMinutes = this.timeToMinutes(result.scheduled_start);
     const scheduledEndMinutes = this.timeToMinutes(result.scheduled_end);
@@ -332,7 +338,6 @@ export class AttendanceCalculator {
     }
 
     // Calculs avec sortie
-    const clockOutDate = new Date(clockOut);
     const clockOutMinutes = this.timestampToMinutes(clockOut);
 
     // Temps brut travaillé

@@ -27,6 +27,19 @@ const logger = new AttendanceLogger(pool);
 // =====================================================
 
 /**
+ * Extract HH:MM time from timestamp string (avoids timezone issues)
+ * @param {string|Date} timestamp - Timestamp in ISO format or Date object
+ * @returns {string|null} Time in HH:MM format
+ */
+function extractTime(timestamp) {
+  if (!timestamp) return null;
+  // If it's already a string in ISO format, extract time part
+  const str = typeof timestamp === 'string' ? timestamp : timestamp.toISOString();
+  const match = str.match(/T(\d{2}:\d{2})/);
+  return match ? match[1] : null;
+}
+
+/**
  * Get employee by profile_id
  */
 async function getEmployeeByProfileId(profileId) {
@@ -87,6 +100,8 @@ router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'),
         a.work_date,
         a.clock_in_at,
         a.clock_out_at,
+        TO_CHAR(a.clock_in_at, 'HH24:MI') as check_in_time,
+        TO_CHAR(a.clock_out_at, 'HH24:MI') as check_out_time,
         a.scheduled_start,
         a.scheduled_end,
         a.scheduled_break_minutes,
@@ -143,11 +158,9 @@ router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'),
 
     const result = await pool.query(query, params);
 
-    // Format response with calculated fields
+    // Format response with calculated fields (check_in_time and check_out_time come from TO_CHAR in query)
     const data = result.rows.map(row => ({
       ...row,
-      check_in_time: row.clock_in_at ? new Date(row.clock_in_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
-      check_out_time: row.clock_out_at ? new Date(row.clock_out_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
       worked_minutes: row.net_worked_minutes,
       attendance_date: row.work_date // Alias for backward compatibility
     }));
@@ -243,6 +256,8 @@ router.get('/my-records', authenticateToken, async (req, res) => {
     let query = `
       SELECT
         a.*,
+        TO_CHAR(a.clock_in_at, 'HH24:MI') as check_in_time,
+        TO_CHAR(a.clock_out_at, 'HH24:MI') as check_out_time,
         (
           SELECT json_build_object(
             'id', cr.id,
@@ -280,13 +295,13 @@ router.get('/my-records', authenticateToken, async (req, res) => {
 
     const result = await pool.query(query, params);
 
-    // Format records for frontend
+    // Format records for frontend (check_in_time and check_out_time come from TO_CHAR in query)
     const records = result.rows.map(row => ({
       date: row.work_date,
       clock_in_at: row.clock_in_at,
       clock_out_at: row.clock_out_at,
-      check_in_time: row.clock_in_at ? new Date(row.clock_in_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
-      check_out_time: row.clock_out_at ? new Date(row.clock_out_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
+      check_in_time: row.check_in_time,
+      check_out_time: row.check_out_time,
       worked_minutes: row.net_worked_minutes,
       late_minutes: row.late_minutes,
       early_leave_minutes: row.early_leave_minutes,
@@ -525,17 +540,18 @@ router.get('/by-date', authenticateToken, requirePermission('hr.attendance.view_
     // Get day info
     const dayInfo = await calculator.getDayInfo(employee_id, date);
 
-    // Get attendance record
+    // Get attendance record - use TO_CHAR to extract time directly from PostgreSQL (avoids timezone issues)
     const result = await pool.query(`
-      SELECT * FROM hr_attendance_daily
+      SELECT *,
+        TO_CHAR(clock_in_at, 'HH24:MI') as check_in_time,
+        TO_CHAR(clock_out_at, 'HH24:MI') as check_out_time
+      FROM hr_attendance_daily
       WHERE employee_id = $1 AND work_date = $2
     `, [employee_id, date]);
 
     // Format records for frontend compatibility
     const records = result.rows.map(row => ({
       ...row,
-      check_in_time: row.clock_in_at ? new Date(row.clock_in_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
-      check_out_time: row.clock_out_at ? new Date(row.clock_out_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
       status: row.day_status,
       worked_minutes: row.net_worked_minutes,
       attendance_date: row.work_date
@@ -617,9 +633,9 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
       return res.status(404).json({ success: false, error: 'Employé non trouvé' });
     }
 
-    // Build timestamps
-    const clockInAt = check_in_time ? new Date(`${date}T${check_in_time}:00`) : null;
-    const clockOutAt = check_out_time ? new Date(`${date}T${check_out_time}:00`) : null;
+    // Build timestamps - pass strings directly to PostgreSQL (no JavaScript Date to avoid timezone issues)
+    const clockInAt = check_in_time ? `${date}T${check_in_time}:00` : null;
+    const clockOutAt = check_out_time ? `${date}T${check_out_time}:00` : null;
 
     // Validate times
     if (clockInAt && clockOutAt && clockOutAt <= clockInAt) {
@@ -687,8 +703,8 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
         finalStatus,
         notes,
         req.user.id, correction_reason,
-        oldRecord.clock_in_at ? new Date(oldRecord.clock_in_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null,
-        oldRecord.clock_out_at ? new Date(oldRecord.clock_out_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : null
+        extractTime(oldRecord.clock_in_at),
+        extractTime(oldRecord.clock_out_at)
       ]);
 
       // Log audit
