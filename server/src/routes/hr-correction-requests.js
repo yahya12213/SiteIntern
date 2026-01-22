@@ -352,9 +352,9 @@ router.put('/manager/correction-requests/:id/approve', authenticateToken, requir
       // Créer/mettre à jour les enregistrements de pointage corrigés (unified hr_attendance_daily)
       const { employee_id, request_date, requested_check_in, requested_check_out } = request;
 
-      // Build clock_in and clock_out timestamps
-      const clockInAt = requested_check_in ? `${request_date}T${requested_check_in}:00` : null;
-      const clockOutAt = requested_check_out ? `${request_date}T${requested_check_out}:00` : null;
+      // Build clock_in and clock_out timestamps - force UTC (+00:00) to prevent timezone conversion
+      const clockInAt = requested_check_in ? `${request_date}T${requested_check_in}:00+00:00` : null;
+      const clockOutAt = requested_check_out ? `${request_date}T${requested_check_out}:00+00:00` : null;
 
       // Upsert into hr_attendance_daily
       await pool.query(`

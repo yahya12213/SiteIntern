@@ -463,9 +463,9 @@ export class ApprovalService {
     console.log('Requested check_out:', requested_check_out);
 
     try {
-      // Construire les timestamps d'entrée et sortie
-      const clockInAt = requested_check_in ? `${request_date}T${requested_check_in}:00` : null;
-      const clockOutAt = requested_check_out ? `${request_date}T${requested_check_out}:00` : null;
+      // Construire les timestamps d'entrée et sortie - force UTC (+00:00) to prevent timezone conversion
+      const clockInAt = requested_check_in ? `${request_date}T${requested_check_in}:00+00:00` : null;
+      const clockOutAt = requested_check_out ? `${request_date}T${requested_check_out}:00+00:00` : null;
 
       // UPSERT dans hr_attendance_daily (nouvelle table unifiée)
       await pool.query(`

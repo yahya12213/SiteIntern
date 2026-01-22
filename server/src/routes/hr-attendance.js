@@ -100,8 +100,8 @@ router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'),
         a.work_date,
         a.clock_in_at,
         a.clock_out_at,
-        TO_CHAR(a.clock_in_at, 'HH24:MI') as check_in_time,
-        TO_CHAR(a.clock_out_at, 'HH24:MI') as check_out_time,
+        TO_CHAR(a.clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') as check_in_time,
+        TO_CHAR(a.clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') as check_out_time,
         a.scheduled_start,
         a.scheduled_end,
         a.scheduled_break_minutes,
@@ -256,8 +256,8 @@ router.get('/my-records', authenticateToken, async (req, res) => {
     let query = `
       SELECT
         a.*,
-        TO_CHAR(a.clock_in_at, 'HH24:MI') as check_in_time,
-        TO_CHAR(a.clock_out_at, 'HH24:MI') as check_out_time,
+        TO_CHAR(a.clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') as check_in_time,
+        TO_CHAR(a.clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') as check_out_time,
         (
           SELECT json_build_object(
             'id', cr.id,
@@ -543,8 +543,8 @@ router.get('/by-date', authenticateToken, requirePermission('hr.attendance.view_
     // Get attendance record - use TO_CHAR to extract time directly from PostgreSQL (avoids timezone issues)
     const result = await pool.query(`
       SELECT *,
-        TO_CHAR(clock_in_at, 'HH24:MI') as check_in_time,
-        TO_CHAR(clock_out_at, 'HH24:MI') as check_out_time
+        TO_CHAR(clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') as check_in_time,
+        TO_CHAR(clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') as check_out_time
       FROM hr_attendance_daily
       WHERE employee_id = $1 AND work_date = $2
     `, [employee_id, date]);
@@ -633,9 +633,10 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
       return res.status(404).json({ success: false, error: 'Employé non trouvé' });
     }
 
-    // Build timestamps - pass strings directly to PostgreSQL (no JavaScript Date to avoid timezone issues)
-    const clockInAt = check_in_time ? `${date}T${check_in_time}:00` : null;
-    const clockOutAt = check_out_time ? `${date}T${check_out_time}:00` : null;
+    // Build timestamps - force UTC (+00:00) to prevent timezone conversion
+    // User enters 10:00 → store as 10:00 UTC → display as 10:00 (no transformation)
+    const clockInAt = check_in_time ? `${date}T${check_in_time}:00+00:00` : null;
+    const clockOutAt = check_out_time ? `${date}T${check_out_time}:00+00:00` : null;
 
     // Validate times
     if (clockInAt && clockOutAt && clockOutAt <= clockInAt) {
