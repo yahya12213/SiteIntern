@@ -240,29 +240,35 @@ export const scheduleManagementApi = {
   },
 
   // === OVERTIME ===
+  // Note: Ces endpoints utilisent hr-overtime.js (/hr/overtime/requests)
   getOvertime: async (filters?: { status?: string; year?: number; month?: number }): Promise<{ success: boolean; overtime: OvertimeDeclaration[] }> => {
     const params = new URLSearchParams();
     if (filters?.status) params.append('status', filters.status);
     if (filters?.year) params.append('year', filters.year.toString());
     if (filters?.month) params.append('month', filters.month.toString());
     const queryString = params.toString() ? `?${params.toString()}` : '';
-    return apiClient.get<{ success: boolean; overtime: OvertimeDeclaration[] }>(`/hr/schedule-management/overtime${queryString}`);
+    // Utiliser l'endpoint existant hr-overtime.js - retourne {success, data} au lieu de {success, overtime}
+    const response = await apiClient.get<{ success: boolean; data: OvertimeDeclaration[] }>(`/hr/overtime/requests${queryString}`);
+    return { success: response.success, overtime: response.data || [] };
   },
 
   createOvertime: async (data: CreateOvertimeInput): Promise<{ success: boolean; overtime: OvertimeDeclaration }> => {
-    return apiClient.post<{ success: boolean; overtime: OvertimeDeclaration }>('/hr/schedule-management/overtime', data);
+    const response = await apiClient.post<{ success: boolean; data: OvertimeDeclaration }>('/hr/overtime/requests', data);
+    return { success: response.success, overtime: response.data };
   },
 
-  approveOvertime: async (id: number, data: { hours_approved?: number; comment?: string }): Promise<{ success: boolean; overtime: OvertimeDeclaration }> => {
-    return apiClient.put<{ success: boolean; overtime: OvertimeDeclaration }>(`/hr/schedule-management/overtime/${id}/approve`, data);
+  approveOvertime: async (id: number, data: { hours_approved?: number; comment?: string; level?: string }): Promise<{ success: boolean; overtime: OvertimeDeclaration }> => {
+    const response = await apiClient.put<{ success: boolean; data: OvertimeDeclaration }>(`/hr/overtime/requests/${id}/approve`, data);
+    return { success: response.success, overtime: response.data };
   },
 
-  rejectOvertime: async (id: number, comment?: string): Promise<{ success: boolean; overtime: OvertimeDeclaration }> => {
-    return apiClient.put<{ success: boolean; overtime: OvertimeDeclaration }>(`/hr/schedule-management/overtime/${id}/reject`, { comment });
+  rejectOvertime: async (id: number, comment?: string, level?: string): Promise<{ success: boolean; overtime: OvertimeDeclaration }> => {
+    const response = await apiClient.put<{ success: boolean; data: OvertimeDeclaration }>(`/hr/overtime/requests/${id}/reject`, { comment, level });
+    return { success: response.success, overtime: response.data };
   },
 
   deleteOvertime: async (id: number): Promise<{ success: boolean; message: string }> => {
-    return apiClient.delete<{ success: boolean; message: string }>(`/hr/schedule-management/overtime/${id}`);
+    return apiClient.delete<{ success: boolean; message: string }>(`/hr/overtime/requests/${id}`);
   },
 
   // === OVERTIME PERIODS (Manager declarations) ===
