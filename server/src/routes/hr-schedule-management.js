@@ -853,21 +853,35 @@ async function calculateOvertimeForPeriod(periodId) {
 
   // Find all employees who clocked during this period
   // Using hr_attendance_daily (unified table: 1 row = 1 day = 1 employee)
+  // Supports BOTH: clock_in_at/clock_out_at (TIMESTAMP) AND check_in/check_out (TIME)
   const employeesQuery = await pool.query(`
     SELECT
       ad.employee_id,
-      to_char(ad.clock_in_at, 'YYYY-MM-DD"T"HH24:MI:SS') as check_in,
-      to_char(ad.clock_out_at, 'YYYY-MM-DD"T"HH24:MI:SS') as check_out,
+      COALESCE(
+        TO_CHAR(ad.clock_in_at AT TIME ZONE 'UTC', 'HH24:MI'),
+        ad.check_in::TEXT
+      ) as check_in_time,
+      COALESCE(
+        TO_CHAR(ad.clock_out_at AT TIME ZONE 'UTC', 'HH24:MI'),
+        ad.check_out::TEXT
+      ) as check_out_time,
       e.first_name || ' ' || e.last_name as employee_name
     FROM hr_attendance_daily ad
     JOIN hr_employees e ON ad.employee_id = e.id
     WHERE ad.work_date = $1
-      AND ad.clock_in_at IS NOT NULL
-      AND ad.clock_out_at IS NOT NULL
+      AND (ad.clock_in_at IS NOT NULL OR ad.check_in IS NOT NULL)
+      AND (ad.clock_out_at IS NOT NULL OR ad.check_out IS NOT NULL)
       AND (
-        -- Employee clocked in during the HS period
-        EXTRACT(HOUR FROM ad.clock_in_at) * 60 + EXTRACT(MINUTE FROM ad.clock_in_at) < $3
-        AND EXTRACT(HOUR FROM ad.clock_out_at) * 60 + EXTRACT(MINUTE FROM ad.clock_out_at) > $2
+        -- Employee worked during the HS period
+        -- Check for clock_in_at/clock_out_at (TIMESTAMP from self-service)
+        (ad.clock_in_at IS NOT NULL AND
+         EXTRACT(HOUR FROM ad.clock_in_at AT TIME ZONE 'UTC') * 60 + EXTRACT(MINUTE FROM ad.clock_in_at AT TIME ZONE 'UTC') < $3
+         AND EXTRACT(HOUR FROM ad.clock_out_at AT TIME ZONE 'UTC') * 60 + EXTRACT(MINUTE FROM ad.clock_out_at AT TIME ZONE 'UTC') > $2)
+        OR
+        -- Check for check_in/check_out (TIME from admin declarations)
+        (ad.check_in IS NOT NULL AND
+         EXTRACT(HOUR FROM ad.check_in) * 60 + EXTRACT(MINUTE FROM ad.check_in) < $3
+         AND EXTRACT(HOUR FROM ad.check_out) * 60 + EXTRACT(MINUTE FROM ad.check_out) > $2)
       )
   `, [period.period_date, periodStartMin, periodEndMin]);
 
@@ -875,10 +889,9 @@ async function calculateOvertimeForPeriod(periodId) {
 
   for (const emp of employeesQuery.rows) {
     // Calculate overlap between employee work time and declared period
-    const empCheckInMin = emp.check_in ?
-      new Date(emp.check_in).getHours() * 60 + new Date(emp.check_in).getMinutes() : 0;
-    const empCheckOutMin = emp.check_out ?
-      new Date(emp.check_out).getHours() * 60 + new Date(emp.check_out).getMinutes() : 0;
+    // check_in_time and check_out_time are now in HH:MI format (e.g., "10:00")
+    const empCheckInMin = emp.check_in_time ? toMinutes(emp.check_in_time) : 0;
+    const empCheckOutMin = emp.check_out_time ? toMinutes(emp.check_out_time) : 0;
 
     // Calculate overlap
     const overlapStart = Math.max(empCheckInMin, periodStartMin);
