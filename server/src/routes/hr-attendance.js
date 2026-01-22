@@ -768,9 +768,20 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
       const calcResult = await calculator.calculateDayStatus(employee_id, date, clockInAt, clockOutAt);
 
       // Determine final status
-      let finalStatus = absence_status || status || calcResult.day_status;
-      if (['check_in', 'check_out'].includes(finalStatus)) {
-        finalStatus = 'present';
+      // Statuts spéciaux: TOUJOURS utiliser le résultat du calculateur (pas d'override)
+      const specialStatuses = ['weekend', 'holiday', 'leave', 'recovery_off', 'mission', 'training'];
+
+      let finalStatus;
+      if (specialStatuses.includes(calcResult.day_status)) {
+        // Jours spéciaux: impossible d'override manuellement
+        finalStatus = calcResult.day_status;
+        console.log(`[DECLARE] Special day detected: ${calcResult.day_status} for ${date}`);
+      } else {
+        // Jours normaux: permettre absence_status ou status de la requête
+        finalStatus = absence_status || status || calcResult.day_status;
+        if (['check_in', 'check_out'].includes(finalStatus)) {
+          finalStatus = 'present';
+        }
       }
 
       // Insert new record
