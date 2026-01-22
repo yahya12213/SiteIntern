@@ -7,12 +7,15 @@
  * Jobs:
  * - 20:30 - Finaliser les journées incomplètes (pending → partial)
  * - 21:00 - Détecter les absences (créer records 'absent')
+ *
+ * Note: Utilise l'horloge système configurable pour les dates
  */
 
 import pg from 'pg';
 import cron from 'node-cron';
 import { AttendanceCalculator } from '../services/attendance-calculator.js';
 import { AttendanceLogger } from '../services/attendance-logger.js';
+import { getSystemDate, getSystemTime } from '../services/system-clock.js';
 
 const { Pool } = pg;
 
@@ -30,7 +33,8 @@ export const finalizePendingDays = async () => {
   const logger = new AttendanceLogger(pool);
 
   try {
-    const today = new Date().toISOString().split('T')[0];
+    // Utiliser l'horloge système configurable
+    const today = await getSystemDate(pool);
 
     console.log(`[FINALIZE JOB] Checking ${today} for pending records...`);
 
@@ -81,8 +85,9 @@ export const detectAbsences = async () => {
   const logger = new AttendanceLogger(pool);
 
   try {
-    const now = new Date();
-    const yesterday = new Date(now);
+    // Utiliser l'horloge système configurable
+    const systemTime = await getSystemTime(pool);
+    const yesterday = new Date(systemTime);
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
 

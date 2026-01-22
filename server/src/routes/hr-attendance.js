@@ -5,7 +5,7 @@
  * Utilise la table hr_attendance_daily (1 ligne = 1 jour = 1 employé)
  *
  * Principes:
- * - Horloge = NOW() PostgreSQL uniquement
+ * - Horloge = Système configurable (via getSystemTime/getSystemDate)
  * - Calculs = backend uniquement (via AttendanceCalculator)
  * - Audit = complet (via AttendanceLogger)
  */
@@ -15,6 +15,7 @@ import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 import { AttendanceCalculator } from '../services/attendance-calculator.js';
 import { AttendanceLogger } from '../services/attendance-logger.js';
+import { getSystemTime, getSystemDate } from '../services/system-clock.js';
 
 const router = express.Router();
 
@@ -72,7 +73,8 @@ function validateTimeFormat(timeString) {
 }
 
 /**
- * Get current date in YYYY-MM-DD format (server timezone)
+ * Get current date in YYYY-MM-DD format
+ * @deprecated Use getSystemDate(pool) from system-clock.js instead for clock-in/out
  */
 function getCurrentDate() {
   return new Date().toISOString().split('T')[0];
@@ -196,7 +198,8 @@ router.get('/my-today', authenticateToken, async (req, res) => {
       });
     }
 
-    const today = getCurrentDate();
+    // Utiliser l'horloge système configurable
+    const today = await getSystemDate(pool);
 
     // Get today's record
     const result = await pool.query(`
@@ -342,8 +345,9 @@ router.post('/clock-in', authenticateToken, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Pointage non autorisé' });
     }
 
-    const today = getCurrentDate();
-    const now = new Date();
+    // Utiliser l'horloge système configurable
+    const today = await getSystemDate(pool);
+    const now = await getSystemTime(pool);
 
     // Check if already has record for today
     const existing = await pool.query(`
@@ -446,8 +450,9 @@ router.post('/clock-out', authenticateToken, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Pointage non autorisé' });
     }
 
-    const today = getCurrentDate();
-    const now = new Date();
+    // Utiliser l'horloge système configurable
+    const today = await getSystemDate(pool);
+    const now = await getSystemTime(pool);
 
     // Get today's record
     const existing = await pool.query(`

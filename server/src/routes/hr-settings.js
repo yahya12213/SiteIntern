@@ -1,6 +1,12 @@
 import express from 'express';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
+import {
+  getClockConfig,
+  getSystemTime,
+  updateClockConfig,
+  resetClock
+} from '../services/system-clock.js';
 
 const router = express.Router();
 
@@ -295,24 +301,29 @@ router.delete('/schedules/:id', authenticateToken, requirePermission('hr.setting
   }
 });
 
-// === SYSTEM CLOCK (PostgreSQL NOW() uniquement) ===
+// === SYSTEM CLOCK (Horloge système configurable) ===
 
 /**
  * Get current system time
- * Retourne l'heure PostgreSQL utilisée pour tous les pointages
- * Note: L'horloge configurable a été supprimée - utilisation de NOW() uniquement
+ * Retourne l'heure système utilisée pour tous les pointages
+ * Si l'horloge personnalisée est activée, applique l'offset
  */
 router.get('/system-clock/current-time', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT NOW() as system_time');
+    const config = await getClockConfig(pool);
+    const systemTime = await getSystemTime(pool);
+    const serverTimeResult = await pool.query('SELECT NOW() as now');
 
     res.json({
       success: true,
       data: {
-        system_time: result.rows[0].system_time,
-        server_time: result.rows[0].system_time,
-        is_custom: false,
-        message: 'Horloge système PostgreSQL (NOW())'
+        system_time: systemTime,
+        server_time: serverTimeResult.rows[0].now,
+        is_custom: config.enabled && config.offset_minutes !== 0,
+        offset_minutes: config.offset_minutes,
+        message: config.enabled && config.offset_minutes !== 0
+          ? `Horloge personnalisée active (offset: ${config.offset_minutes} minutes)`
+          : 'Horloge système PostgreSQL (NOW())'
       }
     });
   } catch (error) {
@@ -322,24 +333,86 @@ router.get('/system-clock/current-time', authenticateToken, async (req, res) => 
 });
 
 /**
- * Get system clock info (legacy endpoint for compatibility)
+ * Get system clock configuration
+ * Retourne la configuration complète de l'horloge système
  */
 router.get('/system-clock', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
   try {
-    const result = await pool.query('SELECT NOW() as now');
+    const config = await getClockConfig(pool);
+    const systemTime = await getSystemTime(pool);
+    const serverTimeResult = await pool.query('SELECT NOW() as now');
 
     res.json({
       success: true,
       data: {
-        enabled: false,
-        offset_minutes: 0,
-        server_time: result.rows[0].now,
-        system_time: result.rows[0].now,
-        message: 'Horloge configurable désactivée - utilisation de PostgreSQL NOW() uniquement'
+        enabled: config.enabled,
+        offset_minutes: config.offset_minutes,
+        server_time: serverTimeResult.rows[0].now,
+        system_time: systemTime,
+        updated_at: config.updated_at || null,
+        updated_by: config.updated_by || null
       }
     });
   } catch (error) {
     console.error('Error fetching system clock config:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Update system clock configuration
+ * Permet à l'admin de configurer un offset horaire pour le pointage
+ */
+router.put('/system-clock', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
+  try {
+    const { enabled, offset_minutes } = req.body;
+
+    if (enabled && (offset_minutes === undefined || offset_minutes === null)) {
+      return res.status(400).json({
+        success: false,
+        error: 'offset_minutes est requis quand enabled est true'
+      });
+    }
+
+    const config = await updateClockConfig(pool, enabled, offset_minutes || 0, req.user.id);
+    const systemTime = await getSystemTime(pool);
+
+    res.json({
+      success: true,
+      message: config.enabled
+        ? `Horloge personnalisée activée (offset: ${config.offset_minutes} minutes)`
+        : 'Horloge réinitialisée à l\'heure serveur',
+      data: {
+        ...config,
+        system_time: systemTime
+      }
+    });
+  } catch (error) {
+    console.error('Error updating system clock config:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Reset system clock to server time
+ * Désactive l'horloge personnalisée et remet l'offset à 0
+ */
+router.post('/system-clock/reset', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
+  try {
+    const config = await resetClock(pool, req.user.id);
+    const serverTimeResult = await pool.query('SELECT NOW() as now');
+
+    res.json({
+      success: true,
+      message: 'Horloge système réinitialisée à l\'heure serveur',
+      data: {
+        ...config,
+        server_time: serverTimeResult.rows[0].now,
+        system_time: serverTimeResult.rows[0].now
+      }
+    });
+  } catch (error) {
+    console.error('Error resetting system clock:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
