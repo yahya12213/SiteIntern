@@ -75,8 +75,9 @@ import {
   useUpdateOvertimeConfig,
 } from '@/hooks/useScheduleManagement';
 
-// Types
+// Types & API
 import type { WorkSchedule, PublicHoliday, OvertimePeriod, OvertimeConfig } from '@/lib/api/schedule-management';
+import { scheduleManagementApi } from '@/lib/api/schedule-management';
 
 // Tabs
 type TabType = 'modeles' | 'feries' | 'conges' | 'heures-sup' | 'config-hs' | 'horloge';
@@ -301,14 +302,9 @@ export default function ScheduleManagement() {
   };
 
   const handleEditOvertimePeriod = async (period: OvertimePeriod) => {
-    // Fetch selected employees for this period
+    // Fetch selected employees for this period using API client
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/hr/schedule-management/overtime-periods/${period.id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      const data = await response.json();
+      const data = await scheduleManagementApi.getOvertimePeriodById(period.id);
 
       if (data.success) {
         setOvertimePeriodForm({
@@ -322,8 +318,8 @@ export default function ScheduleManagement() {
         setEditingPeriodId(period.id);
         setShowOvertimePeriodModal(true);
       }
-    } catch (error) {
-      toast({ title: 'Erreur', description: 'Erreur lors du chargement des données', variant: 'destructive' });
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors du chargement des données', variant: 'destructive' });
     }
   };
 
