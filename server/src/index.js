@@ -475,6 +475,57 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// TEMPORARY: Debug endpoint to check profiles table - NO AUTH
+app.get('/check-admin-profiles', async (req, res) => {
+  try {
+    console.log('🔍 [DEBUG-PROFILES] Checking profiles table...');
+
+    // Get all column names
+    const columnsResult = await pool.query(`
+      SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_name = 'profiles'
+      ORDER BY ordinal_position
+    `);
+
+    // Count users
+    const countResult = await pool.query(`
+      SELECT COUNT(*) as total_users FROM profiles
+    `);
+
+    // Find admin users (try different methods)
+    const adminCheck = await pool.query(`
+      SELECT
+        id,
+        username,
+        LENGTH(password) as password_length,
+        SUBSTRING(password, 1, 10) as password_prefix,
+        role_id,
+        created_at
+      FROM profiles
+      WHERE role_id = 'admin' OR role_id LIKE '%admin%' OR username LIKE '%admin%'
+      ORDER BY created_at
+      LIMIT 10
+    `);
+
+    res.json({
+      success: true,
+      table: 'profiles',
+      total_users: countResult.rows[0].total_users,
+      columns: columnsResult.rows,
+      admin_users: adminCheck.rows
+    });
+
+  } catch (error) {
+    console.error('❌ [DEBUG-PROFILES] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Serve static files from the React app (dist folder)
 // Vite builds directly into server/dist (configured in vite.config.ts)
 // Both Railway and Local: dist is at server/dist (../dist from server/src)
