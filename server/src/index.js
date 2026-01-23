@@ -202,6 +202,7 @@ import migration130Router from './routes/migration-130-attendance-refactor.js';
 import migration132Router from './routes/migration-132-overtime-period-employees.js';
 import migration133Router from './routes/migration-133-overtime-status.js';
 import testWorkflowRouter from './routes/test-workflow.js';
+import debugAuthRouter from './routes/debug-auth.js';
 
 // Import cron jobs
 import { startAbsenceDetectionJob } from './jobs/absence-detection.js';
@@ -267,6 +268,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Routes
 app.use('/api/auth', authRouter);
+app.use('/api/debug-auth', debugAuthRouter); // TEMPORARY: Debug route for auth issues (NO AUTH REQUIRED)
 app.use('/api/segments', authenticateToken, segmentsRouter);
 app.use('/api/cities', authenticateToken, citiesRouter);
 app.use('/api/profiles', authenticateToken, profilesRouter);
