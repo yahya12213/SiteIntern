@@ -560,7 +560,7 @@ router.get('/requests', authenticateToken, async (req, res) => {
           ot.reason as description,
           ot.status,
           ot.created_at as date_soumission,
-          ot.approver_comment as n1_comment,
+          ot.n1_comment as n1_comment,
           CASE
             WHEN ot.status = 'pending' THEN (
               SELECT m.first_name || ' ' || m.last_name
