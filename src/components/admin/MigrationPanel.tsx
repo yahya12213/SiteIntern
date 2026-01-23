@@ -461,6 +461,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 132: Sélection Employés Heures Sup',
     description: '🕐 HEURES SUP: Crée table hr_overtime_period_employees pour permettre la sélection manuelle des employés concernés par une période d\'heures supplémentaires. Remplace l\'auto-détection basée sur le pointage.',
     endpoint: '/migration-132-overtime-period-employees'
+  },
+  {
+    id: 'migration-133',
+    name: 'Migration 133: Statut Heures Sup',
+    description: '⏰ STATUT OVERTIME: Ajoute le statut "overtime" dans la contrainte day_status de hr_attendance_daily. Permet d\'afficher "Heures Sup" comme statut de pointage distinct.',
+    endpoint: '/migration-133-overtime-status'
   }
 ];
 

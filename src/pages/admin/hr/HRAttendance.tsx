@@ -124,6 +124,7 @@ export default function HRAttendance() {
       training: 'bg-violet-100 text-violet-800',
       sick: 'bg-pink-100 text-pink-800',
       half_day: 'bg-purple-100 text-purple-800',
+      overtime: 'bg-amber-100 text-amber-800',
     };
     const labels: Record<string, string> = {
       present: 'Présent',
@@ -140,6 +141,7 @@ export default function HRAttendance() {
       training: 'Formation',
       sick: 'Maladie',
       half_day: 'Demi-journée',
+      overtime: 'Heures Sup',
     };
     return (
       <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status] || 'bg-gray-100 text-gray-800'}`}>

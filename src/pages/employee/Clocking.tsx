@@ -254,7 +254,8 @@ function DayStatusBadge({ status }: { status: string }) {
     recovery_off: { label: 'Récupération', className: 'bg-teal-100 text-teal-800' },
     mission: { label: 'Mission', className: 'bg-cyan-100 text-cyan-800' },
     training: { label: 'Formation', className: 'bg-violet-100 text-violet-800' },
-    sick: { label: 'Maladie', className: 'bg-pink-100 text-pink-800' }
+    sick: { label: 'Maladie', className: 'bg-pink-100 text-pink-800' },
+    overtime: { label: 'Heures Sup', className: 'bg-amber-100 text-amber-800' }
   };
 
   const config = statusConfig[status] || { label: status, className: 'bg-gray-100 text-gray-600' };

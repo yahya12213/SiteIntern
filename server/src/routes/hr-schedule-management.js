@@ -1212,10 +1212,21 @@ async function calculateOvertimeForSelectedEmployees(periodId) {
         VALUES ($1, $2, $3, $4, $4, $5, $6, $7, true)
       `, [emp.employee_id, period.period_date, periodId, overtimeMinutes, recordRateType, isHoliday, isWeekend]);
 
-      // Update attendance record with overtime_minutes
+      // Update attendance record with overtime_minutes, worked hours, and status
       await pool.query(`
         UPDATE hr_attendance_daily
-        SET overtime_minutes = $3, updated_at = NOW()
+        SET
+          overtime_minutes = $3,
+          gross_worked_minutes = COALESCE(
+            EXTRACT(EPOCH FROM (clock_out_at - clock_in_at))::integer / 60,
+            $3
+          ),
+          net_worked_minutes = COALESCE(
+            EXTRACT(EPOCH FROM (clock_out_at - clock_in_at))::integer / 60 - COALESCE(break_minutes, 0),
+            $3
+          ),
+          day_status = CASE WHEN $3 > 0 THEN 'overtime' ELSE day_status END,
+          updated_at = NOW()
         WHERE employee_id = $1 AND work_date = $2
       `, [emp.employee_id, period.period_date, overtimeMinutes]);
 

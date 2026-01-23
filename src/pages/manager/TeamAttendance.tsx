@@ -95,6 +95,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string; icon: an
   sick: { label: 'Maladie', className: 'bg-pink-100 text-pink-800', icon: XCircle },
   recovery_off: { label: 'Récupération', className: 'bg-teal-100 text-teal-800', icon: Calendar },
   recovery_day: { label: 'Jour de récup', className: 'bg-teal-100 text-teal-800', icon: Calendar },
+  overtime: { label: 'Heures Sup', className: 'bg-amber-100 text-amber-800', icon: Clock },
 };
 
 // ============================================================
