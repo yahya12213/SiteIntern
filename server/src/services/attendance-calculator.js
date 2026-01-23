@@ -305,13 +305,22 @@ export class AttendanceCalculator {
       result.scheduled_break_minutes = schedule.break_duration_minutes || 0;
     }
 
-    // PRIORITÉ 1: Jour férié
+    // PRIORITÉ 1: Jour férié - MAIS vérifier d'abord si période HS déclarée
     const holiday = await this.isHoliday(date);
     if (holiday) {
-      result.day_status = 'holiday';
-      result.notes = `Jour férié: ${holiday.name}`;
-      result.special_day = { type: 'holiday', name: holiday.name };
-      return result;
+      // Vérifier si période HS pour ce jour férié (permet de travailler les jours fériés)
+      const overtimePeriodsForHoliday = await this.getOvertimePeriodsForEmployee(employeeId, date);
+      if (overtimePeriodsForHoliday.length > 0) {
+        // C'est un jour férié MAIS avec heures sup déclarées → continuer le calcul
+        result.special_day = { type: 'holiday_overtime', name: holiday.name };
+        result.notes = `Jour férié (HS): ${holiday.name}`;
+        // Ne PAS return, continuer pour calculer les heures sup
+      } else {
+        result.day_status = 'holiday';
+        result.notes = `Jour férié: ${holiday.name}`;
+        result.special_day = { type: 'holiday', name: holiday.name };
+        return result;
+      }
     }
 
     // PRIORITÉ 2: Congé approuvé
