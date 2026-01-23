@@ -1222,7 +1222,7 @@ async function calculateOvertimeForSelectedEmployees(periodId) {
             $3
           ),
           net_worked_minutes = COALESCE(
-            EXTRACT(EPOCH FROM (clock_out_at - clock_in_at))::integer / 60 - COALESCE(break_minutes, 0),
+            EXTRACT(EPOCH FROM (clock_out_at - clock_in_at))::integer / 60 - COALESCE(scheduled_break_minutes, 0),
             $3
           ),
           day_status = CASE WHEN $3 > 0 THEN 'overtime' ELSE day_status END,
