@@ -125,6 +125,8 @@ router.get('/attendance', authenticateToken, async (req, res) => {
           work_date as date,
           TO_CHAR(clock_in_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') as check_in,
           TO_CHAR(clock_out_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') as check_out,
+          TO_CHAR(clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') as check_in_time,
+          TO_CHAR(clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') as check_out_time,
           CASE WHEN clock_in_at IS NOT NULL THEN 1 ELSE 0 END as check_ins,
           CASE WHEN clock_out_at IS NOT NULL THEN 1 ELSE 0 END as check_outs,
           day_status,
@@ -357,8 +359,8 @@ router.get('/attendance', authenticateToken, async (req, res) => {
 
         return {
           date: r.date,
-          check_in: r.check_in ? new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }) : '-',
-          check_out: r.check_out ? new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }) : '-',
+          check_in: r.check_in_time || '-',
+          check_out: r.check_out_time || '-',
           status: displayStatus,
           worked_minutes: isWeekend ? 0 : null,
           has_anomaly: isWeekend ? false : hasAnomaly,
@@ -374,8 +376,8 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       if (isWeekend) {
         return {
           date: r.date,
-          check_in: new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }),
-          check_out: new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }),
+          check_in: r.check_in_time || '-',
+          check_out: r.check_out_time || '-',
           status: 'weekend',
           worked_minutes: 0,
           has_anomaly: false,
@@ -429,8 +431,8 @@ router.get('/attendance', authenticateToken, async (req, res) => {
 
       return {
         date: r.date,
-        check_in: new Date(r.check_in).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }),
-        check_out: new Date(r.check_out).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Casablanca' }),
+        check_in: r.check_in_time || '-',
+        check_out: r.check_out_time || '-',
         status: displayStatus,
         worked_minutes: Math.max(0, workedMinutes),
         has_anomaly: hasAnomaly,
