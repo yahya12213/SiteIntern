@@ -502,6 +502,32 @@ router.post('/clock-out', authenticateToken, async (req, res) => {
       calcResult.day_status
     ]);
 
+    // NOUVEAU: Si heures sup détectées via périodes déclarées, créer hr_overtime_records
+    if (calcResult.overtime_minutes > 0 && calcResult.overtime_periods && calcResult.overtime_periods.length > 0) {
+      for (const period of calcResult.overtime_periods) {
+        // Calculer les minutes pour cette période spécifique
+        const clockInMinutes = calculator.timestampToMinutes(record.clock_in_at);
+        const clockOutMinutes = calculator.timestampToMinutes(now);
+        const periodMinutes = calculator.calculateOverlap(clockInMinutes, clockOutMinutes, period.start_time, period.end_time);
+
+        if (periodMinutes > 0) {
+          await pool.query(`
+            INSERT INTO hr_overtime_records
+              (employee_id, overtime_date, period_id, actual_minutes, approved_minutes, rate_type, validated_for_payroll)
+            VALUES ($1, $2, $3, $4, $4, $5, true)
+            ON CONFLICT (employee_id, overtime_date, period_id)
+            DO UPDATE SET
+              actual_minutes = EXCLUDED.actual_minutes,
+              approved_minutes = EXCLUDED.approved_minutes,
+              rate_type = EXCLUDED.rate_type,
+              validated_for_payroll = true,
+              updated_at = NOW()
+          `, [employee.id, today, period.id, periodMinutes, period.rate_type]);
+        }
+      }
+      console.log(`[clock-out] Created overtime records for employee ${employee.id}: ${calcResult.overtime_minutes} minutes`);
+    }
+
     await logger.logClockOut(record.id, employee.id, today, record, result.rows[0], req.user.id, getClientIP(req));
 
     const hours = Math.floor((calcResult.net_worked_minutes || 0) / 60);

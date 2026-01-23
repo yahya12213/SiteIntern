@@ -191,6 +191,51 @@ export class AttendanceCalculator {
   }
 
   /**
+   * Obtenir les périodes d'heures supplémentaires déclarées pour un employé à une date
+   * (Déclarées par l'admin via hr_overtime_periods et hr_overtime_period_employees)
+   * @param {string} employeeId - UUID de l'employé
+   * @param {string} date - Date au format YYYY-MM-DD
+   * @returns {Array} Liste des périodes HS
+   */
+  async getOvertimePeriodsForEmployee(employeeId, date) {
+    try {
+      const result = await this.pool.query(`
+        SELECT op.id, op.period_date, op.start_time, op.end_time, op.rate_type, op.reason
+        FROM hr_overtime_periods op
+        JOIN hr_overtime_period_employees ope ON ope.period_id = op.id
+        WHERE ope.employee_id = $1
+          AND op.period_date = $2
+          AND op.status = 'active'
+      `, [employeeId, date]);
+      return result.rows;
+    } catch (error) {
+      console.error('[AttendanceCalculator] Error getting overtime periods:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Calculer l'intersection (chevauchement) entre le pointage et une période
+   * @param {number} clockInMinutes - Minutes depuis minuit du clock-in
+   * @param {number} clockOutMinutes - Minutes depuis minuit du clock-out
+   * @param {string} periodStart - Heure de début de la période (HH:MM)
+   * @param {string} periodEnd - Heure de fin de la période (HH:MM)
+   * @returns {number} Minutes de chevauchement
+   */
+  calculateOverlap(clockInMinutes, clockOutMinutes, periodStart, periodEnd) {
+    const periodStartMinutes = this.timeToMinutes(periodStart);
+    const periodEndMinutes = this.timeToMinutes(periodEnd);
+
+    if (periodStartMinutes === null || periodEndMinutes === null) return 0;
+    if (clockInMinutes === null || clockOutMinutes === null) return 0;
+
+    const overlapStart = Math.max(periodStartMinutes, clockInMinutes);
+    const overlapEnd = Math.min(periodEndMinutes, clockOutMinutes);
+
+    return overlapEnd > overlapStart ? overlapEnd - overlapStart : 0;
+  }
+
+  /**
    * Convertir une chaîne de temps "HH:MM" en minutes depuis minuit
    */
   timeToMinutes(timeStr) {
@@ -244,6 +289,8 @@ export class AttendanceCalculator {
       late_minutes: 0,
       early_leave_minutes: 0,
       overtime_minutes: 0,
+      overtime_rate_type: null,
+      overtime_periods: null,
       notes: null,
       special_day: null
     };
@@ -354,7 +401,7 @@ export class AttendanceCalculator {
       }
     }
 
-    // Calculer les heures supplémentaires (seulement si approuvées)
+    // Calculer les heures supplémentaires (seulement si approuvées via hr_overtime_requests)
     const overtime = await this.hasApprovedOvertime(employeeId, date);
     if (overtime && scheduledEndMinutes !== null && clockOutMinutes !== null) {
       if (clockOutMinutes > scheduledEndMinutes) {
@@ -363,8 +410,38 @@ export class AttendanceCalculator {
       }
     }
 
+    // NOUVEAU: Vérifier les périodes HS déclarées par admin (hr_overtime_periods)
+    const overtimePeriods = await this.getOvertimePeriodsForEmployee(employeeId, date);
+    if (overtimePeriods.length > 0 && clockInMinutes !== null && clockOutMinutes !== null) {
+      let totalOvertimeFromPeriods = 0;
+      let overtimeRateType = null;
+
+      for (const period of overtimePeriods) {
+        const overlap = this.calculateOverlap(clockInMinutes, clockOutMinutes, period.start_time, period.end_time);
+        if (overlap > 0) {
+          totalOvertimeFromPeriods += overlap;
+          // Prendre le taux le plus avantageux (special > extended > normal)
+          if (!overtimeRateType ||
+              (period.rate_type === 'special') ||
+              (period.rate_type === 'extended' && overtimeRateType === 'normal')) {
+            overtimeRateType = period.rate_type;
+          }
+        }
+      }
+
+      // Si des heures sup calculées depuis les périodes déclarées
+      if (totalOvertimeFromPeriods > 0) {
+        result.overtime_minutes = Math.max(result.overtime_minutes, totalOvertimeFromPeriods);
+        result.overtime_rate_type = overtimeRateType;
+        result.overtime_periods = overtimePeriods;
+      }
+    }
+
     // Déterminer le statut final
-    if (result.late_minutes > 0 && result.early_leave_minutes > 0) {
+    // PRIORITÉ: Si heures sup déclarées via période admin → statut 'overtime'
+    if (result.overtime_minutes > 0 && result.overtime_periods && result.overtime_periods.length > 0) {
+      result.day_status = 'overtime';
+    } else if (result.late_minutes > 0 && result.early_leave_minutes > 0) {
       result.day_status = 'partial';
     } else if (result.late_minutes > 0) {
       result.day_status = 'late';
