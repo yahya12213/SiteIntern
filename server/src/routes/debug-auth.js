@@ -44,7 +44,6 @@ router.get('/check-profiles', async (req, res) => {
         username,
         LENGTH(password) as password_length,
         role_id,
-        is_active,
         created_at
       FROM profiles
       WHERE role_id = 'admin' OR role_id IN (SELECT id FROM roles WHERE name = 'admin')
@@ -105,7 +104,6 @@ router.get('/check-user/:username', async (req, res) => {
         LENGTH(p.password) as password_length,
         SUBSTRING(p.password, 1, 10) as password_prefix,
         p.role_id,
-        p.is_active,
         p.created_at,
         p.updated_at,
         r.name as role_name
