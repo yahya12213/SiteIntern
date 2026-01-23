@@ -467,6 +467,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 133: Statut Heures Sup',
     description: '⏰ STATUT OVERTIME: Ajoute le statut "overtime" dans la contrainte day_status de hr_attendance_daily. Permet d\'afficher "Heures Sup" comme statut de pointage distinct.',
     endpoint: '/migration-133-overtime-status'
+  },
+  {
+    id: 'migration-134',
+    name: 'Migration 134: Fix Contrainte day_status',
+    description: '🔧 FIX CONTRAINTE: Supprime la contrainte obsolète valid_day_status qui bloquait la mise à jour vers le statut "overtime". Corrige le problème où le pointage restait "present" au lieu de "overtime".',
+    endpoint: '/migration-134-fix-day-status-constraint'
   }
 ];
 
