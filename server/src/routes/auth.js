@@ -566,4 +566,74 @@ router.post('/change-password', authenticateToken, async (req, res) => {
   }
 });
 
+// TEMPORARY DEBUG ROUTE - NO AUTH REQUIRED
+// To diagnose 401 login issue
+router.get('/debug-check-admin', async (req, res) => {
+  try {
+    console.log('🔍 [DEBUG] Checking admin user in profiles table...');
+
+    // Check if profiles table exists
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = 'profiles'
+      ) as table_exists
+    `);
+
+    if (!tableCheck.rows[0].table_exists) {
+      return res.json({
+        success: false,
+        error: 'Table profiles does not exist!'
+      });
+    }
+
+    // Get all column names from profiles table
+    const columnsCheck = await pool.query(`
+      SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_name = 'profiles'
+      ORDER BY ordinal_position
+    `);
+
+    // Count total users
+    const countResult = await pool.query(`
+      SELECT COUNT(*) as total_users FROM profiles
+    `);
+
+    // Check for admin users (try both role_id values)
+    const adminCheck = await pool.query(`
+      SELECT
+        id,
+        username,
+        LENGTH(password) as password_length,
+        SUBSTRING(password, 1, 10) as password_prefix,
+        role_id,
+        created_at
+      FROM profiles
+      WHERE role_id = 'admin' OR username LIKE '%admin%'
+      ORDER BY created_at
+      LIMIT 10
+    `);
+
+    res.json({
+      success: true,
+      data: {
+        table_exists: true,
+        total_users: countResult.rows[0].total_users,
+        columns: columnsCheck.rows,
+        admin_users: adminCheck.rows
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ [DEBUG] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 export default router;
