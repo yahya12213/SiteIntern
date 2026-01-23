@@ -47,6 +47,9 @@ router.post('/login', loginRateLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
 
+    // DEBUG: Log login attempt
+    console.log('🔍 [LOGIN] Login attempt for username:', username);
+
     if (!username || !password) {
       return res.status(400).json({
         success: false,
@@ -132,6 +135,16 @@ router.post('/login', loginRateLimiter, async (req, res) => {
     } else {
       user = result.rows[0];
 
+      // DEBUG: Log user found in database
+      console.log('🔍 [LOGIN] User found in database:', {
+        id: user.id,
+        username: user.username,
+        passwordLength: user.password?.length,
+        passwordPrefix: user.password?.substring(0, 10),
+        roleId: user.role_id,
+        role: user.role
+      });
+
       // 🔧 FIX: Sync profiles.role with roles.name for JWT token admin bypass
       // If user has a role_id and we fetched role_name from roles table,
       // but profiles.role is NULL or doesn't match, update it
@@ -162,14 +175,23 @@ router.post('/login', loginRateLimiter, async (req, res) => {
     }
 
     // Verify password
+    console.log('🔍 [LOGIN] Comparing passwords...');
+    console.log('🔍 [LOGIN] Password provided length:', password?.length);
+    console.log('🔍 [LOGIN] Hash in database length:', user.password?.length);
+
     const isValid = await bcrypt.compare(password, user.password);
 
+    console.log('🔍 [LOGIN] Password comparison result:', isValid);
+
     if (!isValid) {
+      console.log('❌ [LOGIN] Password mismatch for user:', username);
       return res.status(401).json({
         success: false,
         error: 'Invalid credentials',
       });
     }
+
+    console.log('✅ [LOGIN] Password valid for user:', username);
 
     // Additional check for CIN-based login: Verify student is enrolled in at least one online session
     if (isStudentCINLogin && user.student_id) {
