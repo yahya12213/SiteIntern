@@ -493,19 +493,17 @@ app.get('/check-admin-profiles', async (req, res) => {
       SELECT COUNT(*) as total_users FROM profiles
     `);
 
-    // Find admin users (search by username pattern since role_id is UUID)
+    // Find admin users (search by username pattern only)
     const adminCheck = await pool.query(`
       SELECT
         p.id,
         p.username,
         LENGTH(p.password) as password_length,
         SUBSTRING(p.password, 1, 10) as password_prefix,
-        p.role_id,
-        r.name as role_name,
+        p.role_id::text as role_id,
         p.created_at
       FROM profiles p
-      LEFT JOIN roles r ON p.role_id = r.id
-      WHERE p.username LIKE '%admin%' OR r.name = 'admin'
+      WHERE p.username ILIKE '%admin%'
       ORDER BY p.created_at
       LIMIT 10
     `);
