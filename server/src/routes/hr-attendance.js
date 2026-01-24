@@ -224,8 +224,10 @@ router.get('/my-today', authenticateToken, async (req, res) => {
     const dayInfo = await calculator.getDayInfo(employee.id, today);
     console.log(`[GET /my-today] Day info result:`, dayInfo ? 'OK' : 'NULL');
 
-    const hasCheckIn = record?.clock_in_at !== null;
-    const hasCheckOut = record?.clock_out_at !== null;
+    // FIX: Quand record=null, record?.clock_in_at retourne undefined, et undefined !== null = true (BUG)
+    // Solution: verifier explicitement que record existe ET que clock_in_at n'est pas null
+    const hasCheckIn = record !== null && record.clock_in_at !== null;
+    const hasCheckOut = record !== null && record.clock_out_at !== null;
 
     // Récupérer l'heure système actuelle pour affichage frontend
     console.log(`[GET /my-today] Getting system time...`);
