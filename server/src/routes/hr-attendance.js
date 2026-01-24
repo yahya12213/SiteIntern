@@ -322,20 +322,34 @@ router.get('/my-records', authenticateToken, async (req, res) => {
     const result = await pool.query(query, params);
 
     // Format records for frontend (check_in_time and check_out_time come from TO_CHAR in query)
-    const records = result.rows.map(row => ({
-      date: row.work_date,
-      clock_in_at: row.clock_in_at,
-      clock_out_at: row.clock_out_at,
-      check_in_time: row.check_in_time,
-      check_out_time: row.check_out_time,
-      worked_minutes: row.net_worked_minutes,
-      late_minutes: row.late_minutes,
-      early_leave_minutes: row.early_leave_minutes,
-      day_status: row.day_status,
-      is_complete: row.clock_in_at && row.clock_out_at,
-      has_anomaly: row.is_anomaly && !row.anomaly_resolved,
-      correction_request: row.correction_request
-    }));
+    const records = result.rows.map(row => {
+      // Format work_date as YYYY-MM-DD string to avoid timezone issues
+      let workDateStr;
+      if (row.work_date instanceof Date) {
+        // Convert to local date string (YYYY-MM-DD) to match PostgreSQL's date
+        workDateStr = row.work_date.toLocaleDateString('en-CA'); // en-CA gives YYYY-MM-DD format
+      } else {
+        workDateStr = row.work_date;
+      }
+
+      return {
+        id: row.id,
+        work_date: workDateStr,
+        clock_in_at: row.clock_in_at,
+        clock_out_at: row.clock_out_at,
+        check_in_time: row.check_in_time,
+        check_out_time: row.check_out_time,
+        net_worked_minutes: row.net_worked_minutes,
+        scheduled_break_minutes: row.scheduled_break_minutes || 0,
+        late_minutes: row.late_minutes || 0,
+        early_leave_minutes: row.early_leave_minutes || 0,
+        overtime_minutes: row.overtime_minutes || 0,
+        day_status: row.day_status,
+        is_complete: row.clock_in_at && row.clock_out_at,
+        is_anomaly: row.is_anomaly && !row.anomaly_resolved,
+        correction_request: row.correction_request
+      };
+    });
 
     res.json({
       success: true,
