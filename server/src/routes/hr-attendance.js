@@ -180,9 +180,13 @@ router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'),
 
 router.get('/my-today', authenticateToken, async (req, res) => {
   try {
+    console.log(`[GET /my-today] Starting for user ${req.user?.id}`);
+
     const employee = await getEmployeeByProfileId(req.user.id);
+    console.log(`[GET /my-today] Employee lookup result:`, employee ? `Found: ${employee.id} (${employee.first_name})` : 'NOT FOUND');
 
     if (!employee) {
+      console.log(`[GET /my-today] No employee found for profile ${req.user.id}`);
       return res.json({
         success: true,
         requires_clocking: false,
@@ -191,6 +195,7 @@ router.get('/my-today', authenticateToken, async (req, res) => {
     }
 
     if (!employee.requires_clocking) {
+      console.log(`[GET /my-today] Clocking not required for employee ${employee.id}`);
       return res.json({
         success: true,
         requires_clocking: false,
@@ -199,26 +204,35 @@ router.get('/my-today', authenticateToken, async (req, res) => {
     }
 
     // Utiliser l'horloge système configurable
+    console.log(`[GET /my-today] Getting system date...`);
     const today = await getSystemDate(pool);
+    console.log(`[GET /my-today] System date: ${today}`);
 
     // Get today's record
+    console.log(`[GET /my-today] Querying attendance for ${employee.id} on ${today}...`);
     const result = await pool.query(`
       SELECT *
       FROM hr_attendance_daily
       WHERE employee_id = $1 AND work_date = $2
     `, [employee.id, today]);
+    console.log(`[GET /my-today] Attendance query result: ${result.rows.length} rows`);
 
     const record = result.rows[0] || null;
 
     // Get day info (schedule, holidays, etc.)
+    console.log(`[GET /my-today] Getting day info...`);
     const dayInfo = await calculator.getDayInfo(employee.id, today);
+    console.log(`[GET /my-today] Day info result:`, dayInfo ? 'OK' : 'NULL');
 
     const hasCheckIn = record?.clock_in_at !== null;
     const hasCheckOut = record?.clock_out_at !== null;
 
     // Récupérer l'heure système actuelle pour affichage frontend
+    console.log(`[GET /my-today] Getting system time...`);
     const systemTime = await getSystemTime(pool);
+    console.log(`[GET /my-today] System time: ${systemTime?.toISOString()}`);
 
+    console.log(`[GET /my-today] Sending successful response`);
     res.json({
       success: true,
       requires_clocking: true,
@@ -241,7 +255,12 @@ router.get('/my-today', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[GET /hr/attendance/my-today] Error:', error);
+    console.error('[GET /hr/attendance/my-today] FULL ERROR:', {
+      message: error.message,
+      name: error.name,
+      code: error.code,
+      stack: error.stack
+    });
     res.status(500).json({ success: false, error: error.message });
   }
 });

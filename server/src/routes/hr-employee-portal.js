@@ -332,6 +332,7 @@ router.get('/attendance', authenticateToken, async (req, res) => {
     });
 
     // Calculate worked minutes for each record (capped to schedule)
+    console.log(`[Attendance] Processing ${records.rows.length} records for employee ${employee.id}`);
     const recordsWithWorkedMinutes = records.rows.map(r => {
       const dateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : r.date;
       const correctionRequest = correctionsByDate[dateStr] || null;
@@ -342,9 +343,13 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       const dayOfWeek = recordDate.getDay();
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
+      // DEBUG: Log raw record data
+      console.log(`[Attendance] Date: ${dateStr}, DB day_status: ${r.day_status}, check_in: ${r.check_in}, check_out: ${r.check_out}, check_in_time: ${r.check_in_time}, check_out_time: ${r.check_out_time}`);
+
       if (!r.check_in || !r.check_out) {
         // Utiliser le statut réel de la base de données si disponible
         let displayStatus = r.day_status || (isWeekend ? 'weekend' : (r.check_ins > 0 ? 'incomplete' : 'absent'));
+        console.log(`[Attendance] Date: ${dateStr}, No check_in/check_out branch, displayStatus: ${displayStatus}`);
 
         // Vérifier si l'employé est en congé approuvé pour cette date
         const recordDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : r.date;
@@ -417,6 +422,7 @@ router.get('/attendance', authenticateToken, async (req, res) => {
 
       // Utiliser le statut réel de la base de données
       let displayStatus = r.day_status || 'present';
+      console.log(`[Attendance] Date: ${dateStr}, With check_in/check_out branch, r.day_status: ${r.day_status}, displayStatus: ${displayStatus}`);
 
       // Vérifier si l'employé est en congé approuvé pour cette date
       const recordDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : r.date;
