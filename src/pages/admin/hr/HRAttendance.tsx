@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { usePermission } from '@/hooks/usePermission';
 import {
@@ -11,8 +11,10 @@ import {
   Plus,
   Check,
   Edit,
+  Trash2,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
+import { useToast } from '@/hooks/use-toast';
 import AttendanceRecordForm from '@/components/admin/hr/AttendanceRecordForm';
 import OvertimeApprovalModal from '@/components/admin/hr/OvertimeApprovalModal';
 import AnomalyResolutionModal from '@/components/admin/hr/AnomalyResolutionModal';
@@ -55,6 +57,8 @@ interface OvertimeRequest {
 
 export default function HRAttendance() {
   const { hr } = usePermission();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'records' | 'anomalies' | 'overtime'>('records');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -65,6 +69,29 @@ export default function HRAttendance() {
   const [showAnomalyResolutionModal, setShowAnomalyResolutionModal] = useState(false);
   const [selectedAnomalyId, setSelectedAnomalyId] = useState<string | null>(null);
   const [showAdminEditor, setShowAdminEditor] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ employeeId: string; date: string; name: string } | null>(null);
+
+  // Delete attendance mutation
+  const deleteMutation = useMutation({
+    mutationFn: async ({ employeeId, date }: { employeeId: string; date: string }) => {
+      const formattedDate = date.includes('T') ? date.split('T')[0] : date;
+      const response = await apiClient.delete(`/hr/attendance/admin/delete?employee_id=${employeeId}&date=${formattedDate}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['hr-attendance-anomalies'] });
+      toast({ title: 'Succes', description: 'Pointage supprime avec succes' });
+      setDeleteConfirm(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erreur',
+        description: error.response?.data?.error || 'Erreur lors de la suppression',
+        variant: 'destructive'
+      });
+    }
+  });
 
   // Fetch attendance records
   const { data: attendanceData, isLoading: attendanceLoading } = useQuery({
@@ -331,6 +358,9 @@ export default function HRAttendance() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Statut
                       </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -357,6 +387,20 @@ export default function HRAttendance() {
                           {record.is_anomaly && (
                             <AlertTriangle className="h-4 w-4 text-red-500 inline ml-2" />
                           )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirm({
+                              employeeId: record.employee_id,
+                              date: record.work_date || record.attendance_date,
+                              name: record.employee_name
+                            })}
+                            className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
+                            title="Supprimer ce pointage"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -540,6 +584,51 @@ export default function HRAttendance() {
               // but we can add additional actions here if needed
             }}
           />
+        )}
+
+        {/* Delete Confirmation Dialog */}
+        {deleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="h-5 w-5 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Confirmer la suppression
+                </h3>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Voulez-vous vraiment supprimer le pointage de{' '}
+                <strong>{deleteConfirm.name}</strong> pour le{' '}
+                <strong>{new Date(deleteConfirm.date).toLocaleDateString('fr-FR')}</strong> ?
+                <br />
+                <span className="text-red-500 text-sm mt-2 block">
+                  Cette action est irreversible.
+                </span>
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirm(null)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteMutation.mutate({
+                    employeeId: deleteConfirm.employeeId,
+                    date: deleteConfirm.date
+                  })}
+                  disabled={deleteMutation.isPending}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </AppLayout>
