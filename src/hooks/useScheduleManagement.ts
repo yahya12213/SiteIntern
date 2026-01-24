@@ -8,6 +8,7 @@ import {
   type CreateScheduleInput,
   type CreateHolidayInput,
   type CreateOvertimeInput,
+  type CreateEmployeeScheduleInput,
 } from '../lib/api/schedule-management';
 
 // ============================================================
@@ -363,6 +364,91 @@ export const useUpdateOvertimeConfig = () => {
     }>) => scheduleManagementApi.updateOvertimeConfig(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['schedule-management', 'overtime-config'] });
+    },
+  });
+};
+
+// ============================================================
+// EMPLOYEE SCHEDULE ASSIGNMENTS HOOKS
+// ============================================================
+
+/**
+ * Hook pour récupérer les attributions d'horaires des employés
+ */
+export const useEmployeeSchedules = () => {
+  return useQuery({
+    queryKey: ['schedule-management', 'employee-schedules'],
+    queryFn: () => scheduleManagementApi.getEmployeeSchedules(),
+  });
+};
+
+/**
+ * Hook pour récupérer les employés sans horaire assigné
+ */
+export const useEmployeesWithoutSchedule = () => {
+  return useQuery({
+    queryKey: ['schedule-management', 'employees-without-schedule'],
+    queryFn: () => scheduleManagementApi.getEmployeesWithoutSchedule(),
+  });
+};
+
+/**
+ * Hook pour créer une attribution d'horaire
+ */
+export const useCreateEmployeeSchedule = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateEmployeeScheduleInput) => scheduleManagementApi.createEmployeeSchedule(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'employee-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'employees-without-schedule'] });
+    },
+  });
+};
+
+/**
+ * Hook pour mettre à jour une attribution d'horaire
+ */
+export const useUpdateEmployeeSchedule = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateEmployeeScheduleInput> }) =>
+      scheduleManagementApi.updateEmployeeSchedule(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'employee-schedules'] });
+    },
+  });
+};
+
+/**
+ * Hook pour supprimer une attribution d'horaire
+ */
+export const useDeleteEmployeeSchedule = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => scheduleManagementApi.deleteEmployeeSchedule(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'employee-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'employees-without-schedule'] });
+    },
+  });
+};
+
+/**
+ * Hook pour assigner un horaire à plusieurs employés
+ */
+export const useBulkAssignSchedule = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { employee_ids: string[]; schedule_id: string; start_date: string; end_date?: string }) =>
+      scheduleManagementApi.bulkAssignSchedule(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'employee-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule-management', 'employees-without-schedule'] });
     },
   });
 };

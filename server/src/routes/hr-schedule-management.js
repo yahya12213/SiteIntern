@@ -1245,6 +1245,319 @@ async function calculateOvertimeForSelectedEmployees(periodId) {
 }
 
 // ============================================================
+// EMPLOYEE SCHEDULES (Attribution horaires par employe)
+// ============================================================
+
+/**
+ * GET /api/hr/schedule-management/employee-schedules
+ * Get all employee schedule assignments
+ */
+router.get('/employee-schedules', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        es.id,
+        es.employee_id,
+        es.schedule_id,
+        es.start_date,
+        es.end_date,
+        es.is_primary,
+        es.created_at,
+        e.first_name || ' ' || e.last_name as employee_name,
+        e.employee_number,
+        e.department,
+        e.position,
+        ws.name as schedule_name,
+        ws.description as schedule_description,
+        ws.weekly_hours
+      FROM hr_employee_schedules es
+      JOIN hr_employees e ON es.employee_id = e.id
+      JOIN hr_work_schedules ws ON es.schedule_id = ws.id
+      WHERE e.employment_status = 'active'
+      ORDER BY e.last_name, e.first_name, es.start_date DESC
+    `);
+
+    res.json({ success: true, assignments: result.rows });
+  } catch (error) {
+    console.error('Error fetching employee schedules:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/hr/schedule-management/employees-without-schedule
+ * Get employees without a schedule assignment
+ */
+router.get('/employees-without-schedule', authenticateToken, requirePermission('hr.settings.view_page'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        e.id,
+        e.first_name,
+        e.last_name,
+        e.employee_number,
+        e.department,
+        e.position
+      FROM hr_employees e
+      WHERE e.employment_status = 'active'
+        AND NOT EXISTS (
+          SELECT 1 FROM hr_employee_schedules es
+          WHERE es.employee_id = e.id
+            AND (es.end_date IS NULL OR es.end_date >= CURRENT_DATE)
+        )
+      ORDER BY e.last_name, e.first_name
+    `);
+
+    res.json({ success: true, employees: result.rows });
+  } catch (error) {
+    console.error('Error fetching employees without schedule:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/hr/schedule-management/employee-schedules
+ * Assign a schedule to an employee
+ */
+router.post('/employee-schedules', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
+  try {
+    const { employee_id, schedule_id, start_date, end_date, is_primary } = req.body;
+
+    if (!employee_id || !schedule_id || !start_date) {
+      return res.status(400).json({
+        success: false,
+        error: 'employee_id, schedule_id et start_date sont requis'
+      });
+    }
+
+    // Check if employee exists
+    const employeeCheck = await pool.query('SELECT id FROM hr_employees WHERE id = $1', [employee_id]);
+    if (employeeCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Employe non trouve' });
+    }
+
+    // Check if schedule exists
+    const scheduleCheck = await pool.query('SELECT id FROM hr_work_schedules WHERE id = $1', [schedule_id]);
+    if (scheduleCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Horaire non trouve' });
+    }
+
+    // Check for overlapping schedules (only if end_date of existing is null or >= new start_date)
+    const overlapCheck = await pool.query(`
+      SELECT id FROM hr_employee_schedules
+      WHERE employee_id = $1
+        AND start_date = $2
+    `, [employee_id, start_date]);
+
+    if (overlapCheck.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Un horaire existe deja pour cet employe a cette date de debut'
+      });
+    }
+
+    // If is_primary, unset other primary schedules for this employee
+    if (is_primary) {
+      await pool.query(`
+        UPDATE hr_employee_schedules
+        SET is_primary = false
+        WHERE employee_id = $1 AND is_primary = true
+      `, [employee_id]);
+    }
+
+    const result = await pool.query(`
+      INSERT INTO hr_employee_schedules (employee_id, schedule_id, start_date, end_date, is_primary)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [employee_id, schedule_id, start_date, end_date || null, is_primary !== false]);
+
+    // Fetch complete data for response
+    const fullData = await pool.query(`
+      SELECT
+        es.id,
+        es.employee_id,
+        es.schedule_id,
+        es.start_date,
+        es.end_date,
+        es.is_primary,
+        es.created_at,
+        e.first_name || ' ' || e.last_name as employee_name,
+        e.employee_number,
+        ws.name as schedule_name
+      FROM hr_employee_schedules es
+      JOIN hr_employees e ON es.employee_id = e.id
+      JOIN hr_work_schedules ws ON es.schedule_id = ws.id
+      WHERE es.id = $1
+    `, [result.rows[0].id]);
+
+    res.status(201).json({ success: true, assignment: fullData.rows[0] });
+  } catch (error) {
+    console.error('Error creating employee schedule:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /api/hr/schedule-management/employee-schedules/:id
+ * Update an employee schedule assignment
+ */
+router.put('/employee-schedules/:id', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { schedule_id, start_date, end_date, is_primary } = req.body;
+
+    // Check if assignment exists
+    const existing = await pool.query('SELECT * FROM hr_employee_schedules WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Attribution non trouvee' });
+    }
+
+    const employee_id = existing.rows[0].employee_id;
+
+    // If is_primary, unset other primary schedules for this employee
+    if (is_primary) {
+      await pool.query(`
+        UPDATE hr_employee_schedules
+        SET is_primary = false
+        WHERE employee_id = $1 AND is_primary = true AND id != $2
+      `, [employee_id, id]);
+    }
+
+    const result = await pool.query(`
+      UPDATE hr_employee_schedules
+      SET
+        schedule_id = COALESCE($1, schedule_id),
+        start_date = COALESCE($2, start_date),
+        end_date = $3,
+        is_primary = COALESCE($4, is_primary)
+      WHERE id = $5
+      RETURNING *
+    `, [schedule_id, start_date, end_date, is_primary, id]);
+
+    // Fetch complete data for response
+    const fullData = await pool.query(`
+      SELECT
+        es.id,
+        es.employee_id,
+        es.schedule_id,
+        es.start_date,
+        es.end_date,
+        es.is_primary,
+        es.created_at,
+        e.first_name || ' ' || e.last_name as employee_name,
+        e.employee_number,
+        ws.name as schedule_name
+      FROM hr_employee_schedules es
+      JOIN hr_employees e ON es.employee_id = e.id
+      JOIN hr_work_schedules ws ON es.schedule_id = ws.id
+      WHERE es.id = $1
+    `, [id]);
+
+    res.json({ success: true, assignment: fullData.rows[0] });
+  } catch (error) {
+    console.error('Error updating employee schedule:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/hr/schedule-management/employee-schedules/:id
+ * Remove an employee schedule assignment
+ */
+router.delete('/employee-schedules/:id', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      'DELETE FROM hr_employee_schedules WHERE id = $1 RETURNING id',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Attribution non trouvee' });
+    }
+
+    res.json({ success: true, message: 'Attribution supprimee' });
+  } catch (error) {
+    console.error('Error deleting employee schedule:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/hr/schedule-management/employee-schedules/bulk
+ * Assign a schedule to multiple employees at once
+ */
+router.post('/employee-schedules/bulk', authenticateToken, requirePermission('hr.settings.edit'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { employee_ids, schedule_id, start_date, end_date } = req.body;
+
+    if (!employee_ids || !Array.isArray(employee_ids) || employee_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'employee_ids doit etre un tableau non vide'
+      });
+    }
+
+    if (!schedule_id || !start_date) {
+      return res.status(400).json({
+        success: false,
+        error: 'schedule_id et start_date sont requis'
+      });
+    }
+
+    await client.query('BEGIN');
+
+    let created = 0;
+    let skipped = 0;
+
+    for (const employee_id of employee_ids) {
+      // Check for existing schedule at this start_date
+      const existing = await client.query(`
+        SELECT id FROM hr_employee_schedules
+        WHERE employee_id = $1 AND start_date = $2
+      `, [employee_id, start_date]);
+
+      if (existing.rows.length > 0) {
+        skipped++;
+        continue;
+      }
+
+      // Unset other primary schedules
+      await client.query(`
+        UPDATE hr_employee_schedules
+        SET is_primary = false
+        WHERE employee_id = $1 AND is_primary = true
+      `, [employee_id]);
+
+      // Insert new assignment
+      await client.query(`
+        INSERT INTO hr_employee_schedules (employee_id, schedule_id, start_date, end_date, is_primary)
+        VALUES ($1, $2, $3, $4, true)
+      `, [employee_id, schedule_id, start_date, end_date || null]);
+
+      created++;
+    }
+
+    await client.query('COMMIT');
+
+    res.status(201).json({
+      success: true,
+      message: `${created} attribution(s) creee(s), ${skipped} ignoree(s) (deja existantes)`,
+      created,
+      skipped
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error bulk creating employee schedules:', error);
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================================
 // STATS & SUMMARY
 // ============================================================
 

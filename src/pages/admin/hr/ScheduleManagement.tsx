@@ -51,6 +51,7 @@ import {
   RefreshCw,
   Settings,
   CalendarClock,
+  Users,
 } from 'lucide-react';
 
 // Hooks
@@ -73,17 +74,24 @@ import {
   useRecalculateOvertimePeriod,
   useOvertimeConfig,
   useUpdateOvertimeConfig,
+  useEmployeeSchedules,
+  useEmployeesWithoutSchedule,
+  useCreateEmployeeSchedule,
+  useUpdateEmployeeSchedule,
+  useDeleteEmployeeSchedule,
+  useBulkAssignSchedule,
 } from '@/hooks/useScheduleManagement';
 
 // Types & API
-import type { WorkSchedule, PublicHoliday, OvertimePeriod, OvertimeConfig } from '@/lib/api/schedule-management';
+import type { WorkSchedule, PublicHoliday, OvertimePeriod, OvertimeConfig, EmployeeScheduleAssignment, EmployeeWithoutSchedule } from '@/lib/api/schedule-management';
 import { scheduleManagementApi } from '@/lib/api/schedule-management';
 
 // Tabs
-type TabType = 'modeles' | 'feries' | 'conges' | 'heures-sup' | 'config-hs' | 'horloge';
+type TabType = 'modeles' | 'employes' | 'feries' | 'conges' | 'heures-sup' | 'config-hs' | 'horloge';
 
 const TABS: { id: TabType; label: string; icon: React.ElementType }[] = [
   { id: 'modeles', label: 'Modèles d\'Horaires', icon: Clock },
+  { id: 'employes', label: 'Horaires Employés', icon: Users },
   { id: 'feries', label: 'Jours Fériés', icon: CalendarDays },
   { id: 'conges', label: 'Congés Validés', icon: Calendar },
   { id: 'heures-sup', label: 'Heures Supplémentaires', icon: Timer },
@@ -109,9 +117,11 @@ export default function ScheduleManagement() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showHolidayModal, setShowHolidayModal] = useState(false);
   const [showOvertimePeriodModal, setShowOvertimePeriodModal] = useState(false);
+  const [showEmployeeScheduleModal, setShowEmployeeScheduleModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<WorkSchedule | null>(null);
   const [editingHoliday, setEditingHoliday] = useState<PublicHoliday | null>(null);
   const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
+  const [editingEmployeeSchedule, setEditingEmployeeSchedule] = useState<EmployeeScheduleAssignment | null>(null);
 
   // Form states
   const [holidayForm, setHolidayForm] = useState({
@@ -134,6 +144,24 @@ export default function ScheduleManagement() {
   // Overtime config form
   const [overtimeConfigForm, setOvertimeConfigForm] = useState<Partial<OvertimeConfig>>({});
 
+  // Employee schedule form
+  const [employeeScheduleForm, setEmployeeScheduleForm] = useState({
+    employee_id: '',
+    schedule_id: '',
+    start_date: new Date().toISOString().split('T')[0],
+    end_date: '' as string | null,
+    is_primary: true,
+  });
+
+  // Bulk assign state
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [bulkAssignForm, setBulkAssignForm] = useState({
+    employee_ids: [] as string[],
+    schedule_id: '',
+    start_date: new Date().toISOString().split('T')[0],
+    end_date: '' as string | null,
+  });
+
   // Queries
   const { data: schedulesData, isLoading: schedulesLoading, error: schedulesError } = useWorkSchedules();
   const { data: holidaysData, isLoading: holidaysLoading, error: holidaysError } = usePublicHolidays(currentYear);
@@ -142,6 +170,8 @@ export default function ScheduleManagement() {
   const { data: overtimePeriodsData, isLoading: periodsLoading, error: periodsError } = useOvertimePeriods();
   const { data: overtimeConfigData, isLoading: configLoading } = useOvertimeConfig();
   const { data: employeesForOvertimeData } = useEmployeesForOvertime();
+  const { data: employeeSchedulesData, isLoading: empSchedulesLoading, error: empSchedulesError } = useEmployeeSchedules();
+  const { data: employeesWithoutScheduleData } = useEmployeesWithoutSchedule();
 
   // Mutations
   const deleteSchedule = useDeleteSchedule();
@@ -155,6 +185,10 @@ export default function ScheduleManagement() {
   const deleteOvertimePeriod = useDeleteOvertimePeriod();
   const recalculateOvertimePeriod = useRecalculateOvertimePeriod();
   const updateOvertimeConfig = useUpdateOvertimeConfig();
+  const createEmployeeSchedule = useCreateEmployeeSchedule();
+  const updateEmployeeSchedule = useUpdateEmployeeSchedule();
+  const deleteEmployeeSchedule = useDeleteEmployeeSchedule();
+  const bulkAssignSchedule = useBulkAssignSchedule();
 
   // Data
   const modeles = schedulesData?.schedules || [];
@@ -164,6 +198,8 @@ export default function ScheduleManagement() {
   const overtimePeriods = overtimePeriodsData?.periods || [];
   const availableEmployees = employeesForOvertimeData?.employees || [];
   const overtimeConfig = overtimeConfigData?.config;
+  const employeeScheduleAssignments = employeeSchedulesData?.assignments || [];
+  const employeesWithoutSchedule = employeesWithoutScheduleData?.employees || [];
 
   // Handlers - Schedules
   const handleOpenScheduleModal = (schedule?: WorkSchedule) => {
@@ -352,6 +388,89 @@ export default function ScheduleManagement() {
     }
   };
 
+  // Handlers - Employee Schedules
+  const handleOpenEmployeeScheduleModal = (assignment?: EmployeeScheduleAssignment) => {
+    if (assignment) {
+      setEditingEmployeeSchedule(assignment);
+      setEmployeeScheduleForm({
+        employee_id: assignment.employee_id,
+        schedule_id: assignment.schedule_id,
+        start_date: assignment.start_date,
+        end_date: assignment.end_date || '',
+        is_primary: assignment.is_primary,
+      });
+    } else {
+      setEditingEmployeeSchedule(null);
+      setEmployeeScheduleForm({
+        employee_id: '',
+        schedule_id: '',
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: '',
+        is_primary: true,
+      });
+    }
+    setShowEmployeeScheduleModal(true);
+  };
+
+  const handleSaveEmployeeSchedule = async () => {
+    if (!employeeScheduleForm.employee_id || !employeeScheduleForm.schedule_id || !employeeScheduleForm.start_date) {
+      toast({ title: 'Erreur', description: 'Employé, horaire et date de début sont requis', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const data = {
+        ...employeeScheduleForm,
+        end_date: employeeScheduleForm.end_date || null,
+      };
+
+      if (editingEmployeeSchedule) {
+        await updateEmployeeSchedule.mutateAsync({ id: editingEmployeeSchedule.id, data });
+        toast({ title: 'Succès', description: 'Attribution mise à jour' });
+      } else {
+        await createEmployeeSchedule.mutateAsync(data);
+        toast({ title: 'Succès', description: 'Horaire attribué à l\'employé' });
+      }
+      setShowEmployeeScheduleModal(false);
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors de la sauvegarde', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteEmployeeSchedule = async (id: string) => {
+    if (!confirm('Supprimer cette attribution d\'horaire ?')) return;
+    try {
+      await deleteEmployeeSchedule.mutateAsync(id);
+      toast({ title: 'Succès', description: 'Attribution supprimée' });
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors de la suppression', variant: 'destructive' });
+    }
+  };
+
+  const handleBulkAssign = async () => {
+    if (!bulkAssignForm.schedule_id || bulkAssignForm.employee_ids.length === 0 || !bulkAssignForm.start_date) {
+      toast({ title: 'Erreur', description: 'Sélectionnez un horaire, au moins un employé et une date de début', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const result = await bulkAssignSchedule.mutateAsync({
+        ...bulkAssignForm,
+        end_date: bulkAssignForm.end_date || undefined,
+      });
+      toast({ title: 'Succès', description: result.message });
+      setShowBulkAssignModal(false);
+      setBulkAssignForm({
+        employee_ids: [],
+        schedule_id: '',
+        start_date: new Date().toISOString().split('T')[0],
+        end_date: '',
+      });
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message || 'Erreur lors de l\'attribution', variant: 'destructive' });
+    }
+  };
+
   // Initialize config form when data loads
   const initConfigForm = () => {
     if (overtimeConfig && Object.keys(overtimeConfigForm).length === 0) {
@@ -503,6 +622,167 @@ export default function ScheduleManagement() {
               )}
             </CardContent>
           </Card>
+        );
+
+      case 'employes':
+        const empScheduleState = renderLoadingOrError(empSchedulesLoading, empSchedulesError, 'horaires employés');
+        if (empScheduleState) return empScheduleState;
+
+        return (
+          <div className="space-y-6">
+            {/* Employés sans horaire */}
+            {employeesWithoutSchedule.length > 0 && (
+              <Card className="border-amber-200 bg-amber-50">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-amber-800">
+                    <AlertCircle className="h-5 w-5" />
+                    Employés sans horaire ({employeesWithoutSchedule.length})
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-500 text-amber-700 hover:bg-amber-100"
+                    onClick={() => {
+                      setBulkAssignForm({
+                        employee_ids: employeesWithoutSchedule.map(e => e.id),
+                        schedule_id: '',
+                        start_date: new Date().toISOString().split('T')[0],
+                        end_date: '',
+                      });
+                      setShowBulkAssignModal(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Assigner un horaire à tous
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {employeesWithoutSchedule.map(emp => (
+                      <Badge key={emp.id} variant="outline" className="bg-white">
+                        {emp.first_name} {emp.last_name}
+                        {emp.employee_number && <span className="text-gray-400 ml-1">#{emp.employee_number}</span>}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Liste des attributions */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Horaires par Employé
+                </CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setBulkAssignForm({
+                        employee_ids: [],
+                        schedule_id: '',
+                        start_date: new Date().toISOString().split('T')[0],
+                        end_date: '',
+                      });
+                      setShowBulkAssignModal(true);
+                    }}
+                  >
+                    <Users className="h-4 w-4 mr-2" />
+                    Attribution multiple
+                  </Button>
+                  <ProtectedButton
+                    permission={PERMISSIONS.ressources_humaines.gestion_horaires.modeles.modifier}
+                    size="sm"
+                    onClick={() => handleOpenEmployeeScheduleModal()}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nouvelle attribution
+                  </ProtectedButton>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {employeeScheduleAssignments.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Aucune attribution d'horaire spécifique.
+                    <br />
+                    <span className="text-sm">Les employés utilisent l'horaire par défaut du système.</span>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Employé</TableHead>
+                        <TableHead>Département</TableHead>
+                        <TableHead>Horaire</TableHead>
+                        <TableHead>Heures/sem</TableHead>
+                        <TableHead>Date début</TableHead>
+                        <TableHead>Date fin</TableHead>
+                        <TableHead>Principal</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {employeeScheduleAssignments.map((assignment: EmployeeScheduleAssignment) => (
+                        <TableRow key={assignment.id}>
+                          <TableCell className="font-medium">
+                            {assignment.employee_name}
+                            {assignment.employee_number && (
+                              <span className="text-gray-400 text-sm ml-1">#{assignment.employee_number}</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{assignment.department || '-'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="bg-blue-50">
+                              {assignment.schedule_name}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{assignment.weekly_hours}h</TableCell>
+                          <TableCell>
+                            {new Date(assignment.start_date).toLocaleDateString('fr-FR')}
+                          </TableCell>
+                          <TableCell>
+                            {assignment.end_date
+                              ? new Date(assignment.end_date).toLocaleDateString('fr-FR')
+                              : <span className="text-gray-400">Indéfini</span>
+                            }
+                          </TableCell>
+                          <TableCell>
+                            {assignment.is_primary ? (
+                              <Check className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <ProtectedButton
+                              permission={PERMISSIONS.ressources_humaines.gestion_horaires.modeles.modifier}
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenEmployeeScheduleModal(assignment)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </ProtectedButton>
+                            <ProtectedButton
+                              permission={PERMISSIONS.ressources_humaines.gestion_horaires.modeles.supprimer}
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteEmployeeSchedule(assignment.id)}
+                              disabled={deleteEmployeeSchedule.isPending}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </ProtectedButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         );
 
       case 'feries':
@@ -1327,6 +1607,269 @@ export default function ScheduleManagement() {
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
               {editingPeriodId ? `Modifier (${overtimePeriodForm.employee_ids.length})` : `Déclarer (${overtimePeriodForm.employee_ids.length})`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Employee Schedule Assignment Modal */}
+      <Dialog open={showEmployeeScheduleModal} onOpenChange={setShowEmployeeScheduleModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              {editingEmployeeSchedule ? 'Modifier l\'attribution' : 'Nouvelle attribution d\'horaire'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Employé *</Label>
+              <Select
+                value={employeeScheduleForm.employee_id}
+                onValueChange={(value) => setEmployeeScheduleForm({ ...employeeScheduleForm, employee_id: value })}
+                disabled={!!editingEmployeeSchedule}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un employé" />
+                </SelectTrigger>
+                <SelectContent>
+                  {/* Show current employee if editing */}
+                  {editingEmployeeSchedule && (
+                    <SelectItem value={editingEmployeeSchedule.employee_id}>
+                      {editingEmployeeSchedule.employee_name}
+                    </SelectItem>
+                  )}
+                  {/* Show employees without schedule for new assignment */}
+                  {!editingEmployeeSchedule && employeesWithoutSchedule.map(emp => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.first_name} {emp.last_name}
+                      {emp.employee_number && ` (${emp.employee_number})`}
+                    </SelectItem>
+                  ))}
+                  {/* Also show all employees from overtime list as fallback */}
+                  {!editingEmployeeSchedule && availableEmployees
+                    .filter(e => !employeesWithoutSchedule.find(ews => ews.id === e.id))
+                    .map(emp => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.first_name} {emp.last_name}
+                        {emp.employee_number && ` (${emp.employee_number})`}
+                      </SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Horaire *</Label>
+              <Select
+                value={employeeScheduleForm.schedule_id}
+                onValueChange={(value) => setEmployeeScheduleForm({ ...employeeScheduleForm, schedule_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un horaire" />
+                </SelectTrigger>
+                <SelectContent>
+                  {modeles.filter(m => m.actif).map(schedule => (
+                    <SelectItem key={schedule.id} value={schedule.id}>
+                      {schedule.nom} ({schedule.heures_hebdo}h/sem)
+                      {schedule.is_default && ' - Par défaut'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Date de début *</Label>
+                <Input
+                  type="date"
+                  value={employeeScheduleForm.start_date}
+                  onChange={(e) => setEmployeeScheduleForm({ ...employeeScheduleForm, start_date: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Date de fin (optionnel)</Label>
+                <Input
+                  type="date"
+                  value={employeeScheduleForm.end_date || ''}
+                  onChange={(e) => setEmployeeScheduleForm({ ...employeeScheduleForm, end_date: e.target.value || null })}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={employeeScheduleForm.is_primary}
+                onCheckedChange={(checked) => setEmployeeScheduleForm({ ...employeeScheduleForm, is_primary: !!checked })}
+              />
+              <Label>Horaire principal</Label>
+            </div>
+
+            <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-700">
+              <p className="font-medium">Note</p>
+              <p className="mt-1">L'horaire principal est utilisé pour le calcul des retards et départs anticipés.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEmployeeScheduleModal(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSaveEmployeeSchedule}
+              disabled={createEmployeeSchedule.isPending || updateEmployeeSchedule.isPending}
+            >
+              {(createEmployeeSchedule.isPending || updateEmployeeSchedule.isPending) && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              {editingEmployeeSchedule ? 'Mettre à jour' : 'Attribuer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Assign Modal */}
+      <Dialog open={showBulkAssignModal} onOpenChange={setShowBulkAssignModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Attribution multiple d'horaire
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Horaire à attribuer *</Label>
+              <Select
+                value={bulkAssignForm.schedule_id}
+                onValueChange={(value) => setBulkAssignForm({ ...bulkAssignForm, schedule_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un horaire" />
+                </SelectTrigger>
+                <SelectContent>
+                  {modeles.filter(m => m.actif).map(schedule => (
+                    <SelectItem key={schedule.id} value={schedule.id}>
+                      {schedule.nom} ({schedule.heures_hebdo}h/sem)
+                      {schedule.is_default && ' - Par défaut'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Date de début *</Label>
+                <Input
+                  type="date"
+                  value={bulkAssignForm.start_date}
+                  onChange={(e) => setBulkAssignForm({ ...bulkAssignForm, start_date: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Date de fin (optionnel)</Label>
+                <Input
+                  type="date"
+                  value={bulkAssignForm.end_date || ''}
+                  onChange={(e) => setBulkAssignForm({ ...bulkAssignForm, end_date: e.target.value || null })}
+                />
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-4">
+              <Label className="text-base font-semibold mb-3 block">
+                Employés à attribuer * ({bulkAssignForm.employee_ids.length} sélectionné(s))
+              </Label>
+              <div className="max-h-48 overflow-y-auto space-y-2 border rounded p-2 bg-gray-50">
+                {availableEmployees.length === 0 ? (
+                  <div className="text-center py-4 text-gray-500 text-sm">
+                    Aucun employé actif disponible
+                  </div>
+                ) : (
+                  availableEmployees.map(emp => (
+                    <div key={emp.id} className="flex items-center gap-2 p-2 hover:bg-white rounded">
+                      <Checkbox
+                        id={`bulk-emp-${emp.id}`}
+                        checked={bulkAssignForm.employee_ids.includes(emp.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setBulkAssignForm({
+                              ...bulkAssignForm,
+                              employee_ids: [...bulkAssignForm.employee_ids, emp.id]
+                            });
+                          } else {
+                            setBulkAssignForm({
+                              ...bulkAssignForm,
+                              employee_ids: bulkAssignForm.employee_ids.filter(id => id !== emp.id)
+                            });
+                          }
+                        }}
+                      />
+                      <label htmlFor={`bulk-emp-${emp.id}`} className="flex-1 cursor-pointer text-sm">
+                        <span className="font-medium">{emp.first_name} {emp.last_name}</span>
+                        {emp.employee_number && (
+                          <span className="text-gray-500 ml-2">#{emp.employee_number}</span>
+                        )}
+                        {emp.department && (
+                          <span className="text-gray-400 ml-2 text-xs">({emp.department})</span>
+                        )}
+                      </label>
+                    </div>
+                  ))
+                )}
+              </div>
+              {availableEmployees.length > 0 && (
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBulkAssignForm({
+                      ...bulkAssignForm,
+                      employee_ids: availableEmployees.map(e => e.id)
+                    })}
+                  >
+                    Tout sélectionner
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBulkAssignForm({ ...bulkAssignForm, employee_ids: [] })}
+                  >
+                    Tout désélectionner
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-amber-50 p-3 rounded-lg text-sm text-amber-700">
+              <p className="font-medium">Attention</p>
+              <p className="mt-1">Les employés ayant déjà une attribution à la même date de début seront ignorés.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowBulkAssignModal(false);
+              setBulkAssignForm({
+                employee_ids: [],
+                schedule_id: '',
+                start_date: new Date().toISOString().split('T')[0],
+                end_date: '',
+              });
+            }}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleBulkAssign}
+              disabled={bulkAssignSchedule.isPending || bulkAssignForm.employee_ids.length === 0}
+            >
+              {bulkAssignSchedule.isPending && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              Attribuer ({bulkAssignForm.employee_ids.length})
             </Button>
           </DialogFooter>
         </DialogContent>

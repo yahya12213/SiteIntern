@@ -193,6 +193,44 @@ export interface OvertimeConfig {
 }
 
 // ============================================================
+// TYPES - Employee Schedule Assignments
+// ============================================================
+
+export interface EmployeeScheduleAssignment {
+  id: string;
+  employee_id: string;
+  schedule_id: string;
+  start_date: string;
+  end_date: string | null;
+  is_primary: boolean;
+  created_at: string;
+  employee_name: string;
+  employee_number: string;
+  department: string;
+  position: string;
+  schedule_name: string;
+  schedule_description: string;
+  weekly_hours: number;
+}
+
+export interface CreateEmployeeScheduleInput {
+  employee_id: string;
+  schedule_id: string;
+  start_date: string;
+  end_date?: string | null;
+  is_primary?: boolean;
+}
+
+export interface EmployeeWithoutSchedule {
+  id: string;
+  first_name: string;
+  last_name: string;
+  employee_number: string;
+  department: string;
+  position: string;
+}
+
+// ============================================================
 // TYPES - Stats
 // ============================================================
 
@@ -334,6 +372,31 @@ export const scheduleManagementApi = {
 
   updateOvertimeConfig: async (data: Partial<OvertimeConfig>): Promise<{ success: boolean; config: OvertimeConfig }> => {
     return apiClient.put<{ success: boolean; config: OvertimeConfig }>('/hr/schedule-management/overtime-config', data);
+  },
+
+  // === EMPLOYEE SCHEDULE ASSIGNMENTS ===
+  getEmployeeSchedules: async (): Promise<{ success: boolean; assignments: EmployeeScheduleAssignment[] }> => {
+    return apiClient.get<{ success: boolean; assignments: EmployeeScheduleAssignment[] }>('/hr/schedule-management/employee-schedules');
+  },
+
+  getEmployeesWithoutSchedule: async (): Promise<{ success: boolean; employees: EmployeeWithoutSchedule[] }> => {
+    return apiClient.get<{ success: boolean; employees: EmployeeWithoutSchedule[] }>('/hr/schedule-management/employees-without-schedule');
+  },
+
+  createEmployeeSchedule: async (data: CreateEmployeeScheduleInput): Promise<{ success: boolean; assignment: EmployeeScheduleAssignment }> => {
+    return apiClient.post<{ success: boolean; assignment: EmployeeScheduleAssignment }>('/hr/schedule-management/employee-schedules', data);
+  },
+
+  updateEmployeeSchedule: async (id: string, data: Partial<CreateEmployeeScheduleInput>): Promise<{ success: boolean; assignment: EmployeeScheduleAssignment }> => {
+    return apiClient.put<{ success: boolean; assignment: EmployeeScheduleAssignment }>(`/hr/schedule-management/employee-schedules/${id}`, data);
+  },
+
+  deleteEmployeeSchedule: async (id: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.delete<{ success: boolean; message: string }>(`/hr/schedule-management/employee-schedules/${id}`);
+  },
+
+  bulkAssignSchedule: async (data: { employee_ids: string[]; schedule_id: string; start_date: string; end_date?: string }): Promise<{ success: boolean; message: string; created: number; skipped: number }> => {
+    return apiClient.post<{ success: boolean; message: string; created: number; skipped: number }>('/hr/schedule-management/employee-schedules/bulk', data);
   },
 
   // === STATS ===
