@@ -169,16 +169,16 @@ export const employeePortalApi = {
     return apiClient.get<{ success: boolean; leave_types: LeaveType[] }>('/hr/employee-portal/leave-types');
   },
 
-  // Clocking endpoints (existing)
+  // Clocking endpoints (consolidated into /hr/attendance)
   getTodayClocking: async (): Promise<TodayClocking> => {
-    return apiClient.get<TodayClocking>('/hr/clocking/my-today');
+    return apiClient.get<TodayClocking>('/hr/attendance/my-today');
   },
 
   checkIn: async (): Promise<{ success: boolean; message: string; record: any }> => {
-    return apiClient.post<{ success: boolean; message: string; record: any }>('/hr/clocking/check-in');
+    return apiClient.post<{ success: boolean; message: string; record: any }>('/hr/attendance/clock-in');
   },
 
   checkOut: async (): Promise<{ success: boolean; message: string; record: any; worked_minutes_today: number }> => {
-    return apiClient.post<{ success: boolean; message: string; record: any; worked_minutes_today: number }>('/hr/clocking/check-out');
+    return apiClient.post<{ success: boolean; message: string; record: any; worked_minutes_today: number }>('/hr/attendance/clock-out');
   },
 };
