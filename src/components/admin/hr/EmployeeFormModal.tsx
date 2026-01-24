@@ -66,6 +66,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     segment_id: '',
     notes: '',
     requires_clocking: false,
+    profile_id: '',
   });
 
   // State pour les managers multiples avec rangs
@@ -96,6 +97,17 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     },
   });
   const managers = managersData || [];
+
+  // Fetch available profiles for linking (not already linked to other employees)
+  const { data: profilesData } = useQuery({
+    queryKey: ['available-profiles', employeeId],
+    queryFn: async () => {
+      const params = employeeId ? `?current_employee_id=${employeeId}` : '';
+      const response = await apiClient.get(`/profiles/available-for-employee${params}`);
+      return (response as any).data as Array<{ id: string; username: string; full_name: string }>;
+    },
+  });
+  const availableProfiles = profilesData || [];
 
   // Fetch existing managers for this employee (when editing)
   const { data: existingManagersData } = useQuery({
@@ -142,6 +154,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         segment_id: employeeData.segment_id || '',
         notes: employeeData.notes || '',
         requires_clocking: employeeData.requires_clocking || false,
+        profile_id: (employeeData as any).profile_id || '',
       });
     }
   }, [employeeData]);
@@ -708,6 +721,36 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Compte utilisateur */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <User className="w-5 h-5 text-purple-600" />
+              Compte utilisateur
+            </h3>
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <label htmlFor="profile_id" className="block text-sm font-medium text-gray-700 mb-2">
+                Lier a un compte utilisateur
+              </label>
+              <select
+                id="profile_id"
+                value={formData.profile_id}
+                onChange={(e) => handleChange('profile_id', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+                <option value="">Aucun compte lie</option>
+                {availableProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.username} {profile.full_name ? `(${profile.full_name})` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-600 mt-2">
+                Necessaire pour que l'employe puisse pointer via son compte.
+                Seuls les comptes non lies a d'autres employes sont affiches.
+              </p>
             </div>
           </div>
 

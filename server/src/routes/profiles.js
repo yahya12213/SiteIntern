@@ -129,6 +129,41 @@ router.get('/',
 });
 
 /**
+ * GET profiles disponibles pour linkage employe
+ * Retourne les profiles non lies a un employe OU le profile actuel de l'employe en edition
+ */
+router.get('/available-for-employee',
+  authenticateToken,
+  async (req, res) => {
+  try {
+    const { current_employee_id } = req.query;
+
+    let query = `
+      SELECT p.id, p.username, p.full_name
+      FROM profiles p
+      WHERE p.id NOT IN (
+        SELECT profile_id FROM hr_employees
+        WHERE profile_id IS NOT NULL
+    `;
+    const params = [];
+
+    // Si on edite un employe, exclure son propre profile_id de la restriction
+    if (current_employee_id) {
+      query += ` AND id != $1`;
+      params.push(current_employee_id);
+    }
+
+    query += `) ORDER BY p.username`;
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching available profiles:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch profiles' });
+  }
+});
+
+/**
  * GET tous les professeurs seulement (role='professor')
  * Protected: SBAC filtering only (no permission check)
  * Server-side filtering by role to ensure only professors are returned
