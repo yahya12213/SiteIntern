@@ -36,7 +36,25 @@ export async function getClockConfig(pool) {
       };
     }
 
-    const config = JSON.parse(result.rows[0].setting_value);
+    // PostgreSQL JSONB retourne déjà un objet, pas une chaîne
+    // Gérer les deux cas pour éviter l'erreur "[object Object] is not valid JSON"
+    const settingValue = result.rows[0].setting_value;
+    let config;
+
+    if (typeof settingValue === 'string') {
+      config = JSON.parse(settingValue);
+    } else if (typeof settingValue === 'object' && settingValue !== null) {
+      config = settingValue; // Déjà un objet parsé par PostgreSQL
+    } else {
+      console.warn('[SystemClock] Invalid setting_value type:', typeof settingValue);
+      return {
+        enabled: false,
+        offset_minutes: 0,
+        reference_server_time: null,
+        desired_time: null
+      };
+    }
+
     return {
       enabled: config.enabled || false,
       offset_minutes: parseInt(config.offset_minutes) || 0,
@@ -46,7 +64,7 @@ export async function getClockConfig(pool) {
       updated_by: config.updated_by || null
     };
   } catch (error) {
-    console.error('[SystemClock] Error getting config:', error.message);
+    console.error('[SystemClock] Error getting config:', error.message, error);
     return {
       enabled: false,
       offset_minutes: 0,
