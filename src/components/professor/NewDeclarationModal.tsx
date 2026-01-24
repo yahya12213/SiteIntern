@@ -20,10 +20,11 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
   const navigate = useNavigate();
   const createDeclaration = useCreateDeclaration();
   const { data: availableSheets } = useAvailableCalculationSheets();
-  const { user, hasPermission } = useAuth();
+  const { user, hasPermission, isAdmin } = useAuth();
 
-  // Le rôle "impression" peut créer des déclarations pour d'autres professeurs
+  // Le rôle "impression" OU admin peut créer des déclarations pour d'autres professeurs
   const isImpressionRole = user?.role === 'impression';
+  const canSelectProfessor = isImpressionRole || isAdmin;
 
   // Vérifier si l'utilisateur peut remplir/modifier les déclarations
   const canFillDeclaration = hasPermission('accounting.professor.declarations.fill')
@@ -39,7 +40,7 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
       console.log('   Professors:', profs.map(p => `${p.full_name || p.username} (${p.role})`).join(', '));
       return profs;
     },
-    enabled: isImpressionRole,
+    enabled: canSelectProfessor,
   });
 
   // CRITICAL: Only keep users with role='professor' (double check after API call)
@@ -85,7 +86,7 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
 
   // Filtrer les professeurs en fonction du segment et de la ville sélectionnés
   useEffect(() => {
-    if (isImpressionRole && selectedSegment && selectedCity) {
+    if (canSelectProfessor && selectedSegment && selectedCity) {
       console.log('=== DEBUG FILTRAGE PROFESSEURS ===');
       console.log('Segment sélectionné:', selectedSegment);
       console.log('Ville sélectionnée:', selectedCity);
@@ -124,11 +125,11 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
       }
     } else {
       setFilteredProfessors([]);
-      if (isImpressionRole) {
+      if (canSelectProfessor) {
         setSelectedProfessor('');
       }
     }
-  }, [selectedSegment, selectedCity, professors, isImpressionRole]);
+  }, [selectedSegment, selectedCity, professors, canSelectProfessor]);
 
   // Filtrer les fiches de calcul en fonction du segment et de la ville sélectionnés
   useEffect(() => {
@@ -190,14 +191,14 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
       return;
     }
 
-    // Si rôle impression, un professeur doit être sélectionné
-    if (isImpressionRole && !selectedProfessor) {
+    // Si rôle impression ou admin, un professeur doit être sélectionné
+    if (canSelectProfessor && !selectedProfessor) {
       setError('Veuillez sélectionner un professeur');
       return;
     }
 
     // Vérifier qu'un professeur est disponible pour ce segment/ville
-    if (isImpressionRole && filteredProfessors.length === 0) {
+    if (canSelectProfessor && filteredProfessors.length === 0) {
       setError('Aucun professeur n\'est assigné à ce segment et cette ville');
       return;
     }
@@ -227,22 +228,27 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
         start_date: startDate,
         end_date: endDate,
         form_data: {},
-        professor_id: isImpressionRole ? selectedProfessor : undefined,
-        status: isImpressionRole ? 'a_declarer' : undefined, // Statut "à déclarer" pour rôle impression
+        professor_id: canSelectProfessor ? selectedProfessor : undefined,
+        status: canSelectProfessor ? 'a_declarer' : undefined, // Statut "à déclarer" pour rôle impression/admin
         session_name: sessionName.trim(),
       });
 
       // Vérifier la permission: seuls les utilisateurs avec la permission "fill" ou "update" peuvent remplir
       // Le rôle impression peut créer mais pas remplir (sauf si permission explicitement accordée)
-      if (!canFillDeclaration || isImpressionRole) {
+      if (!canFillDeclaration || canSelectProfessor) {
         onClose();
       } else {
         // Rediriger vers le formulaire de remplissage avec l'ID extrait
         navigate(`/professor/declarations/${declaration.id}/fill`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating declaration:', err);
-      setError('Erreur lors de la création de la déclaration');
+      // Améliorer le message d'erreur pour les doublons (409)
+      if (err.message?.includes('409') || err.message?.includes('existe déjà')) {
+        setError('Une déclaration existe déjà pour cette période, ville et segment. Veuillez modifier les dates ou vérifier les déclarations existantes.');
+      } else {
+        setError('Erreur lors de la création de la déclaration');
+      }
     }
   };
 
@@ -341,8 +347,8 @@ const NewDeclarationModal: React.FC<NewDeclarationModalProps> = ({ onClose }) =>
             )}
           </div>
 
-          {/* Sélection de professeur (uniquement pour rôle impression, après segment et ville) */}
-          {isImpressionRole && selectedSegment && selectedCity && (
+          {/* Sélection de professeur (pour rôle impression ou admin, après segment et ville) */}
+          {canSelectProfessor && selectedSegment && selectedCity && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Professeur <span className="text-red-500">*</span>
