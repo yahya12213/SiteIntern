@@ -107,13 +107,15 @@ export async function getSystemTime(pool) {
 
 /**
  * Obtient la date système actuelle au format YYYY-MM-DD
+ * Utilise toLocaleDateString('en-CA') pour éviter les problèmes de timezone UTC
  *
  * @param {Pool} pool - Connection pool PostgreSQL
  * @returns {Promise<string>} Date au format YYYY-MM-DD
  */
 export async function getSystemDate(pool) {
   const systemTime = await getSystemTime(pool);
-  return systemTime.toISOString().split('T')[0];
+  // Utiliser en-CA pour format YYYY-MM-DD (évite décalage timezone UTC)
+  return systemTime.toLocaleDateString('en-CA');
 }
 
 /**
