@@ -97,6 +97,23 @@ export const useRejectRequest = () => {
   });
 };
 
+/**
+ * Hook pour annuler une demande approuvée (admin uniquement)
+ */
+export const useCancelRequest = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ requestId, reason, request_type }: { requestId: string; reason: string; request_type?: string }) =>
+      managerApi.cancelRequest(requestId, reason, request_type),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manager', 'team-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['manager', 'team-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['hr-requests-validation'] });
+    },
+  });
+};
+
 // ============================================================
 // EXPORT HOOKS
 // ============================================================

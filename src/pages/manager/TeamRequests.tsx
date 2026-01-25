@@ -18,6 +18,7 @@ import {
   Eye,
   Paperclip,
   User,
+  Ban,
 } from 'lucide-react';
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -60,8 +61,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-import { useTeam, useTeamRequests, useTeamStats, useApproveRequest, useRejectRequest } from '@/hooks/useManagerTeam';
+import { useTeam, useTeamRequests, useTeamStats, useApproveRequest, useRejectRequest, useCancelRequest } from '@/hooks/useManagerTeam';
 import { useReceivedDelegations } from '@/hooks/useDelegation';
+import { useAuth } from '@/contexts/AuthContext';
 import type { TeamRequest } from '@/lib/api/manager';
 
 // ============================================================
@@ -456,12 +458,87 @@ function RejectDialog({ request, open, onOpenChange, onConfirm, isPending }: Rej
   );
 }
 
+interface CancelDialogProps {
+  request: TeamRequest | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (reason: string) => void;
+  isPending: boolean;
+}
+
+function CancelDialog({ request, open, onOpenChange, onConfirm, isPending }: CancelDialogProps) {
+  const [reason, setReason] = useState('');
+
+  if (!request) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-orange-600">
+            <Ban className="h-5 w-5" />
+            Annuler la demande approuvée
+          </DialogTitle>
+          <DialogDescription>
+            Vous êtes sur le point d'annuler la demande approuvée de <strong>{request.employee_name}</strong>.
+            Cette action restaurera le solde de congés si applicable.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+          <p className="text-sm text-orange-800">
+            <strong>Attention:</strong> L'employé sera notifié de cette annulation.
+            {request.request_type === 'leave' && ' Son solde de congés sera restauré.'}
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="cancel-reason">Motif de l'annulation (obligatoire)</Label>
+          <Textarea
+            id="cancel-reason"
+            placeholder="Ex: Demande de l'employé, erreur d'approbation, changement de planning..."
+            value={reason}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReason(e.target.value)}
+            rows={3}
+            required
+          />
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Retour
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => onConfirm(reason)}
+            disabled={isPending || !reason.trim()}
+          >
+            {isPending ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Annulation...
+              </>
+            ) : (
+              <>
+                <Ban className="h-4 w-4 mr-2" />
+                Confirmer l'annulation
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
 
 export default function TeamRequests() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   // State
   const [activeTab, setActiveTab] = useState('pending');
@@ -471,6 +548,7 @@ export default function TeamRequests() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [approveRequest, setApproveRequest] = useState<TeamRequest | null>(null);
   const [rejectRequest, setRejectRequest] = useState<TeamRequest | null>(null);
+  const [cancelRequest, setCancelRequest] = useState<TeamRequest | null>(null);
 
   // Queries
   const { data: teamData } = useTeam();
@@ -485,6 +563,7 @@ export default function TeamRequests() {
   // Mutations
   const approveMutation = useApproveRequest();
   const rejectMutation = useRejectRequest();
+  const cancelMutation = useCancelRequest();
 
   // Computed data
   const teamMembers = teamData?.members || [];
@@ -555,6 +634,26 @@ export default function TeamRequests() {
       toast({
         title: 'Erreur',
         description: error instanceof Error ? error.message : 'Erreur lors du refus',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleCancelConfirm = async (reason: string) => {
+    if (!cancelRequest) return;
+
+    try {
+      await cancelMutation.mutateAsync({
+        requestId: cancelRequest.id,
+        reason,
+        request_type: cancelRequest.request_type,
+      });
+      toast({ title: 'Succès', description: 'Demande annulée avec succès' });
+      setCancelRequest(null);
+    } catch (error) {
+      toast({
+        title: 'Erreur',
+        description: error instanceof Error ? error.message : 'Erreur lors de l\'annulation',
         variant: 'destructive'
       });
     }
@@ -932,13 +1031,35 @@ export default function TeamRequests() {
                             </span>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleViewDetail(request)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleViewDetail(request)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {/* Bouton Annuler - visible uniquement pour admin et demandes approuvées */}
+                              {isAdmin && (request.status === 'approved' || request.status?.startsWith('approved_n')) && request.status !== 'cancelled' && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => setCancelRequest(request)}
+                                      >
+                                        <Ban className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Annuler cette demande approuvée</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -974,6 +1095,14 @@ export default function TeamRequests() {
         onOpenChange={() => setRejectRequest(null)}
         onConfirm={handleRejectConfirm}
         isPending={rejectMutation.isPending}
+      />
+
+      <CancelDialog
+        request={cancelRequest}
+        open={!!cancelRequest}
+        onOpenChange={() => setCancelRequest(null)}
+        onConfirm={handleCancelConfirm}
+        isPending={cancelMutation.isPending}
       />
     </div>
   );

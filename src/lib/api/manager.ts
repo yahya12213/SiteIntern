@@ -169,6 +169,16 @@ export const managerApi = {
   },
 
   /**
+   * Cancel an approved request (admin only)
+   */
+  cancelRequest: async (requestId: string, reason: string, request_type?: string): Promise<{ success: boolean; message: string }> => {
+    return apiClient.post<{ success: boolean; message: string }>(`/hr/manager/requests/${requestId}/cancel`, {
+      reason,
+      request_type
+    });
+  },
+
+  /**
    * Get team statistics
    */
   getTeamStats: async (): Promise<{ success: boolean; stats: TeamStats }> => {

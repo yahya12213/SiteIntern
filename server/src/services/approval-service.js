@@ -573,6 +573,120 @@ export class ApprovalService {
   }
 
   /**
+   * Cancel an approved request (admin only)
+   * @param {string} requestType - Type of request (leave, overtime, correction)
+   * @param {string} requestId - Request ID
+   * @param {string} cancelledBy - Profile ID of the admin who cancels
+   * @param {string} reason - Reason for cancellation
+   * @returns {Object} Result with status and message
+   */
+  async cancelApprovedRequest(requestType, requestId, cancelledBy, reason) {
+    if (!reason || !reason.trim()) {
+      return { success: false, error: 'Une raison est obligatoire pour l\'annulation' };
+    }
+
+    const pool = await this.getConnection();
+    let result;
+
+    switch (requestType) {
+      case REQUEST_TYPES.LEAVE:
+        // First check if it's approved
+        const leaveCheck = await pool.query(
+          'SELECT status, balance_deducted, employee_id, leave_type_id, days_requested FROM hr_leave_requests WHERE id = $1',
+          [requestId]
+        );
+        if (leaveCheck.rows.length === 0) {
+          return { success: false, error: 'Demande non trouvée' };
+        }
+        if (!['approved', 'approved_n1', 'approved_n2'].includes(leaveCheck.rows[0].status)) {
+          return { success: false, error: 'Seules les demandes approuvées peuvent être annulées' };
+        }
+
+        // Restore leave balance if it was deducted
+        if (leaveCheck.rows[0].balance_deducted) {
+          await pool.query(`
+            UPDATE hr_leave_balances
+            SET taken = taken - $1,
+                updated_at = NOW()
+            WHERE employee_id = $2 AND leave_type_id = $3 AND year = EXTRACT(YEAR FROM CURRENT_DATE)
+          `, [leaveCheck.rows[0].days_requested, leaveCheck.rows[0].employee_id, leaveCheck.rows[0].leave_type_id]);
+        }
+
+        result = await pool.query(`
+          UPDATE hr_leave_requests
+          SET status = 'cancelled',
+              cancelled_at = NOW(),
+              cancelled_by = $1,
+              cancellation_reason = $2,
+              balance_deducted = false,
+              updated_at = NOW()
+          WHERE id = $3
+          RETURNING *
+        `, [cancelledBy, reason, requestId]);
+        break;
+
+      case REQUEST_TYPES.OVERTIME:
+        // Check if it's approved
+        const overtimeCheck = await pool.query(
+          'SELECT status FROM hr_overtime_requests WHERE id = $1',
+          [requestId]
+        );
+        if (overtimeCheck.rows.length === 0) {
+          return { success: false, error: 'Demande non trouvée' };
+        }
+        if (overtimeCheck.rows[0].status !== 'approved') {
+          return { success: false, error: 'Seules les demandes approuvées peuvent être annulées' };
+        }
+
+        result = await pool.query(`
+          UPDATE hr_overtime_requests
+          SET status = 'cancelled',
+              approver_comment = COALESCE(approver_comment, '') || ' | ANNULÉ: ' || $2,
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING *
+        `, [requestId, reason]);
+        break;
+
+      case REQUEST_TYPES.CORRECTION:
+        // Check if it's approved
+        const correctionCheck = await pool.query(
+          'SELECT status FROM hr_attendance_correction_requests WHERE id = $1',
+          [requestId]
+        );
+        if (correctionCheck.rows.length === 0) {
+          return { success: false, error: 'Demande non trouvée' };
+        }
+        if (correctionCheck.rows[0].status !== 'approved') {
+          return { success: false, error: 'Seules les demandes approuvées peuvent être annulées' };
+        }
+
+        result = await pool.query(`
+          UPDATE hr_attendance_correction_requests
+          SET status = 'cancelled',
+              n1_comment = COALESCE(n1_comment, '') || ' | ANNULÉ: ' || $2,
+              updated_at = NOW()
+          WHERE id = $1
+          RETURNING *
+        `, [requestId, reason]);
+        break;
+
+      default:
+        return { success: false, error: 'Type de demande invalide' };
+    }
+
+    if (result.rows.length === 0) {
+      return { success: false, error: 'Demande non trouvée' };
+    }
+
+    return {
+      success: true,
+      request: result.rows[0],
+      message: 'Demande annulée avec succès'
+    };
+  }
+
+  /**
    * Universal approve method
    * @param {string} requestType - Type of request (leave, overtime, correction)
    * @param {string} requestId - Request ID

@@ -851,7 +851,9 @@ router.post('/requests/:id/reject',
   async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
-    const { comment, request_type = 'leave' } = req.body;
+    const { comment, reason, request_type = 'leave' } = req.body;
+    // Accept both 'reason' (frontend) and 'comment' (legacy) for backward compatibility
+    const rejectReason = reason || comment;
 
     const approvalService = new ApprovalService(pool);
 
@@ -863,7 +865,7 @@ router.post('/requests/:id/reject',
         REQUEST_TYPES.LEAVE,
         id,
         userId,
-        comment
+        rejectReason
       );
 
       if (!result.success) {
@@ -877,6 +879,61 @@ router.post('/requests/:id/reject',
       });
     } catch (error) {
       console.error('Error rejecting request:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Cancel an approved request (admin only)
+ * Allows admins to cancel approved leave or correction requests
+ */
+router.post('/requests/:id/cancel',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { id } = req.params;
+    const { reason, request_type = 'leave' } = req.body;
+
+    // Only admins can cancel approved requests
+    if (userRole !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Seuls les administrateurs peuvent annuler des demandes approuvées'
+      });
+    }
+
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Une raison est obligatoire pour l\'annulation'
+      });
+    }
+
+    const approvalService = new ApprovalService(pool);
+
+    try {
+      const result = await approvalService.cancelApprovedRequest(
+        request_type === 'overtime' ? REQUEST_TYPES.OVERTIME :
+        request_type === 'correction' ? REQUEST_TYPES.CORRECTION :
+        REQUEST_TYPES.LEAVE,
+        id,
+        userId,
+        reason
+      );
+
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+
+      res.json({
+        success: true,
+        data: result.request,
+        message: result.message
+      });
+    } catch (error) {
+      console.error('Error cancelling request:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   }
