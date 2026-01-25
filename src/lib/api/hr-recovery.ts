@@ -1,6 +1,6 @@
 /**
  * API Client - Gestion des Récupérations d'Heures
- * Routes backend: /api/hr/recovery/*
+ * Routes backend: /hr/recovery/*
  */
 
 import { apiClient } from './client';
@@ -166,35 +166,35 @@ export async function getRecoveryPeriods(params?: {
   if (params?.department_id) queryParams.append('department_id', params.department_id);
   if (params?.segment_id) queryParams.append('segment_id', params.segment_id);
 
-  const url = `/api/hr/recovery/periods${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  const url = `/hr/recovery/periods${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
   return await apiClient.get<{ success: boolean; periods: RecoveryPeriod[] }>(url);
 }
 
 export async function getRecoveryPeriod(id: string): Promise<{ success: boolean; period: RecoveryPeriod }> {
-  return await apiClient.get<{ success: boolean; period: RecoveryPeriod }>(`/api/hr/recovery/periods/${id}`);
+  return await apiClient.get<{ success: boolean; period: RecoveryPeriod }>(`/hr/recovery/periods/${id}`);
 }
 
 export async function createRecoveryPeriod(
   input: CreateRecoveryPeriodInput
 ): Promise<{ success: boolean; period: RecoveryPeriod }> {
-  return await apiClient.post<{ success: boolean; period: RecoveryPeriod }>('/api/hr/recovery/periods', input);
+  return await apiClient.post<{ success: boolean; period: RecoveryPeriod }>('/hr/recovery/periods', input);
 }
 
 export async function updateRecoveryPeriod(
   id: string,
   input: UpdateRecoveryPeriodInput
 ): Promise<{ success: boolean; period: RecoveryPeriod }> {
-  return await apiClient.put<{ success: boolean; period: RecoveryPeriod }>(`/api/hr/recovery/periods/${id}`, input);
+  return await apiClient.put<{ success: boolean; period: RecoveryPeriod }>(`/hr/recovery/periods/${id}`, input);
 }
 
 export async function deleteRecoveryPeriod(id: string): Promise<{ success: boolean; message: string }> {
-  return await apiClient.delete<{ success: boolean; message: string }>(`/api/hr/recovery/periods/${id}`);
+  return await apiClient.delete<{ success: boolean; message: string }>(`/hr/recovery/periods/${id}`);
 }
 
 export async function getRecoveryPeriodSummary(
   id: string
 ): Promise<{ success: boolean; summary: RecoveryPeriodSummary }> {
-  return await apiClient.get<{ success: boolean; summary: RecoveryPeriodSummary }>(`/api/hr/recovery/periods/${id}/summary`);
+  return await apiClient.get<{ success: boolean; summary: RecoveryPeriodSummary }>(`/hr/recovery/periods/${id}/summary`);
 }
 
 // ============================================================
@@ -215,35 +215,35 @@ export async function getRecoveryDeclarations(params?: {
   if (params?.start_date) queryParams.append('start_date', params.start_date);
   if (params?.end_date) queryParams.append('end_date', params.end_date);
 
-  const url = `/api/hr/recovery/declarations${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  const url = `/hr/recovery/declarations${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
   return await apiClient.get<{ success: boolean; declarations: RecoveryDeclaration[] }>(url);
 }
 
 export async function getRecoveryDeclaration(
   id: string
 ): Promise<{ success: boolean; declaration: RecoveryDeclaration }> {
-  return await apiClient.get<{ success: boolean; declaration: RecoveryDeclaration }>(`/api/hr/recovery/declarations/${id}`);
+  return await apiClient.get<{ success: boolean; declaration: RecoveryDeclaration }>(`/hr/recovery/declarations/${id}`);
 }
 
 export async function createRecoveryDeclaration(
   input: CreateRecoveryDeclarationInput
 ): Promise<{ success: boolean; declaration: RecoveryDeclaration; employees_affected: number }> {
-  return await apiClient.post<{ success: boolean; declaration: RecoveryDeclaration; employees_affected: number }>('/api/hr/recovery/declarations', input);
+  return await apiClient.post<{ success: boolean; declaration: RecoveryDeclaration; employees_affected: number }>('/hr/recovery/declarations', input);
 }
 
 export async function updateRecoveryDeclaration(
   id: string,
   input: UpdateRecoveryDeclarationInput
 ): Promise<{ success: boolean; declaration: RecoveryDeclaration }> {
-  return await apiClient.put<{ success: boolean; declaration: RecoveryDeclaration }>(`/api/hr/recovery/declarations/${id}`, input);
+  return await apiClient.put<{ success: boolean; declaration: RecoveryDeclaration }>(`/hr/recovery/declarations/${id}`, input);
 }
 
 export async function deleteRecoveryDeclaration(id: string): Promise<{ success: boolean; message: string }> {
-  return await apiClient.delete<{ success: boolean; message: string }>(`/api/hr/recovery/declarations/${id}`);
+  return await apiClient.delete<{ success: boolean; message: string }>(`/hr/recovery/declarations/${id}`);
 }
 
 export async function verifyRecoveryDeclaration(id: string): Promise<VerificationResult> {
-  return await apiClient.post<VerificationResult>(`/api/hr/recovery/declarations/${id}/verify`);
+  return await apiClient.post<VerificationResult>(`/hr/recovery/declarations/${id}/verify`);
 }
 
 // ============================================================
@@ -253,11 +253,11 @@ export async function verifyRecoveryDeclaration(id: string): Promise<Verificatio
 export async function getEmployeeRecoveries(
   employeeId: string
 ): Promise<{ success: boolean; recoveries: EmployeeRecovery[] }> {
-  return await apiClient.get<{ success: boolean; recoveries: EmployeeRecovery[] }>(`/api/hr/recovery/employees/${employeeId}`);
+  return await apiClient.get<{ success: boolean; recoveries: EmployeeRecovery[] }>(`/hr/recovery/employees/${employeeId}`);
 }
 
 export async function getDeclarationEmployees(
   declarationId: string
 ): Promise<{ success: boolean; employees: EmployeeRecovery[] }> {
-  return await apiClient.get<{ success: boolean; employees: EmployeeRecovery[] }>(`/api/hr/recovery/declarations/${declarationId}/employees`);
+  return await apiClient.get<{ success: boolean; employees: EmployeeRecovery[] }>(`/hr/recovery/declarations/${declarationId}/employees`);
 }
