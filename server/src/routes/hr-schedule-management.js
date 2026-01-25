@@ -114,6 +114,20 @@ router.get('/schedules/:id', authenticateToken, requirePermission('hr.settings.v
   }
 });
 
+// BUG #20 FIX: Helper function to convert empty strings to null
+const sanitizeTime = (time) => {
+  if (!time || time === '' || time === 'null' || time === 'undefined') {
+    return null;
+  }
+  return time;
+};
+
+// BUG #20 FIX: Helper to get schedule time with proper null handling
+const getScheduleTime = (horaires, jour, field) => {
+  if (!horaires?.[jour]?.actif) return null;
+  return sanitizeTime(horaires[jour][field]);
+};
+
 /**
  * POST /api/hr/schedule-management/schedules
  * Create a new work schedule
@@ -156,22 +170,22 @@ router.post('/schedules', authenticateToken, requirePermission('hr.settings.edit
     `, [
       nom,
       description,
-      horaires?.Lundi?.actif ? horaires.Lundi.heureDebut : null,
-      horaires?.Lundi?.actif ? horaires.Lundi.heureFin : null,
-      horaires?.Mardi?.actif ? horaires.Mardi.heureDebut : null,
-      horaires?.Mardi?.actif ? horaires.Mardi.heureFin : null,
-      horaires?.Mercredi?.actif ? horaires.Mercredi.heureDebut : null,
-      horaires?.Mercredi?.actif ? horaires.Mercredi.heureFin : null,
-      horaires?.Jeudi?.actif ? horaires.Jeudi.heureDebut : null,
-      horaires?.Jeudi?.actif ? horaires.Jeudi.heureFin : null,
-      horaires?.Vendredi?.actif ? horaires.Vendredi.heureDebut : null,
-      horaires?.Vendredi?.actif ? horaires.Vendredi.heureFin : null,
-      horaires?.Samedi?.actif ? horaires.Samedi.heureDebut : null,
-      horaires?.Samedi?.actif ? horaires.Samedi.heureFin : null,
-      horaires?.Dimanche?.actif ? horaires.Dimanche.heureDebut : null,
-      horaires?.Dimanche?.actif ? horaires.Dimanche.heureFin : null,
-      break_start || null,
-      break_end || null,
+      getScheduleTime(horaires, 'Lundi', 'heureDebut'),
+      getScheduleTime(horaires, 'Lundi', 'heureFin'),
+      getScheduleTime(horaires, 'Mardi', 'heureDebut'),
+      getScheduleTime(horaires, 'Mardi', 'heureFin'),
+      getScheduleTime(horaires, 'Mercredi', 'heureDebut'),
+      getScheduleTime(horaires, 'Mercredi', 'heureFin'),
+      getScheduleTime(horaires, 'Jeudi', 'heureDebut'),
+      getScheduleTime(horaires, 'Jeudi', 'heureFin'),
+      getScheduleTime(horaires, 'Vendredi', 'heureDebut'),
+      getScheduleTime(horaires, 'Vendredi', 'heureFin'),
+      getScheduleTime(horaires, 'Samedi', 'heureDebut'),
+      getScheduleTime(horaires, 'Samedi', 'heureFin'),
+      getScheduleTime(horaires, 'Dimanche', 'heureDebut'),
+      getScheduleTime(horaires, 'Dimanche', 'heureFin'),
+      sanitizeTime(break_start),
+      sanitizeTime(break_end),
       heures_hebdo ?? 44,
       tolerance_late ?? 15,
       tolerance_early ?? 10,
@@ -230,22 +244,22 @@ router.put('/schedules/:id', authenticateToken, requirePermission('hr.settings.e
     `, [
       nom,
       description,
-      horaires?.Lundi?.actif ? horaires.Lundi.heureDebut : null,
-      horaires?.Lundi?.actif ? horaires.Lundi.heureFin : null,
-      horaires?.Mardi?.actif ? horaires.Mardi.heureDebut : null,
-      horaires?.Mardi?.actif ? horaires.Mardi.heureFin : null,
-      horaires?.Mercredi?.actif ? horaires.Mercredi.heureDebut : null,
-      horaires?.Mercredi?.actif ? horaires.Mercredi.heureFin : null,
-      horaires?.Jeudi?.actif ? horaires.Jeudi.heureDebut : null,
-      horaires?.Jeudi?.actif ? horaires.Jeudi.heureFin : null,
-      horaires?.Vendredi?.actif ? horaires.Vendredi.heureDebut : null,
-      horaires?.Vendredi?.actif ? horaires.Vendredi.heureFin : null,
-      horaires?.Samedi?.actif ? horaires.Samedi.heureDebut : null,
-      horaires?.Samedi?.actif ? horaires.Samedi.heureFin : null,
-      horaires?.Dimanche?.actif ? horaires.Dimanche.heureDebut : null,
-      horaires?.Dimanche?.actif ? horaires.Dimanche.heureFin : null,
-      break_start || null,
-      break_end || null,
+      getScheduleTime(horaires, 'Lundi', 'heureDebut'),
+      getScheduleTime(horaires, 'Lundi', 'heureFin'),
+      getScheduleTime(horaires, 'Mardi', 'heureDebut'),
+      getScheduleTime(horaires, 'Mardi', 'heureFin'),
+      getScheduleTime(horaires, 'Mercredi', 'heureDebut'),
+      getScheduleTime(horaires, 'Mercredi', 'heureFin'),
+      getScheduleTime(horaires, 'Jeudi', 'heureDebut'),
+      getScheduleTime(horaires, 'Jeudi', 'heureFin'),
+      getScheduleTime(horaires, 'Vendredi', 'heureDebut'),
+      getScheduleTime(horaires, 'Vendredi', 'heureFin'),
+      getScheduleTime(horaires, 'Samedi', 'heureDebut'),
+      getScheduleTime(horaires, 'Samedi', 'heureFin'),
+      getScheduleTime(horaires, 'Dimanche', 'heureDebut'),
+      getScheduleTime(horaires, 'Dimanche', 'heureFin'),
+      sanitizeTime(break_start),
+      sanitizeTime(break_end),
       heures_hebdo ?? 44,
       tolerance_late ?? 15,
       tolerance_early ?? 10,
@@ -632,6 +646,38 @@ router.post('/overtime-periods', authenticateToken, requirePermission('hr.attend
       return res.status(400).json({
         success: false,
         error: 'Au moins un employe doit etre selectionne'
+      });
+    }
+
+    // BUG #9 FIX: Validate time range (allow overnight periods like 21:00-06:00)
+    const timeToMinutes = (t) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const startMin = timeToMinutes(start_time);
+    const endMin = timeToMinutes(end_time);
+
+    // Validate time format (HH:MM)
+    const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+    if (!timeRegex.test(start_time) || !timeRegex.test(end_time)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Format d\'heure invalide. Utilisez HH:MM (ex: 09:00, 17:30)'
+      });
+    }
+
+    // BUG #17 FIX: Check that all employees are active
+    const activeCheck = await pool.query(`
+      SELECT id FROM hr_employees
+      WHERE id = ANY($1) AND employment_status = 'active'
+    `, [employee_ids]);
+    const activeIds = activeCheck.rows.map(r => r.id);
+    const inactiveIds = employee_ids.filter(id => !activeIds.includes(id));
+    if (inactiveIds.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `${inactiveIds.length} employe(s) inactif(s) ne peuvent pas etre selectionnes pour les HS`,
+        inactive_employees: inactiveIds
       });
     }
 
@@ -1024,6 +1070,7 @@ router.put('/overtime-config', authenticateToken, requirePermission('hr.settings
 
 /**
  * Helper function to calculate overtime for a period
+ * NOTE: This is a legacy function - prefer calculateOvertimeForSelectedEmployees
  */
 async function calculateOvertimeForPeriod(periodId) {
   // Get the period details
@@ -1044,6 +1091,16 @@ async function calculateOvertimeForPeriod(periodId) {
     return h * 60 + m;
   };
 
+  // BUG #1 FIX: Handle overnight periods (ex: 21:00-06:00)
+  const calculateOverlapWithOvernight = (empCheckIn, empCheckOut, periodStart, periodEnd) => {
+    if (periodEnd < periodStart) {
+      const overlap1 = Math.max(0, Math.min(empCheckOut, 1440) - Math.max(empCheckIn, periodStart));
+      const overlap2 = Math.max(0, Math.min(empCheckOut, periodEnd) - Math.max(empCheckIn, 0));
+      return overlap1 + overlap2;
+    }
+    return Math.max(0, Math.min(empCheckOut, periodEnd) - Math.max(empCheckIn, periodStart));
+  };
+
   const periodStartMin = toMinutes(period.start_time);
   const periodEndMin = toMinutes(period.end_time);
 
@@ -1053,33 +1110,28 @@ async function calculateOvertimeForPeriod(periodId) {
   const employeesQuery = await pool.query(`
     SELECT
       ad.employee_id,
-      TO_CHAR(ad.clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') as check_in_time,
-      TO_CHAR(ad.clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') as check_out_time,
+      TO_CHAR(ad.clock_in_at AT TIME ZONE 'Africa/Casablanca', 'HH24:MI') as check_in_time,
+      TO_CHAR(ad.clock_out_at AT TIME ZONE 'Africa/Casablanca', 'HH24:MI') as check_out_time,
       e.first_name || ' ' || e.last_name as employee_name
     FROM hr_attendance_daily ad
     JOIN hr_employees e ON ad.employee_id = e.id
     WHERE ad.work_date = $1
       AND ad.clock_in_at IS NOT NULL
       AND ad.clock_out_at IS NOT NULL
-      AND EXTRACT(HOUR FROM ad.clock_in_at AT TIME ZONE 'UTC') * 60 + EXTRACT(MINUTE FROM ad.clock_in_at AT TIME ZONE 'UTC') < $3
-      AND EXTRACT(HOUR FROM ad.clock_out_at AT TIME ZONE 'UTC') * 60 + EXTRACT(MINUTE FROM ad.clock_out_at AT TIME ZONE 'UTC') > $2
-  `, [period.period_date, periodStartMin, periodEndMin]);
+  `, [period.period_date]);
 
   let count = 0;
 
   for (const emp of employeesQuery.rows) {
-    // Calculate overlap between employee work time and declared period
-    // check_in_time and check_out_time are now in HH:MI format (e.g., "10:00")
     const empCheckInMin = emp.check_in_time ? toMinutes(emp.check_in_time) : 0;
     const empCheckOutMin = emp.check_out_time ? toMinutes(emp.check_out_time) : 0;
 
-    // Calculate overlap
-    const overlapStart = Math.max(empCheckInMin, periodStartMin);
-    const overlapEnd = Math.min(empCheckOutMin, periodEndMin);
-    const overtimeMinutes = Math.max(0, overlapEnd - overlapStart);
+    // BUG #1 FIX: Use overnight-aware overlap calculation
+    const overtimeMinutes = calculateOverlapWithOvernight(empCheckInMin, empCheckOutMin, periodStartMin, periodEndMin);
 
     if (overtimeMinutes > 0) {
-      // Insert or update overtime record
+      // BUG #2 FIX: Keep period rate_type as-is (normal, extended, special)
+      // Don't map to record types here - let payroll handle the rate calculation
       await pool.query(`
         INSERT INTO hr_overtime_records
           (employee_id, overtime_date, period_id, actual_minutes, rate_type, validated_for_payroll)
@@ -1119,8 +1171,39 @@ async function calculateOvertimeForSelectedEmployees(periodId) {
     return h * 60 + m;
   };
 
+  // BUG #1 FIX: Handle overnight periods (ex: 21:00-06:00)
+  const calculateOverlapWithOvernight = (empCheckIn, empCheckOut, periodStart, periodEnd) => {
+    // If periodEnd < periodStart, this is an overnight period (e.g., 21:00-06:00)
+    if (periodEnd < periodStart) {
+      // Split into two periods:
+      // Period 1: periodStart -> midnight (1440 minutes)
+      // Period 2: 0 -> periodEnd
+      const overlap1 = Math.max(0, Math.min(empCheckOut, 1440) - Math.max(empCheckIn, periodStart));
+      const overlap2 = Math.max(0, Math.min(empCheckOut, periodEnd) - Math.max(empCheckIn, 0));
+      return overlap1 + overlap2;
+    }
+    // Normal case: same-day period
+    const overlapStart = Math.max(empCheckIn, periodStart);
+    const overlapEnd = Math.min(empCheckOut, periodEnd);
+    return Math.max(0, overlapEnd - overlapStart);
+  };
+
   const periodStartMin = toMinutes(period.start_time);
   const periodEndMin = toMinutes(period.end_time);
+  const isOvernightPeriod = periodEndMin < periodStartMin;
+
+  // BUG #14 FIX: Pre-fetch holiday/weekend status ONCE before the loop
+  const dateCheck = await pool.query(`
+    SELECT
+      EXTRACT(DOW FROM $1::date) as day_of_week,
+      EXISTS(SELECT 1 FROM hr_public_holidays WHERE holiday_date = $1::date) as is_holiday
+  `, [period.period_date]);
+  const dayOfWeek = parseInt(dateCheck.rows[0].day_of_week);
+  const isHolidayDate = dateCheck.rows[0].is_holiday;
+  const isWeekendDate = (dayOfWeek === 0 || dayOfWeek === 6); // Sunday = 0, Saturday = 6
+
+  // BUG #26 FIX: Check if this is a night period (21:00-06:00 or similar overnight)
+  const isNightPeriod = isOvernightPeriod || (periodStartMin >= 1260 || periodEndMin <= 360); // 21:00+ or before 06:00
 
   // Get SELECTED employees from hr_overtime_period_employees
   const selectedEmployees = await pool.query(`
@@ -1141,8 +1224,8 @@ async function calculateOvertimeForSelectedEmployees(periodId) {
     const attendanceQuery = await pool.query(`
       SELECT
         ad.id as attendance_id,
-        TO_CHAR(ad.clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') as check_in_time,
-        TO_CHAR(ad.clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') as check_out_time
+        TO_CHAR(ad.clock_in_at AT TIME ZONE 'Africa/Casablanca', 'HH24:MI') as check_in_time,
+        TO_CHAR(ad.clock_out_at AT TIME ZONE 'Africa/Casablanca', 'HH24:MI') as check_out_time
       FROM hr_attendance_daily ad
       WHERE ad.employee_id = $1
         AND ad.work_date = $2
@@ -1165,38 +1248,32 @@ async function calculateOvertimeForSelectedEmployees(periodId) {
     const empCheckInMin = attendance.check_in_time ? toMinutes(attendance.check_in_time) : 0;
     const empCheckOutMin = attendance.check_out_time ? toMinutes(attendance.check_out_time) : 0;
 
-    // Calculate overlap between employee work time and declared period
-    const overlapStart = Math.max(empCheckInMin, periodStartMin);
-    const overlapEnd = Math.min(empCheckOutMin, periodEndMin);
-    const overtimeMinutes = Math.max(0, overlapEnd - overlapStart);
+    // BUG #1 FIX: Use overnight-aware overlap calculation
+    const overtimeMinutes = calculateOverlapWithOvernight(empCheckInMin, empCheckOutMin, periodStartMin, periodEndMin);
 
     if (overtimeMinutes > 0) {
       // Map period rate_type to record rate_type
       // period uses: 'normal', 'extended', 'special'
-      // records uses: 'normal', 'night', 'weekend', 'holiday'
+      // records should preserve: 'normal' (25%), 'extended' (50%), 'holiday' (100%), 'weekend' (100%), 'night' (100%)
       let recordRateType = 'normal';
-      let isHoliday = false;
-      let isWeekend = false;
 
-      // Check if period date is a holiday or weekend
-      const dateCheck = await pool.query(`
-        SELECT
-          EXTRACT(DOW FROM $1::date) as day_of_week,
-          EXISTS(SELECT 1 FROM hr_public_holidays WHERE holiday_date = $1::date) as is_holiday
-      `, [period.period_date]);
+      // BUG #14 FIX: Use pre-fetched values instead of querying for each employee
+      const isHoliday = isHolidayDate;
+      const isWeekend = isWeekendDate;
+      const isNight = isNightPeriod;
 
-      const dayOfWeek = parseInt(dateCheck.rows[0].day_of_week);
-      isHoliday = dateCheck.rows[0].is_holiday;
-      isWeekend = (dayOfWeek === 0 || dayOfWeek === 6); // Sunday = 0, Saturday = 6
-
+      // BUG #2 FIX: Preserve rate_type properly, prioritize highest rate
+      // Priority: holiday > night > weekend > extended > normal
       if (isHoliday || period.rate_type === 'special') {
         recordRateType = 'holiday';
-        isHoliday = true;
+      } else if (isNight) {
+        recordRateType = 'night';
       } else if (isWeekend) {
         recordRateType = 'weekend';
-        isWeekend = true;
       } else if (period.rate_type === 'extended') {
-        recordRateType = 'normal'; // 50% rate maps to normal in records
+        recordRateType = 'extended'; // BUG #2 FIX: Keep 'extended' for 50% rate
+      } else {
+        recordRateType = 'normal'; // 25% rate
       }
 
       // Delete existing record if any (partial unique index doesn't support ON CONFLICT)
@@ -1330,6 +1407,14 @@ router.post('/employee-schedules', authenticateToken, requirePermission('hr.sett
       });
     }
 
+    // BUG #8 FIX: Validate that end_date is after start_date
+    if (end_date && new Date(start_date) > new Date(end_date)) {
+      return res.status(400).json({
+        success: false,
+        error: 'La date de fin doit etre apres ou egale a la date de debut'
+      });
+    }
+
     // Check if employee exists
     const employeeCheck = await pool.query('SELECT id FROM hr_employees WHERE id = $1', [employee_id]);
     if (employeeCheck.rows.length === 0) {
@@ -1342,17 +1427,26 @@ router.post('/employee-schedules', authenticateToken, requirePermission('hr.sett
       return res.status(404).json({ success: false, error: 'Horaire non trouve' });
     }
 
-    // Check for overlapping schedules (only if end_date of existing is null or >= new start_date)
+    // BUG #10 FIX: Check for overlapping schedules (proper date range overlap check)
+    // An overlap exists if:
+    // - existing.start_date <= new.end_date (or new.end_date is null)
+    // - existing.end_date >= new.start_date (or existing.end_date is null)
     const overlapCheck = await pool.query(`
-      SELECT id FROM hr_employee_schedules
+      SELECT id, start_date, end_date FROM hr_employee_schedules
       WHERE employee_id = $1
-        AND start_date = $2
-    `, [employee_id, start_date]);
+        AND (
+          -- New period overlaps with existing period
+          ($2 <= end_date OR end_date IS NULL)
+          AND ($3 >= start_date OR $3 IS NULL)
+        )
+    `, [employee_id, start_date, end_date]);
 
     if (overlapCheck.rows.length > 0) {
+      const existing = overlapCheck.rows[0];
       return res.status(400).json({
         success: false,
-        error: 'Un horaire existe deja pour cet employe a cette date de debut'
+        error: `Un horaire chevauche cette periode (${existing.start_date} - ${existing.end_date || 'en cours'})`,
+        overlapping_schedule: existing
       });
     }
 
@@ -1511,15 +1605,38 @@ router.post('/employee-schedules/bulk', authenticateToken, requirePermission('hr
 
     let created = 0;
     let skipped = 0;
+    // BUG #15, #16 FIX: Track skipped employees with reasons
+    const skippedDetails = [];
+    const createdDetails = [];
+
+    // BUG #15 FIX: Pre-fetch employee names for better feedback
+    const employeeNames = await client.query(`
+      SELECT id, first_name || ' ' || e.last_name as name, employee_number
+      FROM hr_employees e WHERE id = ANY($1)
+    `, [employee_ids]);
+    const nameMap = new Map(employeeNames.rows.map(e => [e.id, { name: e.name, number: e.employee_number }]));
 
     for (const employee_id of employee_ids) {
-      // Check for existing schedule at this start_date
+      const empInfo = nameMap.get(employee_id) || { name: 'Inconnu', number: '' };
+
+      // BUG #10 FIX: Check for overlapping schedule (proper date range)
       const existing = await client.query(`
-        SELECT id FROM hr_employee_schedules
-        WHERE employee_id = $1 AND start_date = $2
-      `, [employee_id, start_date]);
+        SELECT id, start_date, end_date FROM hr_employee_schedules
+        WHERE employee_id = $1
+          AND (
+            ($2 <= end_date OR end_date IS NULL)
+            AND ($3 >= start_date OR $3 IS NULL)
+          )
+      `, [employee_id, start_date, end_date]);
 
       if (existing.rows.length > 0) {
+        // BUG #16 FIX: Record skipped employee with reason
+        skippedDetails.push({
+          employee_id,
+          employee_name: empInfo.name,
+          employee_number: empInfo.number,
+          reason: `Chevauchement avec horaire existant (${existing.rows[0].start_date} - ${existing.rows[0].end_date || 'en cours'})`
+        });
         skipped++;
         continue;
       }
@@ -1537,6 +1654,11 @@ router.post('/employee-schedules/bulk', authenticateToken, requirePermission('hr
         VALUES ($1, $2, $3, $4, true)
       `, [employee_id, schedule_id, start_date, end_date || null]);
 
+      createdDetails.push({
+        employee_id,
+        employee_name: empInfo.name,
+        employee_number: empInfo.number
+      });
       created++;
     }
 
@@ -1544,9 +1666,12 @@ router.post('/employee-schedules/bulk', authenticateToken, requirePermission('hr
 
     res.status(201).json({
       success: true,
-      message: `${created} attribution(s) creee(s), ${skipped} ignoree(s) (deja existantes)`,
+      message: `${created} attribution(s) creee(s), ${skipped} ignoree(s)`,
       created,
-      skipped
+      skipped,
+      // BUG #15 FIX: Include detailed information about what happened
+      created_employees: createdDetails,
+      skipped_employees: skippedDetails
     });
   } catch (error) {
     await client.query('ROLLBACK');

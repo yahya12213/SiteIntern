@@ -357,13 +357,30 @@ export class AttendanceCalculator {
     }
 
     // PRIORITÉ 4: Weekend (pas un jour ouvrable)
+    // BUG #6 FIX: Check weekend even without schedule by checking day of week directly
+    const dayOfWeek = new Date(date).getDay(); // 0 = Sunday, 6 = Saturday
+    const isWeekendDay = (dayOfWeek === 0 || dayOfWeek === 6);
+
     if (schedule && !scheduledTimes.isWorkingDay) {
       result.day_status = 'weekend';
       return result;
     }
 
+    // BUG #6 FIX: If no schedule assigned, use default weekend (Saturday/Sunday)
+    if (!schedule && isWeekendDay) {
+      result.day_status = 'weekend';
+      result.notes = 'Weekend (horaire par défaut)';
+      return result;
+    }
+
     // PRIORITÉ 5: Pas de pointage
     if (!clockIn) {
+      // BUG #6 FIX: Don't mark as absent on weekend without schedule
+      if (isWeekendDay) {
+        result.day_status = 'weekend';
+        result.notes = 'Weekend (sans horaire assigné)';
+        return result;
+      }
       result.day_status = 'absent';
       result.is_anomaly = true;
       return result;
@@ -376,8 +393,10 @@ export class AttendanceCalculator {
     const clockInMinutes = this.timestampToMinutes(clockIn);
     const scheduledStartMinutes = this.timeToMinutes(result.scheduled_start);
     const scheduledEndMinutes = this.timeToMinutes(result.scheduled_end);
-    const toleranceLate = schedule?.tolerance_late_minutes || 0;
-    const toleranceEarlyLeave = schedule?.tolerance_early_leave_minutes || 0;
+    // BUG #12 FIX: Use reasonable default tolerance (15 min) when schedule is null
+    const DEFAULT_TOLERANCE_MINUTES = 15;
+    const toleranceLate = schedule?.tolerance_late_minutes ?? DEFAULT_TOLERANCE_MINUTES;
+    const toleranceEarlyLeave = schedule?.tolerance_early_leave_minutes ?? DEFAULT_TOLERANCE_MINUTES;
 
     // Calculer le retard
     if (scheduledStartMinutes !== null && clockInMinutes !== null) {
@@ -399,7 +418,15 @@ export class AttendanceCalculator {
     // Temps brut travaillé
     if (clockInMinutes !== null && clockOutMinutes !== null) {
       result.gross_worked_minutes = Math.max(0, clockOutMinutes - clockInMinutes);
-      result.net_worked_minutes = Math.max(0, result.gross_worked_minutes - result.scheduled_break_minutes);
+
+      // BUG #5 FIX: Only deduct break if employee worked long enough to have taken one
+      // Minimum 4 hours of work required before deducting break (reasonable threshold)
+      const MIN_HOURS_FOR_BREAK_DEDUCTION = 240; // 4 hours in minutes
+      const breakDeduction = result.gross_worked_minutes >= MIN_HOURS_FOR_BREAK_DEDUCTION
+        ? result.scheduled_break_minutes
+        : 0;
+      result.net_worked_minutes = Math.max(0, result.gross_worked_minutes - breakDeduction);
+      result.break_deducted = breakDeduction > 0;
     }
 
     // Calculer le départ anticipé

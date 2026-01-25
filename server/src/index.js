@@ -202,6 +202,7 @@ import migration130Router from './routes/migration-130-attendance-refactor.js';
 import migration132Router from './routes/migration-132-overtime-period-employees.js';
 import migration133Router from './routes/migration-133-overtime-status.js';
 import migration134Router from './routes/migration-134-fix-day-status-constraint.js';
+import migration135Router from './routes/migration-135-fix-overtime-rate-type.js';
 import testWorkflowRouter from './routes/test-workflow.js';
 import debugAuthRouter from './routes/debug-auth.js';
 
@@ -460,6 +461,7 @@ app.use('/api/migration-130-attendance-refactor', ...adminOnly, migration130Rout
 app.use('/api/migration-132-overtime-period-employees', ...adminOnly, migration132Router);
 app.use('/api/migration-133-overtime-status', ...adminOnly, migration133Router);
 app.use('/api/migration-134-fix-day-status-constraint', ...adminOnly, migration134Router);
+app.use('/api/migration-135-fix-overtime-rate-type', ...adminOnly, migration135Router);
 app.use('/api/test-workflow', ...adminOnly, testWorkflowRouter);
 // Note: /my/correction-requests routes are in hr-employee-self.js (mounted at /api/hr/my)
 // Manager routes for correction requests are mounted separately below

@@ -473,6 +473,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 134: Fix Contrainte day_status',
     description: '🔧 FIX CONTRAINTE: Supprime la contrainte obsolète valid_day_status qui bloquait la mise à jour vers le statut "overtime". Corrige le problème où le pointage restait "present" au lieu de "overtime".',
     endpoint: '/migration-134-fix-day-status-constraint'
+  },
+  {
+    id: 'migration-135',
+    name: 'Migration 135: Fix Rate Type Heures Sup',
+    description: '💰 FIX TAUX HS: Ajoute "extended" (50%) à la contrainte rate_type de hr_overtime_records. Corrige le bug où le taux 50% était converti en 25% (normal). Permet le calcul correct de la paie pour les heures sup 8-16h.',
+    endpoint: '/migration-135-fix-overtime-rate-type'
   }
 ];
 

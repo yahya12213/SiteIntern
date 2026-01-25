@@ -373,14 +373,19 @@ router.get('/my-records', authenticateToken, async (req, res) => {
 // =====================================================
 
 router.post('/clock-in', authenticateToken, async (req, res) => {
+  // BUG #3 FIX: Use transaction with SELECT FOR UPDATE to prevent race condition
+  const client = await pool.connect();
+
   try {
     const employee = await getEmployeeByProfileId(req.user.id);
 
     if (!employee) {
+      client.release();
       return res.status(404).json({ success: false, error: 'Aucun employé trouvé' });
     }
 
     if (!employee.requires_clocking) {
+      client.release();
       return res.status(403).json({ success: false, error: 'Pointage non autorisé' });
     }
 
@@ -388,13 +393,24 @@ router.post('/clock-in', authenticateToken, async (req, res) => {
     const today = await getSystemDate(pool);
     const now = await getSystemTime(pool);
 
-    // Check if already has record for today
-    const existing = await pool.query(`
+    // BUG #3 FIX: Start transaction
+    await client.query('BEGIN');
+
+    // BUG #3 FIX: Check with FOR UPDATE to lock the row (or use advisory lock for missing row)
+    // First, try to get advisory lock on employee_id + date hash to prevent concurrent inserts
+    const lockKey = Math.abs(employee.id.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0) % 2147483647);
+    await client.query('SELECT pg_advisory_xact_lock($1)', [lockKey]);
+
+    // Check if already has record for today (now safely within transaction)
+    const existing = await client.query(`
       SELECT id, clock_in_at FROM hr_attendance_daily
       WHERE employee_id = $1 AND work_date = $2
+      FOR UPDATE
     `, [employee.id, today]);
 
     if (existing.rows.length > 0 && existing.rows[0].clock_in_at) {
+      await client.query('ROLLBACK');
+      client.release();
       return res.status(400).json({
         success: false,
         error: 'Entrée déjà pointée aujourd\'hui',
@@ -405,17 +421,19 @@ router.post('/clock-in', authenticateToken, async (req, res) => {
     // Calculate day status
     const calcResult = await calculator.calculateDayStatus(employee.id, today, now, null);
 
+    let result;
+
     // Check for special days (holiday, leave, etc.)
     if (['holiday', 'leave', 'recovery_off', 'sick', 'mission', 'training'].includes(calcResult.day_status)) {
       // Create or update record with special status
-      const result = await pool.query(`
+      result = await client.query(`
         INSERT INTO hr_attendance_daily (
           employee_id, work_date, clock_in_at,
           scheduled_start, scheduled_end, scheduled_break_minutes,
           day_status, source, notes, created_by
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'self_service', $8, $9)
         ON CONFLICT (employee_id, work_date) DO UPDATE SET
-          clock_in_at = EXCLUDED.clock_in_at,
+          clock_in_at = COALESCE(hr_attendance_daily.clock_in_at, EXCLUDED.clock_in_at),
           day_status = EXCLUDED.day_status,
           notes = EXCLUDED.notes,
           updated_at = NOW()
@@ -425,6 +443,9 @@ router.post('/clock-in', authenticateToken, async (req, res) => {
         calcResult.scheduled_start, calcResult.scheduled_end, calcResult.scheduled_break_minutes,
         calcResult.day_status, calcResult.notes, req.user.id
       ]);
+
+      await client.query('COMMIT');
+      client.release();
 
       await logger.logClockIn(result.rows[0].id, employee.id, today, result.rows[0], req.user.id, getClientIP(req));
 
@@ -436,17 +457,17 @@ router.post('/clock-in', authenticateToken, async (req, res) => {
       });
     }
 
-    // Normal check-in
-    const result = await pool.query(`
+    // Normal check-in - BUG #3 FIX: Use COALESCE to never overwrite existing clock_in_at
+    result = await client.query(`
       INSERT INTO hr_attendance_daily (
         employee_id, work_date, clock_in_at,
         scheduled_start, scheduled_end, scheduled_break_minutes,
         late_minutes, day_status, source, created_by
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'self_service', $9)
       ON CONFLICT (employee_id, work_date) DO UPDATE SET
-        clock_in_at = EXCLUDED.clock_in_at,
-        late_minutes = EXCLUDED.late_minutes,
-        day_status = EXCLUDED.day_status,
+        clock_in_at = COALESCE(hr_attendance_daily.clock_in_at, EXCLUDED.clock_in_at),
+        late_minutes = CASE WHEN hr_attendance_daily.clock_in_at IS NULL THEN EXCLUDED.late_minutes ELSE hr_attendance_daily.late_minutes END,
+        day_status = CASE WHEN hr_attendance_daily.clock_in_at IS NULL THEN EXCLUDED.day_status ELSE hr_attendance_daily.day_status END,
         updated_at = NOW()
       RETURNING *
     `, [
@@ -454,6 +475,9 @@ router.post('/clock-in', authenticateToken, async (req, res) => {
       calcResult.scheduled_start, calcResult.scheduled_end, calcResult.scheduled_break_minutes,
       calcResult.late_minutes, calcResult.day_status, req.user.id
     ]);
+
+    await client.query('COMMIT');
+    client.release();
 
     await logger.logClockIn(result.rows[0].id, employee.id, today, result.rows[0], req.user.id, getClientIP(req));
 
@@ -468,6 +492,12 @@ router.post('/clock-in', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      // Ignore rollback errors
+    }
+    client.release();
     console.error('[POST /hr/attendance/clock-in] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
@@ -478,14 +508,19 @@ router.post('/clock-in', authenticateToken, async (req, res) => {
 // =====================================================
 
 router.post('/clock-out', authenticateToken, async (req, res) => {
+  // BUG #3 FIX: Use transaction with SELECT FOR UPDATE to prevent race condition
+  const client = await pool.connect();
+
   try {
     const employee = await getEmployeeByProfileId(req.user.id);
 
     if (!employee) {
+      client.release();
       return res.status(404).json({ success: false, error: 'Aucun employé trouvé' });
     }
 
     if (!employee.requires_clocking) {
+      client.release();
       return res.status(403).json({ success: false, error: 'Pointage non autorisé' });
     }
 
@@ -493,19 +528,27 @@ router.post('/clock-out', authenticateToken, async (req, res) => {
     const today = await getSystemDate(pool);
     const now = await getSystemTime(pool);
 
-    // Get today's record
-    const existing = await pool.query(`
+    // BUG #3 FIX: Start transaction
+    await client.query('BEGIN');
+
+    // BUG #3 FIX: Get today's record with FOR UPDATE to lock the row
+    const existing = await client.query(`
       SELECT * FROM hr_attendance_daily
       WHERE employee_id = $1 AND work_date = $2
+      FOR UPDATE
     `, [employee.id, today]);
 
     if (existing.rows.length === 0 || !existing.rows[0].clock_in_at) {
+      await client.query('ROLLBACK');
+      client.release();
       return res.status(400).json({ success: false, error: 'Vous devez d\'abord pointer l\'entrée' });
     }
 
     const record = existing.rows[0];
 
     if (record.clock_out_at) {
+      await client.query('ROLLBACK');
+      client.release();
       return res.status(400).json({
         success: false,
         error: 'Sortie déjà pointée aujourd\'hui',
@@ -517,7 +560,7 @@ router.post('/clock-out', authenticateToken, async (req, res) => {
     const calcResult = await calculator.calculateDayStatus(employee.id, today, record.clock_in_at, now);
 
     // Update record
-    const result = await pool.query(`
+    const result = await client.query(`
       UPDATE hr_attendance_daily SET
         clock_out_at = $2,
         gross_worked_minutes = $3,
@@ -526,7 +569,7 @@ router.post('/clock-out', authenticateToken, async (req, res) => {
         overtime_minutes = $6,
         day_status = $7,
         updated_at = NOW()
-      WHERE id = $1
+      WHERE id = $1 AND clock_out_at IS NULL
       RETURNING *
     `, [
       record.id, now,
@@ -537,38 +580,58 @@ router.post('/clock-out', authenticateToken, async (req, res) => {
       calcResult.day_status
     ]);
 
-    // NOUVEAU: Si heures sup détectées via périodes déclarées, créer hr_overtime_records
+    // BUG #3 FIX: Check if update actually happened (another thread may have updated)
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      client.release();
+      return res.status(400).json({
+        success: false,
+        error: 'Sortie déjà pointée (concurrent request)',
+      });
+    }
+
+    // BUG #11 FIX: Handle overtime records insertion with error handling per iteration
+    const overtimeErrors = [];
     if (calcResult.overtime_minutes > 0 && calcResult.overtime_periods && calcResult.overtime_periods.length > 0) {
       for (const period of calcResult.overtime_periods) {
-        // Calculer les minutes pour cette période spécifique
-        const clockInMinutes = calculator.timestampToMinutes(record.clock_in_at);
-        const clockOutMinutes = calculator.timestampToMinutes(now);
-        const periodMinutes = calculator.calculateOverlap(clockInMinutes, clockOutMinutes, period.start_time, period.end_time);
+        try {
+          // Calculer les minutes pour cette période spécifique
+          const clockInMinutes = calculator.timestampToMinutes(record.clock_in_at);
+          const clockOutMinutes = calculator.timestampToMinutes(now);
+          const periodMinutes = calculator.calculateOverlap(clockInMinutes, clockOutMinutes, period.start_time, period.end_time);
 
-        if (periodMinutes > 0) {
-          await pool.query(`
-            INSERT INTO hr_overtime_records
-              (employee_id, overtime_date, period_id, actual_minutes, approved_minutes, rate_type, validated_for_payroll)
-            VALUES ($1, $2, $3, $4, $4, $5, true)
-            ON CONFLICT (employee_id, overtime_date, period_id)
-            DO UPDATE SET
-              actual_minutes = EXCLUDED.actual_minutes,
-              approved_minutes = EXCLUDED.approved_minutes,
-              rate_type = EXCLUDED.rate_type,
-              validated_for_payroll = true,
-              updated_at = NOW()
-          `, [employee.id, today, period.id, periodMinutes, period.rate_type]);
+          if (periodMinutes > 0) {
+            await client.query(`
+              INSERT INTO hr_overtime_records
+                (employee_id, overtime_date, period_id, actual_minutes, approved_minutes, rate_type, validated_for_payroll)
+              VALUES ($1, $2, $3, $4, $4, $5, true)
+              ON CONFLICT (employee_id, overtime_date, period_id)
+              DO UPDATE SET
+                actual_minutes = EXCLUDED.actual_minutes,
+                approved_minutes = EXCLUDED.approved_minutes,
+                rate_type = EXCLUDED.rate_type,
+                validated_for_payroll = true,
+                updated_at = NOW()
+            `, [employee.id, today, period.id, periodMinutes, period.rate_type]);
+          }
+        } catch (otError) {
+          // BUG #11 FIX: Continue with other periods even if one fails
+          console.error(`[clock-out] Overtime record error for period ${period.id}:`, otError.message);
+          overtimeErrors.push({ period_id: period.id, error: otError.message });
         }
       }
       console.log(`[clock-out] Created overtime records for employee ${employee.id}: ${calcResult.overtime_minutes} minutes`);
     }
+
+    await client.query('COMMIT');
+    client.release();
 
     await logger.logClockOut(record.id, employee.id, today, record, result.rows[0], req.user.id, getClientIP(req));
 
     const hours = Math.floor((calcResult.net_worked_minutes || 0) / 60);
     const minutes = (calcResult.net_worked_minutes || 0) % 60;
 
-    res.json({
+    const response = {
       success: true,
       message: 'Sortie enregistrée avec succès',
       record: result.rows[0],
@@ -581,9 +644,22 @@ router.post('/clock-out', authenticateToken, async (req, res) => {
         overtime_minutes: calcResult.overtime_minutes,
         day_status: calcResult.day_status
       }
-    });
+    };
+
+    // Add warnings if some overtime records failed
+    if (overtimeErrors.length > 0) {
+      response.warnings = overtimeErrors;
+    }
+
+    res.json(response);
 
   } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      // Ignore rollback errors
+    }
+    client.release();
     console.error('[POST /hr/attendance/clock-out] Error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
@@ -1019,8 +1095,8 @@ router.get('/summary/:year/:month', authenticateToken, requirePermission('hr.att
         COUNT(CASE WHEN a.day_status = 'absent' THEN 1 END) as days_absent,
         COUNT(CASE WHEN a.day_status = 'late' THEN 1 END) as days_late,
         COUNT(CASE WHEN a.day_status = 'leave' THEN 1 END) as days_leave,
-        SUM(COALESCE(a.net_worked_minutes, 0)) / 60.0 as total_hours,
-        SUM(CASE WHEN a.late_minutes > 0 THEN a.late_minutes ELSE 0 END) as total_late_minutes
+        COALESCE(SUM(COALESCE(a.net_worked_minutes, 0)), 0) / 60.0 as total_hours,
+        COALESCE(SUM(CASE WHEN a.late_minutes > 0 THEN a.late_minutes ELSE 0 END), 0) as total_late_minutes
       FROM hr_employees e
       LEFT JOIN hr_attendance_daily a ON e.id = a.employee_id
         AND EXTRACT(YEAR FROM a.work_date) = $1
