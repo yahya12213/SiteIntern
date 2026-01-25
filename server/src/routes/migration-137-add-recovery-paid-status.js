@@ -19,13 +19,17 @@ router.post('/run', async (req, res) => {
 
     console.log('Migration 137: Ajout des statuts recovery_paid et recovery_unpaid...');
 
-    // Supprimer l'ancienne contrainte
+    // Supprimer TOUTES les contraintes CHECK sur day_status (il peut y en avoir plusieurs)
     await client.query(`
       ALTER TABLE hr_attendance_daily
       DROP CONSTRAINT IF EXISTS valid_day_status
     `);
+    await client.query(`
+      ALTER TABLE hr_attendance_daily
+      DROP CONSTRAINT IF EXISTS hr_attendance_daily_day_status_check
+    `);
 
-    console.log('  - Ancienne contrainte supprimée');
+    console.log('  - Anciennes contraintes supprimées (valid_day_status et hr_attendance_daily_day_status_check)');
 
     // Ajouter la nouvelle contrainte avec les nouveaux statuts
     await client.query(`
