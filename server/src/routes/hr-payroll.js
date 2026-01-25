@@ -279,6 +279,8 @@ router.post('/calculate/:period_id',
       const employees = await client.query(`
         SELECT
           e.*,
+          e.is_cnss_subject,
+          e.is_amo_subject,
           c.salary_gross as base_salary,
           c.working_hours_per_week,
           c.start_date as contract_start_date
@@ -349,18 +351,44 @@ router.post('/calculate/:period_id',
         }
         const seniorityBonus = baseSalary * (seniorityRate / 100);
 
-        // Gross salary
-        const grossSalary = baseSalary + overtimeAmount + seniorityBonus;
+        // Get enrollment bonuses for this period
+        const enrollmentBonuses = await client.query(`
+          SELECT
+            COALESCE(SUM(bonus_amount), 0) as total,
+            COUNT(*) as count
+          FROM hr_enrollment_bonuses
+          WHERE employee_id = $1
+          AND payroll_period_id = $2
+          AND status = 'validated'
+        `, [emp.id, period_id]);
 
-        // CNSS calculation (capped at 6000 MAD)
+        const enrollmentBonusTotal = parseFloat(enrollmentBonuses.rows[0]?.total) || 0;
+        const enrollmentBonusCount = parseInt(enrollmentBonuses.rows[0]?.count) || 0;
+
+        // Gross salary (incluant primes inscription)
+        const grossSalary = baseSalary + overtimeAmount + seniorityBonus + enrollmentBonusTotal;
+
+        // Vérifier si l'employé est assujetti à la CNSS/AMO
+        const isCnssSubject = emp.is_cnss_subject !== false; // true par défaut
+        const isAmoSubject = emp.is_amo_subject !== false; // true par défaut
+
+        // CNSS calculation (capped at 6000 MAD) - seulement si assujetti
         const cnssBase = Math.min(grossSalary, config.cnss_ceiling || 6000);
-        const cnssEmployee = cnssBase * (config.cnss_employee_rate || 4.48) / 100;
-        const cnssEmployer = cnssBase * (config.cnss_employer_rate || 8.98) / 100;
+        let cnssEmployee = 0;
+        let cnssEmployer = 0;
+        if (isCnssSubject) {
+          cnssEmployee = cnssBase * (config.cnss_employee_rate || 4.48) / 100;
+          cnssEmployer = cnssBase * (config.cnss_employer_rate || 8.98) / 100;
+        }
 
-        // AMO calculation
+        // AMO calculation - seulement si assujetti
         const amoBase = grossSalary;
-        const amoEmployee = amoBase * (config.amo_employee_rate || 2.26) / 100;
-        const amoEmployer = amoBase * (config.amo_employer_rate || 4.11) / 100;
+        let amoEmployee = 0;
+        let amoEmployer = 0;
+        if (isAmoSubject) {
+          amoEmployee = amoBase * (config.amo_employee_rate || 2.26) / 100;
+          amoEmployer = amoBase * (config.amo_employer_rate || 4.11) / 100;
+        }
 
         // IGR calculation (simplified - annual then monthly)
         const annualGross = grossSalary * 12;
@@ -443,17 +471,36 @@ router.post('/calculate/:period_id',
           `, [payslipId, overtimeHours25 + overtimeHours50 + overtimeHours100, hourlyRate, overtimeAmount]);
         }
 
-        // CNSS line
-        await client.query(`
-          INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, base_amount, rate, amount, display_order)
-          VALUES ($1, 'deduction', 'cnss', 'CNSS', 'CNSS Salarié', $2, $3, $4, 10)
-        `, [payslipId, cnssBase, config.cnss_employee_rate || 4.48, cnssEmployee]);
+        // Enrollment bonus line (if applicable)
+        if (enrollmentBonusTotal > 0) {
+          await client.query(`
+            INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, quantity, amount, display_order)
+            VALUES ($1, 'earning', 'commission', 'PRIME_INSCR', 'Primes d''inscription', $2, $3, 4)
+          `, [payslipId, enrollmentBonusCount, enrollmentBonusTotal]);
 
-        // AMO line
-        await client.query(`
-          INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, base_amount, rate, amount, display_order)
-          VALUES ($1, 'deduction', 'amo', 'AMO', 'AMO Salarié', $2, $3, $4, 11)
-        `, [payslipId, amoBase, config.amo_employee_rate || 2.26, amoEmployee]);
+          // Marquer les primes comme payées
+          await client.query(`
+            UPDATE hr_enrollment_bonuses
+            SET status = 'paid', paid_in_period_id = $1
+            WHERE employee_id = $2 AND payroll_period_id = $1 AND status = 'validated'
+          `, [period_id, emp.id]);
+        }
+
+        // CNSS line (only if subject to CNSS)
+        if (isCnssSubject) {
+          await client.query(`
+            INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, base_amount, rate, amount, display_order)
+            VALUES ($1, 'deduction', 'cnss', 'CNSS', 'CNSS Salarié', $2, $3, $4, 10)
+          `, [payslipId, cnssBase, config.cnss_employee_rate || 4.48, cnssEmployee]);
+        }
+
+        // AMO line (only if subject to AMO)
+        if (isAmoSubject) {
+          await client.query(`
+            INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, base_amount, rate, amount, display_order)
+            VALUES ($1, 'deduction', 'amo', 'AMO', 'AMO Salarié', $2, $3, $4, 11)
+          `, [payslipId, amoBase, config.amo_employee_rate || 2.26, amoEmployee]);
+        }
 
         // IGR line
         await client.query(`
@@ -836,6 +883,7 @@ router.get('/export/cnss/:period_id',
     const userId = req.user.id;
 
     try {
+      // Exclure les employés non assujettis à la CNSS
       const payslips = await pool.query(`
         SELECT
           ps.employee_number,
@@ -848,6 +896,8 @@ router.get('/export/cnss/:period_id',
         FROM hr_payslips ps
         JOIN hr_employees e ON e.id = ps.employee_id
         WHERE ps.period_id = $1
+        AND e.is_cnss_subject = true
+        AND ps.cnss_employee > 0
         ORDER BY ps.employee_name
       `, [period_id]);
 

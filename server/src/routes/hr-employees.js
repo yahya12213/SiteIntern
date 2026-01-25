@@ -164,7 +164,9 @@ router.post('/',
       segment_id,
       manager_id,
       photo_url,
-      notes
+      notes,
+      is_cnss_subject = true,
+      is_amo_subject = true
     } = req.body;
 
     const result = await pool.query(`
@@ -173,15 +175,17 @@ router.post('/',
         birth_date, birth_place, email, phone, address,
         emergency_contact_name, emergency_contact_phone,
         hire_date, employment_type, position, department,
-        segment_id, manager_id, photo_url, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        segment_id, manager_id, photo_url, notes,
+        is_cnss_subject, is_amo_subject
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
       RETURNING *
     `, [
       profile_id, employee_number, first_name, last_name, cin,
       birth_date, birth_place, email, phone, address,
       emergency_contact_name, emergency_contact_phone,
       hire_date, employment_type, position, department,
-      segment_id, manager_id, photo_url, notes
+      segment_id, manager_id, photo_url, notes,
+      is_cnss_subject, is_amo_subject
     ]);
 
     res.status(201).json({ success: true, data: result.rows[0] });
