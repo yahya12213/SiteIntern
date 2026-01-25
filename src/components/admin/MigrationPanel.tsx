@@ -479,6 +479,18 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 135: Fix Rate Type Heures Sup',
     description: '💰 FIX TAUX HS: Ajoute "extended" (50%) à la contrainte rate_type de hr_overtime_records. Corrige le bug où le taux 50% était converti en 25% (normal). Permet le calcul correct de la paie pour les heures sup 8-16h.',
     endpoint: '/migration-135-fix-overtime-rate-type'
+  },
+  {
+    id: 'migration-136',
+    name: 'Migration 136: Colonne is_primary',
+    description: '🔧 FIX SCHEMA: Ajoute la colonne is_primary à hr_employee_schedules. Corrige l\'erreur 500 sur /employee-schedules.',
+    endpoint: '/migration-136-add-is-primary-column'
+  },
+  {
+    id: 'migration-137',
+    name: 'Migration 137: Statuts Récupération Payée/Non Payée',
+    description: '💼 RÉCUPÉRATION: Ajoute les statuts recovery_paid et recovery_unpaid. Permet de distinguer les jours de récupération sur jour férié (payé) vs jour normal (non payé).',
+    endpoint: '/migration-137-add-recovery-paid-status'
   }
 ];
 
