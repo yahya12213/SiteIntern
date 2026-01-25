@@ -811,9 +811,13 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
       const calcResult = await calculator.calculateDayStatus(employee_id, date, clockInAt, clockOutAt);
 
       // Determine final status
-      const finalStatus = (status && !['check_in', 'check_out'].includes(status))
-        ? status
-        : calcResult.day_status;
+      // Protéger les statuts spéciaux qui ne doivent pas être écrasés
+      const protectedStatuses = ['weekend', 'holiday', 'leave', 'recovery_off', 'recovery_paid', 'recovery_unpaid', 'mission', 'training', 'sick'];
+      const finalStatus = protectedStatuses.includes(calcResult.day_status)
+        ? calcResult.day_status
+        : (status && !['check_in', 'check_out'].includes(status))
+          ? status
+          : calcResult.day_status;
 
       // Update record
       const result = await pool.query(`
@@ -906,7 +910,7 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
 
       // Determine final status
       // Statuts spéciaux: TOUJOURS utiliser le résultat du calculateur (pas d'override)
-      const specialStatuses = ['weekend', 'holiday', 'leave', 'recovery_off', 'mission', 'training'];
+      const specialStatuses = ['weekend', 'holiday', 'leave', 'recovery_off', 'recovery_paid', 'recovery_unpaid', 'mission', 'training'];
 
       let finalStatus;
       if (specialStatuses.includes(calcResult.day_status)) {

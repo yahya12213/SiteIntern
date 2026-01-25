@@ -309,22 +309,30 @@ export class AttendanceCalculator {
     const holiday = await this.isHoliday(date);
     const recovery = await this.getRecoveryInfo(employeeId, date);
 
+    // Variable pour stocker le statut de récupération (sera restauré à la fin)
+    let isRecoveryWorkDay = false;
+    let recoveryStatus = null;
+    let recoveryNotes = null;
+    let recoverySpecialDay = null;
+
     // PRIORITÉ 1: Récupération où l'employé DOIT travailler
     // Si c'est aussi un jour férié → recovery_paid, sinon → recovery_unpaid
     if (recovery && !recovery.is_day_off) {
+      isRecoveryWorkDay = true;
       // Jour de récupération où l'employé doit travailler
       if (holiday) {
         // Récupération sur jour férié = payé
-        result.day_status = 'recovery_paid';
-        result.notes = `Récupération payée (jour férié ${holiday.name}): ${recovery.period_name}`;
-        result.special_day = { type: 'recovery_paid', name: recovery.period_name, holiday: holiday.name };
+        recoveryStatus = 'recovery_paid';
+        recoveryNotes = `Récupération payée (jour férié ${holiday.name}): ${recovery.period_name}`;
+        recoverySpecialDay = { type: 'recovery_paid', name: recovery.period_name, holiday: holiday.name };
       } else {
         // Récupération sur jour normal = non payé
-        result.day_status = 'recovery_unpaid';
-        result.notes = `Récupération: ${recovery.period_name}`;
-        result.special_day = { type: 'recovery_unpaid', name: recovery.period_name };
+        recoveryStatus = 'recovery_unpaid';
+        recoveryNotes = `Récupération: ${recovery.period_name}`;
+        recoverySpecialDay = { type: 'recovery_unpaid', name: recovery.period_name };
       }
       // NE PAS return ici - continuer le calcul des heures travaillées
+      // Le statut sera restauré à la fin après le calcul des heures
     }
 
     // PRIORITÉ 2: Récupération jour off (l'employé ne travaille pas)
@@ -510,6 +518,15 @@ export class AttendanceCalculator {
       } else {
         result.day_status = 'present';
       }
+    }
+
+    // RESTAURATION FINALE: Si c'est un jour de récupération avec travail,
+    // utiliser le statut recovery_paid/recovery_unpaid au lieu de present/late/etc.
+    // Les heures ont été calculées, mais le statut doit refléter la récupération
+    if (isRecoveryWorkDay && recoveryStatus) {
+      result.day_status = recoveryStatus;
+      result.notes = recoveryNotes;
+      result.special_day = recoverySpecialDay;
     }
 
     return result;
