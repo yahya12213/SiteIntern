@@ -306,8 +306,10 @@ export class AttendanceCalculator {
     }
 
     // Récupérer les informations de jour férié et récupération en parallèle
+    console.log('[Calculator] Checking holiday and recovery for', employeeId, date);
     const holiday = await this.isHoliday(date);
     const recovery = await this.getRecoveryInfo(employeeId, date);
+    console.log('[Calculator] Holiday:', holiday ? holiday.name : 'none', '| Recovery:', recovery ? `${recovery.period_name} (is_day_off=${recovery.is_day_off})` : 'none');
 
     // Variable pour stocker le statut de récupération (sera restauré à la fin)
     let isRecoveryWorkDay = false;

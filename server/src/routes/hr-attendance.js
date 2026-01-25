@@ -894,6 +894,8 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
 
     } else if (action === 'declare') {
       // DECLARE new record
+      console.log('[DECLARE] Starting for employee:', employee_id, 'date:', date);
+
       if (!notes || notes.trim().length < 5) {
         return res.status(400).json({ success: false, error: 'Notes requises (min 5 caractères)' });
       }
@@ -906,7 +908,9 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
       }
 
       // Calculate values
+      console.log('[DECLARE] Calculating day status with clockIn:', clockInAt, 'clockOut:', clockOutAt);
       const calcResult = await calculator.calculateDayStatus(employee_id, date, clockInAt, clockOutAt);
+      console.log('[DECLARE] Calculator result:', JSON.stringify(calcResult));
 
       // Determine final status
       // Statuts spéciaux: TOUJOURS utiliser le résultat du calculateur (pas d'override)
@@ -926,6 +930,19 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
       }
 
       // Insert new record
+      console.log('[DECLARE] Inserting with finalStatus:', finalStatus);
+      console.log('[DECLARE] Insert params:', {
+        employee_id, date, clockInAt, clockOutAt,
+        scheduled_start: calcResult.scheduled_start,
+        scheduled_end: calcResult.scheduled_end,
+        scheduled_break_minutes: calcResult.scheduled_break_minutes,
+        gross_worked_minutes: calcResult.gross_worked_minutes,
+        net_worked_minutes: calcResult.net_worked_minutes,
+        late_minutes: calcResult.late_minutes,
+        early_leave_minutes: calcResult.early_leave_minutes,
+        finalStatus, notes
+      });
+
       const result = await pool.query(`
         INSERT INTO hr_attendance_daily (
           employee_id, work_date, clock_in_at, clock_out_at,
@@ -942,6 +959,7 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
         calcResult.late_minutes, calcResult.early_leave_minutes,
         finalStatus, notes, req.user.id
       ]);
+      console.log('[DECLARE] Insert success, record id:', result.rows[0]?.id);
 
       // Log audit
       await logger.logManualCreate(
