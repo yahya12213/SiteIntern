@@ -491,6 +491,24 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 137: Statuts Récupération Payée/Non Payée',
     description: '💼 RÉCUPÉRATION: Ajoute les statuts recovery_paid et recovery_unpaid. Permet de distinguer les jours de récupération sur jour férié (payé) vs jour normal (non payé).',
     endpoint: '/migration-137-add-recovery-paid-status'
+  },
+  {
+    id: 'migration-102',
+    name: 'Migration 102: Système de Paie HR',
+    description: '💰 PAIE: Crée les tables hr_payroll_periods, hr_payslips, hr_payslip_lines, hr_payroll_config, hr_payroll_audit_logs. Configuration CNSS/AMO/IGR Maroc 2025.',
+    endpoint: '/migration-102-hr-payroll'
+  },
+  {
+    id: 'migration-138',
+    name: 'Migration 138: Champ CNSS par Employé',
+    description: '🏥 CNSS: Ajoute les champs is_cnss_subject et is_amo_subject à hr_employees. Permet de désactiver les cotisations sociales pour certains employés (stagiaires, temps partiel).',
+    endpoint: '/migration-138-add-cnss-subject'
+  },
+  {
+    id: 'migration-139',
+    name: 'Migration 139: Primes d\'Inscription',
+    description: '🎓 PRIMES: Crée les tables hr_enrollment_bonus_rates et hr_enrollment_bonuses. Permet de gérer les primes d\'inscription par type de formation (licence, master, doctorat).',
+    endpoint: '/migration-139-enrollment-bonuses'
   }
 ];
 
