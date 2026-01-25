@@ -252,6 +252,8 @@ function DayStatusBadge({ status }: { status: string }) {
     leave: { label: 'Congé', className: 'bg-indigo-100 text-indigo-800' },
     weekend: { label: 'Weekend', className: 'bg-gray-100 text-gray-600' },
     recovery_off: { label: 'Récupération', className: 'bg-teal-100 text-teal-800' },
+    recovery_paid: { label: 'Récup. payée', className: 'bg-green-100 text-green-800' },
+    recovery_unpaid: { label: 'Récup. non payée', className: 'bg-orange-100 text-orange-800' },
     mission: { label: 'Mission', className: 'bg-cyan-100 text-cyan-800' },
     training: { label: 'Formation', className: 'bg-violet-100 text-violet-800' },
     sick: { label: 'Maladie', className: 'bg-pink-100 text-pink-800' },

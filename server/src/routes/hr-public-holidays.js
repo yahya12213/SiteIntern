@@ -185,10 +185,29 @@ router.post('/',
       RETURNING *
     `, [holiday_date, name, description || null, is_recurring || false]);
 
+    // MISE À JOUR AUTOMATIQUE: Mettre à jour les pointages de récupération pour cette date
+    // Si un pointage existe pour cette date et est un jour de récupération (recovery_unpaid),
+    // le changer en recovery_paid car c'est maintenant aussi un jour férié
+    const updateRecoveryResult = await pool.query(`
+      UPDATE hr_attendance_daily ad
+      SET day_status = 'recovery_paid',
+          notes = COALESCE(notes, '') || ' (Jour férié: ' || $2 || ')',
+          updated_at = NOW()
+      WHERE ad.work_date = $1
+        AND ad.day_status IN ('recovery_unpaid', 'recovery_day')
+      RETURNING ad.id, ad.employee_id
+    `, [holiday_date, name]);
+
+    const updatedCount = updateRecoveryResult.rows.length;
+    console.log(`Jour férié ${name} ajouté: ${updatedCount} pointages de récupération mis à jour vers recovery_paid`);
+
     res.json({
       success: true,
-      message: 'Jour férié ajouté avec succès',
-      holiday: result.rows[0]
+      message: updatedCount > 0
+        ? `Jour férié ajouté avec succès. ${updatedCount} pointage(s) de récupération mis à jour.`
+        : 'Jour férié ajouté avec succès',
+      holiday: result.rows[0],
+      updated_attendance_records: updatedCount
     });
 
   } catch (error) {
@@ -273,9 +292,9 @@ router.delete('/:id',
   try {
     const { id } = req.params;
 
-    // Check if holiday exists
+    // Check if holiday exists and get its date
     const existing = await pool.query(`
-      SELECT id FROM hr_public_holidays WHERE id = $1
+      SELECT id, holiday_date, name FROM hr_public_holidays WHERE id = $1
     `, [id]);
 
     if (existing.rows.length === 0) {
@@ -285,14 +304,35 @@ router.delete('/:id',
       });
     }
 
+    const holidayDate = existing.rows[0].holiday_date;
+    const holidayName = existing.rows[0].name;
+
     // Delete holiday
     await pool.query(`
       DELETE FROM hr_public_holidays WHERE id = $1
     `, [id]);
 
+    // MISE À JOUR AUTOMATIQUE: Rétablir les pointages de récupération
+    // Si un pointage était recovery_paid (car jour férié), le remettre à recovery_unpaid
+    const updateRecoveryResult = await pool.query(`
+      UPDATE hr_attendance_daily ad
+      SET day_status = 'recovery_unpaid',
+          notes = REPLACE(COALESCE(notes, ''), ' (Jour férié: ' || $2 || ')', ''),
+          updated_at = NOW()
+      WHERE ad.work_date = $1
+        AND ad.day_status = 'recovery_paid'
+      RETURNING ad.id, ad.employee_id
+    `, [holidayDate, holidayName]);
+
+    const updatedCount = updateRecoveryResult.rows.length;
+    console.log(`Jour férié ${holidayName} supprimé: ${updatedCount} pointages mis à jour vers recovery_unpaid`);
+
     res.json({
       success: true,
-      message: 'Jour férié supprimé avec succès'
+      message: updatedCount > 0
+        ? `Jour férié supprimé. ${updatedCount} pointage(s) de récupération rétabli(s).`
+        : 'Jour férié supprimé avec succès',
+      updated_attendance_records: updatedCount
     });
 
   } catch (error) {

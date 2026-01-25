@@ -305,9 +305,38 @@ export class AttendanceCalculator {
       result.scheduled_break_minutes = schedule.break_duration_minutes || 0;
     }
 
-    // PRIORITÉ 1: Jour férié - MAIS vérifier d'abord si période HS déclarée
+    // Récupérer les informations de jour férié et récupération en parallèle
     const holiday = await this.isHoliday(date);
-    if (holiday) {
+    const recovery = await this.getRecoveryInfo(employeeId, date);
+
+    // PRIORITÉ 1: Récupération où l'employé DOIT travailler
+    // Si c'est aussi un jour férié → recovery_paid, sinon → recovery_unpaid
+    if (recovery && !recovery.is_day_off) {
+      // Jour de récupération où l'employé doit travailler
+      if (holiday) {
+        // Récupération sur jour férié = payé
+        result.day_status = 'recovery_paid';
+        result.notes = `Récupération payée (jour férié ${holiday.name}): ${recovery.period_name}`;
+        result.special_day = { type: 'recovery_paid', name: recovery.period_name, holiday: holiday.name };
+      } else {
+        // Récupération sur jour normal = non payé
+        result.day_status = 'recovery_unpaid';
+        result.notes = `Récupération: ${recovery.period_name}`;
+        result.special_day = { type: 'recovery_unpaid', name: recovery.period_name };
+      }
+      // NE PAS return ici - continuer le calcul des heures travaillées
+    }
+
+    // PRIORITÉ 2: Récupération jour off (l'employé ne travaille pas)
+    if (recovery && recovery.is_day_off) {
+      result.day_status = 'recovery_off';
+      result.notes = `Jour de repos récupération: ${recovery.period_name}`;
+      result.special_day = { type: 'recovery_off', name: recovery.period_name, is_day_off: true };
+      return result;
+    }
+
+    // PRIORITÉ 3: Jour férié (sans récupération)
+    if (holiday && !recovery) {
       // Vérifier si période HS pour ce jour férié (permet de travailler les jours fériés)
       const overtimePeriodsForHoliday = await this.getOvertimePeriodsForEmployee(employeeId, date);
       if (overtimePeriodsForHoliday.length > 0) {
@@ -323,7 +352,7 @@ export class AttendanceCalculator {
       }
     }
 
-    // PRIORITÉ 2: Congé approuvé
+    // PRIORITÉ 4: Congé approuvé
     const leave = await this.getApprovedLeave(employeeId, date);
     if (leave) {
       // Mapper le type de congé au statut approprié
@@ -339,20 +368,6 @@ export class AttendanceCalculator {
       }
       result.notes = `Congé: ${leave.leave_type_name}`;
       result.special_day = { type: 'leave', name: leave.leave_type_name };
-      return result;
-    }
-
-    // PRIORITÉ 3: Récupération jour off
-    const recovery = await this.getRecoveryInfo(employeeId, date);
-    if (recovery) {
-      if (recovery.is_day_off) {
-        result.day_status = 'recovery_off';
-        result.notes = `Jour de repos récupération: ${recovery.period_name}`;
-      } else {
-        result.day_status = 'recovery_day';
-        result.notes = `Jour de récupération: ${recovery.period_name}`;
-      }
-      result.special_day = { type: 'recovery', name: recovery.period_name, is_day_off: recovery.is_day_off };
       return result;
     }
 
