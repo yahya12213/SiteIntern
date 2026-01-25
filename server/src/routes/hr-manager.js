@@ -8,8 +8,18 @@ const router = express.Router();
 /**
  * Helper: Get team member IDs for a manager
  * Includes both direct reports (manager_id) and indirect reports (hr_employee_managers)
+ * Admin users get ALL active employees
  */
-async function getTeamMemberIds(userId) {
+async function getTeamMemberIds(userId, isAdmin = false) {
+  // Admin: return ALL active employees
+  if (isAdmin) {
+    const allEmployees = await pool.query(`
+      SELECT DISTINCT id, profile_id FROM hr_employees
+      WHERE employment_status = 'active'
+    `);
+    return allEmployees.rows;
+  }
+
   // Get the hr_employee for this user
   const managerEmployee = await pool.query(`
     SELECT id FROM hr_employees WHERE profile_id = $1
@@ -158,15 +168,30 @@ router.get('/team-attendance',
   authenticateToken,
   async (req, res) => {
     const userId = req.user.id;
-    const { start_date, end_date } = req.query;
+    const { start_date, end_date, employee_id } = req.query;
+    const isAdmin = req.user.role === 'admin';
 
     try {
-      const teamMembers = await getTeamMemberIds(userId);
+      const teamMembers = await getTeamMemberIds(userId, isAdmin);
       if (teamMembers.length === 0) {
         return res.json({ success: true, records: [] });
       }
 
-      const employeeIds = teamMembers.map(t => t.id);
+      // If employee_id is specified, filter to that single employee (must be in team)
+      // Otherwise use all team members
+      let filterEmployeeIds;
+      if (employee_id) {
+        const employeeIds = teamMembers.map(t => t.id);
+        // Verify the requested employee is in the team
+        if (employeeIds.includes(employee_id)) {
+          filterEmployeeIds = [employee_id];
+        } else {
+          // Employee not in team, return empty
+          return res.json({ success: true, records: [] });
+        }
+      } else {
+        filterEmployeeIds = teamMembers.map(t => t.id);
+      }
 
       // Build query using the new unified hr_attendance_daily table
       // All calculations are pre-done, so the query is much simpler
@@ -190,7 +215,7 @@ router.get('/team-attendance',
         JOIN hr_employees e ON e.id = ad.employee_id
         WHERE ad.employee_id = ANY($1::uuid[])
       `;
-      const params = [employeeIds];
+      const params = [filterEmployeeIds];
       let paramCount = 2;
 
       if (start_date) {
@@ -697,15 +722,24 @@ router.get('/team-stats',
   authenticateToken,
   async (req, res) => {
     const userId = req.user.id;
+    const isAdmin = req.user.role === 'admin';
 
     try {
       // Use the new unified hr_attendance_daily table
+      // Admin sees all employees, manager sees their team
       const stats = await pool.query(`
         WITH team AS (
           SELECT e.id
           FROM hr_employees e
-          WHERE e.manager_id = (SELECT id FROM hr_employees WHERE profile_id = $1)
-          AND e.employment_status = 'active'
+          WHERE e.employment_status = 'active'
+          AND (
+            $2 = true
+            OR e.manager_id = (SELECT id FROM hr_employees WHERE profile_id = $1)
+            OR e.id IN (
+              SELECT employee_id FROM hr_employee_managers
+              WHERE manager_id = (SELECT id FROM hr_employees WHERE profile_id = $1)
+            )
+          )
         ),
         today_present AS (
           SELECT COUNT(DISTINCT employee_id) as count
@@ -740,7 +774,7 @@ router.get('/team-stats',
           (SELECT count FROM today_on_leave) as on_leave_today,
           (SELECT count FROM month_late) as late_count_month,
           (SELECT count FROM pending_requests) as pending_requests
-      `, [userId]);
+      `, [userId, isAdmin]);
 
       // Calculate attendance rate
       const row = stats.rows[0] || { total_members: 0, present_today: 0, on_leave_today: 0, late_count_month: 0, pending_requests: 0 };
