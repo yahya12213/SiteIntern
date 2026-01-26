@@ -548,6 +548,10 @@ export default function EmployeePortal() {
                                   record.status === 'holiday' ? 'bg-purple-100 text-purple-800' :
                                   record.status === 'weekend' ? 'bg-slate-100 text-slate-600' :
                                   record.status === 'mission' ? 'bg-indigo-100 text-indigo-800' :
+                                  record.status === 'recovery_off' ? 'bg-teal-100 text-teal-800' :
+                                  record.status === 'recovery_paid' ? 'bg-green-100 text-green-800' :
+                                  record.status === 'recovery_unpaid' ? 'bg-orange-100 text-orange-800' :
+                                  record.status === 'absent' ? 'bg-red-100 text-red-800' :
                                   'bg-gray-100 text-gray-800'
                                 }>
                                   {record.status === 'present' ? 'Présent' :
@@ -559,7 +563,11 @@ export default function EmployeePortal() {
                                    record.status === 'leave' ? 'Congé' :
                                    record.status === 'holiday' ? 'Jour férié' :
                                    record.status === 'weekend' ? 'Week-end' :
-                                   record.status === 'mission' ? 'Mission' : 'Absent'}
+                                   record.status === 'mission' ? 'Mission' :
+                                   record.status === 'recovery_off' ? 'À récupérer' :
+                                   record.status === 'recovery_paid' ? 'Récup. payée' :
+                                   record.status === 'recovery_unpaid' ? 'Récup. non payée' :
+                                   record.status === 'absent' ? 'Absent' : record.status}
                                 </Badge>
                               </TableCell>
                               <TableCell className="font-medium text-blue-600">
