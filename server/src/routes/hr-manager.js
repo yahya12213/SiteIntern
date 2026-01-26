@@ -237,10 +237,13 @@ router.get('/team-attendance',
 
       const result = await pool.query(query, params);
 
-      // Calculate hours_to_recover from schedule for recovery_off status
+      // Calculate scheduled_hours from schedule for recovery_off OR holiday status
       const records = result.rows.map(row => {
-        let hours_to_recover = null;
-        if (row.status === 'recovery_off' && row.scheduled_start && row.scheduled_end) {
+        let scheduled_hours = null;
+
+        // Calculate scheduled hours for special statuses (recovery_off, holiday)
+        if ((row.status === 'recovery_off' || row.status === 'holiday')
+            && row.scheduled_start && row.scheduled_end) {
           const parseTime = (t) => {
             if (!t) return null;
             const str = typeof t === 'string' ? t : t.toString();
@@ -251,12 +254,17 @@ router.get('/team-attendance',
           const endMin = parseTime(row.scheduled_end);
           const breakMin = row.scheduled_break_minutes || 0;
           if (startMin !== null && endMin !== null) {
-            hours_to_recover = Math.round((endMin - startMin - breakMin) / 60);
+            scheduled_hours = Math.round((endMin - startMin - breakMin) / 60);
           }
         }
+
+        // Default to 8h if scheduled columns are null
+        const defaultHours = (row.status === 'recovery_off' || row.status === 'holiday') ? 8 : null;
+
         return {
           ...row,
-          hours_to_recover: hours_to_recover || (row.status === 'recovery_off' ? 8 : null)
+          scheduled_hours: scheduled_hours || defaultHours,
+          hours_to_recover: scheduled_hours || defaultHours  // Backward compatibility
         };
       });
 

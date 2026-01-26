@@ -54,7 +54,8 @@ export interface TeamAttendanceRecord {
   clock_in?: string;
   clock_out?: string;
   worked_hours?: number;
-  hours_to_recover?: number;  // For recovery_off status - calculated from schedule
+  scheduled_hours?: number;    // For holiday/recovery_off - hours from employee's schedule
+  hours_to_recover?: number;   // Backward compatibility alias for scheduled_hours
   status: TeamAttendanceStatus;
   late_minutes?: number;
   leave_type?: string;

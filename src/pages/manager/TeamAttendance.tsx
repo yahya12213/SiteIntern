@@ -184,14 +184,18 @@ function AttendanceDetailModal({ record, open, onOpenChange }: AttendanceDetailM
           {/* Heures travaillées */}
           <div className="space-y-1">
             <Label className="text-muted-foreground text-xs">
-              {record.status === 'recovery_off' ? 'Heures à récupérer' : 'Heures travaillées'}
+              {record.status === 'recovery_off' ? 'Heures à récupérer'
+                : record.status === 'holiday' ? 'Heures prévues (férié)'
+                : 'Heures travaillées'}
             </Label>
             <div className="flex items-center gap-2 p-2 bg-muted/50 rounded">
               <TrendingUp className="h-4 w-4 text-blue-600" />
               <span className="font-medium">
                 {record.status === 'recovery_off'
-                  ? `${record.hours_to_recover || 8}h`
-                  : formatHours(record.worked_hours)}
+                  ? `${record.scheduled_hours || record.hours_to_recover || 8}h`
+                  : record.status === 'holiday'
+                    ? `${record.scheduled_hours || 8}h`
+                    : formatHours(record.worked_hours)}
               </span>
             </div>
           </div>
@@ -606,8 +610,10 @@ export default function TeamAttendance() {
                       <TableCell>
                         <span className="font-medium">
                           {record.status === 'recovery_off'
-                            ? `${record.hours_to_recover || 8}h (à récupérer)`
-                            : formatHours(record.worked_hours)}
+                            ? `${record.scheduled_hours || record.hours_to_recover || 8}h (à récupérer)`
+                            : record.status === 'holiday'
+                              ? `${record.scheduled_hours || 8}h (férié)`
+                              : formatHours(record.worked_hours)}
                         </span>
                       </TableCell>
                       <TableCell>
