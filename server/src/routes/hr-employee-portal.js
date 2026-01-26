@@ -348,8 +348,9 @@ router.get('/attendance', authenticateToken, async (req, res) => {
 
       if (!r.check_in || !r.check_out) {
         // Utiliser le statut réel de la base de données si disponible
-        let displayStatus = r.day_status || (isWeekend ? 'weekend' : (r.check_ins > 0 ? 'incomplete' : 'absent'));
-        console.log(`[Attendance] Date: ${dateStr}, No check_in/check_out branch, displayStatus: ${displayStatus}`);
+        // Fallback: 'pending' si entrée existe (comme admin), sinon 'absent'
+        let displayStatus = r.day_status || (isWeekend ? 'weekend' : (r.check_ins > 0 ? 'pending' : 'absent'));
+        console.log(`[Attendance] Date: ${dateStr}, No check_in/check_out branch, day_status=${r.day_status}, check_ins=${r.check_ins}, displayStatus: ${displayStatus}`);
 
         // Vérifier si l'employé est en congé approuvé pour cette date
         const recordDateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : r.date;

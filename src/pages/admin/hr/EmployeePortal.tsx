@@ -539,6 +539,7 @@ export default function EmployeePortal() {
                               <TableCell>
                                 <Badge className={
                                   record.status === 'present' ? 'bg-green-100 text-green-800' :
+                                  record.status === 'pending' ? 'bg-blue-100 text-blue-800' :
                                   record.status === 'late' ? 'bg-orange-100 text-orange-800' :
                                   record.status === 'early_leave' ? 'bg-yellow-100 text-yellow-800' :
                                   record.status === 'late_early' ? 'bg-red-100 text-red-800' :
@@ -555,11 +556,12 @@ export default function EmployeePortal() {
                                   'bg-gray-100 text-gray-800'
                                 }>
                                   {record.status === 'present' ? 'Présent' :
+                                   record.status === 'pending' ? 'En cours' :
                                    record.status === 'late' ? 'En retard' :
                                    record.status === 'early_leave' ? 'Départ anticipé' :
                                    record.status === 'late_early' ? 'Retard + Départ ant.' :
                                    record.status === 'half_day' ? 'Demi-journée' :
-                                   record.status === 'incomplete' ? 'Incomplet' :
+                                   record.status === 'incomplete' ? 'En cours' :
                                    record.status === 'leave' ? 'Congé' :
                                    record.status === 'holiday' ? 'Jour férié' :
                                    record.status === 'weekend' ? 'Week-end' :
