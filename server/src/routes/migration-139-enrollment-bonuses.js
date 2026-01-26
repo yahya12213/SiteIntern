@@ -106,10 +106,10 @@ router.post('/run', async (req, res) => {
     console.log('  - Ajout des permissions...');
     await client.query(`
       INSERT INTO permissions (module, menu, action, code, label, description, sort_order, permission_type) VALUES
-        ('hr', 'primes_inscription', 'view', 'hr.enrollment_bonuses.view', 'Voir les primes', 'Voir la liste des primes d''inscription', 1, 'action'),
-        ('hr', 'primes_inscription', 'create', 'hr.enrollment_bonuses.create', 'Créer une prime', 'Ajouter une nouvelle prime d''inscription', 2, 'action'),
-        ('hr', 'primes_inscription', 'validate', 'hr.enrollment_bonuses.validate', 'Valider les primes', 'Valider les primes pour la paie', 3, 'action'),
-        ('hr', 'primes_inscription', 'config', 'hr.enrollment_bonuses.config', 'Configurer les taux', 'Modifier les taux de primes par formation', 4, 'action')
+        ('hr', 'primes_inscription', 'view', 'hr.enrollment_bonuses.view', 'Voir les primes', 'Voir la liste des primes d''inscription', 1, 'page'),
+        ('hr', 'primes_inscription', 'create', 'hr.enrollment_bonuses.create', 'Créer une prime', 'Ajouter une nouvelle prime d''inscription', 2, 'bouton'),
+        ('hr', 'primes_inscription', 'validate', 'hr.enrollment_bonuses.validate', 'Valider les primes', 'Valider les primes pour la paie', 3, 'bouton'),
+        ('hr', 'primes_inscription', 'config', 'hr.enrollment_bonuses.config', 'Configurer les taux', 'Modifier les taux de primes par formation', 4, 'bouton')
       ON CONFLICT (code) DO NOTHING
     `);
 
