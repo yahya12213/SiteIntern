@@ -122,6 +122,12 @@ function formatHours(hours?: number): string {
   return `${h}h${m.toString().padStart(2, '0')}`;
 }
 
+function formatPay(hours?: number, hourlyRate?: number): string {
+  if (!hours || !hourlyRate || hourlyRate === 0) return '-';
+  const pay = hours * hourlyRate;
+  return `${pay.toFixed(2)} MAD`;
+}
+
 // ============================================================
 // COMPONENTS
 // ============================================================
@@ -559,6 +565,7 @@ export default function TeamAttendance() {
                   <TableHead>Entrée</TableHead>
                   <TableHead>Sortie</TableHead>
                   <TableHead>Heures</TableHead>
+                  <TableHead>Paie</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -616,6 +623,14 @@ export default function TeamAttendance() {
                             : record.status === 'holiday'
                               ? `${record.scheduled_hours || 8}h (férié)`
                               : formatHours(record.worked_hours)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium text-green-700">
+                          {formatPay(
+                            record.worked_hours || record.scheduled_hours || record.hours_to_recover,
+                            record.hourly_rate
+                          )}
                         </span>
                       </TableCell>
                       <TableCell>

@@ -50,6 +50,7 @@ export interface TeamAttendanceRecord {
   id: string;
   employee_id: string;
   employee_name: string;
+  hourly_rate?: number;        // Salaire horaire de l'employé (de la fiche employé)
   date: string;
   clock_in?: string;
   clock_out?: string;
