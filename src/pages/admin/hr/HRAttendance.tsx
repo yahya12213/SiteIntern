@@ -385,8 +385,8 @@ export default function HRAttendance() {
                           {record.check_out_time || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {record.status === 'recovery_off' && record.hours_to_recover
-                            ? `${record.hours_to_recover}h (à récupérer)`
+                          {record.status === 'recovery_off'
+                            ? `${record.hours_to_recover || 8}h (à récupérer)`
                             : record.worked_minutes ? (record.worked_minutes / 60).toFixed(2) + 'h' : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
