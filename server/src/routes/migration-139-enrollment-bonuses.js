@@ -105,15 +105,12 @@ router.post('/run', async (req, res) => {
     // Ajouter les permissions
     console.log('  - Ajout des permissions...');
     await client.query(`
-      INSERT INTO permissions (id, name, description, category, parent_id) VALUES
-        ('hr.enrollment_bonuses', 'Primes d''inscription', 'Gestion des primes d''inscription', 'hr', 'hr'),
-        ('hr.enrollment_bonuses.view', 'Voir les primes', 'Voir la liste des primes d''inscription', 'hr', 'hr.enrollment_bonuses'),
-        ('hr.enrollment_bonuses.create', 'Créer une prime', 'Ajouter une nouvelle prime d''inscription', 'hr', 'hr.enrollment_bonuses'),
-        ('hr.enrollment_bonuses.validate', 'Valider les primes', 'Valider les primes pour la paie', 'hr', 'hr.enrollment_bonuses'),
-        ('hr.enrollment_bonuses.config', 'Configurer les taux', 'Modifier les taux de primes par formation', 'hr', 'hr.enrollment_bonuses')
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        description = EXCLUDED.description
+      INSERT INTO permissions (module, menu, action, code, label, description, sort_order, permission_type) VALUES
+        ('hr', 'primes_inscription', 'view', 'hr.enrollment_bonuses.view', 'Voir les primes', 'Voir la liste des primes d''inscription', 1, 'action'),
+        ('hr', 'primes_inscription', 'create', 'hr.enrollment_bonuses.create', 'Créer une prime', 'Ajouter une nouvelle prime d''inscription', 2, 'action'),
+        ('hr', 'primes_inscription', 'validate', 'hr.enrollment_bonuses.validate', 'Valider les primes', 'Valider les primes pour la paie', 3, 'action'),
+        ('hr', 'primes_inscription', 'config', 'hr.enrollment_bonuses.config', 'Configurer les taux', 'Modifier les taux de primes par formation', 4, 'action')
+      ON CONFLICT (code) DO NOTHING
     `);
 
     await client.query('COMMIT');
@@ -205,7 +202,7 @@ router.post('/rollback', async (req, res) => {
 
     await client.query('DROP TABLE IF EXISTS hr_enrollment_bonuses CASCADE');
     await client.query('DROP TABLE IF EXISTS hr_enrollment_bonus_rates CASCADE');
-    await client.query(`DELETE FROM permissions WHERE id LIKE 'hr.enrollment_bonuses%'`);
+    await client.query(`DELETE FROM permissions WHERE code LIKE 'hr.enrollment_bonuses%'`);
 
     await client.query('COMMIT');
 

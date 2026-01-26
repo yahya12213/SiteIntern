@@ -311,21 +311,17 @@ router.post('/run', async (req, res) => {
     // Step 9: Add payroll-related permissions
     console.log('Step 9: Adding payroll permissions...');
     await client.query(`
-      INSERT INTO permissions (id, name, description, category, parent_id) VALUES
-        ('hr.payroll', 'Gestion de la paie', 'Accès au module de paie', 'hr', 'hr'),
-        ('hr.payroll.view_page', 'Voir la page paie', 'Accès à la page de gestion de paie', 'hr', 'hr.payroll'),
-        ('hr.payroll.periods.create', 'Créer période de paie', 'Créer une nouvelle période de paie', 'hr', 'hr.payroll'),
-        ('hr.payroll.periods.close', 'Clôturer période', 'Clôturer une période de paie', 'hr', 'hr.payroll'),
-        ('hr.payroll.calculate', 'Calculer la paie', 'Lancer le calcul de paie', 'hr', 'hr.payroll'),
-        ('hr.payroll.validate', 'Valider les bulletins', 'Valider les bulletins de paie', 'hr', 'hr.payroll'),
-        ('hr.payroll.export', 'Exporter les données', 'Exporter les données de paie (CNSS, virements)', 'hr', 'hr.payroll'),
-        ('hr.payroll.config', 'Configurer la paie', 'Modifier la configuration de paie', 'hr', 'hr.payroll'),
-        ('hr.payroll.view_all_payslips', 'Voir tous les bulletins', 'Voir les bulletins de tous les employés', 'hr', 'hr.payroll'),
-        ('hr.payroll.view_own_payslip', 'Voir mes bulletins', 'Voir ses propres bulletins de paie', 'hr', 'hr.payroll')
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        description = EXCLUDED.description,
-        category = EXCLUDED.category
+      INSERT INTO permissions (module, menu, action, code, label, description, sort_order, permission_type) VALUES
+        ('hr', 'paie', 'view_page', 'hr.payroll.view_page', 'Voir la page paie', 'Accès à la page de gestion de paie', 1, 'action'),
+        ('hr', 'paie', 'periods.create', 'hr.payroll.periods.create', 'Créer période de paie', 'Créer une nouvelle période de paie', 2, 'action'),
+        ('hr', 'paie', 'periods.close', 'hr.payroll.periods.close', 'Clôturer période', 'Clôturer une période de paie', 3, 'action'),
+        ('hr', 'paie', 'calculate', 'hr.payroll.calculate', 'Calculer la paie', 'Lancer le calcul de paie', 4, 'action'),
+        ('hr', 'paie', 'validate', 'hr.payroll.validate', 'Valider les bulletins', 'Valider les bulletins de paie', 5, 'action'),
+        ('hr', 'paie', 'export', 'hr.payroll.export', 'Exporter les données', 'Exporter les données de paie (CNSS, virements)', 6, 'action'),
+        ('hr', 'paie', 'config', 'hr.payroll.config', 'Configurer la paie', 'Modifier la configuration de paie', 7, 'action'),
+        ('hr', 'paie', 'view_all_payslips', 'hr.payroll.view_all_payslips', 'Voir tous les bulletins', 'Voir les bulletins de tous les employés', 8, 'action'),
+        ('hr', 'paie', 'view_own_payslip', 'hr.payroll.view_own_payslip', 'Voir mes bulletins', 'Voir ses propres bulletins de paie', 9, 'action')
+      ON CONFLICT (code) DO NOTHING
     `);
     console.log('Permissions added');
 
@@ -392,7 +388,7 @@ router.post('/rollback', async (req, res) => {
 
     // Remove permissions
     await client.query(`
-      DELETE FROM permissions WHERE id LIKE 'hr.payroll%'
+      DELETE FROM permissions WHERE code LIKE 'hr.payroll%'
     `);
 
     await client.query('COMMIT');

@@ -43,15 +43,7 @@ router.post('/run', async (req, res) => {
     `);
 
     console.log('  - Colonne is_cnss_subject ajoutée');
-
-    // Mettre à false pour les employés sans numéro CNSS
-    const updated = await client.query(`
-      UPDATE hr_employees
-      SET is_cnss_subject = false
-      WHERE cnss_number IS NULL OR TRIM(cnss_number) = ''
-    `);
-
-    console.log(`  - ${updated.rowCount} employés mis à is_cnss_subject = false (sans numéro CNSS)`);
+    console.log('  - Tous les employés sont assujettis CNSS par défaut (modifiable manuellement)');
 
     // Ajouter la colonne is_amo_subject également (optionnel, même logique)
     await client.query(`
@@ -75,7 +67,7 @@ router.post('/run', async (req, res) => {
       changes: [
         'Ajout colonne is_cnss_subject (BOOLEAN DEFAULT true)',
         'Ajout colonne is_amo_subject (BOOLEAN DEFAULT true)',
-        `${updated.rowCount} employés sans CNSS mis à false`
+        'Tous les employés assujettis par défaut (modifiable via interface)'
       ]
     });
 
