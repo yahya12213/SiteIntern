@@ -210,7 +210,10 @@ router.get('/team-attendance',
           COALESCE(ad.early_leave_minutes, 0) as early_leave_minutes,
           COALESCE(ad.overtime_minutes, 0) as overtime_minutes,
           ad.notes,
-          ad.is_anomaly
+          ad.is_anomaly,
+          ad.scheduled_start,
+          ad.scheduled_end,
+          ad.scheduled_break_minutes
         FROM hr_attendance_daily ad
         JOIN hr_employees e ON e.id = ad.employee_id
         WHERE ad.employee_id = ANY($1::uuid[])
@@ -233,7 +236,31 @@ router.get('/team-attendance',
       query += ` ORDER BY ad.work_date DESC, e.last_name, e.first_name`;
 
       const result = await pool.query(query, params);
-      res.json({ success: true, records: result.rows });
+
+      // Calculate hours_to_recover from schedule for recovery_off status
+      const records = result.rows.map(row => {
+        let hours_to_recover = null;
+        if (row.status === 'recovery_off' && row.scheduled_start && row.scheduled_end) {
+          const parseTime = (t) => {
+            if (!t) return null;
+            const str = typeof t === 'string' ? t : t.toString();
+            const parts = str.split(':');
+            return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+          };
+          const startMin = parseTime(row.scheduled_start);
+          const endMin = parseTime(row.scheduled_end);
+          const breakMin = row.scheduled_break_minutes || 0;
+          if (startMin !== null && endMin !== null) {
+            hours_to_recover = Math.round((endMin - startMin - breakMin) / 60);
+          }
+        }
+        return {
+          ...row,
+          hours_to_recover: hours_to_recover || (row.status === 'recovery_off' ? 8 : null)
+        };
+      });
+
+      res.json({ success: true, records });
     } catch (error) {
       console.error('Error fetching team attendance:', error);
       res.status(500).json({ success: false, error: error.message });

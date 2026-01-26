@@ -183,10 +183,16 @@ function AttendanceDetailModal({ record, open, onOpenChange }: AttendanceDetailM
 
           {/* Heures travaillées */}
           <div className="space-y-1">
-            <Label className="text-muted-foreground text-xs">Heures travaillées</Label>
+            <Label className="text-muted-foreground text-xs">
+              {record.status === 'recovery_off' ? 'Heures à récupérer' : 'Heures travaillées'}
+            </Label>
             <div className="flex items-center gap-2 p-2 bg-muted/50 rounded">
               <TrendingUp className="h-4 w-4 text-blue-600" />
-              <span className="font-medium">{formatHours(record.worked_hours)}</span>
+              <span className="font-medium">
+                {record.status === 'recovery_off'
+                  ? `${record.hours_to_recover || 8}h`
+                  : formatHours(record.worked_hours)}
+              </span>
             </div>
           </div>
 
@@ -598,7 +604,11 @@ export default function TeamAttendance() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="font-medium">{formatHours(record.worked_hours)}</span>
+                        <span className="font-medium">
+                          {record.status === 'recovery_off'
+                            ? `${record.hours_to_recover || 8}h (à récupérer)`
+                            : formatHours(record.worked_hours)}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <Badge className={statusConfig.className}>

@@ -36,7 +36,15 @@ export type TeamAttendanceStatus =
   | 'mission'
   | 'partial'
   | 'check_in'
-  | 'check_out';
+  | 'check_out'
+  | 'pending'
+  | 'training'
+  | 'sick'
+  | 'recovery_off'
+  | 'recovery_day'
+  | 'recovery_paid'
+  | 'recovery_unpaid'
+  | 'overtime';
 
 export interface TeamAttendanceRecord {
   id: string;
@@ -46,6 +54,7 @@ export interface TeamAttendanceRecord {
   clock_in?: string;
   clock_out?: string;
   worked_hours?: number;
+  hours_to_recover?: number;  // For recovery_off status - calculated from schedule
   status: TeamAttendanceStatus;
   late_minutes?: number;
   leave_type?: string;
