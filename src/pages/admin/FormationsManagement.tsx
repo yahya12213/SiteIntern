@@ -613,6 +613,9 @@ export default function FormationsManagement() {
                                     Prix
                                   </th>
                                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                    Prime Assistante
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                     Modules
                                   </th>
                                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -660,6 +663,15 @@ export default function FormationsManagement() {
                                           ? `${parseFloat(String(formation.price)).toFixed(2)} MAD`
                                           : 'Gratuit'}
                                       </span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      {formation.prime_assistante && parseFloat(String(formation.prime_assistante)) > 0 ? (
+                                        <span className="text-sm font-medium text-green-600">
+                                          {parseFloat(String(formation.prime_assistante)).toFixed(2)} MAD
+                                        </span>
+                                      ) : (
+                                        <span className="text-sm text-red-500 font-medium">Non définie</span>
+                                      )}
                                     </td>
                                     <td className="px-4 py-3">
                                       <span className="text-sm text-gray-600">
