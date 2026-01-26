@@ -65,6 +65,7 @@ import { useTeam, useTeamRequests, useTeamStats, useApproveRequest, useRejectReq
 import { useReceivedDelegations } from '@/hooks/useDelegation';
 import { useAuth } from '@/contexts/AuthContext';
 import type { TeamRequest } from '@/lib/api/manager';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 // ============================================================
 // CONSTANTS
@@ -667,7 +668,8 @@ export default function TeamRequests() {
   const displayRequests = activeTab === 'pending' ? pendingRequests : historyRequests;
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <AppLayout>
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -1104,6 +1106,7 @@ export default function TeamRequests() {
         onConfirm={handleCancelConfirm}
         isPending={cancelMutation.isPending}
       />
-    </div>
+      </div>
+    </AppLayout>
   );
 }

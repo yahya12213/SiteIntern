@@ -69,6 +69,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import type { TeamAttendanceRecord } from '@/lib/api/manager';
 import AdminAttendanceEditor from '@/components/admin/hr/AdminAttendanceEditor';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 // ============================================================
 // CONSTANTS
@@ -344,7 +345,8 @@ export default function TeamAttendance() {
   const teamMembers = teamData?.members || [];
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <AppLayout>
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -742,6 +744,7 @@ export default function TeamAttendance() {
           initialDate={editRecord?.date}
         />
       )}
-    </div>
+      </div>
+    </AppLayout>
   );
 }
