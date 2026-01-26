@@ -15,7 +15,7 @@ import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 import { AttendanceCalculator } from '../services/attendance-calculator.js';
 import { AttendanceLogger } from '../services/attendance-logger.js';
-import { getSystemTime, getSystemDate } from '../services/system-clock.js';
+import { getSystemTime, getSystemDate, getSystemTimestamp } from '../services/system-clock.js';
 import { initializeDailyAttendance } from '../jobs/daily-attendance-init.js';
 
 const router = express.Router();
@@ -103,8 +103,8 @@ router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'),
         a.work_date,
         a.clock_in_at,
         a.clock_out_at,
-        TO_CHAR(a.clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') as check_in_time,
-        TO_CHAR(a.clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') as check_out_time,
+        TO_CHAR(a.clock_in_at AT TIME ZONE 'Africa/Casablanca', 'HH24:MI') as check_in_time,
+        TO_CHAR(a.clock_out_at AT TIME ZONE 'Africa/Casablanca', 'HH24:MI') as check_out_time,
         a.scheduled_start,
         a.scheduled_end,
         a.scheduled_break_minutes,
@@ -317,8 +317,8 @@ router.get('/my-records', authenticateToken, async (req, res) => {
     let query = `
       SELECT
         a.*,
-        TO_CHAR(a.clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') as check_in_time,
-        TO_CHAR(a.clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') as check_out_time,
+        TO_CHAR(a.clock_in_at AT TIME ZONE 'Africa/Casablanca', 'HH24:MI') as check_in_time,
+        TO_CHAR(a.clock_out_at AT TIME ZONE 'Africa/Casablanca', 'HH24:MI') as check_out_time,
         (
           SELECT json_build_object(
             'id', cr.id,
@@ -452,9 +452,10 @@ router.post('/clock-in', authenticateToken, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Pointage non autorisé' });
     }
 
-    // Utiliser l'horloge système configurable
+    // Utiliser l'horloge système configurable (TOUT utilise cette horloge, pas le serveur)
     const today = await getSystemDate(pool);
     const now = await getSystemTime(pool);
+    const clockTimestamp = await getSystemTimestamp(pool); // Timestamp formaté Africa/Casablanca
 
     // BUG #3 FIX: Start transaction
     await client.query('BEGIN');
@@ -502,7 +503,7 @@ router.post('/clock-in', authenticateToken, async (req, res) => {
           updated_at = NOW()
         RETURNING *
       `, [
-        employee.id, today, now,
+        employee.id, today, clockTimestamp,
         calcResult.scheduled_start, calcResult.scheduled_end, calcResult.scheduled_break_minutes,
         calcResult.day_status, calcResult.notes, req.user.id
       ]);
@@ -534,7 +535,7 @@ router.post('/clock-in', authenticateToken, async (req, res) => {
         updated_at = NOW()
       RETURNING *
     `, [
-      employee.id, today, now,
+      employee.id, today, clockTimestamp,
       calcResult.scheduled_start, calcResult.scheduled_end, calcResult.scheduled_break_minutes,
       calcResult.late_minutes, calcResult.day_status, req.user.id
     ]);
@@ -587,9 +588,10 @@ router.post('/clock-out', authenticateToken, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Pointage non autorisé' });
     }
 
-    // Utiliser l'horloge système configurable
+    // Utiliser l'horloge système configurable (TOUT utilise cette horloge, pas le serveur)
     const today = await getSystemDate(pool);
     const now = await getSystemTime(pool);
+    const clockTimestamp = await getSystemTimestamp(pool); // Timestamp formaté Africa/Casablanca
 
     // BUG #3 FIX: Start transaction
     await client.query('BEGIN');
@@ -635,7 +637,7 @@ router.post('/clock-out', authenticateToken, async (req, res) => {
       WHERE id = $1 AND clock_out_at IS NULL
       RETURNING *
     `, [
-      record.id, now,
+      record.id, clockTimestamp,
       calcResult.gross_worked_minutes,
       calcResult.net_worked_minutes,
       calcResult.early_leave_minutes,
@@ -752,8 +754,8 @@ router.get('/by-date', authenticateToken, requirePermission('hr.attendance.view_
     // Get attendance record - use TO_CHAR to extract time directly from PostgreSQL (avoids timezone issues)
     const result = await pool.query(`
       SELECT *,
-        TO_CHAR(clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') as check_in_time,
-        TO_CHAR(clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') as check_out_time
+        TO_CHAR(clock_in_at AT TIME ZONE 'Africa/Casablanca', 'HH24:MI') as check_in_time,
+        TO_CHAR(clock_out_at AT TIME ZONE 'Africa/Casablanca', 'HH24:MI') as check_out_time
       FROM hr_attendance_daily
       WHERE employee_id = $1 AND work_date = $2
     `, [employee_id, date]);
@@ -842,10 +844,10 @@ router.put('/admin/edit', authenticateToken, requirePermission('hr.attendance.ed
       return res.status(404).json({ success: false, error: 'Employé non trouvé' });
     }
 
-    // Build timestamps - force UTC (+00:00) to prevent timezone conversion
-    // User enters 10:00 → store as 10:00 UTC → display as 10:00 (no transformation)
-    const clockInAt = check_in_time ? `${date}T${check_in_time}:00+00:00` : null;
-    const clockOutAt = check_out_time ? `${date}T${check_out_time}:00+00:00` : null;
+    // Build timestamps - utiliser Africa/Casablanca (+01:00) pour que l'heure affichée = heure entrée
+    // User enters 10:00 → store as 10:00+01:00 → display as 10:00 (pas de transformation)
+    const clockInAt = check_in_time ? `${date}T${check_in_time}:00+01:00` : null;
+    const clockOutAt = check_out_time ? `${date}T${check_out_time}:00+01:00` : null;
 
     // Validate times
     if (clockInAt && clockOutAt && clockOutAt <= clockInAt) {

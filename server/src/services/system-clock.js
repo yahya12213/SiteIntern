@@ -107,31 +107,38 @@ export async function getSystemTime(pool) {
 
 /**
  * Obtient la date système actuelle au format YYYY-MM-DD
- * Utilise toLocaleDateString('en-CA') pour éviter les problèmes de timezone UTC
+ * Utilise Africa/Casablanca pour l'heure locale du Maroc
  *
  * @param {Pool} pool - Connection pool PostgreSQL
  * @returns {Promise<string>} Date au format YYYY-MM-DD
  */
 export async function getSystemDate(pool) {
   const systemTime = await getSystemTime(pool);
-  // Utiliser en-CA pour format YYYY-MM-DD (évite décalage timezone UTC)
-  return systemTime.toLocaleDateString('en-CA');
+  // Utiliser en-CA avec timezone Africa/Casablanca pour format YYYY-MM-DD
+  return systemTime.toLocaleDateString('en-CA', { timeZone: 'Africa/Casablanca' });
 }
 
 /**
  * Obtient l'heure système actuelle au format HH:MM
+ * Utilise Africa/Casablanca pour l'heure locale du Maroc
  *
  * @param {Pool} pool - Connection pool PostgreSQL
  * @returns {Promise<string>} Heure au format HH:MM
  */
 export async function getSystemTimeFormatted(pool) {
   const systemTime = await getSystemTime(pool);
-  return systemTime.toISOString().substring(11, 16);
+  // Utiliser toLocaleTimeString avec timezone Africa/Casablanca pour éviter décalage UTC
+  return systemTime.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Africa/Casablanca'
+  });
 }
 
 /**
  * Obtient un timestamp ISO complet pour le pointage
- * Format: YYYY-MM-DDTHH:MM:SS+00:00 (forcé en UTC)
+ * Format: YYYY-MM-DDTHH:MM:SS+01:00 (heure locale Africa/Casablanca)
  *
  * @param {Pool} pool - Connection pool PostgreSQL
  * @returns {Promise<string>} Timestamp ISO complet
@@ -141,16 +148,16 @@ export async function getSystemTimestamp(pool) {
 
   if (!config.enabled || !config.desired_time || !config.reference_server_time) {
     const result = await pool.query(`
-      SELECT TO_CHAR(NOW() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"+00:00"') as ts
+      SELECT TO_CHAR(NOW() AT TIME ZONE 'Africa/Casablanca', 'YYYY-MM-DD"T"HH24:MI:SS"+01:00"') as ts
     `);
     return result.rows[0].ts;
   }
 
-  // Calculer le temps système et le formater en UTC
+  // Calculer le temps système et le formater en heure locale Maroc
   const result = await pool.query(`
     SELECT TO_CHAR(
-      ($1::TIMESTAMPTZ + (NOW() - $2::TIMESTAMPTZ)) AT TIME ZONE 'UTC',
-      'YYYY-MM-DD"T"HH24:MI:SS"+00:00"'
+      ($1::TIMESTAMPTZ + (NOW() - $2::TIMESTAMPTZ)) AT TIME ZONE 'Africa/Casablanca',
+      'YYYY-MM-DD"T"HH24:MI:SS"+01:00"'
     ) as ts
   `, [config.desired_time, config.reference_server_time]);
 

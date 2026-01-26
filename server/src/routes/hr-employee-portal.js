@@ -123,10 +123,10 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       records = await pool.query(`
         SELECT
           work_date as date,
-          TO_CHAR(clock_in_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') as check_in,
-          TO_CHAR(clock_out_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') as check_out,
-          TO_CHAR(clock_in_at AT TIME ZONE 'UTC', 'HH24:MI') as check_in_time,
-          TO_CHAR(clock_out_at AT TIME ZONE 'UTC', 'HH24:MI') as check_out_time,
+          TO_CHAR(clock_in_at AT TIME ZONE 'Africa/Casablanca', 'YYYY-MM-DD"T"HH24:MI:SS') as check_in,
+          TO_CHAR(clock_out_at AT TIME ZONE 'Africa/Casablanca', 'YYYY-MM-DD"T"HH24:MI:SS') as check_out,
+          TO_CHAR(clock_in_at AT TIME ZONE 'Africa/Casablanca', 'HH24:MI') as check_in_time,
+          TO_CHAR(clock_out_at AT TIME ZONE 'Africa/Casablanca', 'HH24:MI') as check_out_time,
           CASE WHEN clock_in_at IS NOT NULL THEN 1 ELSE 0 END as check_ins,
           CASE WHEN clock_out_at IS NOT NULL THEN 1 ELSE 0 END as check_outs,
           day_status,

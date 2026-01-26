@@ -156,13 +156,24 @@ export default function SystemClockEditor() {
   const formatTime = (dateString: string | Date | undefined) => {
     if (!dateString) return '--:--:--';
     const date = new Date(dateString);
-    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return date.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZone: 'Africa/Casablanca'
+    });
   };
 
   const formatDate = (dateString: string | Date | undefined) => {
     if (!dateString) return '--/--/----';
     const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    return date.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Africa/Casablanca'
+    });
   };
 
   const formatOffset = (minutes: number | undefined) => {
