@@ -60,7 +60,15 @@ export type AttendanceStatus =
   | 'leave'
   | 'mission'
   | 'check_in'
-  | 'check_out';
+  | 'check_out'
+  | 'recovery_off'
+  | 'recovery_paid'
+  | 'recovery_unpaid'
+  | 'pending'
+  | 'partial'
+  | 'sick'
+  | 'training'
+  | 'overtime';
 
 export interface AttendanceRecord {
   date: string;
