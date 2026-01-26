@@ -92,13 +92,13 @@ router.get('/calculate',
     }
 
     try {
-      // Récupérer les infos de l'employé (segment, ville, objectif, jour coupure)
+      // Récupérer les infos de l'employé (segment, objectif, jour coupure)
+      // Note: ville_id n'existe pas dans hr_employees, on utilise uniquement segment_id
       const employeeResult = await pool.query(`
         SELECT
           id,
           first_name || ' ' || last_name as employee_name,
           segment_id,
-          ville_id,
           COALESCE(inscription_objective, 0) as inscription_objective,
           COALESCE(payroll_cutoff_day, 18) as payroll_cutoff_day
         FROM hr_employees
@@ -138,8 +138,9 @@ router.get('/calculate',
         });
       }
 
-      // Récupérer les inscriptions du jour matching segment/ville
-      let inscriptionsQuery = `
+      // Récupérer les inscriptions du jour matching segment
+      // Note: On filtre uniquement par segment_id (pas de ville_id dans hr_employees)
+      const inscriptionsQuery = `
         SELECT
           se.id as enrollment_id,
           se.session_id,
@@ -158,29 +159,12 @@ router.get('/calculate',
         LEFT JOIN cities c ON c.id = sf.ville_id
         LEFT JOIN students st ON st.id = se.student_id
         WHERE sf.segment_id = $1
+          AND se.created_at::date = $2
+          AND COALESCE(f.prime_assistante, 0) > 0
+        ORDER BY se.created_at DESC
       `;
 
-      const params = [employee.segment_id];
-      let paramIndex = 2;
-
-      // Ajouter filtre ville si l'employé a une ville assignée
-      if (employee.ville_id) {
-        inscriptionsQuery += ` AND sf.ville_id = $${paramIndex}`;
-        params.push(employee.ville_id);
-        paramIndex++;
-      }
-
-      // Filtrer par date
-      inscriptionsQuery += ` AND se.created_at::date = $${paramIndex}`;
-      params.push(targetDate);
-      paramIndex++;
-
-      // Seulement les formations avec prime > 0
-      inscriptionsQuery += ` AND COALESCE(f.prime_assistante, 0) > 0`;
-
-      inscriptionsQuery += ` ORDER BY se.created_at DESC`;
-
-      const inscriptionsResult = await pool.query(inscriptionsQuery, params);
+      const inscriptionsResult = await pool.query(inscriptionsQuery, [employee.segment_id, targetDate]);
 
       // Calculer la prime journalière
       const prime_journaliere = inscriptionsResult.rows.reduce(
@@ -189,8 +173,7 @@ router.get('/calculate',
       );
 
       // Calculer le total d'inscriptions dans la période d'objectif (calculée automatiquement)
-      let total_periode = 0;
-      let periodQuery = `
+      const periodQuery = `
         SELECT COUNT(*) as count
         FROM session_etudiants se
         JOIN sessions_formation sf ON sf.id = se.session_id
@@ -198,19 +181,13 @@ router.get('/calculate',
           AND se.created_at::date >= $2
           AND se.created_at::date <= $3
       `;
-      const periodParams = [
+
+      const periodResult = await pool.query(periodQuery, [
         employee.segment_id,
         periode.start,
         periode.end
-      ];
-
-      if (employee.ville_id) {
-        periodQuery += ` AND sf.ville_id = $4`;
-        periodParams.push(employee.ville_id);
-      }
-
-      const periodResult = await pool.query(periodQuery, periodParams);
-      total_periode = parseInt(periodResult.rows[0].count);
+      ]);
+      const total_periode = parseInt(periodResult.rows[0].count);
 
       // Déterminer si l'objectif est atteint
       const objectif_atteint = total_periode >= employee.inscription_objective;
@@ -222,7 +199,6 @@ router.get('/calculate',
           employee_id,
           employee_name: employee.employee_name,
           segment_id: employee.segment_id,
-          ville_id: employee.ville_id,
           inscriptions: inscriptionsResult.rows,
           inscriptions_count: inscriptionsResult.rows.length,
           prime_journaliere,
@@ -269,7 +245,6 @@ router.get('/period',
           id,
           first_name || ' ' || last_name as employee_name,
           segment_id,
-          ville_id,
           COALESCE(inscription_objective, 0) as inscription_objective,
           COALESCE(payroll_cutoff_day, 18) as payroll_cutoff_day
         FROM hr_employees
@@ -305,7 +280,7 @@ router.get('/period',
       }
 
       // Récupérer les primes par jour dans la période
-      let query = `
+      const query = `
         SELECT
           se.created_at::date as date,
           COUNT(*) as inscriptions_count,
@@ -317,18 +292,11 @@ router.get('/period',
           AND se.created_at::date >= $2
           AND se.created_at::date <= $3
           AND COALESCE(f.prime_assistante, 0) > 0
+        GROUP BY se.created_at::date
+        ORDER BY date
       `;
 
-      const params = [employee.segment_id, start_date, end_date];
-
-      if (employee.ville_id) {
-        query += ` AND sf.ville_id = $4`;
-        params.push(employee.ville_id);
-      }
-
-      query += ` GROUP BY se.created_at::date ORDER BY date`;
-
-      const dailyResult = await pool.query(query, params);
+      const dailyResult = await pool.query(query, [employee.segment_id, start_date, end_date]);
 
       // Calculer les totaux
       const total_prime = dailyResult.rows.reduce(
@@ -343,7 +311,7 @@ router.get('/period',
       // Calculer l'objectif atteint basé sur la période automatique
       let objectif_atteint = employee.inscription_objective === 0;
       if (employee.inscription_objective > 0) {
-        let periodQuery = `
+        const periodQuery = `
           SELECT COUNT(*) as count
           FROM session_etudiants se
           JOIN sessions_formation sf ON sf.id = se.session_id
@@ -351,18 +319,12 @@ router.get('/period',
             AND se.created_at::date >= $2
             AND se.created_at::date <= $3
         `;
-        const periodParams = [
+
+        const periodResult = await pool.query(periodQuery, [
           employee.segment_id,
           periode.start,
           periode.end
-        ];
-
-        if (employee.ville_id) {
-          periodQuery += ` AND sf.ville_id = $4`;
-          periodParams.push(employee.ville_id);
-        }
-
-        const periodResult = await pool.query(periodQuery, periodParams);
+        ]);
         const total_periode = parseInt(periodResult.rows[0].count);
         objectif_atteint = total_periode >= employee.inscription_objective;
       }
@@ -423,7 +385,6 @@ router.post('/batch',
           SELECT
             id,
             segment_id,
-            ville_id,
             COALESCE(inscription_objective, 0) as inscription_objective,
             COALESCE(payroll_cutoff_day, 18) as payroll_cutoff_day
           FROM hr_employees
@@ -446,7 +407,7 @@ router.post('/batch',
         }
 
         // Calculer la prime du jour
-        let primeQuery = `
+        const primeQuery = `
           SELECT COALESCE(SUM(f.prime_assistante), 0) as prime_journaliere
           FROM session_etudiants se
           JOIN sessions_formation sf ON sf.id = se.session_id
@@ -455,14 +416,8 @@ router.post('/batch',
             AND se.created_at::date = $2
             AND COALESCE(f.prime_assistante, 0) > 0
         `;
-        const primeParams = [employee.segment_id, targetDate];
 
-        if (employee.ville_id) {
-          primeQuery = primeQuery.replace('AND COALESCE(f.prime_assistante', 'AND sf.ville_id = $3 AND COALESCE(f.prime_assistante');
-          primeParams.push(employee.ville_id);
-        }
-
-        const primeResult = await pool.query(primeQuery, primeParams);
+        const primeResult = await pool.query(primeQuery, [employee.segment_id, targetDate]);
         const prime_journaliere = parseFloat(primeResult.rows[0].prime_journaliere || 0);
 
         // Vérifier l'objectif basé sur la période automatique
@@ -470,7 +425,7 @@ router.post('/batch',
         let total_periode = 0;
 
         if (employee.inscription_objective > 0) {
-          let periodQuery = `
+          const periodQuery = `
             SELECT COUNT(*) as count
             FROM session_etudiants se
             JOIN sessions_formation sf ON sf.id = se.session_id
@@ -478,18 +433,12 @@ router.post('/batch',
               AND se.created_at::date >= $2
               AND se.created_at::date <= $3
           `;
-          const periodParams = [
+
+          const periodResult = await pool.query(periodQuery, [
             employee.segment_id,
             periode.start,
             periode.end
-          ];
-
-          if (employee.ville_id) {
-            periodQuery += ` AND sf.ville_id = $4`;
-            periodParams.push(employee.ville_id);
-          }
-
-          const periodResult = await pool.query(periodQuery, periodParams);
+          ]);
           total_periode = parseInt(periodResult.rows[0].count);
           objectif_atteint = total_periode >= employee.inscription_objective;
         }
