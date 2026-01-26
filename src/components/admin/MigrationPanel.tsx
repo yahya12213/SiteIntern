@@ -509,6 +509,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 139: Primes d\'Inscription',
     description: '🎓 PRIMES: Crée les tables hr_enrollment_bonus_rates et hr_enrollment_bonuses. Permet de gérer les primes d\'inscription par type de formation (licence, master, doctorat).',
     endpoint: '/migration-139-enrollment-bonuses'
+  },
+  {
+    id: 'migration-140',
+    name: 'Migration 140: Initialiser Pointage Quotidien',
+    description: '📅 POINTAGE: Crée les lignes de pointage pour AUJOURD\'HUI pour tous les employés actifs. Exécutable à tout moment pour initialiser les lignes manquantes.',
+    endpoint: '/migration-140-init-daily-attendance'
   }
 ];
 
