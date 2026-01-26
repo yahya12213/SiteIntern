@@ -262,7 +262,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     }
   };
 
-  const handleChange = (field: string, value: string | boolean) => {
+  const handleChange = (field: string, value: string | boolean | number | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -629,7 +629,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                   step="0.01"
                   min="0"
                   value={formData.hourly_rate}
-                  onChange={(e) => handleChange('hourly_rate', e.target.value ? parseFloat(e.target.value) : '')}
+                  onChange={(e) => handleChange('hourly_rate', e.target.value ? parseFloat(e.target.value) : undefined)}
                   placeholder="Ex: 50.00"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
