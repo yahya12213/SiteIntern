@@ -59,16 +59,18 @@ export default function SystemClockEditor() {
         ? new Date(config.current_system_time)
         : new Date(config.current_server_time);
 
-      // Format for date input (YYYY-MM-DD) - use local date
-      const year = timeToUse.getFullYear();
-      const month = String(timeToUse.getMonth() + 1).padStart(2, '0');
-      const day = String(timeToUse.getDate()).padStart(2, '0');
-      setCustomDate(`${year}-${month}-${day}`);
+      // Format for date input (YYYY-MM-DD) - utiliser Africa/Casablanca
+      const dateStr = timeToUse.toLocaleDateString('en-CA', { timeZone: 'Africa/Casablanca' });
+      setCustomDate(dateStr);
 
-      // Format for time input (HH:MM) - use local time
-      const hours = String(timeToUse.getHours()).padStart(2, '0');
-      const minutes = String(timeToUse.getMinutes()).padStart(2, '0');
-      setCustomTime(`${hours}:${minutes}`);
+      // Format for time input (HH:MM) - utiliser Africa/Casablanca
+      const timeStr = timeToUse.toLocaleTimeString('fr-FR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Africa/Casablanca'
+      });
+      setCustomTime(timeStr);
 
       setIsInitialized(true);
     }
