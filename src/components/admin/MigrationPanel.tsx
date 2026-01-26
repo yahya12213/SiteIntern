@@ -515,6 +515,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 140: Initialiser Pointage Quotidien',
     description: '📅 POINTAGE: Crée les lignes de pointage pour AUJOURD\'HUI pour tous les employés actifs. Exécutable à tout moment pour initialiser les lignes manquantes.',
     endpoint: '/migration-140-init-daily-attendance'
+  },
+  {
+    id: 'migration-141',
+    name: 'Migration 141: Salaire Horaire',
+    description: '💰 PAIE: Ajoute la colonne hourly_rate à hr_employees. Vérifie également la présence de is_cnss_subject et is_amo_subject.',
+    endpoint: '/migration-141-add-hourly-rate'
   }
 ];
 

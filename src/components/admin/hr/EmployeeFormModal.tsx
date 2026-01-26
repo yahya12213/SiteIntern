@@ -40,6 +40,9 @@ interface Employee {
   manager_id?: string;
   notes?: string;
   requires_clocking?: boolean;
+  hourly_rate?: number;
+  is_cnss_subject?: boolean;
+  is_amo_subject?: boolean;
 }
 
 export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormModalProps) {
@@ -67,6 +70,9 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     notes: '',
     requires_clocking: false,
     profile_id: '',
+    hourly_rate: '' as string | number,
+    is_cnss_subject: true,
+    is_amo_subject: true,
   });
 
   // State pour les managers multiples avec rangs
@@ -155,6 +161,9 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         notes: employeeData.notes || '',
         requires_clocking: employeeData.requires_clocking || false,
         profile_id: (employeeData as any).profile_id || '',
+        hourly_rate: employeeData.hourly_rate ?? '',
+        is_cnss_subject: employeeData.is_cnss_subject ?? true,
+        is_amo_subject: employeeData.is_amo_subject ?? true,
       });
     }
   }, [employeeData]);
@@ -608,6 +617,53 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Salaire horaire */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Salaire horaire (MAD)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.hourly_rate}
+                  onChange={(e) => handleChange('hourly_rate', e.target.value ? parseFloat(e.target.value) : '')}
+                  placeholder="Ex: 50.00"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* CNSS / AMO Checkboxes */}
+              <div className="md:col-span-3 flex flex-wrap items-center gap-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_cnss_subject"
+                    checked={formData.is_cnss_subject}
+                    onChange={(e) => handleChange('is_cnss_subject', e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="is_cnss_subject" className="text-sm font-medium text-gray-700">
+                    Assujetti CNSS
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="is_amo_subject"
+                    checked={formData.is_amo_subject}
+                    onChange={(e) => handleChange('is_amo_subject', e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="is_amo_subject" className="text-sm font-medium text-gray-700">
+                    Assujetti AMO
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 w-full mt-2">
+                  Ces options affectent le calcul des cotisations sociales sur la paie.
+                </p>
               </div>
 
               {/* Managers multiples avec rangs */}
