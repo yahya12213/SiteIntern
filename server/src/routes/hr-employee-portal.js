@@ -130,7 +130,8 @@ router.get('/attendance', authenticateToken, async (req, res) => {
           CASE WHEN clock_in_at IS NOT NULL THEN 1 ELSE 0 END as check_ins,
           CASE WHEN clock_out_at IS NOT NULL THEN 1 ELSE 0 END as check_outs,
           day_status,
-          late_minutes
+          late_minutes,
+          net_worked_minutes
         FROM hr_attendance_daily
         WHERE employee_id = $1
           AND EXTRACT(YEAR FROM work_date) = $2
@@ -208,6 +209,7 @@ router.get('/attendance', authenticateToken, async (req, res) => {
     }
 
     // Calculate total hours, late minutes, and days worked
+    // Utiliser net_worked_minutes de la DB (déjà calculé avec pause déduite)
     let totalMinutes = 0;
     let totalLateMinutes = 0;
     let daysWorked = 0;
@@ -216,7 +218,6 @@ router.get('/attendance', authenticateToken, async (req, res) => {
       if (!r.check_in || !r.check_out) return;
 
       const checkIn = new Date(r.check_in);
-      const checkOut = new Date(r.check_out);
       const recordDate = new Date(r.date);
       const dayOfWeek = recordDate.getDay();
 
@@ -228,22 +229,10 @@ router.get('/attendance', authenticateToken, async (req, res) => {
 
       if (!scheduledStart || !scheduledEnd) return; // No schedule for this day
 
-      // Calculate raw worked minutes
-      let workedMinutes = Math.floor((checkOut - checkIn) / 1000 / 60);
-
-      // Deduct break time if overlaps AND worked >= 4 hours
-      if (workedMinutes >= 240 && schedule.break_start && schedule.break_end) {
-        const breakStart = new Date(r.date + ' ' + schedule.break_start);
-        const breakEnd = new Date(r.date + ' ' + schedule.break_end);
-
-        // Check for overlap between work period and break period
-        if (checkIn < breakEnd && checkOut > breakStart) {
-          const overlapStart = checkIn > breakStart ? checkIn : breakStart;
-          const overlapEnd = checkOut < breakEnd ? checkOut : breakEnd;
-          const overlapMinutes = Math.floor((overlapEnd - overlapStart) / 1000 / 60);
-          workedMinutes -= overlapMinutes;
-        }
-      }
+      // Utiliser net_worked_minutes de la DB si disponible
+      const workedMinutes = r.net_worked_minutes !== null && r.net_worked_minutes !== undefined
+        ? r.net_worked_minutes
+        : 0;
 
       totalMinutes += Math.max(0, workedMinutes);
 
@@ -436,12 +425,18 @@ router.get('/attendance', authenticateToken, async (req, res) => {
         displayStatus = 'leave';
       }
 
+      // Utiliser net_worked_minutes de la DB (déjà calculé avec pause déduite)
+      // Fallback sur le calcul local uniquement si la valeur DB n'existe pas
+      const finalWorkedMinutes = r.net_worked_minutes !== null && r.net_worked_minutes !== undefined
+        ? r.net_worked_minutes
+        : Math.max(0, workedMinutes);
+
       return {
         date: r.date,
         check_in: r.check_in_time || '-',
         check_out: r.check_out_time || '-',
         status: displayStatus,
-        worked_minutes: Math.max(0, workedMinutes),
+        worked_minutes: finalWorkedMinutes,
         has_anomaly: hasAnomaly,
         late_minutes: r.late_minutes || 0,
         correction_request: correctionRequest
