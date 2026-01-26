@@ -172,11 +172,33 @@ router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'),
     const result = await pool.query(query, params);
 
     // Format response with calculated fields (check_in_time and check_out_time come from TO_CHAR in query)
-    const data = result.rows.map(row => ({
-      ...row,
-      worked_minutes: row.net_worked_minutes,
-      attendance_date: row.work_date // Alias for backward compatibility
-    }));
+    // Helper: Parse time string HH:MM:SS or HH:MM to minutes
+    const parseTime = (t) => {
+      if (!t) return null;
+      const str = typeof t === 'string' ? t : t.toString();
+      const parts = str.split(':');
+      return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    };
+
+    const data = result.rows.map(row => {
+      // Calculate hours_to_recover from schedule for recovery_off status
+      let hoursToRecover = null;
+      if (row.day_status === 'recovery_off' && row.scheduled_start && row.scheduled_end) {
+        const startMin = parseTime(row.scheduled_start);
+        const endMin = parseTime(row.scheduled_end);
+        const breakMin = row.scheduled_break_minutes || 0;
+        if (startMin !== null && endMin !== null) {
+          hoursToRecover = Math.round((endMin - startMin - breakMin) / 60);
+        }
+      }
+
+      return {
+        ...row,
+        worked_minutes: row.net_worked_minutes,
+        attendance_date: row.work_date, // Alias for backward compatibility
+        hours_to_recover: hoursToRecover || (row.hours_to_recover ? parseFloat(row.hours_to_recover) : null)
+      };
+    });
 
     res.json({ success: true, data });
   } catch (error) {
@@ -355,6 +377,24 @@ router.get('/my-records', authenticateToken, async (req, res) => {
         workDateStr = row.work_date;
       }
 
+      // Calculer hours_to_recover depuis le planning (scheduled columns)
+      let hoursToRecover = null;
+      if (row.day_status === 'recovery_off' && row.scheduled_start && row.scheduled_end) {
+        // Parse time strings HH:MM:SS or HH:MM
+        const parseTime = (t) => {
+          if (!t) return null;
+          const str = typeof t === 'string' ? t : t.toString();
+          const parts = str.split(':');
+          return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+        };
+        const startMin = parseTime(row.scheduled_start);
+        const endMin = parseTime(row.scheduled_end);
+        const breakMin = row.scheduled_break_minutes || 0;
+        if (startMin !== null && endMin !== null) {
+          hoursToRecover = Math.round((endMin - startMin - breakMin) / 60);
+        }
+      }
+
       return {
         id: row.id,
         work_date: workDateStr,
@@ -371,7 +411,7 @@ router.get('/my-records', authenticateToken, async (req, res) => {
         is_complete: row.clock_in_at && row.clock_out_at,
         is_anomaly: row.is_anomaly && !row.anomaly_resolved,
         correction_request: row.correction_request,
-        hours_to_recover: row.hours_to_recover ? parseFloat(row.hours_to_recover) : null
+        hours_to_recover: hoursToRecover || (row.hours_to_recover ? parseFloat(row.hours_to_recover) : 8)
       };
     });
 

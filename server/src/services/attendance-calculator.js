@@ -340,13 +340,25 @@ export class AttendanceCalculator {
     // PRIORITÉ 2: Récupération jour off (l'employé ne travaille pas - jour offert à récupérer plus tard)
     if (recovery && recovery.is_day_off) {
       result.day_status = 'recovery_off';
-      result.hours_to_recover = recovery.hours_to_recover || 8; // Heures dues à récupérer (défaut 8h)
-      result.notes = `Jour off donné: ${recovery.period_name} - ${recovery.hours_to_recover || 8}h à récupérer`;
+
+      // Calculer les heures prévues depuis le planning de l'employé
+      let scheduledHours = 8; // Défaut si pas de planning
+      if (result.scheduled_start && result.scheduled_end) {
+        const startMinutes = this.timeToMinutes(result.scheduled_start);
+        const endMinutes = this.timeToMinutes(result.scheduled_end);
+        const breakMinutes = result.scheduled_break_minutes || 0;
+        if (startMinutes !== null && endMinutes !== null) {
+          scheduledHours = Math.round((endMinutes - startMinutes - breakMinutes) / 60);
+        }
+      }
+
+      result.hours_to_recover = scheduledHours;
+      result.notes = `Jour off donné: ${recovery.period_name} - ${scheduledHours}h à récupérer`;
       result.special_day = {
         type: 'recovery_off',
         name: recovery.period_name,
         is_day_off: true,
-        hours_to_recover: recovery.hours_to_recover || 8
+        hours_to_recover: scheduledHours
       };
       return result;
     }
