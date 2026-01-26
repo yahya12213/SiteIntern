@@ -378,8 +378,9 @@ router.get('/my-records', authenticateToken, async (req, res) => {
       }
 
       // Calculer hours_to_recover depuis le planning (scheduled columns)
+      // Inclure tous les statuts recovery (recovery_off, recovery_paid, recovery_unpaid)
       let hoursToRecover = null;
-      if (row.day_status === 'recovery_off' && row.scheduled_start && row.scheduled_end) {
+      if (['recovery_off', 'recovery_paid', 'recovery_unpaid'].includes(row.day_status) && row.scheduled_start && row.scheduled_end) {
         // Parse time strings HH:MM:SS or HH:MM
         const parseTime = (t) => {
           if (!t) return null;

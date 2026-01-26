@@ -684,7 +684,11 @@ function Clocking() {
                         <div className="text-sm font-bold text-blue-600">
                           {day.day_status === 'recovery_off'
                             ? `${day.hours_to_recover || 8}h (à récupérer)`
-                            : formatWorkedTime(day.net_worked_minutes)}
+                            : day.day_status === 'recovery_paid'
+                              ? `${formatWorkedTime(day.net_worked_minutes)} (récup. payée)`
+                              : day.day_status === 'recovery_unpaid'
+                                ? `${formatWorkedTime(day.net_worked_minutes)} (récup. non payée)`
+                                : formatWorkedTime(day.net_worked_minutes)}
                         </div>
                       </div>
                     </div>

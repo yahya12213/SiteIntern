@@ -241,8 +241,8 @@ router.get('/team-attendance',
       const records = result.rows.map(row => {
         let scheduled_hours = null;
 
-        // Calculate scheduled hours for special statuses (recovery_off, holiday)
-        if ((row.status === 'recovery_off' || row.status === 'holiday')
+        // Calculate scheduled hours for special statuses (tous les recovery + holiday)
+        if (['recovery_off', 'recovery_paid', 'recovery_unpaid', 'holiday'].includes(row.status)
             && row.scheduled_start && row.scheduled_end) {
           const parseTime = (t) => {
             if (!t) return null;
@@ -258,8 +258,8 @@ router.get('/team-attendance',
           }
         }
 
-        // Default to 8h if scheduled columns are null
-        const defaultHours = (row.status === 'recovery_off' || row.status === 'holiday') ? 8 : null;
+        // Default to 8h if scheduled columns are null (pour tous les recovery + holiday)
+        const defaultHours = ['recovery_off', 'recovery_paid', 'recovery_unpaid', 'holiday'].includes(row.status) ? 8 : null;
 
         return {
           ...row,
