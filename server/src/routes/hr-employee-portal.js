@@ -352,12 +352,18 @@ router.get('/attendance', authenticateToken, async (req, res) => {
           displayStatus = 'leave';
         }
 
+        // Pour les jours spéciaux (fériés, récupération), utiliser net_worked_minutes de la DB
+        // même s'il n'y a pas de pointage - ces heures sont créditées automatiquement
+        const specialDayMinutes = r.net_worked_minutes !== null && r.net_worked_minutes !== undefined
+          ? r.net_worked_minutes
+          : (isWeekend ? 0 : null);
+
         return {
           date: r.date,
           check_in: r.check_in_time || '-',
           check_out: r.check_out_time || '-',
           status: displayStatus,
-          worked_minutes: isWeekend ? 0 : null,
+          worked_minutes: specialDayMinutes,
           has_anomaly: isWeekend ? false : hasAnomaly,
           late_minutes: r.late_minutes || 0,
           correction_request: correctionRequest
