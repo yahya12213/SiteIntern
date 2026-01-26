@@ -521,6 +521,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 141: Salaire Horaire',
     description: '💰 PAIE: Ajoute la colonne hourly_rate à hr_employees. Vérifie également la présence de is_cnss_subject et is_amo_subject.',
     endpoint: '/migration-141-add-hourly-rate'
+  },
+  {
+    id: 'migration-142',
+    name: 'Migration 142: Recalculer Statuts Pointage',
+    description: '🔄 SYNC: Recalcule day_status pour toutes les lignes hr_attendance_daily basé sur les déclarations de récupération et jours fériés. Corrige les désynchronisations vue employé/admin.',
+    endpoint: '/migration-142-recalculate-day-status'
   }
 ];
 

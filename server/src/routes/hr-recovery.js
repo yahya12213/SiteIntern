@@ -6,8 +6,76 @@
 import express from 'express';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
+import { AttendanceCalculator } from '../services/attendance-calculator.js';
 
 const router = express.Router();
+
+/**
+ * Synchronise hr_attendance_daily pour une date de récupération donnée
+ * Appelé après création/modification/suppression d'une recovery_declaration
+ */
+async function syncAttendanceForRecoveryDate(recoveryDate, employeeIds = null) {
+  console.log(`[RECOVERY SYNC] Synchronizing attendance for ${recoveryDate}...`);
+
+  const calculator = new AttendanceCalculator(pool);
+
+  try {
+    // Si pas d'employeeIds fournis, récupérer tous les employés actifs
+    let employees;
+    if (employeeIds && employeeIds.length > 0) {
+      employees = await pool.query(
+        'SELECT id FROM hr_employees WHERE id = ANY($1::uuid[]) AND employment_status = $2',
+        [employeeIds, 'active']
+      );
+    } else {
+      employees = await pool.query(
+        'SELECT id FROM hr_employees WHERE employment_status = $1 AND requires_clocking = true',
+        ['active']
+      );
+    }
+
+    let updatedCount = 0;
+
+    for (const emp of employees.rows) {
+      // Vérifier si une ligne existe pour cette date
+      const existing = await pool.query(
+        'SELECT id, day_status, clock_in_at, clock_out_at FROM hr_attendance_daily WHERE employee_id = $1 AND work_date = $2',
+        [emp.id, recoveryDate]
+      );
+
+      if (existing.rows.length > 0) {
+        const row = existing.rows[0];
+
+        // Recalculer le statut
+        const calcResult = await calculator.calculateDayStatus(
+          emp.id,
+          recoveryDate,
+          row.clock_in_at,
+          row.clock_out_at
+        );
+
+        // Mettre à jour si différent
+        if (calcResult.day_status !== row.day_status) {
+          await pool.query(`
+            UPDATE hr_attendance_daily
+            SET day_status = $1, updated_at = NOW()
+            WHERE id = $2
+          `, [calcResult.day_status, row.id]);
+
+          console.log(`  ✓ Employee ${emp.id}: ${row.day_status} → ${calcResult.day_status}`);
+          updatedCount++;
+        }
+      }
+    }
+
+    console.log(`[RECOVERY SYNC] Complete: ${updatedCount} records updated`);
+    return updatedCount;
+  } catch (error) {
+    console.error('[RECOVERY SYNC] Error:', error);
+    // Don't throw - this is a background sync, shouldn't fail the main operation
+    return 0;
+  }
+}
 
 // ============================================================
 // PÉRIODES DE RÉCUPÉRATION
@@ -546,6 +614,12 @@ router.post('/declarations', authenticateToken, requirePermission('hr.recovery.m
 
     await client.query('COMMIT');
 
+    // Sync attendance records for the recovery date (background, non-blocking)
+    const employeeIdsToSync = employeesResult.rows.map(e => e.id);
+    syncAttendanceForRecoveryDate(recovery_date, employeeIdsToSync).catch(err => {
+      console.error('[POST /declarations] Sync error (non-fatal):', err);
+    });
+
     res.json({
       success: true,
       declaration,
@@ -594,7 +668,14 @@ router.put('/declarations/:id', authenticateToken, requirePermission('hr.recover
       RETURNING *
     `, [recovery_date, hours_to_recover, notes, status, id]);
 
-    res.json({ success: true, declaration: result.rows[0] });
+    const declaration = result.rows[0];
+
+    // Sync attendance records for the recovery date (background, non-blocking)
+    syncAttendanceForRecoveryDate(declaration.recovery_date).catch(err => {
+      console.error('[PUT /declarations] Sync error (non-fatal):', err);
+    });
+
+    res.json({ success: true, declaration });
   } catch (error) {
     console.error('Error updating recovery declaration:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -609,8 +690,11 @@ router.delete('/declarations/:id', authenticateToken, requirePermission('hr.reco
   try {
     const { id } = req.params;
 
-    // Check if already completed
-    const checkResult = await pool.query('SELECT status FROM hr_recovery_declarations WHERE id = $1', [id]);
+    // Check if already completed and get recovery_date for sync
+    const checkResult = await pool.query(
+      'SELECT status, recovery_date FROM hr_recovery_declarations WHERE id = $1',
+      [id]
+    );
     if (checkResult.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Declaration not found' });
     }
@@ -619,11 +703,19 @@ router.delete('/declarations/:id', authenticateToken, requirePermission('hr.reco
       return res.status(400).json({ success: false, error: 'Cannot delete completed declaration' });
     }
 
+    const recoveryDate = checkResult.rows[0].recovery_date;
+
     const result = await pool.query(`
       DELETE FROM hr_recovery_declarations
       WHERE id = $1
       RETURNING id
     `, [id]);
+
+    // Sync attendance records for the recovery date (background, non-blocking)
+    // This will recalculate statuses now that the recovery declaration is gone
+    syncAttendanceForRecoveryDate(recoveryDate).catch(err => {
+      console.error('[DELETE /declarations] Sync error (non-fatal):', err);
+    });
 
     res.json({ success: true, message: 'Declaration deleted successfully' });
   } catch (error) {
