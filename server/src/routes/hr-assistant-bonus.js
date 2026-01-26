@@ -10,7 +10,7 @@
  */
 
 import express from 'express';
-import { authenticateToken, requirePermission } from '../middleware/auth.js';
+// authenticateToken is applied at the router level in index.js
 import pool from '../config/database.js';
 
 const router = express.Router();
@@ -79,9 +79,7 @@ function calculatePeriod(cutoffDay, targetDate) {
  * - objectif_atteint: boolean si objectif >= total_periode
  * - periode: dates de début et fin de la période d'objectif (calculée automatiquement)
  */
-router.get('/calculate',
-  authenticateToken,
-  async (req, res) => {
+router.get('/calculate', async (req, res) => {
     const { employee_id, date } = req.query;
 
     if (!employee_id) {
@@ -226,9 +224,7 @@ router.get('/calculate',
  * GET /api/hr/assistant-bonus/period
  * Params: employee_id, start_date, end_date
  */
-router.get('/period',
-  authenticateToken,
-  async (req, res) => {
+router.get('/period', async (req, res) => {
     const { employee_id, start_date, end_date } = req.query;
 
     if (!employee_id || !start_date || !end_date) {
@@ -362,9 +358,7 @@ router.get('/period',
  * POST /api/hr/assistant-bonus/batch
  * Body: { employee_ids: [], date }
  */
-router.post('/batch',
-  authenticateToken,
-  async (req, res) => {
+router.post('/batch', async (req, res) => {
     const { employee_ids, date } = req.body;
 
     if (!employee_ids || !Array.isArray(employee_ids) || employee_ids.length === 0) {
