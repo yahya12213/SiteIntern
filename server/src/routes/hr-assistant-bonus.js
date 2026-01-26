@@ -149,7 +149,7 @@ router.get('/calculate', async (req, res) => {
           s.name as segment_name,
           c.name as city_name,
           se.created_at::date as enrollment_date,
-          st.first_name || ' ' || st.last_name as student_name
+          st.prenom || ' ' || st.nom as student_name
         FROM session_etudiants se
         JOIN sessions_formation sf ON sf.id = se.session_id
         JOIN formations f ON f.id = se.formation_id
