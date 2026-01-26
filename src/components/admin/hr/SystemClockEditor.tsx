@@ -291,12 +291,23 @@ export default function SystemClockEditor() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="custom-time" className="text-blue-700">Heure</Label>
+                <Label htmlFor="custom-time" className="text-blue-700">Heure (HH:MM)</Label>
                 <Input
                   id="custom-time"
-                  type="time"
+                  type="text"
+                  placeholder="14:30"
+                  pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
                   value={customTime}
-                  onChange={(e) => setCustomTime(e.target.value)}
+                  onChange={(e) => {
+                    // Accepter seulement les chiffres et :
+                    const val = e.target.value.replace(/[^0-9:]/g, '');
+                    // Auto-ajouter : après 2 chiffres
+                    if (val.length === 2 && !val.includes(':') && customTime.length < 2) {
+                      setCustomTime(val + ':');
+                    } else if (val.length <= 5) {
+                      setCustomTime(val);
+                    }
+                  }}
                   className="bg-white"
                 />
               </div>
