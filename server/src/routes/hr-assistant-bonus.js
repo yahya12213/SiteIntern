@@ -6,6 +6,7 @@
  * - Le matching segment/ville entre l'employé et la session
  * - La prime configurée par formation
  * - L'objectif d'inscription défini dans le dossier employé
+ * - La période calculée automatiquement via payroll_cutoff_day
  */
 
 import express from 'express';
@@ -13,6 +14,56 @@ import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 
 const router = express.Router();
+
+/**
+ * Calcule la période d'objectif basée sur le jour de coupure et une date cible
+ *
+ * Exemple avec cutoff_day = 18:
+ * - Date 2026-01-26 (jour 26 > 18): période = 19/01/2026 au 18/02/2026 (paie février)
+ * - Date 2026-01-15 (jour 15 <= 18): période = 19/12/2025 au 18/01/2026 (paie janvier)
+ *
+ * @param {number} cutoffDay - Jour de coupure (1-28, défaut 18)
+ * @param {string} targetDate - Date cible au format YYYY-MM-DD
+ * @returns {{ start: string, end: string, payrollMonth: string }} - Période calculée
+ */
+function calculatePeriod(cutoffDay, targetDate) {
+  const date = new Date(targetDate);
+  const day = date.getDate();
+  const month = date.getMonth(); // 0-indexed
+  const year = date.getFullYear();
+
+  let periodStart, periodEnd, payrollMonth, payrollYear;
+
+  if (day > cutoffDay) {
+    // Après le jour de coupure: période pour le mois suivant
+    // Ex: 26 janvier avec cutoff 18 = période 19 jan au 18 fév = paie février
+    periodStart = new Date(year, month, cutoffDay + 1);
+    periodEnd = new Date(year, month + 1, cutoffDay);
+    payrollYear = month === 11 ? year + 1 : year;
+    payrollMonth = month + 2; // +1 pour 1-indexed, +1 pour mois suivant
+    if (payrollMonth > 12) payrollMonth = 1;
+  } else {
+    // Avant ou sur le jour de coupure: période pour le mois courant
+    // Ex: 15 janvier avec cutoff 18 = période 19 déc au 18 jan = paie janvier
+    periodStart = new Date(year, month - 1, cutoffDay + 1);
+    periodEnd = new Date(year, month, cutoffDay);
+    payrollYear = year;
+    payrollMonth = month + 1; // +1 pour 1-indexed
+    if (payrollMonth === 0) {
+      payrollMonth = 12;
+      payrollYear = year - 1;
+    }
+  }
+
+  // Formater les dates en YYYY-MM-DD
+  const formatDate = (d) => d.toISOString().split('T')[0];
+
+  return {
+    start: formatDate(periodStart),
+    end: formatDate(periodEnd),
+    payrollMonth: `${payrollYear}-${String(payrollMonth).padStart(2, '0')}`
+  };
+}
 
 /**
  * Calcule la prime d'assistante pour un employé et une date donnée
@@ -26,7 +77,7 @@ const router = express.Router();
  * - total_periode: nombre total d'inscriptions dans la période d'objectif
  * - objectif: objectif d'inscriptions de l'employé
  * - objectif_atteint: boolean si objectif >= total_periode
- * - periode: dates de début et fin de la période d'objectif
+ * - periode: dates de début et fin de la période d'objectif (calculée automatiquement)
  */
 router.get('/calculate',
   authenticateToken,
@@ -41,7 +92,7 @@ router.get('/calculate',
     }
 
     try {
-      // Récupérer les infos de l'employé (segment, ville, objectif, période)
+      // Récupérer les infos de l'employé (segment, ville, objectif, jour coupure)
       const employeeResult = await pool.query(`
         SELECT
           id,
@@ -49,8 +100,7 @@ router.get('/calculate',
           segment_id,
           ville_id,
           COALESCE(inscription_objective, 0) as inscription_objective,
-          objective_period_start,
-          objective_period_end
+          COALESCE(payroll_cutoff_day, 18) as payroll_cutoff_day
         FROM hr_employees
         WHERE id = $1
       `, [employee_id]);
@@ -65,6 +115,9 @@ router.get('/calculate',
       const employee = employeeResult.rows[0];
       const targetDate = date || new Date().toISOString().split('T')[0];
 
+      // Calculer la période automatiquement basée sur payroll_cutoff_day
+      const periode = calculatePeriod(employee.payroll_cutoff_day, targetDate);
+
       // Vérifier si l'employé a un segment assigné
       if (!employee.segment_id) {
         return res.json({
@@ -78,10 +131,8 @@ router.get('/calculate',
             total_periode: 0,
             objectif: employee.inscription_objective,
             objectif_atteint: employee.inscription_objective === 0,
-            periode: {
-              start: employee.objective_period_start,
-              end: employee.objective_period_end
-            },
+            periode,
+            payroll_cutoff_day: employee.payroll_cutoff_day,
             message: 'Aucun segment assigné à cet employé'
           }
         });
@@ -137,31 +188,29 @@ router.get('/calculate',
         0
       );
 
-      // Calculer le total d'inscriptions dans la période d'objectif
+      // Calculer le total d'inscriptions dans la période d'objectif (calculée automatiquement)
       let total_periode = 0;
-      if (employee.objective_period_start && employee.objective_period_end) {
-        let periodQuery = `
-          SELECT COUNT(*) as count
-          FROM session_etudiants se
-          JOIN sessions_formation sf ON sf.id = se.session_id
-          WHERE sf.segment_id = $1
-            AND se.created_at::date >= $2
-            AND se.created_at::date <= $3
-        `;
-        const periodParams = [
-          employee.segment_id,
-          employee.objective_period_start,
-          employee.objective_period_end
-        ];
+      let periodQuery = `
+        SELECT COUNT(*) as count
+        FROM session_etudiants se
+        JOIN sessions_formation sf ON sf.id = se.session_id
+        WHERE sf.segment_id = $1
+          AND se.created_at::date >= $2
+          AND se.created_at::date <= $3
+      `;
+      const periodParams = [
+        employee.segment_id,
+        periode.start,
+        periode.end
+      ];
 
-        if (employee.ville_id) {
-          periodQuery += ` AND sf.ville_id = $4`;
-          periodParams.push(employee.ville_id);
-        }
-
-        const periodResult = await pool.query(periodQuery, periodParams);
-        total_periode = parseInt(periodResult.rows[0].count);
+      if (employee.ville_id) {
+        periodQuery += ` AND sf.ville_id = $4`;
+        periodParams.push(employee.ville_id);
       }
+
+      const periodResult = await pool.query(periodQuery, periodParams);
+      total_periode = parseInt(periodResult.rows[0].count);
 
       // Déterminer si l'objectif est atteint
       const objectif_atteint = total_periode >= employee.inscription_objective;
@@ -180,10 +229,8 @@ router.get('/calculate',
           total_periode,
           objectif: employee.inscription_objective,
           objectif_atteint,
-          periode: {
-            start: employee.objective_period_start,
-            end: employee.objective_period_end
-          }
+          periode,
+          payroll_cutoff_day: employee.payroll_cutoff_day
         }
       });
 
@@ -224,8 +271,7 @@ router.get('/period',
           segment_id,
           ville_id,
           COALESCE(inscription_objective, 0) as inscription_objective,
-          objective_period_start,
-          objective_period_end
+          COALESCE(payroll_cutoff_day, 18) as payroll_cutoff_day
         FROM hr_employees
         WHERE id = $1
       `, [employee_id]);
@@ -239,6 +285,9 @@ router.get('/period',
 
       const employee = employeeResult.rows[0];
 
+      // Calculer la période automatique pour la fin de la période demandée
+      const periode = calculatePeriod(employee.payroll_cutoff_day, end_date);
+
       if (!employee.segment_id) {
         return res.json({
           success: true,
@@ -249,7 +298,8 @@ router.get('/period',
             total_prime: 0,
             total_inscriptions: 0,
             objectif: employee.inscription_objective,
-            objectif_atteint: false
+            objectif_atteint: false,
+            periode
           }
         });
       }
@@ -290,10 +340,9 @@ router.get('/period',
         0
       );
 
-      // Déterminer si l'objectif est atteint (basé sur la période d'objectif de l'employé)
-      let objectif_atteint = false;
-      if (employee.objective_period_start && employee.objective_period_end) {
-        // Compter toutes les inscriptions dans la période d'objectif
+      // Calculer l'objectif atteint basé sur la période automatique
+      let objectif_atteint = employee.inscription_objective === 0;
+      if (employee.inscription_objective > 0) {
         let periodQuery = `
           SELECT COUNT(*) as count
           FROM session_etudiants se
@@ -304,8 +353,8 @@ router.get('/period',
         `;
         const periodParams = [
           employee.segment_id,
-          employee.objective_period_start,
-          employee.objective_period_end
+          periode.start,
+          periode.end
         ];
 
         if (employee.ville_id) {
@@ -330,10 +379,8 @@ router.get('/period',
           total_inscriptions,
           objectif: employee.inscription_objective,
           objectif_atteint,
-          periode_objectif: {
-            start: employee.objective_period_start,
-            end: employee.objective_period_end
-          }
+          periode,
+          payroll_cutoff_day: employee.payroll_cutoff_day
         }
       });
 
@@ -378,8 +425,7 @@ router.post('/batch',
             segment_id,
             ville_id,
             COALESCE(inscription_objective, 0) as inscription_objective,
-            objective_period_start,
-            objective_period_end
+            COALESCE(payroll_cutoff_day, 18) as payroll_cutoff_day
           FROM hr_employees
           WHERE id = $1
         `, [employee_id]);
@@ -390,6 +436,9 @@ router.post('/batch',
         }
 
         const employee = employeeResult.rows[0];
+
+        // Calculer la période automatiquement
+        const periode = calculatePeriod(employee.payroll_cutoff_day, targetDate);
 
         if (!employee.segment_id) {
           results[employee_id] = { prime_journaliere: 0, objectif_atteint: employee.inscription_objective === 0 };
@@ -416,9 +465,11 @@ router.post('/batch',
         const primeResult = await pool.query(primeQuery, primeParams);
         const prime_journaliere = parseFloat(primeResult.rows[0].prime_journaliere || 0);
 
-        // Vérifier l'objectif
+        // Vérifier l'objectif basé sur la période automatique
         let objectif_atteint = employee.inscription_objective === 0;
-        if (employee.objective_period_start && employee.objective_period_end && employee.inscription_objective > 0) {
+        let total_periode = 0;
+
+        if (employee.inscription_objective > 0) {
           let periodQuery = `
             SELECT COUNT(*) as count
             FROM session_etudiants se
@@ -429,8 +480,8 @@ router.post('/batch',
           `;
           const periodParams = [
             employee.segment_id,
-            employee.objective_period_start,
-            employee.objective_period_end
+            periode.start,
+            periode.end
           ];
 
           if (employee.ville_id) {
@@ -439,7 +490,7 @@ router.post('/batch',
           }
 
           const periodResult = await pool.query(periodQuery, periodParams);
-          const total_periode = parseInt(periodResult.rows[0].count);
+          total_periode = parseInt(periodResult.rows[0].count);
           objectif_atteint = total_periode >= employee.inscription_objective;
         }
 
@@ -447,7 +498,8 @@ router.post('/batch',
           prime_journaliere,
           objectif_atteint,
           objectif: employee.inscription_objective,
-          total_periode: objectif_atteint ? employee.inscription_objective : 0
+          total_periode,
+          periode
         };
       }
 

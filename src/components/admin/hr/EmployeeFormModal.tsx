@@ -46,6 +46,7 @@ interface Employee {
   inscription_objective?: number;
   objective_period_start?: string;
   objective_period_end?: string;
+  payroll_cutoff_day?: number;
 }
 
 export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormModalProps) {
@@ -79,6 +80,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     inscription_objective: '' as string | number,
     objective_period_start: '',
     objective_period_end: '',
+    payroll_cutoff_day: 18 as number | string,
   });
 
   // State pour les managers multiples avec rangs
@@ -173,6 +175,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         inscription_objective: employeeData.inscription_objective ?? '',
         objective_period_start: formatDateForInput(employeeData.objective_period_start),
         objective_period_end: formatDateForInput(employeeData.objective_period_end),
+        payroll_cutoff_day: employeeData.payroll_cutoff_day ?? 18,
       });
     }
   }, [employeeData]);
@@ -681,7 +684,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                   <Target className="w-4 h-4" />
                   Objectif d'Inscription (Prime Assistante)
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Objectif (nombre d'inscrits)
@@ -697,29 +700,25 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Debut periode
+                      Jour de coupure paie
                     </label>
-                    <input
-                      type="date"
-                      value={formData.objective_period_start}
-                      onChange={(e) => handleChange('objective_period_start', e.target.value)}
+                    <select
+                      value={formData.payroll_cutoff_day}
+                      onChange={(e) => handleChange('payroll_cutoff_day', parseInt(e.target.value))}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Fin periode
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.objective_period_end}
-                      onChange={(e) => handleChange('objective_period_end', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+                      aria-label="Jour de coupure paie"
+                    >
+                      {Array.from({ length: 28 }, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day}>{day}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Ex: 18 = période du 19 mois précédent au 18 mois courant
+                    </p>
                   </div>
                 </div>
                 <p className="text-xs text-blue-600 mt-3">
-                  La prime d'inscription sera affichee en vert si l'objectif est atteint, en rouge sinon (non comptabilisee en paie).
+                  La prime d'inscription sera affichée en vert si l'objectif est atteint, en rouge sinon (non comptabilisée en paie).
                 </p>
               </div>
 

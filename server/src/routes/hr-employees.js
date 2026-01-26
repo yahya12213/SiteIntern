@@ -169,7 +169,8 @@ router.post('/',
       is_amo_subject = true,
       inscription_objective = 0,
       objective_period_start,
-      objective_period_end
+      objective_period_end,
+      payroll_cutoff_day = 18
     } = req.body;
 
     const result = await pool.query(`
@@ -180,8 +181,9 @@ router.post('/',
         hire_date, employment_type, position, department,
         segment_id, manager_id, photo_url, notes,
         is_cnss_subject, is_amo_subject,
-        inscription_objective, objective_period_start, objective_period_end
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+        inscription_objective, objective_period_start, objective_period_end,
+        payroll_cutoff_day
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
       RETURNING *
     `, [
       profile_id, employee_number, first_name, last_name, cin,
@@ -190,7 +192,8 @@ router.post('/',
       hire_date, employment_type, position, department,
       segment_id, manager_id, photo_url, notes,
       is_cnss_subject, is_amo_subject,
-      inscription_objective || 0, objective_period_start || null, objective_period_end || null
+      inscription_objective || 0, objective_period_start || null, objective_period_end || null,
+      payroll_cutoff_day || 18
     ]);
 
     res.status(201).json({ success: true, data: result.rows[0] });

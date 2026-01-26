@@ -527,6 +527,24 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 142: Recalculer Statuts Pointage',
     description: '🔄 SYNC: Recalcule day_status pour toutes les lignes hr_attendance_daily basé sur les déclarations de récupération et jours fériés. Corrige les désynchronisations vue employé/admin.',
     endpoint: '/migration-142-recalculate-day-status'
+  },
+  {
+    id: 'migration-143',
+    name: 'Migration 143: Prime Assistante Formation',
+    description: '💰 PRIME: Ajoute colonne prime_assistante (DECIMAL) à la table formations. Permet de définir une prime par inscription pour chaque formation.',
+    endpoint: '/migration-143-formation-prime'
+  },
+  {
+    id: 'migration-144',
+    name: 'Migration 144: Objectif Inscription Employé',
+    description: '🎯 OBJECTIF: Ajoute colonnes inscription_objective (INTEGER), objective_period_start (DATE), objective_period_end (DATE) à hr_employees. Permet de définir un objectif d\'inscriptions par période pour le calcul des primes.',
+    endpoint: '/migration-144-employee-objective'
+  },
+  {
+    id: 'migration-145',
+    name: 'Migration 145: Jour Coupure Paie',
+    description: '📅 PÉRIODE: Ajoute colonne payroll_cutoff_day (INTEGER, défaut=18) à hr_employees. Calcule automatiquement la période d\'objectif: du 19 mois précédent au 18 mois courant = paie du mois courant.',
+    endpoint: '/migration-145-payroll-cutoff-day'
   }
 ];
 
