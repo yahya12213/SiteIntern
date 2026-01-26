@@ -5,7 +5,7 @@
  * avec filtres par date et membre, et export CSV.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Users,
   Calendar,
@@ -259,6 +259,7 @@ export default function TeamAttendance() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ employeeId: string; date: string; name: string } | null>(null);
   const [showAdminEditor, setShowAdminEditor] = useState(false);
   const [editRecord, setEditRecord] = useState<{ employeeId: string; date: string } | null>(null);
+  const [employeeBonuses, setEmployeeBonuses] = useState<Record<string, { prime_journaliere: number; objectif_atteint: boolean }>>({});
 
   // Delete mutation - uses unified attendance API
   const deleteMutation = useMutation({
@@ -298,6 +299,60 @@ export default function TeamAttendance() {
   });
   const { data: statsData, isLoading: loadingStats } = useTeamStats();
   const exportMutation = useExportTeamAttendance();
+
+  // Fetch bonuses for all employees in the attendance records
+  useEffect(() => {
+    const fetchBonuses = async () => {
+      const records = attendanceData?.records || [];
+      if (records.length === 0) {
+        setEmployeeBonuses({});
+        return;
+      }
+
+      // Group records by date to batch API calls per date
+      const recordsByDate = new Map<string, string[]>();
+      records.forEach(r => {
+        const dateKey = r.date.split('T')[0];
+        if (!recordsByDate.has(dateKey)) {
+          recordsByDate.set(dateKey, []);
+        }
+        const empIds = recordsByDate.get(dateKey)!;
+        if (!empIds.includes(r.employee_id)) {
+          empIds.push(r.employee_id);
+        }
+      });
+
+      const bonusData: Record<string, { prime_journaliere: number; objectif_atteint: boolean }> = {};
+
+      // Fetch bonuses for each unique date
+      for (const [date, employeeIds] of recordsByDate.entries()) {
+        try {
+          const response = await apiClient.post('/hr/assistant-bonus/batch', {
+            employee_ids: employeeIds,
+            date
+          });
+
+          if ((response as any).success && (response as any).data) {
+            employeeIds.forEach(empId => {
+              const empBonus = (response as any).data[empId];
+              if (empBonus) {
+                bonusData[`${empId}_${date}`] = {
+                  prime_journaliere: empBonus.prime_journaliere || 0,
+                  objectif_atteint: empBonus.objectif_atteint || false
+                };
+              }
+            });
+          }
+        } catch (error) {
+          console.error(`Error fetching bonuses for date ${date}:`, error);
+        }
+      }
+
+      setEmployeeBonuses(bonusData);
+    };
+
+    fetchBonuses();
+  }, [attendanceData?.records]);
 
   // Computed stats for current view
   const viewStats = useMemo(() => {
@@ -566,6 +621,7 @@ export default function TeamAttendance() {
                   <TableHead>Sortie</TableHead>
                   <TableHead>Heures</TableHead>
                   <TableHead>Paie</TableHead>
+                  <TableHead>Prime</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -632,6 +688,18 @@ export default function TeamAttendance() {
                             record.hourly_rate
                           )}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const bonusKey = `${record.employee_id}_${record.date.split('T')[0]}`;
+                          const bonus = employeeBonuses[bonusKey];
+                          if (!bonus || bonus.prime_journaliere === 0) return <span className="text-gray-400">-</span>;
+                          return (
+                            <span className={`font-medium ${bonus.objectif_atteint ? 'text-green-600' : 'text-red-500'}`}>
+                              {bonus.prime_journaliere.toFixed(2)} MAD
+                            </span>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <Badge className={statusConfig.className}>

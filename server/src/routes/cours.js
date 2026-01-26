@@ -224,7 +224,8 @@ router.post('/formations', requirePermission('training.formations.create'), asyn
       status,
       passing_score_percentage,
       corps_formation_id,
-      certificate_template_id
+      certificate_template_id,
+      prime_assistante
     } = req.body;
 
     if (!title) {
@@ -238,10 +239,10 @@ router.post('/formations', requirePermission('training.formations.create'), asyn
       INSERT INTO formations (
         id, title, description, price, duration_hours, level,
         thumbnail_url, status, passing_score_percentage,
-        corps_formation_id, certificate_template_id,
+        corps_formation_id, certificate_template_id, prime_assistante,
         created_at, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *
     `;
 
@@ -249,6 +250,7 @@ router.post('/formations', requirePermission('training.formations.create'), asyn
       id, title, description, price, duration_hours, level,
       thumbnail_url, status || 'draft', passing_score_percentage || 80,
       corps_formation_id || null, certificate_template_id || null,
+      prime_assistante || 0,
       now, now
     ];
 
@@ -275,7 +277,8 @@ router.put('/formations/:id', requirePermission('training.formations.update'), a
       status,
       passing_score_percentage,
       corps_formation_id,
-      certificate_template_id
+      certificate_template_id,
+      prime_assistante
     } = req.body;
 
     const now = new Date().toISOString();
@@ -293,15 +296,16 @@ router.put('/formations/:id', requirePermission('training.formations.update'), a
         passing_score_percentage = COALESCE($8, passing_score_percentage),
         corps_formation_id = COALESCE($9, corps_formation_id),
         certificate_template_id = COALESCE($10, certificate_template_id),
-        updated_at = $11
-      WHERE id = $12
+        prime_assistante = COALESCE($11, prime_assistante),
+        updated_at = $12
+      WHERE id = $13
       RETURNING *
     `;
 
     const values = [
       title, description, price, duration_hours, level,
       thumbnail_url, status, passing_score_percentage,
-      corps_formation_id, certificate_template_id,
+      corps_formation_id, certificate_template_id, prime_assistante,
       now, id
     ];
 

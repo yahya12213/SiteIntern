@@ -35,6 +35,7 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
     passing_score_percentage: formation?.passing_score_percentage?.toString() || '80',
     default_certificate_template_id: formation?.default_certificate_template_id || '',
     corps_formation_id: formation?.corps_formation_id || '',
+    prime_assistante: formation?.prime_assistante?.toString() || '0',
   });
 
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
@@ -108,6 +109,7 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
         passing_score_percentage: parseInt(formData.passing_score_percentage),
         default_certificate_template_id: formData.default_certificate_template_id || undefined,
         corps_formation_id: formData.corps_formation_id,
+        prime_assistante: formData.prime_assistante ? parseFloat(formData.prime_assistante) : 0,
       };
 
       let formationId: string;
@@ -273,8 +275,8 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
             </div>
           </div>
 
-          {/* Price and Duration */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Price, Prime and Duration */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Price */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -291,6 +293,22 @@ export const FormationFormModal: React.FC<FormationFormModalProps> = ({ formatio
               />
               {errors.price && <p className="text-xs text-red-600 mt-1">{errors.price}</p>}
               <p className="text-xs text-gray-500 mt-1">Laissez vide pour gratuit</p>
+            </div>
+
+            {/* Prime Assistante */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Prime Assistante (MAD)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.prime_assistante}
+                onChange={(e) => setFormData({ ...formData, prime_assistante: e.target.value })}
+                placeholder="30.00"
+              />
+              <p className="text-xs text-gray-500 mt-1">Prime par inscription</p>
             </div>
 
             {/* Duration */}

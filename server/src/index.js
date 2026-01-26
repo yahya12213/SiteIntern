@@ -210,7 +210,10 @@ import migration139Router from './routes/migration-139-enrollment-bonuses.js';
 import migration140Router from './routes/migration-140-init-daily-attendance.js';
 import migration141Router from './routes/migration-141-add-hourly-rate.js';
 import migration142Router from './routes/migration-142-recalculate-day-status.js';
+import migration143Router from './routes/migration-143-formation-prime.js';
+import migration144Router from './routes/migration-144-employee-objective.js';
 import hrEnrollmentBonusesRouter from './routes/hr-enrollment-bonuses.js';
+import hrAssistantBonusRouter from './routes/hr-assistant-bonus.js';
 import testWorkflowRouter from './routes/test-workflow.js';
 import debugAuthRouter from './routes/debug-auth.js';
 
@@ -478,12 +481,15 @@ app.use('/api/migration-139-enrollment-bonuses', ...adminOnly, migration139Route
 app.use('/api/migration-140-init-daily-attendance', ...adminOnly, migration140Router);
 app.use('/api/migration-141-add-hourly-rate', ...adminOnly, migration141Router);
 app.use('/api/migration-142-recalculate-day-status', ...adminOnly, migration142Router);
+app.use('/api/migration-143-formation-prime', ...adminOnly, migration143Router);
+app.use('/api/migration-144-employee-objective', ...adminOnly, migration144Router);
 app.use('/api/test-workflow', ...adminOnly, testWorkflowRouter);
 // Note: /my/correction-requests routes are in hr-employee-self.js (mounted at /api/hr/my)
 // Manager routes for correction requests are mounted separately below
 app.use('/api/hr/correction', authenticateToken, hrCorrectionRequestsRouter);
 app.use('/api/hr/recovery', authenticateToken, hrRecoveryRouter);
 app.use('/api/hr/enrollment-bonuses', authenticateToken, hrEnrollmentBonusesRouter);
+app.use('/api/hr/assistant-bonus', authenticateToken, hrAssistantBonusRouter);
 app.use('/api/debug-template-dateformat', ...adminOnly, debugTemplateDateformatRouter);
 
 // Health check

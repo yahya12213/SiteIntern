@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle, Plus, Trash2, Users } from 'lucide-react';
+import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle, Plus, Trash2, Users, Target } from 'lucide-react';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { apiClient } from '@/lib/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -43,6 +43,9 @@ interface Employee {
   hourly_rate?: number;
   is_cnss_subject?: boolean;
   is_amo_subject?: boolean;
+  inscription_objective?: number;
+  objective_period_start?: string;
+  objective_period_end?: string;
 }
 
 export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormModalProps) {
@@ -73,6 +76,9 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     hourly_rate: '' as string | number,
     is_cnss_subject: true,
     is_amo_subject: true,
+    inscription_objective: '' as string | number,
+    objective_period_start: '',
+    objective_period_end: '',
   });
 
   // State pour les managers multiples avec rangs
@@ -164,6 +170,9 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         hourly_rate: employeeData.hourly_rate ?? '',
         is_cnss_subject: employeeData.is_cnss_subject ?? true,
         is_amo_subject: employeeData.is_amo_subject ?? true,
+        inscription_objective: employeeData.inscription_objective ?? '',
+        objective_period_start: formatDateForInput(employeeData.objective_period_start),
+        objective_period_end: formatDateForInput(employeeData.objective_period_end),
       });
     }
   }, [employeeData]);
@@ -663,6 +672,54 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                 </div>
                 <p className="text-xs text-gray-500 w-full mt-2">
                   Ces options affectent le calcul des cotisations sociales sur la paie.
+                </p>
+              </div>
+
+              {/* Objectif d'Inscription (Prime Assistante) */}
+              <div className="md:col-span-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 className="text-sm font-medium text-blue-800 mb-3 flex items-center gap-2">
+                  <Target className="w-4 h-4" />
+                  Objectif d'Inscription (Prime Assistante)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Objectif (nombre d'inscrits)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={formData.inscription_objective}
+                      onChange={(e) => handleChange('inscription_objective', e.target.value ? parseInt(e.target.value) : '')}
+                      placeholder="Ex: 50"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Debut periode
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.objective_period_start}
+                      onChange={(e) => handleChange('objective_period_start', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Fin periode
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.objective_period_end}
+                      onChange={(e) => handleChange('objective_period_end', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-blue-600 mt-3">
+                  La prime d'inscription sera affichee en vert si l'objectif est atteint, en rouge sinon (non comptabilisee en paie).
                 </p>
               </div>
 

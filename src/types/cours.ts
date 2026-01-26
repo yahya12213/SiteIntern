@@ -44,6 +44,8 @@ export interface Formation {
   certificate_template_id?: string;
   formations_count?: number; // Pour les packs: nombre de formations incluses
   formations?: PackFormation[]; // Pour les packs: formations incluses
+  // Prime assistante pour les inscriptions
+  prime_assistante?: number | string;
   created_at: string;
   updated_at: string;
   module_count?: number;
@@ -151,6 +153,7 @@ export interface CreateFormationInput {
   default_certificate_template_id?: string;
   corps_formation_id: string; // Obligatoire
   certificate_template_id?: string;
+  prime_assistante?: number; // Prime versée à l'assistante par inscription
   // Multi-template support
   template_ids?: string[]; // IDs des templates à associer
   document_type?: DocumentType; // Type de document (par défaut: 'certificat')
@@ -168,6 +171,7 @@ export interface UpdateFormationInput {
   default_certificate_template_id?: string;
   corps_formation_id?: string;
   certificate_template_id?: string;
+  prime_assistante?: number; // Prime versée à l'assistante par inscription
   // Multi-template support
   template_ids?: string[]; // IDs des templates à associer
   document_type?: DocumentType; // Type de document

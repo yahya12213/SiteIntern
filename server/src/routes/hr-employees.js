@@ -166,7 +166,10 @@ router.post('/',
       photo_url,
       notes,
       is_cnss_subject = true,
-      is_amo_subject = true
+      is_amo_subject = true,
+      inscription_objective = 0,
+      objective_period_start,
+      objective_period_end
     } = req.body;
 
     const result = await pool.query(`
@@ -176,8 +179,9 @@ router.post('/',
         emergency_contact_name, emergency_contact_phone,
         hire_date, employment_type, position, department,
         segment_id, manager_id, photo_url, notes,
-        is_cnss_subject, is_amo_subject
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+        is_cnss_subject, is_amo_subject,
+        inscription_objective, objective_period_start, objective_period_end
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
       RETURNING *
     `, [
       profile_id, employee_number, first_name, last_name, cin,
@@ -185,7 +189,8 @@ router.post('/',
       emergency_contact_name, emergency_contact_phone,
       hire_date, employment_type, position, department,
       segment_id, manager_id, photo_url, notes,
-      is_cnss_subject, is_amo_subject
+      is_cnss_subject, is_amo_subject,
+      inscription_objective || 0, objective_period_start || null, objective_period_end || null
     ]);
 
     res.status(201).json({ success: true, data: result.rows[0] });
@@ -218,7 +223,7 @@ router.put('/:id',
     }
 
     // Champs de type date qui doivent être null si vides
-    const dateFields = ['birth_date', 'hire_date', 'termination_date', 'start_date', 'end_date', 'trial_period_end'];
+    const dateFields = ['birth_date', 'hire_date', 'termination_date', 'start_date', 'end_date', 'trial_period_end', 'objective_period_start', 'objective_period_end'];
     // Champs de type UUID/foreign key qui doivent être null si vides
     const fkFields = ['segment_id', 'ville_id', 'manager_id', 'department_id', 'user_id'];
 
