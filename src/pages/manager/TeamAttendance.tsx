@@ -93,7 +93,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string; icon: an
   pending: { label: 'En cours', className: 'bg-blue-100 text-blue-800', icon: Clock },
   training: { label: 'Formation', className: 'bg-violet-100 text-violet-800', icon: Calendar },
   sick: { label: 'Maladie', className: 'bg-pink-100 text-pink-800', icon: XCircle },
-  recovery_off: { label: 'Récupération', className: 'bg-teal-100 text-teal-800', icon: Calendar },
+  recovery_off: { label: 'À récupérer', className: 'bg-teal-100 text-teal-800', icon: Calendar },
   recovery_day: { label: 'Jour de récup', className: 'bg-teal-100 text-teal-800', icon: Calendar },
   recovery_paid: { label: 'Récup. payée', className: 'bg-green-100 text-green-800', icon: CheckCircle2 },
   recovery_unpaid: { label: 'Récup. non payée', className: 'bg-orange-100 text-orange-800', icon: Clock },

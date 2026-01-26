@@ -229,7 +229,9 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
       training: 'Formation',
       holiday: 'Jour férié',
       weekend: 'Weekend',
-      recovery_off: 'Récupération',
+      recovery_off: 'À récupérer',
+      recovery_paid: 'Récup. payée',
+      recovery_unpaid: 'Récup. non payée',
       half_day: 'Demi-journée',
     };
     return labels[status] || status;
@@ -652,7 +654,9 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
                       <option value="mission">Mission</option>
                       <option value="training">Formation</option>
                       <option value="holiday">Jour férié</option>
-                      <option value="recovery_off">Récupération</option>
+                      <option value="recovery_off">À récupérer</option>
+                      <option value="recovery_paid">Récup. payée</option>
+                      <option value="recovery_unpaid">Récup. non payée</option>
                     </select>
                   </div>
 

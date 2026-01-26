@@ -123,7 +123,17 @@ router.get('/', authenticateToken, requirePermission('hr.attendance.view_page'),
         a.corrected_by,
         a.correction_reason,
         e.first_name || ' ' || e.last_name as employee_name,
-        e.employee_number
+        e.employee_number,
+        -- Recovery hours for recovery_off status
+        (
+          SELECT rd.hours_to_recover
+          FROM hr_recovery_declarations rd
+          JOIN hr_recovery_periods rp ON rd.recovery_period_id = rp.id
+          WHERE rd.recovery_date = a.work_date
+            AND rd.status = 'active'
+            AND rp.status = 'active'
+          LIMIT 1
+        ) as hours_to_recover
       FROM hr_attendance_daily a
       JOIN hr_employees e ON a.employee_id = e.id
       WHERE 1=1
@@ -299,7 +309,17 @@ router.get('/my-records', authenticateToken, async (req, res) => {
           WHERE cr.employee_id = a.employee_id AND cr.request_date = a.work_date
           ORDER BY cr.created_at DESC
           LIMIT 1
-        ) as correction_request
+        ) as correction_request,
+        -- Recovery info: hours to recover for recovery_off status
+        (
+          SELECT rd.hours_to_recover
+          FROM hr_recovery_declarations rd
+          JOIN hr_recovery_periods rp ON rd.recovery_period_id = rp.id
+          WHERE rd.recovery_date = a.work_date
+            AND rd.status = 'active'
+            AND rp.status = 'active'
+          LIMIT 1
+        ) as hours_to_recover
       FROM hr_attendance_daily a
       WHERE a.employee_id = $1
     `;
@@ -350,7 +370,8 @@ router.get('/my-records', authenticateToken, async (req, res) => {
         day_status: row.day_status,
         is_complete: row.clock_in_at && row.clock_out_at,
         is_anomaly: row.is_anomaly && !row.anomaly_resolved,
-        correction_request: row.correction_request
+        correction_request: row.correction_request,
+        hours_to_recover: row.hours_to_recover ? parseFloat(row.hours_to_recover) : null
       };
     });
 

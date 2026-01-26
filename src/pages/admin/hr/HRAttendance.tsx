@@ -40,6 +40,7 @@ interface AttendanceRecord {
   overtime_minutes: number;
   is_anomaly: boolean;
   anomaly_type: string | null;
+  hours_to_recover: number | null;  // Recovery hours for recovery_off status
 }
 
 interface OvertimeRequest {
@@ -147,6 +148,8 @@ export default function HRAttendance() {
       holiday: 'bg-purple-100 text-purple-800',
       weekend: 'bg-gray-100 text-gray-600',
       recovery_off: 'bg-teal-100 text-teal-800',
+      recovery_paid: 'bg-green-100 text-green-800',
+      recovery_unpaid: 'bg-orange-100 text-orange-800',
       mission: 'bg-cyan-100 text-cyan-800',
       training: 'bg-violet-100 text-violet-800',
       sick: 'bg-pink-100 text-pink-800',
@@ -163,7 +166,9 @@ export default function HRAttendance() {
       leave: 'Congé',
       holiday: 'Jour férié',
       weekend: 'Weekend',
-      recovery_off: 'Récupération',
+      recovery_off: 'À récupérer',
+      recovery_paid: 'Récup. payée',
+      recovery_unpaid: 'Récup. non payée',
       mission: 'Mission',
       training: 'Formation',
       sick: 'Maladie',
@@ -380,7 +385,9 @@ export default function HRAttendance() {
                           {record.check_out_time || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {record.worked_minutes ? (record.worked_minutes / 60).toFixed(2) + 'h' : '-'}
+                          {record.status === 'recovery_off' && record.hours_to_recover
+                            ? `${record.hours_to_recover}h (à récupérer)`
+                            : record.worked_minutes ? (record.worked_minutes / 60).toFixed(2) + 'h' : '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {getStatusBadge(record.status)}

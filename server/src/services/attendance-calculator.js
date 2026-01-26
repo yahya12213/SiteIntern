@@ -337,11 +337,17 @@ export class AttendanceCalculator {
       // Le statut sera restauré à la fin après le calcul des heures
     }
 
-    // PRIORITÉ 2: Récupération jour off (l'employé ne travaille pas)
+    // PRIORITÉ 2: Récupération jour off (l'employé ne travaille pas - jour offert à récupérer plus tard)
     if (recovery && recovery.is_day_off) {
       result.day_status = 'recovery_off';
-      result.notes = `Jour de repos récupération: ${recovery.period_name}`;
-      result.special_day = { type: 'recovery_off', name: recovery.period_name, is_day_off: true };
+      result.hours_to_recover = recovery.hours_to_recover || 8; // Heures dues à récupérer (défaut 8h)
+      result.notes = `Jour off donné: ${recovery.period_name} - ${recovery.hours_to_recover || 8}h à récupérer`;
+      result.special_day = {
+        type: 'recovery_off',
+        name: recovery.period_name,
+        is_day_off: true,
+        hours_to_recover: recovery.hours_to_recover || 8
+      };
       return result;
     }
 
