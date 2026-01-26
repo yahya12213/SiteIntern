@@ -131,7 +131,10 @@ router.get('/attendance', authenticateToken, async (req, res) => {
           CASE WHEN clock_out_at IS NOT NULL THEN 1 ELSE 0 END as check_outs,
           day_status,
           late_minutes,
-          net_worked_minutes
+          net_worked_minutes,
+          scheduled_start,
+          scheduled_end,
+          scheduled_break_minutes
         FROM hr_attendance_daily
         WHERE employee_id = $1
           AND EXTRACT(YEAR FROM work_date) = $2
@@ -352,11 +355,36 @@ router.get('/attendance', authenticateToken, async (req, res) => {
           displayStatus = 'leave';
         }
 
-        // Pour les jours spéciaux (fériés, récupération), utiliser net_worked_minutes de la DB
-        // même s'il n'y a pas de pointage - ces heures sont créditées automatiquement
-        const specialDayMinutes = r.net_worked_minutes !== null && r.net_worked_minutes !== undefined
-          ? r.net_worked_minutes
-          : (isWeekend ? 0 : null);
+        // Pour les jours spéciaux (fériés, récupération), calculer les heures depuis le planning
+        // car net_worked_minutes est NULL pour ces jours (pas de pointage réel)
+        let specialDayMinutes = null;
+
+        // Liste des statuts spéciaux qui créditent des heures sans pointage
+        const specialStatuses = ['holiday', 'recovery_off', 'recovery_paid', 'recovery_unpaid'];
+
+        if (specialStatuses.includes(displayStatus) || specialStatuses.includes(r.day_status)) {
+          // Calculer les heures depuis le planning (comme fait l'Admin)
+          if (r.scheduled_start && r.scheduled_end) {
+            const parseTime = (t) => {
+              if (!t) return null;
+              const parts = t.split(':');
+              return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+            };
+            const startMin = parseTime(r.scheduled_start);
+            const endMin = parseTime(r.scheduled_end);
+            const breakMin = r.scheduled_break_minutes || 0;
+            if (startMin !== null && endMin !== null) {
+              specialDayMinutes = Math.max(0, endMin - startMin - breakMin);
+            }
+          } else {
+            // Fallback: 8h par défaut pour jours spéciaux si pas de planning
+            specialDayMinutes = 480; // 8 * 60 minutes
+          }
+        } else if (r.net_worked_minutes !== null && r.net_worked_minutes !== undefined) {
+          specialDayMinutes = r.net_worked_minutes;
+        } else if (isWeekend) {
+          specialDayMinutes = 0;
+        }
 
         return {
           date: r.date,
