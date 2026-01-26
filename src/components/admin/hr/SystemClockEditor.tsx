@@ -134,9 +134,9 @@ export default function SystemClockEditor() {
     }
 
     if (enabled) {
-      // Envoyer le datetime absolu directement - pas de calcul d'offset
-      // Format: YYYY-MM-DDTHH:MM:SS
-      const desired_datetime = `${customDate}T${customTime}:00`;
+      // Envoyer le datetime absolu avec timezone Africa/Casablanca (+01:00)
+      // Format: YYYY-MM-DDTHH:MM:SS+01:00
+      const desired_datetime = `${customDate}T${customTime}:00+01:00`;
 
       console.log('[SystemClockEditor] Setting absolute time:', {
         desired_datetime,
