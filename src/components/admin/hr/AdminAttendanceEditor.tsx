@@ -321,12 +321,25 @@ export default function AdminAttendanceEditor({ onClose, onSuccess, initialEmplo
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                Corriger / Déclarer un Pointage
+                {mode === 'edit' || mode === 'review' ? 'Modifier le Pointage' : 'Corriger / Déclarer un Pointage'}
               </h2>
               <p className="text-sm text-gray-600">
                 {mode === 'search' && 'Rechercher un pointage'}
-                {mode === 'review' && 'État actuel du pointage'}
-                {mode === 'edit' && 'Corriger le pointage'}
+                {mode === 'review' && selectedEmployee && selectedDate && (
+                  <span className="flex items-center gap-2">
+                    <span className="font-medium text-purple-600">{selectedEmployee.first_name} {selectedEmployee.last_name}</span>
+                    <span>•</span>
+                    <span className="font-medium">{new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  </span>
+                )}
+                {mode === 'edit' && selectedEmployee && selectedDate && (
+                  <span className="flex items-center gap-2">
+                    <span className="font-medium text-purple-600">{selectedEmployee.first_name} {selectedEmployee.last_name}</span>
+                    <span>•</span>
+                    <span className="font-medium">{new Date(selectedDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  </span>
+                )}
+                {mode === 'loading' && 'Chargement...'}
                 {mode === 'declare-presence' && 'Déclarer une présence manuelle'}
                 {mode === 'declare-absence' && 'Déclarer une absence'}
               </p>

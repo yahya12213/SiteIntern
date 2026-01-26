@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { usePermission } from '@/hooks/usePermission';
@@ -60,16 +61,33 @@ export default function HRAttendance() {
   const { hr } = usePermission();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'records' | 'anomalies' | 'overtime'>('records');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [dateFrom, setDateFrom] = useState(new Date().toISOString().split('T')[0]);
-  const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Initialize state from URL params for filter persistence
+  const [activeTab, setActiveTab] = useState<'records' | 'anomalies' | 'overtime'>(
+    (searchParams.get('tab') as 'records' | 'anomalies' | 'overtime') || 'records'
+  );
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
+  const [dateFrom, setDateFrom] = useState(searchParams.get('from') || new Date().toISOString().split('T')[0]);
+  const [dateTo, setDateTo] = useState(searchParams.get('to') || new Date().toISOString().split('T')[0]);
+
+  // Update URL params when filters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (activeTab !== 'records') params.set('tab', activeTab);
+    if (searchTerm) params.set('search', searchTerm);
+    if (statusFilter) params.set('status', statusFilter);
+    if (dateFrom) params.set('from', dateFrom);
+    if (dateTo) params.set('to', dateTo);
+    setSearchParams(params, { replace: true });
+  }, [activeTab, searchTerm, statusFilter, dateFrom, dateTo, setSearchParams]);
   const [showOvertimeApprovalModal, setShowOvertimeApprovalModal] = useState(false);
   const [selectedOvertimeRequestId, setSelectedOvertimeRequestId] = useState<string | null>(null);
   const [showAnomalyResolutionModal, setShowAnomalyResolutionModal] = useState(false);
   const [selectedAnomalyId, setSelectedAnomalyId] = useState<string | null>(null);
   const [showAdminEditor, setShowAdminEditor] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<{ employeeId: string; date: string; name: string } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ employeeId: string; date: string; name: string } | null>(null);
 
   // Delete attendance mutation
@@ -395,7 +413,24 @@ export default function HRAttendance() {
                             <AlertTriangle className="h-4 w-4 text-red-500 inline ml-2" />
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <td className="px-6 py-4 whitespace-nowrap text-right flex gap-2 justify-end">
+                          {hr.canCorrectAttendance && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingRecord({
+                                  employeeId: record.employee_id,
+                                  date: record.work_date || record.attendance_date,
+                                  name: record.employee_name
+                                });
+                                setShowAdminEditor(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
+                              title="Modifier ce pointage"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => setDeleteConfirm({
@@ -584,12 +619,18 @@ export default function HRAttendance() {
         {/* Admin Attendance Editor Modal */}
         {showAdminEditor && (
           <AdminAttendanceEditor
-            onClose={() => setShowAdminEditor(false)}
+            onClose={() => {
+              setShowAdminEditor(false);
+              setEditingRecord(null);
+            }}
             onSuccess={() => {
               // Invalidate queries to refresh data
-              // Note: invalidation is already handled in AdminAttendanceEditor
-              // but we can add additional actions here if needed
+              queryClient.invalidateQueries({ queryKey: ['hr-attendance'] });
+              setShowAdminEditor(false);
+              setEditingRecord(null);
             }}
+            initialEmployeeId={editingRecord?.employeeId}
+            initialDate={editingRecord?.date}
           />
         )}
 
