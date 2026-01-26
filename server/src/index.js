@@ -213,6 +213,7 @@ import debugAuthRouter from './routes/debug-auth.js';
 
 // Import cron jobs
 import { startAbsenceDetectionJob } from './jobs/absence-detection.js';
+import { startDailyAttendanceInitJob, initializeDailyAttendance } from './jobs/daily-attendance-init.js';
 
 const app = express();
 
@@ -738,4 +739,7 @@ app.listen(PORT, () => {
 
   // Start absence detection cron job
   startAbsenceDetectionJob();
+
+  // Start daily attendance initialization cron job
+  startDailyAttendanceInitJob();
 });

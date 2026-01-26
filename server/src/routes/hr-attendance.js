@@ -16,6 +16,7 @@ import pool from '../config/database.js';
 import { AttendanceCalculator } from '../services/attendance-calculator.js';
 import { AttendanceLogger } from '../services/attendance-logger.js';
 import { getSystemTime, getSystemDate } from '../services/system-clock.js';
+import { initializeDailyAttendance } from '../jobs/daily-attendance-init.js';
 
 const router = express.Router();
 
@@ -1160,5 +1161,34 @@ router.get('/audit', authenticateToken, requirePermission('hr.attendance.view_pa
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// =====================================================
+// ADMIN: MANUAL JOB EXECUTION
+// =====================================================
+
+/**
+ * POST /jobs/init-daily-attendance
+ * Exécuter manuellement l'initialisation quotidienne des pointages
+ * Crée une ligne 'pending' pour chaque employé actif pour aujourd'hui
+ */
+router.post('/jobs/init-daily-attendance',
+  authenticateToken,
+  requirePermission('hr.attendance.admin'),
+  async (req, res) => {
+    try {
+      console.log('[MANUAL] Running daily attendance initialization...');
+      const result = await initializeDailyAttendance();
+
+      res.json({
+        success: true,
+        message: `Initialisation terminée pour ${result.date}`,
+        data: result
+      });
+    } catch (error) {
+      console.error('[MANUAL] Daily init error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
 
 export default router;
