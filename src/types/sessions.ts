@@ -7,6 +7,7 @@ export type SessionType = 'presentielle' | 'en_ligne';
 export type StatutPaiement = 'paye' | 'partiellement_paye' | 'impaye';
 export type TypeFichier = 'test' | 'presence';
 export type StudentStatus = 'valide' | 'abandonne';
+export type DeliveryStatus = 'non_livree' | 'livree';
 
 /**
  * Session de Formation (Classe)
@@ -83,6 +84,9 @@ export interface SessionEtudiant {
 
   // Info documents générés
   has_documents?: boolean;
+
+  // Statut de livraison des documents (pour sessions en ligne)
+  delivery_status?: DeliveryStatus;
 }
 
 /**
@@ -192,6 +196,7 @@ export interface AddEtudiantToSessionInput {
 export interface UpdateEtudiantSessionInput {
   statut_paiement?: StatutPaiement;
   montant_paye?: number;
+  delivery_status?: DeliveryStatus;
 }
 
 export interface AddProfesseurToSessionInput {

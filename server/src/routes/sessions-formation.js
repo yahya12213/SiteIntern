@@ -1139,7 +1139,7 @@ router.put('/:sessionId/etudiants/:etudiantId',
   async (req, res) => {
   try {
     const { sessionId, etudiantId } = req.params;
-    const { statut_paiement, montant_paye, discount_percentage, discount_reason, formation_id, numero_bon, new_session_id } = req.body;
+    const { statut_paiement, montant_paye, discount_percentage, discount_reason, formation_id, numero_bon, new_session_id, delivery_status } = req.body;
 
     const now = new Date().toISOString();
 
@@ -1304,8 +1304,9 @@ router.put('/:sessionId/etudiants/:etudiantId',
         montant_total = COALESCE($7, montant_total),
         formation_id = COALESCE($8, formation_id),
         numero_bon = COALESCE($9, numero_bon),
-        updated_at = $10
-      WHERE id = $11
+        delivery_status = COALESCE($10, delivery_status),
+        updated_at = $11
+      WHERE id = $12
       RETURNING *
     `;
 
@@ -1319,6 +1320,7 @@ router.put('/:sessionId/etudiants/:etudiantId',
       new_discount_percentage !== null ? montant_total : null,
       formation_id || null,
       numero_bon || null,
+      delivery_status || null,
       now,
       inscriptionId
     ];

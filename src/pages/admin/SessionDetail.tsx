@@ -8,6 +8,7 @@ import { DiscountModal } from '@/components/admin/sessions-formation/DiscountMod
 import { PaymentManagerModal } from '@/components/admin/sessions-formation/PaymentManagerModal';
 import { StudentDocumentsModal } from '@/components/admin/sessions-formation/StudentDocumentsModal';
 import { SessionDocumentsDownloadModal } from '@/components/admin/sessions-formation/SessionDocumentsDownloadModal';
+import { DeliveryStatusModal } from '@/components/admin/sessions-formation/DeliveryStatusModal';
 import { ImageCropperModal } from '@/components/admin/students/ImageCropperModal';
 import { apiClient } from '@/lib/api/client';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
@@ -34,6 +35,7 @@ import {
   FileDown,
   Loader2,
   Download,
+  Package,
 } from 'lucide-react';
 
 export const SessionDetail: React.FC = () => {
@@ -46,6 +48,7 @@ export const SessionDetail: React.FC = () => {
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [showDeliveryStatusModal, setShowDeliveryStatusModal] = useState(false);
   const [showCropModal, setShowCropModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -656,6 +659,11 @@ export const SessionDetail: React.FC = () => {
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Statut
                           </th>
+                          {session.session_type === 'en_ligne' && (
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                              Statut de livraison
+                            </th>
+                          )}
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Formation
                           </th>
@@ -694,17 +702,21 @@ export const SessionDetail: React.FC = () => {
                             .toUpperCase() || '??';
 
                           // Déterminer la couleur de la ligne selon le statut
-                          // 🟢 Vert: documents générés | 🟡 Jaune: documents non générés | 🔴 Rouge: abandonné
+                          // 🔴 Rouge: abandonné | 🟢 Vert: documents livrés/générés | 🟡 Jaune: par défaut
                           const getRowColorClass = () => {
                             // Rouge : étudiant abandonné
                             if (etudiant.student_status === 'abandonne') {
                               return 'bg-red-200 hover:bg-red-300';
                             }
-                            // Vert : documents générés
-                            if (etudiant.has_documents) {
+                            // Vert : documents livrés (pour sessions en ligne)
+                            if (session.session_type === 'en_ligne' && etudiant.delivery_status === 'livree') {
                               return 'bg-green-200 hover:bg-green-300';
                             }
-                            // Jaune : documents non générés (étudiant non abandonné)
+                            // Vert : documents générés (pour sessions présentielles)
+                            if (session.session_type === 'presentielle' && etudiant.has_documents) {
+                              return 'bg-green-200 hover:bg-green-300';
+                            }
+                            // Jaune : par défaut (documents non livrés/générés)
                             return 'bg-yellow-200 hover:bg-yellow-300';
                           };
 
@@ -795,6 +807,31 @@ export const SessionDetail: React.FC = () => {
                                   )}
                                 </span>
                               </td>
+
+                              {/* Statut de livraison - seulement pour sessions en ligne */}
+                              {session.session_type === 'en_ligne' && (
+                                <td className="px-4 py-3">
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
+                                      etudiant.delivery_status === 'livree'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-yellow-100 text-yellow-800'
+                                    }`}
+                                  >
+                                    {etudiant.delivery_status === 'livree' ? (
+                                      <>
+                                        <Package className="h-3 w-3" />
+                                        Livrée
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Package className="h-3 w-3" />
+                                        Non livrée
+                                      </>
+                                    )}
+                                  </span>
+                                </td>
+                              )}
 
                               <td className="px-4 py-3 text-sm text-blue-600 font-medium">{etudiant.formation_title || '-'}</td>
 
@@ -946,6 +983,20 @@ export const SessionDetail: React.FC = () => {
                                         <FileText className="h-4 w-4" />
                                         Voir les documents
                                       </button>
+
+                                      {session.session_type === 'en_ligne' && (
+                                        <button
+                                          onClick={() => {
+                                            setSelectedStudent(etudiant);
+                                            setShowDeliveryStatusModal(true);
+                                            setOpenMenuId(null);
+                                          }}
+                                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                        >
+                                          <Package className="h-4 w-4" />
+                                          Statut de livraison
+                                        </button>
+                                      )}
 
                                       <div className="border-t border-gray-200 my-1" />
 
@@ -1215,6 +1266,23 @@ export const SessionDetail: React.FC = () => {
           studentName={selectedStudent.student_name || `${selectedStudent.student_first_name || ''} ${selectedStudent.student_last_name || ''}`.trim() || 'Étudiant'}
           onClose={() => {
             setShowDocumentsModal(false);
+            setSelectedStudent(null);
+          }}
+        />
+      )}
+
+      {/* Delivery Status Modal */}
+      {showDeliveryStatusModal && selectedStudent && session && (
+        <DeliveryStatusModal
+          student={selectedStudent}
+          sessionId={session.id}
+          onClose={() => {
+            setShowDeliveryStatusModal(false);
+            setSelectedStudent(null);
+          }}
+          onSuccess={() => {
+            refetch();
+            setShowDeliveryStatusModal(false);
             setSelectedStudent(null);
           }}
         />
