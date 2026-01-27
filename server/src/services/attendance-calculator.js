@@ -253,19 +253,35 @@ export class AttendanceCalculator {
   }
 
   /**
-   * Convertir un timestamp en minutes depuis minuit
-   * Extrait l'heure directement de la string ISO pour éviter les problèmes de timezone
+   * Convertir un timestamp en minutes depuis minuit (heure locale Maroc)
+   * Convertit d'abord en heure locale avant d'extraire les minutes
+   *
+   * Note: Les timestamps sont stockés en UTC dans la DB, mais les horaires
+   * de travail sont en heure locale. On doit convertir pour comparer.
    */
   timestampToMinutes(timestamp) {
     if (!timestamp) return null;
-    // Convert to string if it's a Date object
-    const str = typeof timestamp === 'string' ? timestamp : timestamp.toISOString();
-    // Extract time from ISO format (e.g., "2026-01-08T10:00:00" or "2026-01-08T10:00:00.000Z")
-    const match = str.match(/T(\d{2}):(\d{2})/);
-    if (!match) return null;
-    const hours = parseInt(match[1], 10);
-    const minutes = parseInt(match[2], 10);
-    return hours * 60 + minutes;
+
+    // Parse the timestamp
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    if (isNaN(date.getTime())) return null;
+
+    // Ajouter le décalage horaire Maroc (UTC+1)
+    // Note: Le Maroc utilise UTC+1 permanent depuis 2018
+    const MOROCCO_OFFSET_HOURS = 1;
+    const utcHours = date.getUTCHours();
+    const utcMinutes = date.getUTCMinutes();
+
+    // Convertir en heure locale Maroc
+    let localHours = utcHours + MOROCCO_OFFSET_HOURS;
+    let localMinutes = utcMinutes;
+
+    // Gérer le dépassement de minuit
+    if (localHours >= 24) {
+      localHours -= 24;
+    }
+
+    return localHours * 60 + localMinutes;
   }
 
   /**
