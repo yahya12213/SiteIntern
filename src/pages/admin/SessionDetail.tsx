@@ -772,6 +772,8 @@ export const SessionDetail: React.FC = () => {
                                   className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
                                     etudiant.student_status === 'abandonne'
                                       ? 'bg-red-100 text-red-800'
+                                      : etudiant.has_documents && (session.session_type === 'presentielle' || session.session_type === 'en_ligne')
+                                      ? 'bg-blue-100 text-blue-800'
                                       : 'bg-green-100 text-green-800'
                                   }`}
                                 >
@@ -779,6 +781,11 @@ export const SessionDetail: React.FC = () => {
                                     <>
                                       <ShieldX className="h-3 w-3" />
                                       Abandonné
+                                    </>
+                                  ) : etudiant.has_documents && (session.session_type === 'presentielle' || session.session_type === 'en_ligne') ? (
+                                    <>
+                                      <FileText className="h-3 w-3" />
+                                      Imprimé
                                     </>
                                   ) : (
                                     <>
