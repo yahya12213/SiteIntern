@@ -218,4 +218,30 @@ export const managerApi = {
     if (!response.ok) throw new Error('Export failed');
     return response.blob();
   },
+
+  /**
+   * Recalculate team attendance for a date range
+   * Useful after adding holidays, recovery periods, or retroactive attendance entries
+   */
+  recalculateTeamAttendance: async (params: {
+    start_date: string;
+    end_date: string;
+    employee_id?: string;
+  }): Promise<{
+    success: boolean;
+    message: string;
+    stats: {
+      total: number;
+      updated: number;
+      unchanged: number;
+    };
+    changes?: Array<{
+      date: string;
+      employee_id: string;
+      old_status: string;
+      new_status: string;
+    }>;
+  }> => {
+    return apiClient.post('/hr/manager/team-attendance/recalculate', params);
+  },
 };

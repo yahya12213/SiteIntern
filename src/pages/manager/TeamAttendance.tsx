@@ -64,7 +64,18 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-import { useTeam, useTeamAttendance, useTeamStats, useExportTeamAttendance } from '@/hooks/useManagerTeam';
+import { useTeam, useTeamAttendance, useTeamStats, useExportTeamAttendance, useRecalculateTeamAttendance } from '@/hooks/useManagerTeam';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Calculator, Loader2 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import type { TeamAttendanceRecord } from '@/lib/api/manager';
@@ -265,6 +276,7 @@ export default function TeamAttendance() {
   const [showAdminEditor, setShowAdminEditor] = useState(false);
   const [editRecord, setEditRecord] = useState<{ employeeId: string; date: string } | null>(null);
   const [employeeBonuses, setEmployeeBonuses] = useState<Record<string, { prime_journaliere: number; objectif_atteint: boolean }>>({});
+  const [showRecalcDialog, setShowRecalcDialog] = useState(false);
 
   // Delete mutation - uses unified attendance API
   const deleteMutation = useMutation({
@@ -304,6 +316,7 @@ export default function TeamAttendance() {
   });
   const { data: statsData, isLoading: loadingStats } = useTeamStats();
   const exportMutation = useExportTeamAttendance();
+  const recalculateMutation = useRecalculateTeamAttendance();
 
   // Fetch bonuses for all employees in the attendance records
   useEffect(() => {
@@ -402,6 +415,23 @@ export default function TeamAttendance() {
     }
   };
 
+  const handleRecalculate = async () => {
+    setShowRecalcDialog(false);
+    try {
+      const result = await recalculateMutation.mutateAsync({
+        start_date: dateRange.start_date,
+        end_date: dateRange.end_date,
+        employee_id: selectedEmployee !== 'all' ? selectedEmployee : undefined
+      });
+      toast({
+        title: 'Succès',
+        description: result.message || `${result.stats.updated} pointage(s) recalculé(s)`
+      });
+    } catch {
+      toast({ title: 'Erreur', description: 'Erreur lors du recalcul', variant: 'destructive' });
+    }
+  };
+
   const handleViewDetail = (record: TeamAttendanceRecord) => {
     setDetailRecord(record);
     setDetailModalOpen(true);
@@ -438,6 +468,18 @@ export default function TeamAttendance() {
           >
             <Plus className="h-4 w-4 mr-2" />
             Ajouter pointage
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowRecalcDialog(true)}
+            disabled={recalculateMutation.isPending}
+          >
+            {recalculateMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Calculator className="h-4 w-4 mr-2" />
+            )}
+            Recalculer
           </Button>
           <Button variant="outline" onClick={handleExport} disabled={exportMutation.isPending}>
             {exportMutation.isPending ? (
@@ -856,6 +898,34 @@ export default function TeamAttendance() {
           initialDate={editRecord?.date}
         />
       )}
+
+      {/* Recalculate Confirmation Dialog */}
+      <AlertDialog open={showRecalcDialog} onOpenChange={setShowRecalcDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Recalculer les pointages ?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                Cette action va recalculer les heures travaillées et les statuts
+                pour la période du {format(startOfMonth(currentMonth), 'dd/MM/yyyy')} au {format(endOfMonth(currentMonth), 'dd/MM/yyyy')}.
+                <br /><br />
+                Utile après:
+                <ul className="list-disc ml-4 mt-2">
+                  <li>Ajout d'un jour férié</li>
+                  <li>Ajout d'une période de récupération</li>
+                  <li>Saisie de pointages rétroactifs</li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRecalculate}>
+              Recalculer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </AppLayout>
   );

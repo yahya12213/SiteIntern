@@ -115,6 +115,28 @@ export const useCancelRequest = () => {
 };
 
 // ============================================================
+// RECALCULATE HOOKS
+// ============================================================
+
+/**
+ * Hook pour recalculer les pointages de l'équipe
+ * Utile après ajout de jours fériés, récupérations ou pointages rétroactifs
+ */
+export const useRecalculateTeamAttendance = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { start_date: string; end_date: string; employee_id?: string }) =>
+      managerApi.recalculateTeamAttendance(params),
+    onSuccess: () => {
+      // Rafraîchir les données de pointage après recalcul
+      queryClient.invalidateQueries({ queryKey: ['manager', 'team-attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['manager', 'team-stats'] });
+    },
+  });
+};
+
+// ============================================================
 // EXPORT HOOKS
 // ============================================================
 
