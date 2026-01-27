@@ -651,6 +651,9 @@ export const SessionDetail: React.FC = () => {
                             Nom
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            Date d'insertion
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             Statut
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -755,6 +758,13 @@ export const SessionDetail: React.FC = () => {
                               </td>
 
                               <td className="px-4 py-3 text-sm text-gray-900">{etudiant.student_name}</td>
+
+                              {/* Date d'insertion */}
+                              <td className="px-4 py-3 text-sm text-gray-600">
+                                {etudiant.date_inscription
+                                  ? new Date(etudiant.date_inscription).toLocaleDateString('fr-FR')
+                                  : '-'}
+                              </td>
 
                               {/* Statut étudiant */}
                               <td className="px-4 py-3">
