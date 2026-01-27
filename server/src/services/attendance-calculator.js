@@ -253,35 +253,27 @@ export class AttendanceCalculator {
   }
 
   /**
-   * Convertir un timestamp en minutes depuis minuit (heure locale Maroc)
-   * Convertit d'abord en heure locale avant d'extraire les minutes
+   * Convertir un timestamp en minutes depuis minuit
    *
-   * Note: Les timestamps sont stockés en UTC dans la DB, mais les horaires
-   * de travail sont en heure locale. On doit convertir pour comparer.
+   * SIMPLE: Le backend génère déjà les timestamps avec timezone Maroc (+01:00)
+   * Ex: "2026-01-27T20:00:00+01:00"
+   * On extrait directement "20:00" de la string - c'est déjà l'heure locale!
+   * Pas besoin de conversion UTC → local.
    */
   timestampToMinutes(timestamp) {
     if (!timestamp) return null;
 
-    // Parse the timestamp
-    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
-    if (isNaN(date.getTime())) return null;
+    // Convertir en string si c'est un objet Date
+    const str = typeof timestamp === 'string' ? timestamp : timestamp.toISOString();
 
-    // Ajouter le décalage horaire Maroc (UTC+1)
-    // Note: Le Maroc utilise UTC+1 permanent depuis 2018
-    const MOROCCO_OFFSET_HOURS = 1;
-    const utcHours = date.getUTCHours();
-    const utcMinutes = date.getUTCMinutes();
+    // Extraire HH:MM directement de la string
+    // Fonctionne avec: "2026-01-27T20:00:00+01:00", "20:00:00", "20:00"
+    const match = str.match(/(\d{2}):(\d{2})/);
+    if (!match) return null;
 
-    // Convertir en heure locale Maroc
-    let localHours = utcHours + MOROCCO_OFFSET_HOURS;
-    let localMinutes = utcMinutes;
-
-    // Gérer le dépassement de minuit
-    if (localHours >= 24) {
-      localHours -= 24;
-    }
-
-    return localHours * 60 + localMinutes;
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    return hours * 60 + minutes;
   }
 
   /**

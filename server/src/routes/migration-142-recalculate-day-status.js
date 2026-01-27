@@ -30,14 +30,16 @@ router.post('/run', async (req, res) => {
     console.log('Migration 142: Recalculating day_status for all attendance records...');
 
     // Get all attendance records that might need recalculation
+    // Note: Format timestamps with Morocco timezone to get local time directly
     const records = await pool.query(`
       SELECT
         ad.id,
         ad.employee_id,
         ad.work_date,
         ad.day_status as current_status,
-        ad.clock_in_at,
-        ad.clock_out_at,
+        -- Formater avec timezone Maroc pour obtenir l'heure locale directement
+        TO_CHAR(ad.clock_in_at AT TIME ZONE 'Africa/Casablanca', 'YYYY-MM-DD"T"HH24:MI:SS"+01:00"') as clock_in_at,
+        TO_CHAR(ad.clock_out_at AT TIME ZONE 'Africa/Casablanca', 'YYYY-MM-DD"T"HH24:MI:SS"+01:00"') as clock_out_at,
         ad.scheduled_start,
         ad.scheduled_end,
         ad.early_leave_minutes,
