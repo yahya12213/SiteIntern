@@ -71,9 +71,17 @@ export class AttendanceCalculator {
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const dayName = dayNames[dayOfWeek];
 
-    const startTime = schedule[`${dayName}_start`];
-    const endTime = schedule[`${dayName}_end`];
+    // Essayer d'abord les horaires spécifiques au jour
+    let startTime = schedule[`${dayName}_start`];
+    let endTime = schedule[`${dayName}_end`];
 
+    // Fallback: utiliser les horaires par défaut du modèle si les horaires du jour sont NULL
+    if (!startTime || !endTime) {
+      startTime = schedule.start_time;
+      endTime = schedule.end_time;
+    }
+
+    // Si toujours pas d'horaires, ce n'est pas un jour ouvrable
     if (!startTime || !endTime) {
       return { isWorkingDay: false, scheduledStart: null, scheduledEnd: null };
     }

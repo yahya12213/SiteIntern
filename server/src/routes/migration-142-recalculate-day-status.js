@@ -37,7 +37,13 @@ router.post('/run', async (req, res) => {
         ad.work_date,
         ad.day_status as current_status,
         ad.clock_in_at,
-        ad.clock_out_at
+        ad.clock_out_at,
+        ad.scheduled_start,
+        ad.scheduled_end,
+        ad.early_leave_minutes,
+        ad.late_minutes,
+        ad.net_worked_minutes,
+        ad.gross_worked_minutes
       FROM hr_attendance_daily ad
       JOIN hr_employees e ON ad.employee_id = e.id
       WHERE e.employment_status = 'active'
@@ -65,19 +71,43 @@ router.post('/run', async (req, res) => {
 
         const newStatus = calcResult.day_status;
 
-        // Check if status needs to change
-        if (newStatus !== row.current_status) {
-          // Update the record
+        // Check if status or values changed
+        const needsUpdate = newStatus !== row.current_status ||
+          calcResult.scheduled_start !== row.scheduled_start ||
+          calcResult.scheduled_end !== row.scheduled_end ||
+          calcResult.early_leave_minutes !== row.early_leave_minutes ||
+          calcResult.late_minutes !== row.late_minutes ||
+          calcResult.net_worked_minutes !== row.net_worked_minutes ||
+          calcResult.gross_worked_minutes !== row.gross_worked_minutes;
+
+        if (needsUpdate) {
+          // Update the record with all calculated values
           await pool.query(`
             UPDATE hr_attendance_daily
             SET
               day_status = $1,
-              notes = COALESCE(notes || ' | ', '') || $2,
+              scheduled_start = $2,
+              scheduled_end = $3,
+              scheduled_break_minutes = $4,
+              gross_worked_minutes = $5,
+              net_worked_minutes = $6,
+              late_minutes = $7,
+              early_leave_minutes = $8,
+              overtime_minutes = $9,
+              notes = COALESCE(notes || ' | ', '') || $10,
               updated_at = NOW()
-            WHERE id = $3
+            WHERE id = $11
           `, [
             newStatus,
-            `Statut recalculé: ${row.current_status} → ${newStatus} (Migration 142)`,
+            calcResult.scheduled_start,
+            calcResult.scheduled_end,
+            calcResult.scheduled_break_minutes || 0,
+            calcResult.gross_worked_minutes,
+            calcResult.net_worked_minutes,
+            calcResult.late_minutes || 0,
+            calcResult.early_leave_minutes || 0,
+            calcResult.overtime_minutes || 0,
+            `Recalculé: ${row.current_status} → ${newStatus} (Migration 142)`,
             row.id
           ]);
 
