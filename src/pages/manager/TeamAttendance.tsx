@@ -123,11 +123,12 @@ function formatHours(hours?: number): string {
 }
 
 function formatPay(hours?: number, hourlyRate?: number): string {
-  // Utiliser vérification explicite au lieu de truthy check
-  // pour gérer correctement les valeurs 0
-  if (hours === undefined || hours === null || hours === 0) return '-';
-  if (hourlyRate === undefined || hourlyRate === null || hourlyRate === 0) return '-';
-  const pay = hours * hourlyRate;
+  // Convertir en nombre et vérifier les valeurs invalides
+  const h = Number(hours);
+  const rate = Number(hourlyRate);
+  if (!h || isNaN(h) || h <= 0) return '-';
+  if (!rate || isNaN(rate) || rate <= 0) return '-';
+  const pay = h * rate;
   return `${pay.toFixed(2)} MAD`;
 }
 
