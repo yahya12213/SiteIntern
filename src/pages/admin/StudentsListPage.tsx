@@ -168,6 +168,9 @@ export const StudentsListPage: React.FC = () => {
                       Nom
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date d'insertion
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Prénom
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -205,6 +208,11 @@ export const StudentsListPage: React.FC = () => {
                     >
                       <td className={`px-4 py-3 text-sm font-medium ${!student.has_session ? 'text-red-800' : 'text-gray-900'}`}>
                         {student.nom}
+                      </td>
+                      <td className={`px-4 py-3 text-sm ${!student.has_session ? 'text-red-700' : 'text-gray-600'}`}>
+                        {student.created_at
+                          ? new Date(student.created_at).toLocaleDateString('fr-FR')
+                          : '-'}
                       </td>
                       <td className={`px-4 py-3 text-sm ${!student.has_session ? 'text-red-800' : 'text-gray-900'}`}>
                         {student.prenom}

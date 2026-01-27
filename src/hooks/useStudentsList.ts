@@ -32,6 +32,7 @@ export interface StudentWithSession {
   ville: string | null;
   formation_titre: string | null;
   has_session: boolean;
+  created_at: string | null;
 }
 
 export interface StudentsListStats {
