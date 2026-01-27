@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Package, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api/client';
-import { DeliveryStatus } from '@/types/sessions';
+import type { DeliveryStatus } from '@/types/sessions';
 
 interface DeliveryStatusModalProps {
   student: {
