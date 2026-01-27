@@ -339,20 +339,19 @@ export class AttendanceCalculator {
     let recoverySpecialDay = null;
 
     // PRIORITÉ 1: Récupération où l'employé DOIT travailler
-    // Si c'est aussi un jour férié → recovery_paid, sinon → recovery_unpaid
+    // Un seul statut 'recovery' - pas de paie même si jour férié (le salarié "rembourse")
     if (recovery && !recovery.is_day_off) {
       isRecoveryWorkDay = true;
-      // Jour de récupération où l'employé doit travailler
+      // Jour de récupération où l'employé doit travailler → PAS DE PAIE
+      recoveryStatus = 'recovery';
       if (holiday) {
-        // Récupération sur jour férié = payé
-        recoveryStatus = 'recovery_paid';
-        recoveryNotes = `Récupération payée (jour férié ${holiday.name}): ${recovery.period_name}`;
-        recoverySpecialDay = { type: 'recovery_paid', name: recovery.period_name, holiday: holiday.name };
+        // Récupération sur jour férié - noter l'info mais même traitement (pas de paie)
+        recoveryNotes = `Récupération (jour férié ${holiday.name}): ${recovery.period_name}`;
+        recoverySpecialDay = { type: 'recovery', name: recovery.period_name, isHoliday: true, holidayName: holiday.name };
       } else {
-        // Récupération sur jour normal = non payé
-        recoveryStatus = 'recovery_unpaid';
+        // Récupération sur jour normal
         recoveryNotes = `Récupération: ${recovery.period_name}`;
-        recoverySpecialDay = { type: 'recovery_unpaid', name: recovery.period_name };
+        recoverySpecialDay = { type: 'recovery', name: recovery.period_name, isHoliday: false };
       }
       // NE PAS return ici - continuer le calcul des heures travaillées
       // Le statut sera restauré à la fin après le calcul des heures

@@ -41,9 +41,10 @@ export type TeamAttendanceStatus =
   | 'training'
   | 'sick'
   | 'recovery_off'
-  | 'recovery_day'
-  | 'recovery_paid'
-  | 'recovery_unpaid'
+  | 'recovery'       // Nouveau statut unifié pour jours de récupération
+  | 'recovery_day'   // Deprecated - alias pour recovery
+  | 'recovery_paid'  // Deprecated - sera converti en recovery via migration-148
+  | 'recovery_unpaid' // Deprecated - sera converti en recovery via migration-148
   | 'overtime';
 
 export interface TeamAttendanceRecord {

@@ -557,6 +557,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 147: Statut de Livraison Sessions En Ligne',
     description: '📦 SESSIONS: Ajoute colonne delivery_status (non_livree/livree) à session_etudiants. Permet de suivre la livraison des documents aux étudiants des sessions en ligne.',
     endpoint: '/migration-147-add-delivery-status'
+  },
+  {
+    id: 'migration-148',
+    name: 'Migration 148: Fusionner Statuts Récupération',
+    description: '🔄 RÉCUP: Fusionne recovery_paid et recovery_unpaid en un seul statut "recovery". Le jour de récupération n\'a plus de paie (le salarié "rembourse" les heures déjà payées).',
+    endpoint: '/migration-148-merge-recovery-statuses'
   }
 ];
 

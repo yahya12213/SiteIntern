@@ -253,8 +253,9 @@ function DayStatusBadge({ status }: { status: string }) {
     leave: { label: 'Congé', className: 'bg-indigo-100 text-indigo-800' },
     weekend: { label: 'Weekend', className: 'bg-gray-100 text-gray-600' },
     recovery_off: { label: 'À récupérer', className: 'bg-teal-100 text-teal-800' },
-    recovery_paid: { label: 'Récup. payée', className: 'bg-green-100 text-green-800' },
-    recovery_unpaid: { label: 'Récup. non payée', className: 'bg-orange-100 text-orange-800' },
+    recovery: { label: 'Récupération', className: 'bg-teal-100 text-teal-800' },
+    recovery_paid: { label: 'Récupération', className: 'bg-teal-100 text-teal-800' },  // Deprecated
+    recovery_unpaid: { label: 'Récupération', className: 'bg-teal-100 text-teal-800' },  // Deprecated
     mission: { label: 'Mission', className: 'bg-cyan-100 text-cyan-800' },
     training: { label: 'Formation', className: 'bg-violet-100 text-violet-800' },
     sick: { label: 'Maladie', className: 'bg-pink-100 text-pink-800' },
@@ -684,11 +685,9 @@ function Clocking() {
                         <div className="text-sm font-bold text-blue-600">
                           {day.day_status === 'recovery_off'
                             ? `${day.hours_to_recover || 8}h (à récupérer)`
-                            : day.day_status === 'recovery_paid'
-                              ? `${formatWorkedTime(day.net_worked_minutes)} (récup. payée)`
-                              : day.day_status === 'recovery_unpaid'
-                                ? `${formatWorkedTime(day.net_worked_minutes)} (récup. non payée)`
-                                : formatWorkedTime(day.net_worked_minutes)}
+                            : ['recovery', 'recovery_paid', 'recovery_unpaid'].includes(day.day_status)
+                              ? `${formatWorkedTime(day.net_worked_minutes)} (récupération)`
+                              : formatWorkedTime(day.net_worked_minutes)}
                         </div>
                       </div>
                     </div>

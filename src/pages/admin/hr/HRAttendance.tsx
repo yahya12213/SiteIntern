@@ -166,8 +166,9 @@ export default function HRAttendance() {
       holiday: 'bg-purple-100 text-purple-800',
       weekend: 'bg-gray-100 text-gray-600',
       recovery_off: 'bg-teal-100 text-teal-800',
-      recovery_paid: 'bg-green-100 text-green-800',
-      recovery_unpaid: 'bg-orange-100 text-orange-800',
+      recovery: 'bg-teal-100 text-teal-800',
+      recovery_paid: 'bg-teal-100 text-teal-800',  // Deprecated - migration en cours
+      recovery_unpaid: 'bg-teal-100 text-teal-800',  // Deprecated - migration en cours
       mission: 'bg-cyan-100 text-cyan-800',
       training: 'bg-violet-100 text-violet-800',
       sick: 'bg-pink-100 text-pink-800',
@@ -185,8 +186,9 @@ export default function HRAttendance() {
       holiday: 'Jour férié',
       weekend: 'Weekend',
       recovery_off: 'À récupérer',
-      recovery_paid: 'Récup. payée',
-      recovery_unpaid: 'Récup. non payée',
+      recovery: 'Récupération',
+      recovery_paid: 'Récupération',  // Deprecated
+      recovery_unpaid: 'Récupération',  // Deprecated
       mission: 'Mission',
       training: 'Formation',
       sick: 'Maladie',

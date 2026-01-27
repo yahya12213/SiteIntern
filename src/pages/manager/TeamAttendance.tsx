@@ -95,9 +95,10 @@ const STATUS_CONFIG: Record<string, { label: string; className: string; icon: an
   training: { label: 'Formation', className: 'bg-violet-100 text-violet-800', icon: Calendar },
   sick: { label: 'Maladie', className: 'bg-pink-100 text-pink-800', icon: XCircle },
   recovery_off: { label: 'À récupérer', className: 'bg-teal-100 text-teal-800', icon: Calendar },
-  recovery_day: { label: 'Jour de récup', className: 'bg-teal-100 text-teal-800', icon: Calendar },
-  recovery_paid: { label: 'Récup. payée', className: 'bg-green-100 text-green-800', icon: CheckCircle2 },
-  recovery_unpaid: { label: 'Récup. non payée', className: 'bg-orange-100 text-orange-800', icon: Clock },
+  recovery: { label: 'Récupération', className: 'bg-teal-100 text-teal-800', icon: RefreshCw },
+  recovery_day: { label: 'Récupération', className: 'bg-teal-100 text-teal-800', icon: RefreshCw },  // Alias pour compatibilité
+  recovery_paid: { label: 'Récupération', className: 'bg-teal-100 text-teal-800', icon: RefreshCw },  // Deprecated - migration en cours
+  recovery_unpaid: { label: 'Récupération', className: 'bg-teal-100 text-teal-800', icon: RefreshCw },  // Deprecated - migration en cours
   overtime: { label: 'Heures Sup', className: 'bg-amber-100 text-amber-800', icon: Clock },
 };
 
@@ -688,18 +689,32 @@ export default function TeamAttendance() {
                       <TableCell>
                         <span className="font-medium text-green-700">
                           {(() => {
-                            // Pour holiday et recovery_off, utiliser les heures planifiées
-                            const isSpecialStatus = ['holiday', 'recovery_off', 'recovery_paid', 'recovery_unpaid'].includes(record.status);
-                            const hours = isSpecialStatus
-                              ? (record.scheduled_hours || record.hours_to_recover || 8)
-                              : record.worked_hours;
-
-                            // Vérifier is_working_day pour les statuts spéciaux
-                            if (isSpecialStatus && record.is_working_day === false) {
-                              return <span className="text-gray-400">Non payé</span>;
+                            // recovery_off = jour off accordé → paie positive (crédit donné au salarié)
+                            if (record.status === 'recovery_off') {
+                              const hours = record.scheduled_hours || record.hours_to_recover || 8;
+                              if (record.is_working_day === false) {
+                                return <span className="text-gray-400">Non payé</span>;
+                              }
+                              return formatPay(hours, record.hourly_rate);
                             }
 
-                            return formatPay(hours, record.hourly_rate);
+                            // recovery/recovery_paid/recovery_unpaid = jour de travail de récup → PAS DE PAIE
+                            // Le salarié "rembourse" les heures déjà payées, même si c'est un jour férié
+                            if (['recovery', 'recovery_paid', 'recovery_unpaid', 'recovery_day'].includes(record.status)) {
+                              return <span className="text-gray-400">Récup.</span>;
+                            }
+
+                            // holiday sur jour ouvrable → paie
+                            if (record.status === 'holiday') {
+                              const hours = record.scheduled_hours || 8;
+                              if (record.is_working_day === false) {
+                                return <span className="text-gray-400">Non payé</span>;
+                              }
+                              return formatPay(hours, record.hourly_rate);
+                            }
+
+                            // Autres statuts → heures travaillées
+                            return formatPay(record.worked_hours, record.hourly_rate);
                           })()}
                         </span>
                       </TableCell>
