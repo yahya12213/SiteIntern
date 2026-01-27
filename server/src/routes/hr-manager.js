@@ -214,7 +214,8 @@ router.get('/team-attendance',
           ad.is_anomaly,
           ad.scheduled_start,
           ad.scheduled_end,
-          ad.scheduled_break_minutes
+          ad.scheduled_break_minutes,
+          ad.is_working_day
         FROM hr_attendance_daily ad
         JOIN hr_employees e ON e.id = ad.employee_id
         WHERE ad.employee_id = ANY($1::uuid[])

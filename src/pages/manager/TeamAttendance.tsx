@@ -123,7 +123,10 @@ function formatHours(hours?: number): string {
 }
 
 function formatPay(hours?: number, hourlyRate?: number): string {
-  if (!hours || !hourlyRate || hourlyRate === 0) return '-';
+  // Utiliser vérification explicite au lieu de truthy check
+  // pour gérer correctement les valeurs 0
+  if (hours === undefined || hours === null || hours === 0) return '-';
+  if (hourlyRate === undefined || hourlyRate === null || hourlyRate === 0) return '-';
   const pay = hours * hourlyRate;
   return `${pay.toFixed(2)} MAD`;
 }
@@ -683,10 +686,20 @@ export default function TeamAttendance() {
                       </TableCell>
                       <TableCell>
                         <span className="font-medium text-green-700">
-                          {formatPay(
-                            record.worked_hours || record.scheduled_hours || record.hours_to_recover,
-                            record.hourly_rate
-                          )}
+                          {(() => {
+                            // Pour holiday et recovery_off, utiliser les heures planifiées
+                            const isSpecialStatus = ['holiday', 'recovery_off', 'recovery_paid', 'recovery_unpaid'].includes(record.status);
+                            const hours = isSpecialStatus
+                              ? (record.scheduled_hours || record.hours_to_recover || 8)
+                              : record.worked_hours;
+
+                            // Vérifier is_working_day pour les statuts spéciaux
+                            if (isSpecialStatus && record.is_working_day === false) {
+                              return <span className="text-gray-400">Non payé</span>;
+                            }
+
+                            return formatPay(hours, record.hourly_rate);
+                          })()}
                         </span>
                       </TableCell>
                       <TableCell>

@@ -61,6 +61,7 @@ export interface TeamAttendanceRecord {
   late_minutes?: number;
   leave_type?: string;
   notes?: string;
+  is_working_day?: boolean;    // Pour fériés/récup: true = jour ouvrable (paie calculée), false = weekend (pas de paie)
 }
 
 export interface TeamAttendanceSummary {
