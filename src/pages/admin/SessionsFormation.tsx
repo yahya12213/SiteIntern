@@ -279,6 +279,9 @@ export const SessionsFormation: React.FC = () => {
                       Ville
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type de session
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Date Début
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -328,6 +331,17 @@ export const SessionsFormation: React.FC = () => {
                           <MapPin className="h-4 w-4 text-gray-400" />
                           {session.ville_name || '-'}
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${
+                            session.session_type === 'en_ligne'
+                              ? 'bg-purple-100 text-purple-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}
+                        >
+                          {session.session_type === 'en_ligne' ? 'En ligne' : 'Présentielle'}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-1 text-sm text-gray-900">
