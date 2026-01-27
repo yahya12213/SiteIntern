@@ -3,6 +3,7 @@ import { X, User, AlertCircle, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { apiClient } from '@/lib/api/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Formation {
   id: string;
@@ -32,6 +33,7 @@ interface EditStudentModalProps {
     student_birth_place?: string;
     student_address?: string;
     profile_image_url?: string;
+    date_inscription?: string;
     // Formation info
     formation_id?: string;
     formation_title?: string;
@@ -54,6 +56,8 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { isAdmin } = useAuth();
+
   // Extraire nom et prénom - utiliser les champs séparés si disponibles
   const nom = student.student_first_name || student.student_name?.split(' ')[0] || '';
   const prenom = student.student_last_name || student.student_name?.split(' ').slice(1).join(' ') || '';
@@ -70,6 +74,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
     date_naissance: student.student_birth_date ? student.student_birth_date.split('T')[0] : '',
     lieu_naissance: student.student_birth_place || '',
     adresse: student.student_address || '',
+    date_inscription: student.date_inscription ? student.date_inscription.split('T')[0] : '',
     // Formation info
     session_id: sessionId,
     formation_id: student.formation_id || '',
@@ -151,6 +156,11 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
     if (!formData.lieu_naissance.trim()) newErrors.lieu_naissance = 'Le lieu de naissance est obligatoire';
     if (!formData.adresse.trim()) newErrors.adresse = "L'adresse est obligatoire";
 
+    // Validation de la date d'insertion (seulement pour les admins)
+    if (isAdmin && !formData.date_inscription) {
+      newErrors.date_inscription = "La date d'insertion est obligatoire";
+    }
+
     // Formation info
     if (!formData.formation_id) newErrors.formation = 'La formation est obligatoire';
     if (!formData.numero_bon.trim()) newErrors.numero_bon = 'Le numéro de bon est obligatoire';
@@ -198,7 +208,7 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
       // Vérifier si l'étudiant est transféré vers une autre session
       const isTransfer = formData.session_id !== sessionId;
 
-      await apiClient.put(`/sessions-formation/${sessionId}/etudiants/${student.id}`, {
+      const enrollmentPayload: any = {
         formation_id: formData.formation_id,
         numero_bon: formData.numero_bon.trim(),
         discount_percentage: discountPct,
@@ -211,7 +221,14 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
             : 'impaye',
         // Nouveau: session de destination pour le transfert
         new_session_id: isTransfer ? formData.session_id : undefined,
-      });
+      };
+
+      // Ajouter date_inscription SEULEMENT si admin
+      if (isAdmin && formData.date_inscription) {
+        enrollmentPayload.date_inscription = formData.date_inscription;
+      }
+
+      await apiClient.put(`/sessions-formation/${sessionId}/etudiants/${student.id}`, enrollmentPayload);
 
       onSuccess();
       onClose();
@@ -385,6 +402,23 @@ export const EditStudentModal: React.FC<EditStudentModalProps> = ({
                   className={errors.adresse ? 'border-red-300' : ''}
                 />
                 {errors.adresse && <p className="text-xs text-red-600 mt-1">{errors.adresse}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date d'insertion {isAdmin && <span className="text-red-500">*</span>}
+                  {!isAdmin && <span className="text-xs text-gray-500">(Admin uniquement)</span>}
+                </label>
+                <Input
+                  type="date"
+                  value={formData.date_inscription}
+                  onChange={(e) => setFormData({ ...formData, date_inscription: e.target.value })}
+                  disabled={!isAdmin}
+                  className={!isAdmin ? 'bg-gray-100 cursor-not-allowed' : errors.date_inscription ? 'border-red-300' : ''}
+                />
+                {isAdmin && errors.date_inscription && (
+                  <p className="text-xs text-red-600 mt-1">{errors.date_inscription}</p>
+                )}
               </div>
 
               <div className="md:col-span-2">

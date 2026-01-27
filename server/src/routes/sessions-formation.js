@@ -1139,9 +1139,20 @@ router.put('/:sessionId/etudiants/:etudiantId',
   async (req, res) => {
   try {
     const { sessionId, etudiantId } = req.params;
-    const { statut_paiement, montant_paye, discount_percentage, discount_reason, formation_id, numero_bon, new_session_id, delivery_status } = req.body;
+    const { statut_paiement, montant_paye, discount_percentage, discount_reason, formation_id, numero_bon, new_session_id, delivery_status, date_inscription } = req.body;
 
     const now = new Date().toISOString();
+
+    // Vérifier si l'utilisateur est admin pour la modification de date_inscription
+    const isAdmin = req.user.role === 'admin';
+
+    // Validation: seuls les admins peuvent modifier date_inscription
+    if (date_inscription && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Seuls les administrateurs peuvent modifier la date d\'inscription'
+      });
+    }
 
     // Si transfert vers une autre session
     if (new_session_id && new_session_id !== sessionId) {
@@ -1305,8 +1316,9 @@ router.put('/:sessionId/etudiants/:etudiantId',
         formation_id = COALESCE($8, formation_id),
         numero_bon = COALESCE($9, numero_bon),
         delivery_status = COALESCE($10, delivery_status),
-        updated_at = $11
-      WHERE id = $12
+        date_inscription = COALESCE($11, date_inscription),
+        updated_at = $12
+      WHERE id = $13
       RETURNING *
     `;
 
@@ -1321,6 +1333,7 @@ router.put('/:sessionId/etudiants/:etudiantId',
       formation_id || null,
       numero_bon || null,
       delivery_status || null,
+      (isAdmin && date_inscription) ? date_inscription : null,
       now,
       inscriptionId
     ];
