@@ -308,12 +308,17 @@ export class AttendanceCalculator {
       overtime_rate_type: null,
       overtime_periods: null,
       notes: null,
-      special_day: null
+      special_day: null,
+      is_working_day: true // Par défaut, jour ouvrable
     };
 
     // Get schedule
     const schedule = await this.getScheduleForDate(employeeId, date);
     const scheduledTimes = this.getScheduledTimesForDate(schedule, date);
+
+    // Stocker si c'est un jour ouvrable selon le modèle horaire
+    // Important pour le calcul de paie des fériés/récupérations
+    result.is_working_day = scheduledTimes.isWorkingDay;
 
     if (schedule) {
       result.scheduled_start = scheduledTimes.scheduledStart;

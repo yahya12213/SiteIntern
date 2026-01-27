@@ -213,6 +213,7 @@ import migration142Router from './routes/migration-142-recalculate-day-status.js
 import migration143Router from './routes/migration-143-formation-prime.js';
 import migration144Router from './routes/migration-144-employee-objective.js';
 import migration145Router from './routes/migration-145-payroll-cutoff-day.js';
+import migration146Router from './routes/migration-146-working-day-payroll.js';
 import hrEnrollmentBonusesRouter from './routes/hr-enrollment-bonuses.js';
 import hrAssistantBonusRouter from './routes/hr-assistant-bonus.js';
 import testWorkflowRouter from './routes/test-workflow.js';
@@ -485,6 +486,7 @@ app.use('/api/migration-142-recalculate-day-status', ...adminOnly, migration142R
 app.use('/api/migration-143-formation-prime', ...adminOnly, migration143Router);
 app.use('/api/migration-144-employee-objective', ...adminOnly, migration144Router);
 app.use('/api/migration-145-payroll-cutoff-day', ...adminOnly, migration145Router);
+app.use('/api/migration-146-working-day-payroll', ...adminOnly, migration146Router);
 app.use('/api/test-workflow', ...adminOnly, testWorkflowRouter);
 // Note: /my/correction-requests routes are in hr-employee-self.js (mounted at /api/hr/my)
 // Manager routes for correction requests are mounted separately below

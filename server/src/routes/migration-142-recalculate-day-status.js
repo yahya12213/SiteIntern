@@ -96,9 +96,10 @@ router.post('/run', async (req, res) => {
               late_minutes = $7,
               early_leave_minutes = $8,
               overtime_minutes = $9,
-              notes = COALESCE(notes || ' | ', '') || $10,
+              is_working_day = $10,
+              notes = COALESCE(notes || ' | ', '') || $11,
               updated_at = NOW()
-            WHERE id = $11
+            WHERE id = $12
           `, [
             newStatus,
             calcResult.scheduled_start,
@@ -109,6 +110,7 @@ router.post('/run', async (req, res) => {
             calcResult.late_minutes || 0,
             calcResult.early_leave_minutes || 0,
             calcResult.overtime_minutes || 0,
+            calcResult.is_working_day !== false, // Default to true if undefined
             `Recalculé: ${row.current_status} → ${newStatus} (Migration 142)`,
             row.id
           ]);

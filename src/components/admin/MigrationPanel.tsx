@@ -545,6 +545,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 145: Jour Coupure Paie',
     description: '📅 PÉRIODE: Ajoute colonne payroll_cutoff_day (INTEGER, défaut=18) à hr_employees. Calcule automatiquement la période d\'objectif: du 19 mois précédent au 18 mois courant = paie du mois courant.',
     endpoint: '/migration-145-payroll-cutoff-day'
+  },
+  {
+    id: 'migration-146',
+    name: 'Migration 146: Jour Ouvrable pour Paie',
+    description: '📊 PAIE: Ajoute colonne is_working_day (BOOLEAN) à hr_attendance_daily. Les fériés/récupérations ne comptent pour la paie que s\'ils tombent sur un jour ouvrable du modèle horaire.',
+    endpoint: '/migration-146-working-day-payroll'
   }
 ];
 
