@@ -24,7 +24,7 @@ import {
   Edit,
   Plus
 } from 'lucide-react';
-import { format, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, isToday } from 'date-fns';
+import { format, parseISO, addMonths, subMonths, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -132,6 +132,29 @@ function formatHours(hours?: number): string {
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
   return `${h}h${m.toString().padStart(2, '0')}`;
+}
+
+// Jour de coupure de paie par défaut (18 du mois)
+const PAYROLL_CUTOFF_DAY = 18;
+
+/**
+ * Calculer la période de paie pour un mois donné
+ * Exemple avec cutoffDay = 18:
+ * - Paie janvier 2026 = 19/12/2025 au 18/01/2026
+ * - Paie février 2026 = 19/01/2026 au 18/02/2026
+ */
+function getPayrollPeriod(month: Date, cutoffDay: number = PAYROLL_CUTOFF_DAY): { start: Date; end: Date } {
+  const year = month.getFullYear();
+  const monthIndex = month.getMonth(); // 0-indexed
+
+  // Date de fin = jour de coupure du mois sélectionné
+  const endDate = new Date(year, monthIndex, cutoffDay);
+
+  // Date de début = jour après coupure du mois précédent
+  const prevMonth = subMonths(month, 1);
+  const startDate = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), cutoffDay + 1);
+
+  return { start: startDate, end: endDate };
 }
 
 function formatPay(hours?: number, hourlyRate?: number): string {
@@ -300,13 +323,15 @@ export default function TeamAttendance() {
     }
   });
 
-  // Computed date range
+  // Computed date range - Utilise la période de paie (ex: janvier = 19/12 au 18/01)
+  const payrollPeriod = useMemo(() => getPayrollPeriod(currentMonth), [currentMonth]);
+
   const dateRange = useMemo(() => {
     return {
-      start_date: format(startOfMonth(currentMonth), 'yyyy-MM-dd'),
-      end_date: format(endOfMonth(currentMonth), 'yyyy-MM-dd'),
+      start_date: format(payrollPeriod.start, 'yyyy-MM-dd'),
+      end_date: format(payrollPeriod.end, 'yyyy-MM-dd'),
     };
-  }, [currentMonth]);
+  }, [payrollPeriod]);
 
   // Queries
   const { data: teamData } = useTeam();
@@ -641,7 +666,7 @@ export default function TeamAttendance() {
           <CardDescription>
             {selectedDate
               ? `Pointages du ${format(parseISO(selectedDate), 'd MMMM yyyy', { locale: fr })}`
-              : `Pointages de ${format(currentMonth, 'MMMM yyyy', { locale: fr })}`
+              : `Paie ${format(currentMonth, 'MMMM yyyy', { locale: fr })} (${format(payrollPeriod.start, 'dd/MM')} - ${format(payrollPeriod.end, 'dd/MM/yyyy')})`
             }
             {selectedEmployee !== 'all' && ` - ${teamMembers.find(m => m.employee_id === selectedEmployee)?.full_name}`}
           </CardDescription>
@@ -907,7 +932,7 @@ export default function TeamAttendance() {
             <AlertDialogDescription asChild>
               <div>
                 Cette action va recalculer les heures travaillées et les statuts
-                pour la période du {format(startOfMonth(currentMonth), 'dd/MM/yyyy')} au {format(endOfMonth(currentMonth), 'dd/MM/yyyy')}.
+                pour la période du {format(payrollPeriod.start, 'dd/MM/yyyy')} au {format(payrollPeriod.end, 'dd/MM/yyyy')}.
                 <br /><br />
                 Utile après:
                 <ul className="list-disc ml-4 mt-2">
