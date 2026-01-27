@@ -458,9 +458,34 @@ export class AttendanceCalculator {
     // Calculs avec sortie
     const clockOutMinutes = this.timestampToMinutes(clockOut);
 
-    // Temps brut travaillé
+    // Temps brut travaillé - PLAFONNÉ aux horaires du modèle
+    // Règle métier: Ne pas compter les arrivées avant l'heure ni les départs après l'heure
+    // Les heures hors planning ne comptent que si heures supplémentaires approuvées
     if (clockInMinutes !== null && clockOutMinutes !== null) {
-      result.gross_worked_minutes = Math.max(0, clockOutMinutes - clockInMinutes);
+      // Calculer le temps effectif DANS la plage horaire du modèle
+      let effectiveStartMinutes = clockInMinutes;
+      let effectiveEndMinutes = clockOutMinutes;
+
+      // Si horaires planifiés disponibles, plafonner aux limites
+      if (scheduledStartMinutes !== null) {
+        // Ne pas compter le temps avant l'heure de début prévue
+        effectiveStartMinutes = Math.max(clockInMinutes, scheduledStartMinutes);
+      }
+      if (scheduledEndMinutes !== null) {
+        // Ne pas compter le temps après l'heure de fin prévue (sauf heures sup)
+        // Les heures sup seront ajoutées séparément si approuvées
+        effectiveEndMinutes = Math.min(clockOutMinutes, scheduledEndMinutes);
+      }
+
+      // Temps brut = temps effectif dans la plage horaire
+      result.gross_worked_minutes = Math.max(0, effectiveEndMinutes - effectiveStartMinutes);
+
+      // Stocker les temps effectifs pour référence
+      result.effective_start_minutes = effectiveStartMinutes;
+      result.effective_end_minutes = effectiveEndMinutes;
+      result.early_arrival_minutes = scheduledStartMinutes !== null
+        ? Math.max(0, scheduledStartMinutes - clockInMinutes)
+        : 0;
 
       // BUG #5 FIX: Only deduct break if employee worked long enough to have taken one
       // Minimum 4 hours of work required before deducting break (reasonable threshold)
