@@ -13,7 +13,7 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = Router();
 
 // Check migration status
-router.get('/migration-147/status', authenticateToken, async (req, res) => {
+router.get('/status', authenticateToken, async (req, res) => {
   try {
     const checkColumn = await pool.query(`
       SELECT column_name FROM information_schema.columns
@@ -35,7 +35,7 @@ router.get('/migration-147/status', authenticateToken, async (req, res) => {
 });
 
 // Run migration
-router.post('/migration-147/run', authenticateToken, async (req, res) => {
+router.post('/run', authenticateToken, async (req, res) => {
   const client = await pool.connect();
 
   try {
