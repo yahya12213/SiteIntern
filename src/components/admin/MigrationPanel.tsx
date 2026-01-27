@@ -551,6 +551,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 146: Jour Ouvrable pour Paie',
     description: '📊 PAIE: Ajoute colonne is_working_day (BOOLEAN) à hr_attendance_daily. Les fériés/récupérations ne comptent pour la paie que s\'ils tombent sur un jour ouvrable du modèle horaire.',
     endpoint: '/migration-146-working-day-payroll'
+  },
+  {
+    id: 'migration-147',
+    name: 'Migration 147: Statut de Livraison Sessions En Ligne',
+    description: '📦 SESSIONS: Ajoute colonne delivery_status (non_livree/livree) à session_etudiants. Permet de suivre la livraison des documents aux étudiants des sessions en ligne.',
+    endpoint: '/migration-147-add-delivery-status'
   }
 ];
 
