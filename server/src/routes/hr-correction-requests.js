@@ -439,4 +439,77 @@ router.put('/manager/correction-requests/:id/reject', authenticateToken, require
   }
 });
 
+// PUT /api/hr/manager/correction-requests/:id/reapply - Ré-appliquer une correction approuvée
+// Utilisé si la correction a été approuvée mais pas appliquée à cause d'une erreur
+router.put('/manager/correction-requests/:id/reapply', authenticateToken, requirePermission('hr.leaves.approve'), async (req, res) => {
+  const pool = getPool();
+
+  try {
+    const { id } = req.params;
+
+    // Récupérer la demande approuvée
+    const requestResult = await pool.query(`
+      SELECT cr.*, e.id as employee_id
+      FROM hr_attendance_correction_requests cr
+      JOIN hr_employees e ON cr.employee_id = e.id
+      WHERE cr.id = $1 AND cr.status = 'approved'
+    `, [id]);
+
+    if (requestResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Demande non trouvée ou non approuvée'
+      });
+    }
+
+    const request = requestResult.rows[0];
+    const { employee_id, request_date, requested_check_in, requested_check_out } = request;
+
+    // Format request_date as YYYY-MM-DD (in case it's a Date object)
+    const formattedDate = request_date instanceof Date
+      ? request_date.toISOString().split('T')[0]
+      : (typeof request_date === 'string' ? request_date.split('T')[0] : request_date);
+
+    // Build clock_in and clock_out timestamps
+    const clockInAt = requested_check_in ? `${formattedDate}T${requested_check_in}:00+00:00` : null;
+    const clockOutAt = requested_check_out ? `${formattedDate}T${requested_check_out}:00+00:00` : null;
+
+    console.log(`[Reapply Correction] ID: ${id}, Date: ${formattedDate}, Check-in: ${clockInAt}, Check-out: ${clockOutAt}`);
+
+    // Upsert into hr_attendance_daily
+    await pool.query(`
+      INSERT INTO hr_attendance_daily (
+        employee_id, work_date, clock_in_at, clock_out_at, day_status, source, notes, created_at
+      )
+      VALUES ($1, $2, $3, $4, 'present', 'correction', 'Correction ré-appliquée', NOW())
+      ON CONFLICT (employee_id, work_date) DO UPDATE SET
+        clock_in_at = COALESCE($3, hr_attendance_daily.clock_in_at),
+        clock_out_at = COALESCE($4, hr_attendance_daily.clock_out_at),
+        source = 'correction',
+        notes = COALESCE(hr_attendance_daily.notes, '') || ' | Correction ré-appliquée',
+        updated_at = NOW()
+    `, [employee_id, formattedDate, clockInAt, clockOutAt]);
+
+    res.json({
+      success: true,
+      message: 'Correction ré-appliquée avec succès',
+      applied: {
+        date: formattedDate,
+        check_in: requested_check_in,
+        check_out: requested_check_out
+      }
+    });
+
+  } catch (error) {
+    console.error('Error reapplying correction:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur lors de la ré-application',
+      details: error.message
+    });
+  } finally {
+    await pool.end();
+  }
+});
+
 export default router;
