@@ -792,7 +792,7 @@ router.post('/calculate/:period_id/reset',
       // 4. Reset period status and totals
       await client.query(`
         UPDATE hr_payroll_periods
-        SET status = 'open',
+        SET status = 'draft',
             calculated_at = NULL,
             total_employees = NULL,
             total_gross = NULL,
