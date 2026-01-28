@@ -634,8 +634,8 @@ router.get('/requests', authenticateToken, async (req, res) => {
           NULL as n1_comment,
           NULL as n2_comment,
           NULL as hr_comment,
-          (cr.original_check_in AT TIME ZONE 'Africa/Casablanca')::time as original_check_in,
-          (cr.original_check_out AT TIME ZONE 'Africa/Casablanca')::time as original_check_out,
+          cr.original_check_in,
+          cr.original_check_out,
           cr.requested_check_in,
           cr.requested_check_out,
           CASE
