@@ -702,7 +702,7 @@ router.get('/payslips',
       query += ' ORDER BY ps.employee_name';
 
       const result = await pool.query(query, params);
-      res.json({ success: true, data: result.rows });
+      res.json({ success: true, payslips: result.rows });
     } catch (error) {
       console.error('Error fetching payslips:', error);
       res.status(500).json({ success: false, error: error.message });
