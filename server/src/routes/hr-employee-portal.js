@@ -616,8 +616,58 @@ router.get('/requests', authenticateToken, async (req, res) => {
       console.log('Warning: hr_overtime_requests table issue:', err.message);
     }
 
+    // Get correction requests (demandes de correction de pointage)
+    let correctionRequests = { rows: [] };
+    try {
+      correctionRequests = await pool.query(`
+        SELECT
+          cr.id,
+          'correction' as request_type,
+          'correction_pointage' as type_code,
+          'Correction pointage' as type_name,
+          cr.request_date as start_date,
+          cr.request_date as end_date,
+          NULL as days_requested,
+          cr.reason as description,
+          cr.status,
+          cr.created_at as date_soumission,
+          NULL as n1_comment,
+          NULL as n2_comment,
+          NULL as hr_comment,
+          (cr.original_check_in AT TIME ZONE 'Africa/Casablanca')::time as original_check_in,
+          (cr.original_check_out AT TIME ZONE 'Africa/Casablanca')::time as original_check_out,
+          cr.requested_check_in,
+          cr.requested_check_out,
+          CASE
+            WHEN cr.status = 'pending' THEN (
+              SELECT m.first_name || ' ' || m.last_name
+              FROM hr_employee_managers em
+              JOIN hr_employees m ON em.manager_id = m.id
+              WHERE em.employee_id = cr.employee_id AND em.rank = 0 AND em.is_active = true
+              LIMIT 1
+            )
+            WHEN cr.status LIKE 'approved_n%' THEN (
+              SELECT m.first_name || ' ' || m.last_name
+              FROM hr_employee_managers em
+              JOIN hr_employees m ON em.manager_id = m.id
+              WHERE em.employee_id = cr.employee_id
+                AND em.rank = CAST(SUBSTRING(cr.status FROM 'approved_n([0-9]+)') AS INTEGER)
+                AND em.is_active = true
+              LIMIT 1
+            )
+            ELSE NULL
+          END as current_approver_name
+        FROM hr_attendance_correction_requests cr
+        WHERE cr.employee_id = $1
+        ORDER BY cr.created_at DESC
+        LIMIT 50
+      `, [employee.id]);
+    } catch (err) {
+      console.log('Warning: hr_attendance_correction_requests table issue:', err.message);
+    }
+
     // Combine and sort
-    const allRequests = [...leaveRequests.rows, ...overtimeRequests.rows]
+    const allRequests = [...leaveRequests.rows, ...overtimeRequests.rows, ...correctionRequests.rows]
       .sort((a, b) => new Date(b.date_soumission) - new Date(a.date_soumission));
 
     res.json({
