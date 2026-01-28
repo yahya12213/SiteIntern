@@ -300,6 +300,7 @@ export default function TeamAttendance() {
   const [editRecord, setEditRecord] = useState<{ employeeId: string; date: string } | null>(null);
   const [employeeBonuses, setEmployeeBonuses] = useState<Record<string, { prime_journaliere: number; objectif_atteint: boolean }>>({});
   const [showRecalcDialog, setShowRecalcDialog] = useState(false);
+  const [bonusRefetchTrigger, setBonusRefetchTrigger] = useState(0);
 
   // Delete mutation - uses unified attendance API
   const deleteMutation = useMutation({
@@ -395,7 +396,7 @@ export default function TeamAttendance() {
     };
 
     fetchBonuses();
-  }, [attendanceData?.records]);
+  }, [attendanceData?.records, bonusRefetchTrigger]);
 
   // Computed stats for current view
   const viewStats = useMemo(() => {
@@ -448,6 +449,8 @@ export default function TeamAttendance() {
         end_date: dateRange.end_date,
         employee_id: selectedEmployee !== 'all' ? selectedEmployee : undefined
       });
+      // Force bonus refetch after recalculate
+      setBonusRefetchTrigger(prev => prev + 1);
       toast({
         title: 'Succès',
         description: result.message || `${result.stats.updated} pointage(s) recalculé(s)`

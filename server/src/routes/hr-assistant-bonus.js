@@ -138,6 +138,7 @@ router.get('/calculate', async (req, res) => {
 
       // Récupérer les inscriptions du jour matching segment
       // Note: On filtre uniquement par segment_id (pas de ville_id dans hr_employees)
+      // IMPORTANT: Pour sessions en ligne, seuls les étudiants avec statut "livree" comptent
       const inscriptionsQuery = `
         SELECT
           se.id as enrollment_id,
@@ -146,9 +147,11 @@ router.get('/calculate', async (req, res) => {
           f.title as formation_name,
           COALESCE(f.prime_assistante, 0) as prime_assistante,
           sf.titre as session_name,
+          sf.session_type,
+          se.delivery_status,
           s.name as segment_name,
           c.name as city_name,
-          se.created_at::date as enrollment_date,
+          COALESCE(se.date_inscription, se.created_at)::date as enrollment_date,
           st.prenom || ' ' || st.nom as student_name
         FROM session_etudiants se
         JOIN sessions_formation sf ON sf.id = se.session_id
@@ -157,8 +160,9 @@ router.get('/calculate', async (req, res) => {
         LEFT JOIN cities c ON c.id = sf.ville_id
         LEFT JOIN students st ON st.id = se.student_id
         WHERE sf.segment_id = $1
-          AND se.created_at::date = $2
+          AND COALESCE(se.date_inscription, se.created_at)::date = $2
           AND COALESCE(f.prime_assistante, 0) > 0
+          AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
         ORDER BY se.created_at DESC
       `;
 
@@ -171,13 +175,16 @@ router.get('/calculate', async (req, res) => {
       );
 
       // Calculer le total d'inscriptions dans la période d'objectif (calculée automatiquement)
+      // Pour sessions en ligne, seuls les étudiants avec statut "livree" comptent
+      // Utilise date_inscription si disponible, sinon created_at
       const periodQuery = `
         SELECT COUNT(*) as count
         FROM session_etudiants se
         JOIN sessions_formation sf ON sf.id = se.session_id
         WHERE sf.segment_id = $1
-          AND se.created_at::date >= $2
-          AND se.created_at::date <= $3
+          AND COALESCE(se.date_inscription, se.created_at)::date >= $2
+          AND COALESCE(se.date_inscription, se.created_at)::date <= $3
+          AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
       `;
 
       const periodResult = await pool.query(periodQuery, [
@@ -276,19 +283,22 @@ router.get('/period', async (req, res) => {
       }
 
       // Récupérer les primes par jour dans la période
+      // Pour sessions en ligne, seuls les étudiants avec statut "livree" comptent
+      // Utilise date_inscription si disponible, sinon created_at
       const query = `
         SELECT
-          se.created_at::date as date,
+          COALESCE(se.date_inscription, se.created_at)::date as date,
           COUNT(*) as inscriptions_count,
           SUM(COALESCE(f.prime_assistante, 0)) as prime_journaliere
         FROM session_etudiants se
         JOIN sessions_formation sf ON sf.id = se.session_id
         JOIN formations f ON f.id = se.formation_id
         WHERE sf.segment_id = $1
-          AND se.created_at::date >= $2
-          AND se.created_at::date <= $3
+          AND COALESCE(se.date_inscription, se.created_at)::date >= $2
+          AND COALESCE(se.date_inscription, se.created_at)::date <= $3
           AND COALESCE(f.prime_assistante, 0) > 0
-        GROUP BY se.created_at::date
+          AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
+        GROUP BY COALESCE(se.date_inscription, se.created_at)::date
         ORDER BY date
       `;
 
@@ -305,6 +315,8 @@ router.get('/period', async (req, res) => {
       );
 
       // Calculer l'objectif atteint basé sur la période automatique
+      // Pour sessions en ligne, seuls les étudiants avec statut "livree" comptent
+      // Utilise date_inscription si disponible, sinon created_at
       let objectif_atteint = employee.inscription_objective === 0;
       if (employee.inscription_objective > 0) {
         const periodQuery = `
@@ -312,8 +324,9 @@ router.get('/period', async (req, res) => {
           FROM session_etudiants se
           JOIN sessions_formation sf ON sf.id = se.session_id
           WHERE sf.segment_id = $1
-            AND se.created_at::date >= $2
-            AND se.created_at::date <= $3
+            AND COALESCE(se.date_inscription, se.created_at)::date >= $2
+            AND COALESCE(se.date_inscription, se.created_at)::date <= $3
+            AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
         `;
 
         const periodResult = await pool.query(periodQuery, [
@@ -401,20 +414,25 @@ router.post('/batch', async (req, res) => {
         }
 
         // Calculer la prime du jour
+        // Pour sessions en ligne, seuls les étudiants avec statut "livree" comptent
+        // Utilise date_inscription si disponible, sinon created_at
         const primeQuery = `
           SELECT COALESCE(SUM(f.prime_assistante), 0) as prime_journaliere
           FROM session_etudiants se
           JOIN sessions_formation sf ON sf.id = se.session_id
           JOIN formations f ON f.id = se.formation_id
           WHERE sf.segment_id = $1
-            AND se.created_at::date = $2
+            AND COALESCE(se.date_inscription, se.created_at)::date = $2
             AND COALESCE(f.prime_assistante, 0) > 0
+            AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
         `;
 
         const primeResult = await pool.query(primeQuery, [employee.segment_id, targetDate]);
         const prime_journaliere = parseFloat(primeResult.rows[0].prime_journaliere || 0);
 
         // Vérifier l'objectif basé sur la période automatique
+        // Pour sessions en ligne, seuls les étudiants avec statut "livree" comptent
+        // Utilise date_inscription si disponible, sinon created_at
         let objectif_atteint = employee.inscription_objective === 0;
         let total_periode = 0;
 
@@ -424,8 +442,9 @@ router.post('/batch', async (req, res) => {
             FROM session_etudiants se
             JOIN sessions_formation sf ON sf.id = se.session_id
             WHERE sf.segment_id = $1
-              AND se.created_at::date >= $2
-              AND se.created_at::date <= $3
+              AND COALESCE(se.date_inscription, se.created_at)::date >= $2
+              AND COALESCE(se.date_inscription, se.created_at)::date <= $3
+              AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
           `;
 
           const periodResult = await pool.query(periodQuery, [
