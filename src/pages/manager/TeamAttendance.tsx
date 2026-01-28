@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO, addMonths, subMonths, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { getPayrollPeriod, PAYROLL_CUTOFF_DAY } from '@/utils/payroll-period';
+import { getPayrollPeriod } from '@/utils/payroll-period';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
