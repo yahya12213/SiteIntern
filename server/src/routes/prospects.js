@@ -327,14 +327,14 @@ router.get('/',
       const appelsResult = await pool.query(appelsQuery, appelsParams);
 
       // Calculer le taux de conversion
-      const inscritsProspect = parseInt(statsResult.rows[0].inscrits_prospect || 0);
+      const inscritsSession = parseInt(inscritsSessionResult.rows[0].count || 0);
       const appels30sCount = parseInt(appelsResult.rows[0].appels_30s_count || 0);
       const tauxConversion = appels30sCount > 0
-        ? parseFloat(((inscritsProspect / appels30sCount) * 100).toFixed(2))
+        ? parseFloat(((inscritsSession / appels30sCount) * 100).toFixed(2))
         : 0;
 
       console.log('📊 [PROSPECTS] Taux conversion:', {
-        inscritsProspect,
+        inscritsSession,
         appels30sCount,
         tauxConversion: `${tauxConversion}%`
       });

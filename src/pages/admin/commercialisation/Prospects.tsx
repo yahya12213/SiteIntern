@@ -441,7 +441,7 @@ export default function Prospects() {
               {statsFiltered?.stats?.taux_conversion ?? stats.taux_conversion ?? 0}%
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {statsFiltered?.stats?.inscrits_prospect ?? stats.inscrits_prospect} / {statsFiltered?.stats?.appels_30s_count ?? stats.appels_30s_count ?? 0} appels
+              {statsFiltered?.stats?.inscrits_session ?? stats.inscrits_session} / {statsFiltered?.stats?.appels_30s_count ?? stats.appels_30s_count ?? 0} appels
             </p>
           </CardContent>
         </Card>
