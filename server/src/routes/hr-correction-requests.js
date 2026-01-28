@@ -352,10 +352,23 @@ router.put('/manager/correction-requests/:id/approve', authenticateToken, requir
       // Créer/mettre à jour les enregistrements de pointage corrigés (unified hr_attendance_daily)
       const { employee_id, request_date, requested_check_in, requested_check_out } = request;
 
-      // Format request_date as YYYY-MM-DD (in case it's a Date object)
-      const formattedDate = request_date instanceof Date
-        ? request_date.toISOString().split('T')[0]
-        : (typeof request_date === 'string' ? request_date.split('T')[0] : request_date);
+      // Format request_date as YYYY-MM-DD - handle Date object, ISO string, or localized string
+      let formattedDate;
+      if (request_date instanceof Date) {
+        formattedDate = request_date.toISOString().split('T')[0];
+      } else if (typeof request_date === 'string') {
+        // Try to parse the date string and format as YYYY-MM-DD
+        const parsed = new Date(request_date);
+        if (!isNaN(parsed.getTime())) {
+          formattedDate = parsed.toISOString().split('T')[0];
+        } else {
+          // Fallback: try to extract from ISO format
+          formattedDate = request_date.split('T')[0];
+        }
+      } else {
+        formattedDate = request_date;
+      }
+      console.log(`[Correction Apply] Original request_date: ${request_date}, Formatted: ${formattedDate}`);
 
       // Build clock_in and clock_out timestamps - force UTC (+00:00) to prevent timezone conversion
       const clockInAt = requested_check_in ? `${formattedDate}T${requested_check_in}:00+00:00` : null;
@@ -465,10 +478,20 @@ router.put('/manager/correction-requests/:id/reapply', authenticateToken, requir
     const request = requestResult.rows[0];
     const { employee_id, request_date, requested_check_in, requested_check_out } = request;
 
-    // Format request_date as YYYY-MM-DD (in case it's a Date object)
-    const formattedDate = request_date instanceof Date
-      ? request_date.toISOString().split('T')[0]
-      : (typeof request_date === 'string' ? request_date.split('T')[0] : request_date);
+    // Format request_date as YYYY-MM-DD - handle Date object, ISO string, or localized string
+    let formattedDate;
+    if (request_date instanceof Date) {
+      formattedDate = request_date.toISOString().split('T')[0];
+    } else if (typeof request_date === 'string') {
+      const parsed = new Date(request_date);
+      if (!isNaN(parsed.getTime())) {
+        formattedDate = parsed.toISOString().split('T')[0];
+      } else {
+        formattedDate = request_date.split('T')[0];
+      }
+    } else {
+      formattedDate = request_date;
+    }
 
     // Build clock_in and clock_out timestamps
     const clockInAt = requested_check_in ? `${formattedDate}T${requested_check_in}:00+00:00` : null;
