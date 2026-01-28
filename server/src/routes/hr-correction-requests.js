@@ -352,9 +352,14 @@ router.put('/manager/correction-requests/:id/approve', authenticateToken, requir
       // Créer/mettre à jour les enregistrements de pointage corrigés (unified hr_attendance_daily)
       const { employee_id, request_date, requested_check_in, requested_check_out } = request;
 
+      // Format request_date as YYYY-MM-DD (in case it's a Date object)
+      const formattedDate = request_date instanceof Date
+        ? request_date.toISOString().split('T')[0]
+        : (typeof request_date === 'string' ? request_date.split('T')[0] : request_date);
+
       // Build clock_in and clock_out timestamps - force UTC (+00:00) to prevent timezone conversion
-      const clockInAt = requested_check_in ? `${request_date}T${requested_check_in}:00+00:00` : null;
-      const clockOutAt = requested_check_out ? `${request_date}T${requested_check_out}:00+00:00` : null;
+      const clockInAt = requested_check_in ? `${formattedDate}T${requested_check_in}:00+00:00` : null;
+      const clockOutAt = requested_check_out ? `${formattedDate}T${requested_check_out}:00+00:00` : null;
 
       // Upsert into hr_attendance_daily
       await pool.query(`
@@ -368,7 +373,7 @@ router.put('/manager/correction-requests/:id/approve', authenticateToken, requir
           source = 'correction',
           notes = COALESCE(hr_attendance_daily.notes, '') || ' | Correction approuvée',
           updated_at = NOW()
-      `, [employee_id, request_date, clockInAt, clockOutAt, approverId]);
+      `, [employee_id, formattedDate, clockInAt, clockOutAt, approverId]);
 
       res.json({
         success: true,
