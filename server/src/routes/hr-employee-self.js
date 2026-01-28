@@ -249,7 +249,7 @@ router.post('/requests',
 );
 
 /**
- * Cancel a pending request
+ * Cancel a pending request (DELETE method - legacy)
  */
 router.delete('/requests/:id',
   authenticateToken,
@@ -283,6 +283,105 @@ router.delete('/requests/:id',
       }
 
       res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error cancelling request:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Cancel a pending request (POST method - supports all request types)
+ * Allows employee to cancel their own pending/in-progress requests
+ * Works for leave requests, correction requests, and other types
+ */
+router.post('/requests/:id/cancel',
+  authenticateToken,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { request_type } = req.body; // Optional: can specify type if known
+
+    try {
+      // Get employee ID
+      const employee = await pool.query(
+        'SELECT id FROM hr_employees WHERE profile_id = $1',
+        [userId]
+      );
+
+      if (employee.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Profil employé non trouvé' });
+      }
+
+      const employeeId = employee.rows[0].id;
+      let result;
+      let requestType = request_type;
+
+      // If request_type not specified, try to find the request in both tables
+      if (!requestType) {
+        // Check leave requests first
+        const leaveCheck = await pool.query(
+          'SELECT id FROM hr_leave_requests WHERE id = $1 AND employee_id = $2',
+          [id, employeeId]
+        );
+        if (leaveCheck.rows.length > 0) {
+          requestType = 'leave';
+        } else {
+          // Check correction requests
+          const correctionCheck = await pool.query(
+            'SELECT id FROM hr_attendance_correction_requests WHERE id = $1 AND employee_id = $2',
+            [id, employeeId]
+          );
+          if (correctionCheck.rows.length > 0) {
+            requestType = 'correction';
+          }
+        }
+      }
+
+      if (!requestType) {
+        return res.status(404).json({
+          success: false,
+          error: 'Demande non trouvée'
+        });
+      }
+
+      if (requestType === 'leave') {
+        // Cancel leave request
+        result = await pool.query(`
+          UPDATE hr_leave_requests
+          SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
+          WHERE id = $1 AND employee_id = $2
+            AND (status = 'pending' OR status LIKE 'approved_n%')
+          RETURNING *
+        `, [id, employeeId]);
+      } else if (requestType === 'correction') {
+        // Cancel correction request
+        result = await pool.query(`
+          UPDATE hr_attendance_correction_requests
+          SET status = 'cancelled', updated_at = NOW()
+          WHERE id = $1 AND employee_id = $2
+            AND (status = 'pending' OR status LIKE 'approved_n%')
+          RETURNING *
+        `, [id, employeeId]);
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: 'Type de demande non supporté'
+        });
+      }
+
+      if (result.rows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Demande non trouvée ou ne peut pas être annulée (déjà validée ou refusée)'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Demande annulée avec succès',
+        data: result.rows[0]
+      });
     } catch (error) {
       console.error('Error cancelling request:', error);
       res.status(500).json({ success: false, error: error.message });

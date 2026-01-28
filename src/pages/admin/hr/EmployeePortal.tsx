@@ -26,6 +26,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Clock,
@@ -38,6 +48,8 @@ import {
   FileEdit,
   Upload,
   X,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -156,6 +168,9 @@ export default function EmployeePortal() {
     reason: '',
   });
 
+  // State pour l'annulation de demande
+  const [requestToCancel, setRequestToCancel] = useState<any>(null);
+
   // Queries
   const { data: todayData, isLoading: loadingToday, isError: errorToday } = useTodayClocking();
   const { data: attendanceData, isLoading: loadingAttendance } = useEmployeeAttendance(
@@ -188,6 +203,30 @@ export default function EmployeePortal() {
       toast({
         title: 'Erreur',
         description: error.response?.data?.error || 'Erreur lors de la soumission',
+        variant: 'destructive',
+      });
+    }
+  });
+
+  // Mutation pour annuler une demande
+  const cancelRequestMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      const response = await apiClient.post(`/hr/my/requests/${requestId}/cancel`, {});
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['employee-attendance'] });
+      setRequestToCancel(null);
+      toast({
+        title: 'Demande annulee',
+        description: 'Votre demande a ete annulee avec succes.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erreur',
+        description: error.response?.data?.error || 'Erreur lors de l\'annulation',
         variant: 'destructive',
       });
     }
@@ -635,35 +674,57 @@ export default function EmployeePortal() {
                       <TableHead>Periode</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Statut</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {requestsData?.requests?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                           Aucune demande
                         </TableCell>
                       </TableRow>
                     ) : (
-                      requestsData?.requests?.map(demande => (
-                        <TableRow key={`${demande.request_type}-${demande.id}`}>
-                          <TableCell className="font-medium">
-                            {demande.type_name}
-                          </TableCell>
-                          <TableCell>
-                            {new Date(demande.date_soumission).toLocaleDateString('fr-FR')}
-                          </TableCell>
-                          <TableCell>
-                            {demande.start_date && demande.end_date && demande.start_date !== demande.end_date
-                              ? `${new Date(demande.start_date).toLocaleDateString('fr-FR')} - ${new Date(demande.end_date).toLocaleDateString('fr-FR')}`
-                              : demande.start_date
-                              ? new Date(demande.start_date).toLocaleDateString('fr-FR')
-                              : '-'}
-                          </TableCell>
-                          <TableCell className="max-w-xs truncate">{demande.description}</TableCell>
-                          <TableCell>{getStatusBadge(demande.status)}</TableCell>
-                        </TableRow>
-                      ))
+                      requestsData?.requests?.map(demande => {
+                        // Vérifier si la demande peut être annulée (pending ou en cours de validation)
+                        const canCancel = demande.status === 'pending' ||
+                          (demande.status as string)?.startsWith('approved_n');
+
+                        return (
+                          <TableRow key={`${demande.request_type}-${demande.id}`}>
+                            <TableCell className="font-medium">
+                              {demande.type_name}
+                            </TableCell>
+                            <TableCell>
+                              {new Date(demande.date_soumission).toLocaleDateString('fr-FR')}
+                            </TableCell>
+                            <TableCell>
+                              {demande.start_date && demande.end_date && demande.start_date !== demande.end_date
+                                ? `${new Date(demande.start_date).toLocaleDateString('fr-FR')} - ${new Date(demande.end_date).toLocaleDateString('fr-FR')}`
+                                : demande.start_date
+                                ? new Date(demande.start_date).toLocaleDateString('fr-FR')
+                                : '-'}
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate">{demande.description}</TableCell>
+                            <TableCell>{getStatusBadge(demande.status)}</TableCell>
+                            <TableCell>
+                              {canCancel ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => setRequestToCancel(demande)}
+                                  disabled={cancelRequestMutation.isPending}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
@@ -968,6 +1029,60 @@ export default function EmployeePortal() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Dialog confirmation annulation demande */}
+        <AlertDialog open={!!requestToCancel} onOpenChange={(open) => !open && setRequestToCancel(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                Annuler cette demande ?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {requestToCancel && (
+                  <div className="space-y-2">
+                    <p>Etes-vous sur de vouloir annuler cette demande ?</p>
+                    <div className="bg-gray-50 p-3 rounded-lg text-sm">
+                      <p><strong>Type:</strong> {requestToCancel.type_name}</p>
+                      {requestToCancel.start_date && (
+                        <p><strong>Date:</strong> {new Date(requestToCancel.start_date).toLocaleDateString('fr-FR')}</p>
+                      )}
+                      {requestToCancel.description && (
+                        <p><strong>Motif:</strong> {requestToCancel.description}</p>
+                      )}
+                    </div>
+                    <p className="text-red-600 text-sm">
+                      Cette action est irreversible. Vous devrez soumettre une nouvelle demande si necessaire.
+                    </p>
+                  </div>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={cancelRequestMutation.isPending}>
+                Conserver
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (requestToCancel) {
+                    cancelRequestMutation.mutate(requestToCancel.id.toString());
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700"
+                disabled={cancelRequestMutation.isPending}
+              >
+                {cancelRequestMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Annulation...
+                  </>
+                ) : (
+                  'Annuler la demande'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppLayout>
   );
