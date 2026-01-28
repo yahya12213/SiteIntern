@@ -270,11 +270,11 @@ router.get('/',
       let sessionParamIndex = sessionScopeFilter.params.length + 1;
 
       if (date_from) {
-        inscritsSessionQuery += ` AND se.created_at >= $${sessionParamIndex++}`;
+        inscritsSessionQuery += ` AND se.date_inscription >= $${sessionParamIndex++}`;
         sessionParams.push(date_from);
       }
       if (date_to) {
-        inscritsSessionQuery += ` AND se.created_at <= $${sessionParamIndex++}`;
+        inscritsSessionQuery += ` AND se.date_inscription <= $${sessionParamIndex++}`;
         sessionParams.push(date_to);
       }
 
@@ -348,7 +348,7 @@ router.get('/ecart-details',
             'session_name', sf.titre,
             'ville_name', c.name,
             'segment_name', seg.name,
-            'enrolled_at', se.created_at
+            'enrolled_at', se.date_inscription
           )) as sessions
         FROM students s
         INNER JOIN session_etudiants se ON se.student_id = s.id
@@ -378,11 +378,11 @@ router.get('/ecart-details',
         ecartSessionParams.push(ville_id);
       }
       if (date_from) {
-        ecartSessionQuery += ` AND se.created_at >= $${ecartSessionParamIndex++}`;
+        ecartSessionQuery += ` AND se.date_inscription >= $${ecartSessionParamIndex++}`;
         ecartSessionParams.push(date_from);
       }
       if (date_to) {
-        ecartSessionQuery += ` AND se.created_at <= $${ecartSessionParamIndex++}`;
+        ecartSessionQuery += ` AND se.date_inscription <= $${ecartSessionParamIndex++}`;
         ecartSessionParams.push(date_to);
       }
 
