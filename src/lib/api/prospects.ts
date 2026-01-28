@@ -48,6 +48,8 @@ export interface ProspectStats {
   sans_rdv: number;
   inscrits_prospect: number;
   inscrits_session: number;
+  appels_30s_count?: number;
+  taux_conversion?: number;
 }
 
 export interface ProspectFilters {

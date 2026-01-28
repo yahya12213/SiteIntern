@@ -422,8 +422,30 @@ export default function Prospects() {
         onReset={() => setPayrollMonth(null)}
       />
 
-      {/* Section 2: 3 cartes FILTRÉES par période (avec badge "Filtré") */}
-      <div className="grid gap-4 md:grid-cols-3 mb-6">
+      {/* Section 2: 4 cartes FILTRÉES par période (avec badge "Filtré") */}
+      <div className="grid gap-4 md:grid-cols-4 mb-6">
+        {/* NOUVELLE CARTE: Taux de Conversion */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Taux de Conversion</CardTitle>
+              {payrollMonth && (
+                <Badge variant="secondary" className="text-xs">
+                  Filtré
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-indigo-600">
+              {statsFiltered?.stats?.taux_conversion ?? stats.taux_conversion ?? 0}%
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {statsFiltered?.stats?.inscrits_prospect ?? stats.inscrits_prospect} / {statsFiltered?.stats?.appels_30s_count ?? stats.appels_30s_count || 0} appels
+            </p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <div className="flex items-center gap-2">

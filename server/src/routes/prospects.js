@@ -280,11 +280,72 @@ router.get('/',
 
       const inscritsSessionResult = await pool.query(inscritsSessionQuery, sessionParams);
 
+      // =====================================================
+      // CALCUL TAUX DE CONVERSION
+      // =====================================================
+      console.log('📊 [PROSPECTS] Calculating taux de conversion...');
+
+      // Requête pour compter les appels avec durée >= 30 secondes
+      let appelsQuery = `
+        SELECT COUNT(DISTINCT pch.prospect_id) as appels_30s_count
+        FROM prospect_call_history pch
+        INNER JOIN prospects p ON p.id = pch.prospect_id
+        WHERE pch.duration_seconds >= 30
+      `;
+      let appelsParams = [];
+      let appelsParamIndex = 1;
+
+      // Appliquer le scope utilisateur
+      const appelsScopeFilter = buildScopeFilter(req, 'p.segment_id', 'p.ville_id');
+      if (appelsScopeFilter.hasScope) {
+        appelsQuery += ` AND (${appelsScopeFilter.conditions.join(' AND ')})`;
+        appelsParams.push(...appelsScopeFilter.params);
+        appelsParamIndex += appelsScopeFilter.params.length;
+      }
+
+      // Filtres UI
+      if (segment_id) {
+        appelsQuery += ` AND p.segment_id = $${appelsParamIndex++}`;
+        appelsParams.push(segment_id);
+      }
+      if (ville_id) {
+        appelsQuery += ` AND p.ville_id = $${appelsParamIndex++}`;
+        appelsParams.push(ville_id);
+      }
+      if (date_from) {
+        appelsQuery += ` AND pch.call_start >= $${appelsParamIndex++}`;
+        appelsParams.push(date_from);
+      }
+      if (date_to) {
+        appelsQuery += ` AND pch.call_start <= $${appelsParamIndex++}`;
+        appelsParams.push(date_to);
+      }
+
+      console.log('📊 [PROSPECTS] Appels query:', appelsQuery.replace(/\s+/g, ' ').trim());
+      console.log('📊 [PROSPECTS] Appels params:', appelsParams);
+
+      const appelsResult = await pool.query(appelsQuery, appelsParams);
+
+      // Calculer le taux de conversion
+      const inscritsProspect = parseInt(statsResult.rows[0].inscrits_prospect || 0);
+      const appels30sCount = parseInt(appelsResult.rows[0].appels_30s_count || 0);
+      const tauxConversion = appels30sCount > 0
+        ? parseFloat(((inscritsProspect / appels30sCount) * 100).toFixed(2))
+        : 0;
+
+      console.log('📊 [PROSPECTS] Taux conversion:', {
+        inscritsProspect,
+        appels30sCount,
+        tauxConversion: `${tauxConversion}%`
+      });
+
       res.json({
         prospects: rows,
         stats: {
           ...statsResult.rows[0],
-          inscrits_session: parseInt(inscritsSessionResult.rows[0].count || 0)
+          inscrits_session: parseInt(inscritsSessionResult.rows[0].count || 0),
+          appels_30s_count: appels30sCount,
+          taux_conversion: tauxConversion
         },
         pagination: {
           page: parseInt(page, 10),
