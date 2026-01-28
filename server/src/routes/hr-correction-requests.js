@@ -382,23 +382,24 @@ router.put('/manager/correction-requests/:id/approve', authenticateToken, requir
 
       // Upsert into hr_attendance_daily
       // Utiliser AT TIME ZONE pour interpréter l'heure en timezone locale Maroc
+      // Note: $3::text::timestamp - le cast text résout le problème "could not determine data type"
       await pool.query(`
         INSERT INTO hr_attendance_daily (
           employee_id, work_date, clock_in_at, clock_out_at, day_status, source, notes, created_by, created_at
         )
         VALUES (
           $1, $2,
-          CASE WHEN $3 IS NOT NULL THEN ($3::timestamp AT TIME ZONE 'Africa/Casablanca') ELSE NULL END,
-          CASE WHEN $4 IS NOT NULL THEN ($4::timestamp AT TIME ZONE 'Africa/Casablanca') ELSE NULL END,
+          ($3::text)::timestamp AT TIME ZONE 'Africa/Casablanca',
+          ($4::text)::timestamp AT TIME ZONE 'Africa/Casablanca',
           'present', 'correction', 'Correction approuvée', $5, NOW()
         )
         ON CONFLICT (employee_id, work_date) DO UPDATE SET
           clock_in_at = COALESCE(
-            CASE WHEN $3 IS NOT NULL THEN ($3::timestamp AT TIME ZONE 'Africa/Casablanca') ELSE NULL END,
+            ($3::text)::timestamp AT TIME ZONE 'Africa/Casablanca',
             hr_attendance_daily.clock_in_at
           ),
           clock_out_at = COALESCE(
-            CASE WHEN $4 IS NOT NULL THEN ($4::timestamp AT TIME ZONE 'Africa/Casablanca') ELSE NULL END,
+            ($4::text)::timestamp AT TIME ZONE 'Africa/Casablanca',
             hr_attendance_daily.clock_out_at
           ),
           source = 'correction',
