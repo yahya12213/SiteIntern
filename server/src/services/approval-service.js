@@ -483,22 +483,34 @@ export class ApprovalService {
       const checkInTime = normalizeTime(requested_check_in);
       const checkOutTime = normalizeTime(requested_check_out);
 
-      // Construire les timestamps d'entrée et sortie
-      const clockInAt = checkInTime ? `${request_date_iso}T${checkInTime}+00:00` : null;
-      const clockOutAt = checkOutTime ? `${request_date_iso}T${checkOutTime}+00:00` : null;
+      // Construire les timestamps en format datetime (sans timezone - sera interprété en heure locale par PostgreSQL)
+      const clockInAt = checkInTime ? `${request_date_iso} ${checkInTime}` : null;
+      const clockOutAt = checkOutTime ? `${request_date_iso} ${checkOutTime}` : null;
 
       console.log('ClockIn:', clockInAt, 'ClockOut:', clockOutAt);
 
       // UPSERT dans hr_attendance_daily (nouvelle table unifiée)
+      // Utiliser AT TIME ZONE pour interpréter l'heure en timezone locale Maroc
       await pool.query(`
         INSERT INTO hr_attendance_daily (
           employee_id, work_date, clock_in_at, clock_out_at,
           day_status, source, notes, created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, 'present', 'correction', 'Correction approuvée', NOW(), NOW())
+        VALUES (
+          $1, $2,
+          CASE WHEN $3 IS NOT NULL THEN ($3::timestamp AT TIME ZONE 'Africa/Casablanca') ELSE NULL END,
+          CASE WHEN $4 IS NOT NULL THEN ($4::timestamp AT TIME ZONE 'Africa/Casablanca') ELSE NULL END,
+          'present', 'correction', 'Correction approuvée', NOW(), NOW()
+        )
         ON CONFLICT (employee_id, work_date) DO UPDATE SET
-          clock_in_at = COALESCE($3, hr_attendance_daily.clock_in_at),
-          clock_out_at = COALESCE($4, hr_attendance_daily.clock_out_at),
+          clock_in_at = COALESCE(
+            CASE WHEN $3 IS NOT NULL THEN ($3::timestamp AT TIME ZONE 'Africa/Casablanca') ELSE NULL END,
+            hr_attendance_daily.clock_in_at
+          ),
+          clock_out_at = COALESCE(
+            CASE WHEN $4 IS NOT NULL THEN ($4::timestamp AT TIME ZONE 'Africa/Casablanca') ELSE NULL END,
+            hr_attendance_daily.clock_out_at
+          ),
           day_status = 'present',
           source = 'correction',
           notes = COALESCE(hr_attendance_daily.notes, '') || ' | Correction approuvée',
