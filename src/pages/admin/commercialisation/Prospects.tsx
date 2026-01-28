@@ -4,8 +4,9 @@
  * Liste, filtres, stats, actions (appel, suppression, import, export)
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,8 +69,10 @@ import { ImportProspectsModal } from '@/components/prospects/ImportProspectsModa
 import { CallProspectModal } from '@/components/prospects/CallProspectModal';
 import { DeclareVisitModal } from '@/components/prospects/DeclareVisitModal';
 import { EcartDetailsModal } from '@/components/prospects/EcartDetailsModal';
+import { PayrollPeriodFilter } from '@/components/prospects/PayrollPeriodFilter';
 import { prospectsApi } from '@/lib/api/prospects';
 import { useQuery } from '@tanstack/react-query';
+import { getPayrollPeriod } from '@/utils/payroll-period';
 
 // Fonction pour déterminer le style du RDV selon la date
 const getRdvStyle = (dateRdv: string | null) => {
@@ -145,8 +148,35 @@ export default function Prospects() {
 
   const [search, setSearch] = useState('');
 
-  // Données
+  // Filtre période de paie (pour les 3 cartes stats uniquement)
+  const [payrollMonth, setPayrollMonth] = useState<Date | null>(null);
+
+  // Calculer dateRange uniquement si payrollMonth est défini
+  const statsDateRange = useMemo(() => {
+    if (!payrollMonth) {
+      return { date_from: undefined, date_to: undefined };
+    }
+
+    const period = getPayrollPeriod(payrollMonth);
+    return {
+      date_from: format(period.start, 'yyyy-MM-dd'),
+      date_to: format(period.end, 'yyyy-MM-dd')
+    };
+  }, [payrollMonth]);
+
+  // Données - Stats globales (4 premières cartes) - sans filtres de date
   const { data, isLoading, error, refetch } = useProspects(filters);
+
+  // Query séparée pour les stats filtrées (3 dernières cartes)
+  const { data: statsFiltered } = useProspects({
+    segment_id: filters.segment_id,
+    ville_id: filters.ville_id,
+    date_from: statsDateRange.date_from,
+    date_to: statsDateRange.date_to,
+    page: 1,
+    limit: 1, // On ne veut que les stats, pas les prospects
+  });
+
   const { data: segments = [] } = useSegments();
   const { data: cities = [] } = useCities(filters.segment_id);
   const deleteProspect = useDeleteProspect();
@@ -161,13 +191,14 @@ export default function Prospects() {
   const [showEcartModal, setShowEcartModal] = useState(false);
 
   // Query pour les détails de l'écart (chargé au démarrage pour afficher les comptages)
+  // Utilise statsDateRange au lieu de filters pour respecter le filtre période
   const { data: ecartDetails, isLoading: ecartLoading, error: ecartError } = useQuery({
-    queryKey: ['prospects-ecart', filters.segment_id, filters.ville_id, filters.date_from, filters.date_to],
+    queryKey: ['prospects-ecart', filters.segment_id, filters.ville_id, statsDateRange.date_from, statsDateRange.date_to],
     queryFn: () => prospectsApi.getEcartDetails({
       segment_id: filters.segment_id,
       ville_id: filters.ville_id,
-      date_from: filters.date_from,
-      date_to: filters.date_to
+      date_from: statsDateRange.date_from,
+      date_to: statsDateRange.date_to
     }),
     retry: 1,
   });
@@ -343,87 +374,125 @@ export default function Prospects() {
   const ecartProspectCount = ecartDetails?.ecart_prospect?.count || 0;
 
   const renderStatsCards = () => (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mb-6">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{stats.total}</div>
-        </CardContent>
-      </Card>
+    <>
+      {/* Section 1: 4 cartes NON filtrées (données historiques complètes) */}
+      <div className="grid gap-4 md:grid-cols-4 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total}</div>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Non contactés</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-orange-600">{stats.non_contactes}</div>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Non contactés</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">{stats.non_contactes}</div>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Avec RDV</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-600">{stats.avec_rdv}</div>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avec RDV</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{stats.avec_rdv}</div>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Sans RDV</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-gray-600">{stats.sans_rdv}</div>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Sans RDV</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-600">{stats.sans_rdv}</div>
+          </CardContent>
+        </Card>
+      </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Inscrit Prospect</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-blue-600">{stats.inscrits_prospect}</div>
-        </CardContent>
-      </Card>
+      {/* Filtre période de paie */}
+      <PayrollPeriodFilter
+        currentMonth={payrollMonth}
+        onMonthChange={setPayrollMonth}
+        onReset={() => setPayrollMonth(null)}
+      />
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Inscrit Session</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-purple-600">{stats.inscrits_session}</div>
-        </CardContent>
-      </Card>
-
-      <Card
-        className="cursor-pointer hover:bg-gray-50 hover:shadow-md transition-all"
-        onClick={() => setShowEcartModal(true)}
-        title="Cliquer pour voir les détails des écarts"
-      >
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Écarts</CardTitle>
-          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-            Détails
-          </Badge>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-gray-500">Session:</span>
-              <span className="text-lg font-bold text-green-600">{ecartSessionCount}</span>
+      {/* Section 2: 3 cartes FILTRÉES par période (avec badge "Filtré") */}
+      <div className="grid gap-4 md:grid-cols-3 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Inscrit Prospect</CardTitle>
+              {payrollMonth && (
+                <Badge variant="secondary" className="text-xs">
+                  Filtré
+                </Badge>
+              )}
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-gray-500">Prospect:</span>
-              <span className="text-lg font-bold text-orange-600">{ecartProspectCount}</span>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">
+              {statsFiltered?.stats?.inscrits_prospect ?? stats.inscrits_prospect}
             </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Inscrit Session</CardTitle>
+              {payrollMonth && (
+                <Badge variant="secondary" className="text-xs">
+                  Filtré
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">
+              {statsFiltered?.stats?.inscrits_session ?? stats.inscrits_session}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="cursor-pointer hover:bg-gray-50 hover:shadow-md transition-all"
+          onClick={() => setShowEcartModal(true)}
+          title="Cliquer pour voir les détails des écarts"
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Écarts</CardTitle>
+              {payrollMonth && (
+                <Badge variant="secondary" className="text-xs">
+                  Filtré
+                </Badge>
+              )}
+            </div>
+            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+              Détails
+            </Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-500">Session:</span>
+                <span className="text-lg font-bold text-green-600">{ecartSessionCount}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-500">Prospect:</span>
+                <span className="text-lg font-bold text-orange-600">{ecartProspectCount}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </>
   );
 
   // Render filters

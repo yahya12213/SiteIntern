@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO, addMonths, subMonths, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { getPayrollPeriod, PAYROLL_CUTOFF_DAY } from '@/utils/payroll-period';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -134,28 +135,7 @@ function formatHours(hours?: number): string {
   return `${h}h${m.toString().padStart(2, '0')}`;
 }
 
-// Jour de coupure de paie par défaut (18 du mois)
-const PAYROLL_CUTOFF_DAY = 18;
-
-/**
- * Calculer la période de paie pour un mois donné
- * Exemple avec cutoffDay = 18:
- * - Paie janvier 2026 = 19/12/2025 au 18/01/2026
- * - Paie février 2026 = 19/01/2026 au 18/02/2026
- */
-function getPayrollPeriod(month: Date, cutoffDay: number = PAYROLL_CUTOFF_DAY): { start: Date; end: Date } {
-  const year = month.getFullYear();
-  const monthIndex = month.getMonth(); // 0-indexed
-
-  // Date de fin = jour de coupure du mois sélectionné
-  const endDate = new Date(year, monthIndex, cutoffDay);
-
-  // Date de début = jour après coupure du mois précédent
-  const prevMonth = subMonths(month, 1);
-  const startDate = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), cutoffDay + 1);
-
-  return { start: startDate, end: endDate };
-}
+// getPayrollPeriod and PAYROLL_CUTOFF_DAY are now imported from @/utils/payroll-period
 
 function formatPay(hours?: number, hourlyRate?: number): string {
   // Convertir en nombre et vérifier les valeurs invalides
