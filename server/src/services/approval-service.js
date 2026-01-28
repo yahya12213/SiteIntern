@@ -333,9 +333,13 @@ export class ApprovalService {
   async approveCorrectionRequest(requestId, approverId, comment = '') {
     const pool = await this.getConnection();
 
-    // Get the request
+    // Get the request - TO_CHAR garantit le format YYYY-MM-DD
     const requestResult = await pool.query(`
-      SELECT * FROM hr_attendance_correction_requests WHERE id = $1
+      SELECT
+        *,
+        TO_CHAR(request_date, 'YYYY-MM-DD') as request_date_iso
+      FROM hr_attendance_correction_requests
+      WHERE id = $1
     `, [requestId]);
 
     if (requestResult.rows.length === 0) {
@@ -451,21 +455,39 @@ export class ApprovalService {
 
     const {
       employee_id,
-      request_date,
+      request_date_iso,
       requested_check_in,
       requested_check_out
     } = correctionRequest;
 
     console.log('=== APPLYING CORRECTION ===');
     console.log('Employee ID:', employee_id);
-    console.log('Date:', request_date);
+    console.log('Date (ISO):', request_date_iso);
     console.log('Requested check_in:', requested_check_in);
     console.log('Requested check_out:', requested_check_out);
 
     try {
-      // Construire les timestamps d'entrée et sortie - force UTC (+00:00) to prevent timezone conversion
-      const clockInAt = requested_check_in ? `${request_date}T${requested_check_in}:00+00:00` : null;
-      const clockOutAt = requested_check_out ? `${request_date}T${requested_check_out}:00+00:00` : null;
+      // Normaliser l'heure en HH:MM:SS (éviter HH:MM:SS:SS si secondes déjà présentes)
+      const normalizeTime = (time) => {
+        if (!time) return null;
+        const timeStr = String(time);
+        // Si format HH:MM, ajouter :00
+        if (/^\d{2}:\d{2}$/.test(timeStr)) {
+          return timeStr + ':00';
+        }
+        // Si format HH:MM:SS ou plus long, extraire HH:MM:SS
+        const match = timeStr.match(/^(\d{2}:\d{2}:\d{2})/);
+        return match ? match[1] : timeStr;
+      };
+
+      const checkInTime = normalizeTime(requested_check_in);
+      const checkOutTime = normalizeTime(requested_check_out);
+
+      // Construire les timestamps d'entrée et sortie
+      const clockInAt = checkInTime ? `${request_date_iso}T${checkInTime}+00:00` : null;
+      const clockOutAt = checkOutTime ? `${request_date_iso}T${checkOutTime}+00:00` : null;
+
+      console.log('ClockIn:', clockInAt, 'ClockOut:', clockOutAt);
 
       // UPSERT dans hr_attendance_daily (nouvelle table unifiée)
       await pool.query(`
@@ -481,7 +503,7 @@ export class ApprovalService {
           source = 'correction',
           notes = COALESCE(hr_attendance_daily.notes, '') || ' | Correction approuvée',
           updated_at = NOW()
-      `, [employee_id, request_date, clockInAt, clockOutAt]);
+      `, [employee_id, request_date_iso, clockInAt, clockOutAt]);
 
       console.log('Attendance record upserted with source=correction');
       console.log('=== CORRECTION APPLIED SUCCESSFULLY ===');
