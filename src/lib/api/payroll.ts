@@ -289,6 +289,10 @@ export const payrollApi = {
     return apiClient.post<CalculationResult>(`/hr/payroll/calculate/${periodId}`, options || {});
   },
 
+  resetPayrollCalculations: async (periodId: string): Promise<{ success: boolean; message: string; deleted_payslips: number }> => {
+    return apiClient.post<{ success: boolean; message: string; deleted_payslips: number }>(`/hr/payroll/calculate/${periodId}/reset`, {});
+  },
+
   // === PAYSLIPS ===
 
   getPayslips: async (filters?: { period_id?: string; employee_id?: string; status?: string }): Promise<{ success: boolean; payslips: PayslipSummary[] }> => {

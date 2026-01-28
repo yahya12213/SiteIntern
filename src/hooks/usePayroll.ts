@@ -147,6 +147,24 @@ export const useCalculatePayroll = () => {
   });
 };
 
+/**
+ * Hook pour supprimer les calculs de paie d'une période
+ */
+export const useResetPayrollCalculations = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (periodId: string) => payrollApi.resetPayrollCalculations(periodId),
+    onSuccess: (_, periodId) => {
+      queryClient.invalidateQueries({ queryKey: ['payroll', 'periods'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll', 'periods', periodId] });
+      queryClient.invalidateQueries({ queryKey: ['payroll', 'payslips'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll', 'logs'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll', 'stats'] });
+    },
+  });
+};
+
 // ============================================================
 // PAYSLIPS HOOKS
 // ============================================================

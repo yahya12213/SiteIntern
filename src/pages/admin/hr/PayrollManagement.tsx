@@ -78,6 +78,7 @@ import {
   useOpenPeriod,
   useClosePeriod,
   useCalculatePayroll,
+  useResetPayrollCalculations,
   usePayslips,
   useValidatePayslip,
   useValidateAllPayslips,
@@ -135,6 +136,7 @@ export default function PayrollManagement() {
   const [showCreatePeriodModal, setShowCreatePeriodModal] = useState(false);
   const [periodToDelete, setPeriodToDelete] = useState<string | null>(null);
   const [periodToClose, setPeriodToClose] = useState<string | null>(null);
+  const [periodToReset, setPeriodToReset] = useState<string | null>(null);
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
 
@@ -160,6 +162,7 @@ export default function PayrollManagement() {
   const openPeriodMutation = useOpenPeriod();
   const closePeriodMutation = useClosePeriod();
   const calculatePayrollMutation = useCalculatePayroll();
+  const resetPayrollCalculationsMutation = useResetPayrollCalculations();
   const validatePayslipMutation = useValidatePayslip();
   const validateAllPayslipsMutation = useValidateAllPayslips();
   const downloadPayslipPdfMutation = useDownloadPayslipPdf();
@@ -291,6 +294,25 @@ export default function PayrollManagement() {
       toast({
         title: 'Erreur de calcul',
         description: error instanceof Error ? error.message : 'Impossible de calculer la paie',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleResetPayrollCalculations = async () => {
+    if (!periodToReset) return;
+
+    try {
+      const result = await resetPayrollCalculationsMutation.mutateAsync(periodToReset);
+      toast({
+        title: 'Calculs supprimés',
+        description: result.message || `${result.deleted_payslips} bulletin(s) supprimé(s)`,
+      });
+      setPeriodToReset(null);
+    } catch (error: unknown) {
+      toast({
+        title: 'Erreur',
+        description: error instanceof Error ? error.message : 'Impossible de supprimer les calculs',
         variant: 'destructive',
       });
     }
@@ -567,6 +589,15 @@ export default function PayrollManagement() {
                                   >
                                     <Eye className="h-4 w-4 mr-1" />
                                     Bulletins
+                                  </ProtectedButton>
+                                  <ProtectedButton
+                                    permission={PERMISSIONS.ressources_humaines.gestion_paie.calculs.calculer}
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setPeriodToReset(periode.id)}
+                                    title="Supprimer les calculs et recommencer"
+                                  >
+                                    <Trash2 className="h-4 w-4 text-orange-500" />
                                   </ProtectedButton>
                                   <ProtectedButton
                                     permission={PERMISSIONS.ressources_humaines.gestion_paie.periodes.fermer}
@@ -1272,6 +1303,29 @@ export default function PayrollManagement() {
               className="bg-red-600 hover:bg-red-700"
             >
               Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset Calculations Confirmation */}
+      <AlertDialog open={!!periodToReset} onOpenChange={() => setPeriodToReset(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer les calculs de paie ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action supprimera tous les bulletins de paie de cette période. La période reviendra au statut "Ouverte" et vous pourrez recalculer la paie.
+              <br /><br />
+              <strong className="text-orange-600">Attention :</strong> Les bulletins déjà téléchargés ne seront pas supprimés du système de fichiers, mais les données de calcul seront effacées de la base de données.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetPayrollCalculations}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              Supprimer les calculs
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -739,6 +739,102 @@ router.post('/calculate/:period_id',
   }
 );
 
+/**
+ * Reset/Delete payroll calculations for a period
+ * POST /api/hr/payroll/calculate/:period_id/reset
+ */
+router.post('/calculate/:period_id/reset',
+  authenticateToken,
+  requirePermission('hr.payroll.calculate'),
+  async (req, res) => {
+    const { period_id } = req.params;
+    const userId = req.user.id;
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // 1. Check period exists and is not closed
+      const periodCheck = await client.query(
+        'SELECT id, status, name FROM hr_payroll_periods WHERE id = $1',
+        [period_id]
+      );
+
+      if (periodCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, error: 'Période non trouvée' });
+      }
+
+      const period = periodCheck.rows[0];
+
+      if (period.status === 'closed') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          success: false,
+          error: 'Impossible de supprimer les calculs d\'une période clôturée'
+        });
+      }
+
+      // 2. Delete all payslip lines first (to avoid FK constraint issues)
+      await client.query(`
+        DELETE FROM hr_payslip_lines
+        WHERE payslip_id IN (
+          SELECT id FROM hr_payslips WHERE period_id = $1
+        )
+      `, [period_id]);
+
+      // 3. Delete all payslips for this period
+      const deleteResult = await client.query(
+        'DELETE FROM hr_payslips WHERE period_id = $1',
+        [period_id]
+      );
+
+      // 4. Reset period status and totals
+      await client.query(`
+        UPDATE hr_payroll_periods
+        SET status = 'open',
+            calculated_at = NULL,
+            total_employees = NULL,
+            total_gross = NULL,
+            total_net = NULL,
+            total_cnss_employee = NULL,
+            total_cnss_employer = NULL,
+            total_amo = NULL,
+            total_igr = NULL
+        WHERE id = $1
+      `, [period_id]);
+
+      // 5. Audit log
+      await client.query(`
+        INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, old_values, performed_by)
+        VALUES ('period', $1, 'reset_calculations', $2, $3)
+      `, [
+        period_id,
+        JSON.stringify({
+          deleted_payslips: deleteResult.rowCount,
+          period_name: period.name
+        }),
+        userId
+      ]);
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: `Calculs de paie supprimés pour la période ${period.name}`,
+        deleted_payslips: deleteResult.rowCount
+      });
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error resetting payroll calculations:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      client.release();
+    }
+  }
+);
+
 // ===============================
 // PAYSLIPS
 // ===============================
