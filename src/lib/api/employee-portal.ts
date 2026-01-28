@@ -39,7 +39,7 @@ export interface Contract {
 
 export interface CorrectionRequestInfo {
   id: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'approved_n1' | 'approved_n2' | 'approved_n3';
   requested_check_in: string | null;
   requested_check_out: string | null;
   reason: string;
