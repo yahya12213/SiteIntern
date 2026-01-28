@@ -1338,7 +1338,7 @@ router.get('/logs',
 
     try {
       let query = `
-        SELECT l.*, p.prenom || ' ' || p.nom as performed_by_name
+        SELECT l.*, p.full_name as performed_by_name
         FROM hr_payroll_audit_logs l
         LEFT JOIN profiles p ON p.id = l.performed_by
         WHERE 1=1
