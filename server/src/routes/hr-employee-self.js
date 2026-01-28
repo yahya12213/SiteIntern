@@ -728,8 +728,8 @@ router.post('/correction-requests',
       if (!finalOriginalCheckIn || !finalOriginalCheckOut) {
         const existingRecord = await pool.query(`
           SELECT
-            clock_in_at::time as check_in_time,
-            clock_out_at::time as check_out_time
+            (clock_in_at AT TIME ZONE 'Africa/Casablanca')::time as check_in_time,
+            (clock_out_at AT TIME ZONE 'Africa/Casablanca')::time as check_out_time
           FROM hr_attendance_daily
           WHERE employee_id = $1 AND work_date = $2
           LIMIT 1
