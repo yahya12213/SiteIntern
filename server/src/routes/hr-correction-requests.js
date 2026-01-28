@@ -357,22 +357,39 @@ router.put('/manager/correction-requests/:id/approve', authenticateToken, requir
       if (request_date instanceof Date) {
         formattedDate = request_date.toISOString().split('T')[0];
       } else if (typeof request_date === 'string') {
+        // Clean the string - remove timezone descriptions like "(Coordinated Universal Time)"
+        const cleanedDateStr = request_date.replace(/\s*\([^)]*\)\s*$/, '').trim();
         // Try to parse the date string and format as YYYY-MM-DD
-        const parsed = new Date(request_date);
+        const parsed = new Date(cleanedDateStr);
         if (!isNaN(parsed.getTime())) {
           formattedDate = parsed.toISOString().split('T')[0];
         } else {
-          // Fallback: try to extract from ISO format
-          formattedDate = request_date.split('T')[0];
+          // Fallback: check if it's already YYYY-MM-DD format
+          const isoMatch = request_date.match(/^\d{4}-\d{2}-\d{2}/);
+          formattedDate = isoMatch ? isoMatch[0] : request_date;
         }
       } else {
         formattedDate = request_date;
       }
-      console.log(`[Correction Apply] Original request_date: ${request_date}, Formatted: ${formattedDate}`);
+      console.log(`[Correction Apply] Original request_date: "${request_date}", Type: ${typeof request_date}, Formatted: "${formattedDate}"`);
+
+      // Format check_in/check_out times - ensure HH:MM format without duplicate seconds
+      const formatTime = (time) => {
+        if (!time) return null;
+        const timeStr = String(time);
+        // If time is HH:MM:SS, take only HH:MM
+        const match = timeStr.match(/^(\d{2}:\d{2})/);
+        return match ? match[1] : timeStr;
+      };
+
+      const checkInTime = formatTime(requested_check_in);
+      const checkOutTime = formatTime(requested_check_out);
 
       // Build clock_in and clock_out timestamps - force UTC (+00:00) to prevent timezone conversion
-      const clockInAt = requested_check_in ? `${formattedDate}T${requested_check_in}:00+00:00` : null;
-      const clockOutAt = requested_check_out ? `${formattedDate}T${requested_check_out}:00+00:00` : null;
+      const clockInAt = checkInTime ? `${formattedDate}T${checkInTime}:00+00:00` : null;
+      const clockOutAt = checkOutTime ? `${formattedDate}T${checkOutTime}:00+00:00` : null;
+
+      console.log(`[Correction Apply] ClockIn: ${clockInAt}, ClockOut: ${clockOutAt}`);
 
       // Upsert into hr_attendance_daily
       await pool.query(`
@@ -483,19 +500,32 @@ router.put('/manager/correction-requests/:id/reapply', authenticateToken, requir
     if (request_date instanceof Date) {
       formattedDate = request_date.toISOString().split('T')[0];
     } else if (typeof request_date === 'string') {
-      const parsed = new Date(request_date);
+      // Clean the string - remove timezone descriptions like "(Coordinated Universal Time)"
+      const cleanedDateStr = request_date.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      const parsed = new Date(cleanedDateStr);
       if (!isNaN(parsed.getTime())) {
         formattedDate = parsed.toISOString().split('T')[0];
       } else {
-        formattedDate = request_date.split('T')[0];
+        const isoMatch = request_date.match(/^\d{4}-\d{2}-\d{2}/);
+        formattedDate = isoMatch ? isoMatch[0] : request_date;
       }
     } else {
       formattedDate = request_date;
     }
 
-    // Build clock_in and clock_out timestamps
-    const clockInAt = requested_check_in ? `${formattedDate}T${requested_check_in}:00+00:00` : null;
-    const clockOutAt = requested_check_out ? `${formattedDate}T${requested_check_out}:00+00:00` : null;
+    // Format check_in/check_out times - ensure HH:MM format
+    const formatTime = (time) => {
+      if (!time) return null;
+      const timeStr = String(time);
+      const match = timeStr.match(/^(\d{2}:\d{2})/);
+      return match ? match[1] : timeStr;
+    };
+
+    const checkInTime = formatTime(requested_check_in);
+    const checkOutTime = formatTime(requested_check_out);
+
+    const clockInAt = checkInTime ? `${formattedDate}T${checkInTime}:00+00:00` : null;
+    const clockOutAt = checkOutTime ? `${formattedDate}T${checkOutTime}:00+00:00` : null;
 
     console.log(`[Reapply Correction] ID: ${id}, Date: ${formattedDate}, Check-in: ${clockInAt}, Check-out: ${clockOutAt}`);
 
