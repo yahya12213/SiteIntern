@@ -2,6 +2,12 @@ import express from 'express';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 
+function timeToMinutes(timeStr) {
+  if (!timeStr) return 0;
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
 const router = express.Router();
 
 // ===============================
@@ -301,22 +307,89 @@ router.post('/calculate/:period_id',
       let totalIgr = 0;
 
       for (const emp of employees.rows) {
-        // Calculate payslip for each employee
-        const baseSalary = parseFloat(emp.base_salary) || 0;
-        const hourlyRate = baseSalary / (config.working_hours_monthly || 191);
+        // Get employee's work schedule for holiday calculation
+        const scheduleResult = await client.query(`
+          SELECT ws.monday_start, ws.monday_end, ws.tuesday_start, ws.tuesday_end,
+                 ws.wednesday_start, ws.wednesday_end, ws.thursday_start, ws.thursday_end,
+                 ws.friday_start, ws.friday_end, ws.saturday_start, ws.saturday_end,
+                 ws.break_duration_minutes, ws.working_days
+          FROM hr_employee_schedules es
+          JOIN hr_work_schedules ws ON ws.id = es.schedule_id
+          WHERE es.employee_id = $1
+          ORDER BY es.start_date DESC LIMIT 1
+        `, [emp.id]);
+        const empSchedule = scheduleResult.rows[0];
 
-        // Get attendance data for this period
+        // Get attendance data from hr_attendance_daily
         const attendance = await client.query(`
           SELECT
-            SUM(CASE WHEN status = 'check_in' THEN 1 ELSE 0 END) as checkins,
-            SUM(worked_minutes) as total_worked_minutes
-          FROM hr_attendance_records
+            COALESCE(SUM(CASE
+              WHEN day_status IN ('present', 'recovery_paid', 'late', 'overtime')
+                   AND net_worked_minutes IS NOT NULL
+              THEN net_worked_minutes
+              ELSE 0
+            END), 0) as worked_minutes,
+
+            COUNT(CASE WHEN day_status = 'absent' AND is_working_day = true THEN 1 END) as absence_days,
+
+            COALESCE(SUM(CASE
+              WHEN is_working_day = true AND late_minutes > 0
+              THEN late_minutes ELSE 0
+            END), 0) as total_late_minutes,
+
+            json_agg(json_build_object('dow', EXTRACT(DOW FROM work_date)::int))
+              FILTER (WHERE day_status = 'holiday' AND is_working_day = true) as holiday_days
+          FROM hr_attendance_daily
           WHERE employee_id = $1
-          AND DATE(clock_time) BETWEEN $2 AND $3
+            AND work_date BETWEEN $2 AND $3
         `, [emp.id, periodData.start_date, periodData.end_date]);
 
-        const workedMinutes = parseInt(attendance.rows[0]?.total_worked_minutes) || 0;
-        const workedHours = workedMinutes / 60;
+        // Calculate paid hours from holidays using employee schedule
+        let holidayPaidMinutes = 0;
+        const holidayDays = attendance.rows[0].holiday_days || [];
+        if (empSchedule && holidayDays.length > 0) {
+          const breakMin = empSchedule.break_duration_minutes || 60;
+          const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          for (const hd of holidayDays) {
+            const dayName = dayNames[hd.dow];
+            const startTime = empSchedule[`${dayName}_start`];
+            const endTime = empSchedule[`${dayName}_end`];
+            if (startTime && endTime) {
+              holidayPaidMinutes += timeToMinutes(endTime) - timeToMinutes(startTime) - breakMin;
+            } else {
+              holidayPaidMinutes += 8 * 60;
+            }
+          }
+        }
+
+        const totalPaidHours = (parseFloat(attendance.rows[0].worked_minutes) + holidayPaidMinutes) / 60;
+        const absenceDays = parseInt(attendance.rows[0].absence_days) || 0;
+        const lateMinutes = parseInt(attendance.rows[0].total_late_minutes) || 0;
+
+        // Calculate base salary and hourly rate
+        const empHourlyRate = parseFloat(emp.hourly_rate) || 0;
+        let baseSalary;
+        let hourlyRate;
+
+        if (emp.base_salary) {
+          baseSalary = parseFloat(emp.base_salary);
+          hourlyRate = baseSalary / (config.working_hours_monthly || 191);
+        } else if (empHourlyRate > 0) {
+          hourlyRate = empHourlyRate;
+          baseSalary = hourlyRate * totalPaidHours;
+        } else {
+          continue; // Skip employees without salary data
+        }
+
+        // Absence and late deductions (only for fixed-salary employees)
+        // Hourly workers: absent days already excluded from totalPaidHours
+        let absenceDeduction = 0;
+        let lateDeduction = 0;
+        if (emp.base_salary) {
+          absenceDeduction = absenceDays > 0 ? absenceDays * hourlyRate * 8 : 0;
+          lateDeduction = lateMinutes > 0 ? (lateMinutes / 60) * hourlyRate : 0;
+        }
+        const adjustedBaseSalary = Math.max(0, baseSalary - absenceDeduction - lateDeduction);
 
         // Get approved overtime for this period from hr_overtime_records (periods declared by manager)
         const overtime = await client.query(`
@@ -349,7 +422,7 @@ router.post('/calculate/:period_id',
             seniorityRate = bracket.rate;
           }
         }
-        const seniorityBonus = baseSalary * (seniorityRate / 100);
+        const seniorityBonus = adjustedBaseSalary * (seniorityRate / 100);
 
         // Get enrollment bonuses for this period
         const enrollmentBonuses = await client.query(`
@@ -366,7 +439,7 @@ router.post('/calculate/:period_id',
         const enrollmentBonusCount = parseInt(enrollmentBonuses.rows[0]?.count) || 0;
 
         // Gross salary (incluant primes inscription)
-        const grossSalary = baseSalary + overtimeAmount + seniorityBonus + enrollmentBonusTotal;
+        const grossSalary = adjustedBaseSalary + overtimeAmount + seniorityBonus + enrollmentBonusTotal;
 
         // Vérifier si l'employé est assujetti à la CNSS/AMO
         const isCnssSubject = emp.is_cnss_subject !== false; // true par défaut
@@ -423,6 +496,7 @@ router.post('/calculate/:period_id',
             period_id, employee_id, employee_number, employee_name, position, department, hire_date,
             base_salary, hourly_rate, working_hours, worked_hours,
             overtime_hours_25, overtime_hours_50, overtime_hours_100, overtime_amount,
+            absence_days, absence_deduction, late_minutes, late_deduction,
             gross_salary, gross_taxable,
             cnss_base, cnss_employee, cnss_employer, amo_base, amo_employee, amo_employer,
             igr_base, igr_amount, total_deductions, net_salary,
@@ -431,16 +505,18 @@ router.post('/calculate/:period_id',
             $1, $2, $3, $4, $5, $6, $7,
             $8, $9, $10, $11,
             $12, $13, $14, $15,
-            $16, $17,
-            $18, $19, $20, $21, $22, $23,
-            $24, $25, $26, $27,
+            $16, $17, $18, $19,
+            $20, $21,
+            $22, $23, $24, $25, $26, $27,
+            $28, $29, $30, $31,
             'calculated', NOW()
           ) RETURNING id
         `, [
           period_id, emp.id, emp.employee_number, `${emp.first_name} ${emp.last_name}`,
           emp.position, emp.department, emp.hire_date,
-          baseSalary, hourlyRate, config.working_hours_monthly || 191, workedHours,
+          adjustedBaseSalary, hourlyRate, config.working_hours_monthly || 191, totalPaidHours,
           overtimeHours25, overtimeHours50, overtimeHours100, overtimeAmount,
+          absenceDays, absenceDeduction, lateMinutes, lateDeduction,
           grossSalary, taxableIncome / 12,
           cnssBase, cnssEmployee, cnssEmployer, amoBase, amoEmployee, amoEmployer,
           taxableIncome / 12, monthlyIgr, totalDeductions, netSalary
@@ -453,7 +529,7 @@ router.post('/calculate/:period_id',
         await client.query(`
           INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, amount, display_order)
           VALUES ($1, 'earning', 'base_salary', 'SAL_BASE', 'Salaire de base', $2, 1)
-        `, [payslipId, baseSalary]);
+        `, [payslipId, adjustedBaseSalary]);
 
         // Seniority bonus line (if applicable)
         if (seniorityBonus > 0) {
@@ -484,6 +560,22 @@ router.post('/calculate/:period_id',
             SET status = 'paid', paid_in_period_id = $1
             WHERE employee_id = $2 AND payroll_period_id = $1 AND status = 'validated'
           `, [period_id, emp.id]);
+        }
+
+        // Absence deduction line
+        if (absenceDeduction > 0) {
+          await client.query(`
+            INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, quantity, rate, amount, display_order)
+            VALUES ($1, 'deduction', 'other_deduction', 'ABSENCE', 'Déduction absences', $2, $3, $4, 13)
+          `, [payslipId, absenceDays, hourlyRate * 8, absenceDeduction]);
+        }
+
+        // Late deduction line
+        if (lateDeduction > 0) {
+          await client.query(`
+            INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, quantity, rate, amount, display_order)
+            VALUES ($1, 'deduction', 'other_deduction', 'RETARD', 'Déduction retards', $2, $3, $4, 14)
+          `, [payslipId, lateMinutes, hourlyRate / 60, lateDeduction]);
         }
 
         // CNSS line (only if subject to CNSS)
