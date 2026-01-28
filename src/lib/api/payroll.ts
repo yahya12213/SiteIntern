@@ -164,16 +164,42 @@ export interface PayrollAuditLog {
 }
 
 // ============================================================
+// TYPES - Payroll Employees
+// ============================================================
+
+export interface PayrollEmployee {
+  id: string;
+  employee_number?: string;
+  first_name: string;
+  last_name: string;
+  department?: string;
+  position?: string;
+  segment_name?: string;
+  hourly_rate?: number;
+  base_salary?: number;
+  payroll_cutoff_day?: number;
+}
+
+export interface CalculatePayrollOptions {
+  employee_ids?: string[];
+  segment_id?: string;
+}
+
+// ============================================================
 // TYPES - Calculation Result
 // ============================================================
 
 export interface CalculationResult {
   success: boolean;
   period_id: string;
-  payslips_created: number;
+  employees_selected?: number | 'all';
+  employees_processed?: number;
+  payslips_created?: number;
   total_gross: number;
   total_net: number;
-  total_cnss: number;
+  total_cnss?: number;
+  total_cnss_employee?: number;
+  total_cnss_employer?: number;
   total_amo: number;
   total_igr: number;
   errors?: string[];
@@ -250,9 +276,16 @@ export const payrollApi = {
     return apiClient.post<{ success: boolean; period: PayrollPeriod }>(`/hr/payroll/periods/${id}/close`, {});
   },
 
+  // === EMPLOYEES ===
+
+  getPayrollEmployees: async (search?: string): Promise<{ success: boolean; employees: PayrollEmployee[] }> => {
+    const params = search ? `?search=${encodeURIComponent(search)}` : '';
+    return apiClient.get<{ success: boolean; employees: PayrollEmployee[] }>(`/hr/payroll/employees${params}`);
+  },
+
   // === CALCULATION ===
 
-  calculatePayroll: async (periodId: string, options?: { segment_id?: string }): Promise<CalculationResult> => {
+  calculatePayroll: async (periodId: string, options?: CalculatePayrollOptions): Promise<CalculationResult> => {
     return apiClient.post<CalculationResult>(`/hr/payroll/calculate/${periodId}`, options || {});
   },
 

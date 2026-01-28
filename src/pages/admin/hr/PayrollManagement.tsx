@@ -68,6 +68,8 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  Users,
+  X,
 } from 'lucide-react';
 import {
   usePayrollPeriods,
@@ -88,6 +90,7 @@ import {
   usePayrollStats,
 } from '@/hooks/usePayroll';
 import type { PayrollPeriod, PayslipSummary, PayrollAuditLog } from '@/lib/api/payroll';
+import { EmployeeSelectionModal } from '@/components/admin/hr/EmployeeSelectionModal';
 
 // Tabs
 type TabType = 'periodes' | 'calculs' | 'bulletins' | 'tests' | 'automatisation' | 'configuration';
@@ -132,6 +135,8 @@ export default function PayrollManagement() {
   const [showCreatePeriodModal, setShowCreatePeriodModal] = useState(false);
   const [periodToDelete, setPeriodToDelete] = useState<string | null>(null);
   const [periodToClose, setPeriodToClose] = useState<string | null>(null);
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
 
   // Form state for new period
   const [newPeriod, setNewPeriod] = useState({
@@ -269,11 +274,19 @@ export default function PayrollManagement() {
 
   const handleCalculatePayroll = async (periodId: string) => {
     try {
-      const result = await calculatePayrollMutation.mutateAsync({ periodId });
+      const result = await calculatePayrollMutation.mutateAsync({
+        periodId,
+        options: {
+          employee_ids: selectedEmployeeIds.length > 0 ? selectedEmployeeIds : undefined
+        }
+      });
+      const employeesProcessed = result.employees_processed || result.payslips_created || 0;
       toast({
         title: 'Calcul terminé',
-        description: `${result.payslips_created} bulletins générés. Total net: ${formatMoney(result.total_net)}`,
+        description: `${employeesProcessed} bulletin(s) généré(s). Total net: ${formatMoney(result.total_net)}`,
       });
+      // Reset selection after calculation
+      setSelectedEmployeeIds([]);
     } catch (error: unknown) {
       toast({
         title: 'Erreur de calcul',
@@ -281,6 +294,10 @@ export default function PayrollManagement() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleEmployeeSelectionConfirm = (ids: string[]) => {
+    setSelectedEmployeeIds(ids);
   };
 
   const handleValidatePayslip = async (id: string) => {
@@ -631,6 +648,38 @@ export default function PayrollManagement() {
                     </div>
                   </div>
 
+                  {/* Employee Selection */}
+                  <div className="space-y-2">
+                    <Label>Employés à traiter</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowEmployeeModal(true)}
+                        className="flex-1 justify-start"
+                      >
+                        <Users className="mr-2 h-4 w-4" />
+                        {selectedEmployeeIds.length > 0
+                          ? `${selectedEmployeeIds.length} employé(s) sélectionné(s)`
+                          : 'Sélectionner les employés'}
+                      </Button>
+                      {selectedEmployeeIds.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedEmployeeIds([])}
+                          title="Tout désélectionner"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    {selectedEmployeeIds.length === 0 && (
+                      <p className="text-sm text-gray-500">
+                        Par défaut, tous les employés actifs seront traités
+                      </p>
+                    )}
+                  </div>
+
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <h4 className="font-medium text-blue-800 mb-2">Calculs automatiques inclus:</h4>
                     <ul className="text-sm text-blue-700 grid grid-cols-2 gap-2">
@@ -661,6 +710,14 @@ export default function PayrollManagement() {
                       </>
                     )}
                   </ProtectedButton>
+
+                  {/* Employee Selection Modal */}
+                  <EmployeeSelectionModal
+                    open={showEmployeeModal}
+                    onClose={() => setShowEmployeeModal(false)}
+                    onConfirm={handleEmployeeSelectionConfirm}
+                    initialSelected={selectedEmployeeIds}
+                  />
                 </>
               )}
             </CardContent>

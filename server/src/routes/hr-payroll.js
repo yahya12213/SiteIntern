@@ -1,6 +1,12 @@
 import express from 'express';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function timeToMinutes(timeStr) {
   if (!timeStr) return 0;
@@ -231,6 +237,66 @@ router.post('/periods/:id/close',
 );
 
 // ===============================
+// PAYROLL EMPLOYEES
+// ===============================
+
+/**
+ * Get eligible employees for payroll calculation
+ * GET /api/hr/payroll/employees
+ */
+router.get('/employees',
+  authenticateToken,
+  requirePermission('hr.payroll.calculate'),
+  async (req, res) => {
+    const { search } = req.query;
+
+    try {
+      let query = `
+        SELECT
+          e.id,
+          e.employee_number,
+          e.first_name,
+          e.last_name,
+          e.department,
+          e.position,
+          e.hourly_rate,
+          e.payroll_cutoff_day,
+          s.name as segment_name,
+          c.salary_gross as base_salary
+        FROM hr_employees e
+        LEFT JOIN segments s ON e.segment_id = s.id
+        LEFT JOIN hr_contracts c ON c.employee_id = e.id AND c.status = 'active'
+        WHERE e.employment_status = 'active'
+      `;
+
+      const params = [];
+
+      if (search) {
+        query += ` AND (
+          e.first_name ILIKE $1
+          OR e.last_name ILIKE $1
+          OR e.employee_number ILIKE $1
+          OR CONCAT(e.first_name, ' ', e.last_name) ILIKE $1
+        )`;
+        params.push(`%${search}%`);
+      }
+
+      query += ' ORDER BY e.last_name, e.first_name';
+
+      const result = await pool.query(query, params);
+
+      res.json({
+        success: true,
+        employees: result.rows
+      });
+    } catch (error) {
+      console.error('Error fetching payroll employees:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// ===============================
 // PAYROLL CALCULATION
 // ===============================
 
@@ -242,6 +308,7 @@ router.post('/calculate/:period_id',
   requirePermission('hr.payroll.calculate'),
   async (req, res) => {
     const { period_id } = req.params;
+    const { employee_ids } = req.body; // Array of employee IDs or undefined for all
     const userId = req.user.id;
 
     const client = await pool.connect();
@@ -282,7 +349,8 @@ router.post('/calculate/:period_id',
       });
 
       // Get all active employees with contracts
-      const employees = await client.query(`
+      // Filter by employee_ids if provided
+      let employeeQuery = `
         SELECT
           e.*,
           e.is_cnss_subject,
@@ -293,8 +361,19 @@ router.post('/calculate/:period_id',
         FROM hr_employees e
         LEFT JOIN hr_contracts c ON c.employee_id = e.id AND c.status = 'active'
         WHERE e.employment_status = 'active'
-        ORDER BY e.last_name, e.first_name
-      `);
+      `;
+
+      const employeeParams = [];
+
+      // Add employee_ids filter if provided
+      if (employee_ids && Array.isArray(employee_ids) && employee_ids.length > 0) {
+        employeeQuery += ` AND e.id = ANY($1::uuid[])`;
+        employeeParams.push(employee_ids);
+      }
+
+      employeeQuery += ' ORDER BY e.last_name, e.first_name';
+
+      const employees = await client.query(employeeQuery, employeeParams);
 
       // Delete existing payslips for this period (if recalculating)
       await client.query('DELETE FROM hr_payslips WHERE period_id = $1', [period_id]);
@@ -640,6 +719,7 @@ router.post('/calculate/:period_id',
         success: true,
         data: {
           period_id,
+          employees_selected: employee_ids?.length || 'all',
           employees_processed: employees.rows.length,
           total_gross: totalGross,
           total_net: totalNet,
@@ -771,6 +851,95 @@ router.get('/payslips/:id',
       });
     } catch (error) {
       console.error('Error fetching payslip:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Download payslip PDF
+ * GET /api/hr/payroll/payslips/:id/pdf
+ */
+router.get('/payslips/:id/pdf',
+  authenticateToken,
+  async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    try {
+      // Vérifier accès (admin ou propriétaire)
+      const payslip = await pool.query(`
+        SELECT ps.*, e.profile_id, e.first_name, e.last_name
+        FROM hr_payslips ps
+        JOIN hr_employees e ON e.id = ps.employee_id
+        WHERE ps.id = $1
+      `, [id]);
+
+      if (payslip.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Payslip not found' });
+      }
+
+      const payslipData = payslip.rows[0];
+
+      // Check permission - admin or owner
+      const isOwner = payslipData.profile_id === userId;
+      const isAdmin = req.user.role === 'admin';
+
+      if (!isAdmin && !isOwner) {
+        // Check for view_all permission
+        const hasViewAll = await pool.query(`
+          SELECT 1 FROM user_permissions up
+          JOIN permissions p ON p.id = up.permission_id
+          WHERE up.user_id = $1 AND p.code = 'hr.payroll.view_all_payslips'
+        `, [userId]);
+
+        if (hasViewAll.rows.length === 0) {
+          return res.status(403).json({ success: false, error: 'Access denied' });
+        }
+      }
+
+      // Générer ou récupérer le PDF
+      const uploadsDir = path.join(__dirname, '../../uploads/payslips');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      const pdfFilename = `bulletin-${id}.pdf`;
+      const pdfPath = path.join(uploadsDir, pdfFilename);
+
+      // Si le fichier existe déjà et est récent, le retourner
+      if (fs.existsSync(pdfPath)) {
+        const stats = fs.statSync(pdfPath);
+        const fileAge = Date.now() - stats.mtimeMs;
+        // Si le fichier a moins de 24h, le retourner directement
+        if (fileAge < 24 * 60 * 60 * 1000) {
+          return res.download(pdfPath, `bulletin-${payslipData.first_name}-${payslipData.last_name}.pdf`);
+        }
+      }
+
+      // Sinon, générer le PDF
+      const { PayslipPDFGenerator } = await import('../services/payslipPDFGenerator.js');
+      const generator = new PayslipPDFGenerator();
+      await generator.generatePayslip(id, pdfPath);
+
+      // Mettre à jour la base de données
+      await pool.query(`
+        UPDATE hr_payslips
+        SET pdf_path = $1, pdf_generated_at = NOW()
+        WHERE id = $2
+      `, [pdfFilename, id]);
+
+      // Audit log
+      await pool.query(`
+        INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, performed_by)
+        VALUES ('payslip', $1, 'download', $2)
+      `, [id, userId]);
+
+      // Télécharger
+      res.download(pdfPath, `bulletin-${payslipData.first_name}-${payslipData.last_name}.pdf`);
+
+    } catch (error) {
+      console.error('Error generating payslip PDF:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   }

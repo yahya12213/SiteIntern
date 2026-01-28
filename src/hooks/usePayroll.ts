@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   payrollApi,
   type CreatePeriodInput,
+  type CalculatePayrollOptions,
 } from '../lib/api/payroll';
 
 // ============================================================
@@ -111,6 +112,20 @@ export const useClosePeriod = () => {
 };
 
 // ============================================================
+// EMPLOYEES HOOKS
+// ============================================================
+
+/**
+ * Hook pour récupérer les employés éligibles au calcul de paie
+ */
+export const usePayrollEmployees = (search?: string) => {
+  return useQuery({
+    queryKey: ['payroll', 'employees', search],
+    queryFn: () => payrollApi.getPayrollEmployees(search),
+  });
+};
+
+// ============================================================
 // CALCULATION HOOKS
 // ============================================================
 
@@ -121,7 +136,7 @@ export const useCalculatePayroll = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ periodId, options }: { periodId: string; options?: { segment_id?: string } }) =>
+    mutationFn: ({ periodId, options }: { periodId: string; options?: CalculatePayrollOptions }) =>
       payrollApi.calculatePayroll(periodId, options),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['payroll', 'periods', variables.periodId] });
