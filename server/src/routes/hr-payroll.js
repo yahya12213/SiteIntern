@@ -807,12 +807,13 @@ router.post('/calculate/:period_id/reset',
       // 5. Audit log
       await client.query(`
         INSERT INTO hr_payroll_audit_logs (entity_type, entity_id, action, old_values, performed_by)
-        VALUES ('period', $1, 'reset_calculations', $2, $3)
+        VALUES ('period', $1, 'delete', $2, $3)
       `, [
         period_id,
         JSON.stringify({
           deleted_payslips: deleteResult.rowCount,
-          period_name: period.name
+          period_name: period.name,
+          action_detail: 'reset_calculations'
         }),
         userId
       ]);
