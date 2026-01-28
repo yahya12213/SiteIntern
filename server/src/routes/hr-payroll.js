@@ -46,7 +46,7 @@ router.get('/periods',
       query += ' ORDER BY year DESC, month DESC';
 
       const result = await pool.query(query, params);
-      res.json({ success: true, data: result.rows });
+      res.json({ success: true, periods: result.rows });
     } catch (error) {
       console.error('Error fetching payroll periods:', error);
       res.status(500).json({ success: false, error: error.message });
