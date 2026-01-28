@@ -617,7 +617,7 @@ export default function EmployeePortal() {
                                   : '-'}
                               </TableCell>
                               <TableCell>
-                                {record.correction_request ? (
+                                {record.correction_request && record.correction_request.status !== 'cancelled' ? (
                                   <CorrectionStatusBadge correction={record.correction_request} />
                                 ) : !['weekend', 'holiday'].includes(record.status) && (
                                   <Button
