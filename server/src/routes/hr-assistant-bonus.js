@@ -178,17 +178,20 @@ router.get('/calculate', async (req, res) => {
       // Pour sessions en ligne, seuls les étudiants avec statut "livree" comptent
       // Utilise date_inscription si disponible, sinon created_at
       const periodQuery = `
-        SELECT COUNT(*) as count
+        SELECT COUNT(DISTINCT se.student_id) as count
         FROM session_etudiants se
         JOIN sessions_formation sf ON sf.id = se.session_id
         WHERE sf.segment_id = $1
-          AND COALESCE(se.date_inscription, se.created_at)::date >= $2
-          AND COALESCE(se.date_inscription, se.created_at)::date <= $3
+          AND sf.ville_id = $2
+          AND COALESCE(se.date_inscription, se.created_at)::date >= $3
+          AND COALESCE(se.date_inscription, se.created_at)::date <= $4
+          AND sf.statut != 'annulee'
           AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
       `;
 
       const periodResult = await pool.query(periodQuery, [
         employee.segment_id,
+        employee.ville_id,
         periode.start,
         periode.end
       ]);
@@ -392,6 +395,7 @@ router.post('/batch', async (req, res) => {
           SELECT
             id,
             segment_id,
+            ville_id,
             COALESCE(inscription_objective, 0) as inscription_objective,
             COALESCE(payroll_cutoff_day, 18) as payroll_cutoff_day
           FROM hr_employees
@@ -438,17 +442,20 @@ router.post('/batch', async (req, res) => {
 
         if (employee.inscription_objective > 0) {
           const periodQuery = `
-            SELECT COUNT(*) as count
+            SELECT COUNT(DISTINCT se.student_id) as count
             FROM session_etudiants se
             JOIN sessions_formation sf ON sf.id = se.session_id
             WHERE sf.segment_id = $1
-              AND COALESCE(se.date_inscription, se.created_at)::date >= $2
-              AND COALESCE(se.date_inscription, se.created_at)::date <= $3
+              AND sf.ville_id = $2
+              AND COALESCE(se.date_inscription, se.created_at)::date >= $3
+              AND COALESCE(se.date_inscription, se.created_at)::date <= $4
+              AND sf.statut != 'annulee'
               AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
           `;
 
           const periodResult = await pool.query(periodQuery, [
             employee.segment_id,
+            employee.ville_id,
             periode.start,
             periode.end
           ]);
