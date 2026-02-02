@@ -201,7 +201,7 @@ router.get('/',
         params.push(date_to);
       }
       if (search) {
-        query += ` AND (p.phone_international LIKE $${paramIndex} OR p.nom ILIKE $${paramIndex} OR p.prenom ILIKE $${paramIndex})`;
+        query += ` AND (p.phone_international LIKE $${paramIndex} OR p.phone_raw LIKE $${paramIndex} OR p.nom ILIKE $${paramIndex} OR p.prenom ILIKE $${paramIndex})`;
         params.push(`%${search}%`);
         paramIndex++;
       }
