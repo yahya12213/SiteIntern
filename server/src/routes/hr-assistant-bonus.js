@@ -97,6 +97,7 @@ router.get('/calculate', async (req, res) => {
           id,
           first_name || ' ' || last_name as employee_name,
           segment_id,
+          ville_id,
           COALESCE(inscription_objective, 0) as inscription_objective,
           COALESCE(payroll_cutoff_day, 18) as payroll_cutoff_day
         FROM hr_employees
@@ -182,7 +183,7 @@ router.get('/calculate', async (req, res) => {
         FROM session_etudiants se
         JOIN sessions_formation sf ON sf.id = se.session_id
         WHERE sf.segment_id = $1
-          AND sf.ville_id = $2
+          AND ($2::uuid IS NULL OR sf.ville_id = $2)
           AND COALESCE(se.date_inscription, se.created_at)::date >= $3
           AND COALESCE(se.date_inscription, se.created_at)::date <= $4
           AND sf.statut != 'annulee'
@@ -251,6 +252,7 @@ router.get('/period', async (req, res) => {
           id,
           first_name || ' ' || last_name as employee_name,
           segment_id,
+          ville_id,
           COALESCE(inscription_objective, 0) as inscription_objective,
           COALESCE(payroll_cutoff_day, 18) as payroll_cutoff_day
         FROM hr_employees
@@ -446,7 +448,7 @@ router.post('/batch', async (req, res) => {
             FROM session_etudiants se
             JOIN sessions_formation sf ON sf.id = se.session_id
             WHERE sf.segment_id = $1
-              AND sf.ville_id = $2
+              AND ($2::uuid IS NULL OR sf.ville_id = $2)
               AND COALESCE(se.date_inscription, se.created_at)::date >= $3
               AND COALESCE(se.date_inscription, se.created_at)::date <= $4
               AND sf.statut != 'annulee'
