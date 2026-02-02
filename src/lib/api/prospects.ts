@@ -50,6 +50,15 @@ export interface ProspectStats {
   inscrits_session: number;
   appels_30s_count?: number;
   taux_conversion?: number;
+  // Écart d'inscription
+  inscription_objective?: number;
+  inscription_gap?: number | null;
+  expected_inscriptions?: number | null;
+  total_working_days?: number;
+  elapsed_working_days?: number;
+  daily_objective?: number | null;
+  period_start?: string;
+  period_end?: string;
 }
 
 export interface ProspectFilters {

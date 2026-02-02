@@ -164,18 +164,45 @@ export default function Prospects() {
     };
   }, [payrollMonth]);
 
-  // Données - Stats globales (4 premières cartes) - sans filtres de date
-  const { data, isLoading, error, refetch } = useProspects(filters);
-
-  // Query séparée pour les stats filtrées (3 dernières cartes)
-  const { data: statsFiltered } = useProspects({
+  // ========================================================
+  // REQUÊTE 1: Stats GLOBALES (pour TOUTES les cartes quand période inactive)
+  // NE PAS inclure date_from/date_to pour avoir stats globales
+  // ========================================================
+  const { data: statsGlobal, isLoading: statsLoading } = useProspects({
     segment_id: filters.segment_id,
     ville_id: filters.ville_id,
-    date_from: statsDateRange.date_from,
-    date_to: statsDateRange.date_to,
+    assigned_to: filters.assigned_to,
+    statut_contact: filters.statut_contact,
+    decision_nettoyage: filters.decision_nettoyage,
+    country_code: filters.country_code,
+    search: filters.search,
+    // ❌ PAS de date_from/date_to ici pour stats globales
     page: 1,
     limit: 1, // On ne veut que les stats, pas les prospects
   });
+
+  // ========================================================
+  // REQUÊTE 2: Stats FILTRÉES par période de paie (pour TOUTES les cartes quand période active)
+  // ========================================================
+  const { data: statsFiltered } = useProspects({
+    segment_id: filters.segment_id,
+    ville_id: filters.ville_id,
+    assigned_to: filters.assigned_to,
+    statut_contact: filters.statut_contact,
+    decision_nettoyage: filters.decision_nettoyage,
+    country_code: filters.country_code,
+    search: filters.search,
+    date_from: statsDateRange.date_from,
+    date_to: statsDateRange.date_to,
+    page: 1,
+    limit: 1,
+  });
+
+  // ========================================================
+  // REQUÊTE 3: Liste des prospects FILTRÉE
+  // ========================================================
+  const { data: prospectsList, isLoading, error, refetch } = useProspects(filters);
+  // ✅ Inclut TOUS les filtres, y compris date_from/date_to
 
   const { data: segments = [] } = useSegments();
   const { data: cities = [] } = useCities(filters.segment_id);
@@ -267,16 +294,21 @@ export default function Prospects() {
     }
   };
 
-  const prospects = data?.prospects || [];
-  const stats = data?.stats || {
+  const prospects = prospectsList?.prospects || [];
+
+  // Si le filtre période est actif, utiliser les stats filtrées pour TOUTES les cartes
+  // Sinon, utiliser les stats globales
+  const stats = (payrollMonth ? statsFiltered?.stats : statsGlobal?.stats) || {
     total: 0,
     non_contactes: 0,
     avec_rdv: 0,
     sans_rdv: 0,
     inscrits_prospect: 0,
     inscrits_session: 0,
+    appels_30s_count: 0,
+    taux_conversion: 0,
   };
-  const pagination = data?.pagination || { page: 1, limit: 50, total: 0 };
+  const pagination = prospectsList?.pagination || { page: 1, limit: 50, total: 0 };
 
   // Handlers
   const handleSearch = () => {
@@ -375,11 +407,18 @@ export default function Prospects() {
 
   const renderStatsCards = () => (
     <>
-      {/* Section 1: 4 cartes NON filtrées (données historiques complètes) */}
+      {/* Section 1: 4 premières cartes (Total, Non contactés, Avec RDV, Sans RDV) */}
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Total</CardTitle>
+              {payrollMonth && (
+                <Badge variant="secondary" className="text-xs">
+                  Filtré
+                </Badge>
+              )}
+            </div>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -389,7 +428,14 @@ export default function Prospects() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Non contactés</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Non contactés</CardTitle>
+              {payrollMonth && (
+                <Badge variant="secondary" className="text-xs">
+                  Filtré
+                </Badge>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">{stats.non_contactes}</div>
@@ -398,7 +444,14 @@ export default function Prospects() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avec RDV</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Avec RDV</CardTitle>
+              {payrollMonth && (
+                <Badge variant="secondary" className="text-xs">
+                  Filtré
+                </Badge>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{stats.avec_rdv}</div>
@@ -407,7 +460,14 @@ export default function Prospects() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Sans RDV</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Sans RDV</CardTitle>
+              {payrollMonth && (
+                <Badge variant="secondary" className="text-xs">
+                  Filtré
+                </Badge>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-600">{stats.sans_rdv}</div>
@@ -422,7 +482,7 @@ export default function Prospects() {
         onReset={() => setPayrollMonth(null)}
       />
 
-      {/* Section 2: 4 cartes FILTRÉES par période (avec badge "Filtré") */}
+      {/* Section 2: 4 dernières cartes (Taux Conversion, Inscrit Prospect, Inscrit Session, Écarts) */}
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         {/* NOUVELLE CARTE: Taux de Conversion */}
         <Card>
@@ -438,10 +498,10 @@ export default function Prospects() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-indigo-600">
-              {statsFiltered?.stats?.taux_conversion ?? stats.taux_conversion ?? 0}%
+              {stats.taux_conversion ?? 0}%
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {statsFiltered?.stats?.inscrits_session ?? stats.inscrits_session} / {statsFiltered?.stats?.appels_30s_count ?? stats.appels_30s_count ?? 0} appels
+              {stats.inscrits_session} / {stats.appels_30s_count ?? 0} appels
             </p>
           </CardContent>
         </Card>
@@ -459,7 +519,7 @@ export default function Prospects() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {statsFiltered?.stats?.inscrits_prospect ?? stats.inscrits_prospect}
+              {stats.inscrits_prospect}
             </div>
           </CardContent>
         </Card>
@@ -477,7 +537,81 @@ export default function Prospects() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              {statsFiltered?.stats?.inscrits_session ?? stats.inscrits_session}
+              {stats.inscrits_session}
+            </div>
+
+            {/* Indicateur d'écart d'inscription */}
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              {stats.inscription_objective > 0 && stats.inscription_gap !== null ? (
+                <div className="space-y-2">
+                  {/* Ligne "Écart d'inscription" */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-gray-600">Écart d'inscription:</span>
+                    {stats.inscription_gap > 0 ? (
+                      <span className="text-sm font-bold text-green-600">
+                        +{stats.inscription_gap}
+                      </span>
+                    ) : stats.inscription_gap < 0 ? (
+                      <span className="text-sm font-bold text-red-600">
+                        {stats.inscription_gap}
+                      </span>
+                    ) : (
+                      <span className="text-sm font-bold text-gray-600">
+                        0
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Message conditionnel */}
+                  {stats.inscription_gap > 0 ? (
+                    <div className="flex items-start gap-1.5 p-2 bg-green-50 rounded-md">
+                      <span className="text-green-600 text-sm mt-0.5">✓</span>
+                      <p className="text-xs text-green-700 font-medium">
+                        Bravo vous êtes à l'objectif
+                      </p>
+                    </div>
+                  ) : stats.inscription_gap < 0 ? (
+                    <div className="flex items-start gap-1.5 p-2 bg-red-50 rounded-md">
+                      <span className="text-red-600 text-sm mt-0.5">⚠</span>
+                      <p className="text-xs text-red-700 font-medium">
+                        Attention vous vous éloignez de l'objectif
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-2 bg-gray-50 rounded-md">
+                      <p className="text-xs text-gray-700 font-medium">
+                        À l'objectif exactement
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Détails complémentaires */}
+                  <div className="space-y-1 text-xs text-gray-500">
+                    <div className="flex justify-between">
+                      <span>Attendu:</span>
+                      <span className="font-medium">{stats.expected_inscriptions}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Jours écoulés:</span>
+                      <span className="font-medium">
+                        {stats.elapsed_working_days} / {stats.total_working_days} jours
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Objectif journalier:</span>
+                      <span className="font-medium">{stats.daily_objective?.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : stats.inscription_objective === 0 ? (
+                <p className="text-xs text-gray-500 italic">
+                  Aucun objectif défini
+                </p>
+              ) : stats.total_working_days === 0 ? (
+                <p className="text-xs text-gray-500 italic">
+                  Période sans jours ouvrables
+                </p>
+              ) : null}
             </div>
           </CardContent>
         </Card>

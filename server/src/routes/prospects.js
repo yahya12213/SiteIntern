@@ -339,13 +339,133 @@ router.get('/',
         tauxConversion: `${tauxConversion}%`
       });
 
+      // =====================================================
+      // CALCUL ÉCART D'INSCRIPTION
+      // =====================================================
+
+      const { calculateWorkingDays } = require('../utils/working-days-calculator');
+
+      // 1. Récupérer l'objectif de l'utilisateur connecté
+      const employeeResult = await pool.query(`
+        SELECT inscription_objective
+        FROM hr_employees
+        WHERE profile_id = $1
+        LIMIT 1
+      `, [req.user.id]);
+
+      const inscriptionObjective = employeeResult.rows[0]?.inscription_objective || 0;
+
+      // 2. Déterminer la période à utiliser
+      let periodStart, periodEnd;
+
+      if (date_from && date_to) {
+        // Utiliser la période du filtre
+        periodStart = date_from;
+        periodEnd = date_to;
+      } else {
+        // Calculer la période de paie actuelle (19→18)
+        const today = new Date();
+        const currentDay = today.getDate();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+
+        if (currentDay <= 18) {
+          // Période: 19 du mois dernier au 18 de ce mois
+          periodEnd = new Date(currentYear, currentMonth, 18);
+          periodStart = new Date(currentYear, currentMonth - 1, 19);
+        } else {
+          // Période: 19 de ce mois au 18 du mois prochain
+          periodStart = new Date(currentYear, currentMonth, 19);
+          periodEnd = new Date(currentYear, currentMonth + 1, 18);
+        }
+
+        // Formater en YYYY-MM-DD
+        periodStart = periodStart.toISOString().split('T')[0];
+        periodEnd = periodEnd.toISOString().split('T')[0];
+      }
+
+      // 3. Récupérer les jours fériés dans la période
+      let inscriptionGap = null;
+      let expectedInscriptions = null;
+      let dailyObjective = null;
+      let totalWorkingDays = 0;
+      let elapsedWorkingDays = 0;
+
+      try {
+        const holidaysResult = await pool.query(`
+          SELECT holiday_date
+          FROM hr_public_holidays
+          WHERE holiday_date >= $1 AND holiday_date <= $2
+          ORDER BY holiday_date
+        `, [periodStart, periodEnd]);
+
+        const publicHolidays = holidaysResult.rows.map(row => new Date(row.holiday_date));
+
+        // 4. Calculer le total de jours ouvrables dans la période
+        totalWorkingDays = calculateWorkingDays(
+          new Date(periodStart),
+          new Date(periodEnd),
+          publicHolidays
+        );
+
+        // 5. Calculer les jours ouvrables écoulés jusqu'à aujourd'hui
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+
+        // Ne compter que jusqu'à aujourd'hui (ou fin de période si avant aujourd'hui)
+        const elapsedEndDate = todayStr < periodEnd ? todayStr : periodEnd;
+
+        // Ne calculer que si on est dans la période ou après
+        if (todayStr >= periodStart) {
+          elapsedWorkingDays = calculateWorkingDays(
+            new Date(periodStart),
+            new Date(elapsedEndDate),
+            publicHolidays
+          );
+        }
+
+        // 6. Calculer l'écart d'inscription
+        if (inscriptionObjective > 0 && totalWorkingDays > 0) {
+          dailyObjective = inscriptionObjective / totalWorkingDays;
+          expectedInscriptions = Math.round(elapsedWorkingDays * dailyObjective);
+
+          // Écart = réel - attendu
+          inscriptionGap = inscritsSession - expectedInscriptions;
+        }
+
+        console.log('📊 [PROSPECTS] Écart inscription:', {
+          inscriptionObjective,
+          periodStart,
+          periodEnd,
+          totalWorkingDays,
+          elapsedWorkingDays,
+          dailyObjective: dailyObjective ? dailyObjective.toFixed(2) : null,
+          expectedInscriptions,
+          inscritsSession,
+          inscriptionGap
+        });
+
+      } catch (error) {
+        console.error('Erreur lors du calcul de l\'écart d\'inscription:', error);
+        // Ne pas bloquer la requête si le calcul échoue
+      }
+
       res.json({
         prospects: rows,
         stats: {
           ...statsResult.rows[0],
           inscrits_session: parseInt(inscritsSessionResult.rows[0].count || 0),
           appels_30s_count: appels30sCount,
-          taux_conversion: tauxConversion
+          taux_conversion: tauxConversion,
+          // NOUVEAUX CHAMPS pour l'écart d'inscription
+          inscription_objective: inscriptionObjective,
+          inscription_gap: inscriptionGap,
+          expected_inscriptions: expectedInscriptions,
+          total_working_days: totalWorkingDays,
+          elapsed_working_days: elapsedWorkingDays,
+          daily_objective: dailyObjective ? parseFloat(dailyObjective.toFixed(2)) : null,
+          period_start: periodStart,
+          period_end: periodEnd
         },
         pagination: {
           page: parseInt(page, 10),
