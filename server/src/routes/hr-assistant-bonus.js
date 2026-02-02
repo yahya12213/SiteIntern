@@ -161,13 +161,15 @@ router.get('/calculate', async (req, res) => {
         LEFT JOIN cities c ON c.id = sf.ville_id
         LEFT JOIN students st ON st.id = se.student_id
         WHERE sf.segment_id = $1
-          AND COALESCE(se.date_inscription, se.created_at)::date = $2
+          AND ($2::uuid IS NULL OR sf.ville_id = $2)
+          AND COALESCE(se.date_inscription, se.created_at)::date = $3
           AND COALESCE(f.prime_assistante, 0) > 0
+          AND sf.statut != 'annulee'
           AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
         ORDER BY se.created_at DESC
       `;
 
-      const inscriptionsResult = await pool.query(inscriptionsQuery, [employee.segment_id, targetDate]);
+      const inscriptionsResult = await pool.query(inscriptionsQuery, [employee.segment_id, employee.ville_id, targetDate]);
 
       // Calculer la prime journalière
       const prime_journaliere = inscriptionsResult.rows.reduce(
@@ -299,15 +301,17 @@ router.get('/period', async (req, res) => {
         JOIN sessions_formation sf ON sf.id = se.session_id
         JOIN formations f ON f.id = se.formation_id
         WHERE sf.segment_id = $1
-          AND COALESCE(se.date_inscription, se.created_at)::date >= $2
-          AND COALESCE(se.date_inscription, se.created_at)::date <= $3
+          AND ($2::uuid IS NULL OR sf.ville_id = $2)
+          AND COALESCE(se.date_inscription, se.created_at)::date >= $3
+          AND COALESCE(se.date_inscription, se.created_at)::date <= $4
           AND COALESCE(f.prime_assistante, 0) > 0
+          AND sf.statut != 'annulee'
           AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
         GROUP BY COALESCE(se.date_inscription, se.created_at)::date
         ORDER BY date
       `;
 
-      const dailyResult = await pool.query(query, [employee.segment_id, start_date, end_date]);
+      const dailyResult = await pool.query(query, [employee.segment_id, employee.ville_id, start_date, end_date]);
 
       // Calculer les totaux
       const total_prime = dailyResult.rows.reduce(
@@ -428,12 +432,14 @@ router.post('/batch', async (req, res) => {
           JOIN sessions_formation sf ON sf.id = se.session_id
           JOIN formations f ON f.id = se.formation_id
           WHERE sf.segment_id = $1
-            AND COALESCE(se.date_inscription, se.created_at)::date = $2
+            AND ($2::uuid IS NULL OR sf.ville_id = $2)
+            AND COALESCE(se.date_inscription, se.created_at)::date = $3
             AND COALESCE(f.prime_assistante, 0) > 0
+            AND sf.statut != 'annulee'
             AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
         `;
 
-        const primeResult = await pool.query(primeQuery, [employee.segment_id, targetDate]);
+        const primeResult = await pool.query(primeQuery, [employee.segment_id, employee.ville_id, targetDate]);
         const prime_journaliere = parseFloat(primeResult.rows[0].prime_journaliere || 0);
 
         // Vérifier l'objectif basé sur la période automatique
