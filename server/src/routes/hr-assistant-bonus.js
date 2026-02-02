@@ -395,7 +395,6 @@ router.post('/batch', async (req, res) => {
           SELECT
             id,
             segment_id,
-            ville_id,
             COALESCE(inscription_objective, 0) as inscription_objective,
             COALESCE(payroll_cutoff_day, 18) as payroll_cutoff_day
           FROM hr_employees
