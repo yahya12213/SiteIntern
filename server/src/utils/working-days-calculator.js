@@ -43,4 +43,4 @@ function calculateWorkingDays(startDate, endDate, publicHolidays = []) {
   return workingDays;
 }
 
-module.exports = { calculateWorkingDays };
+export { calculateWorkingDays };

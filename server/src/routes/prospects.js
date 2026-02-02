@@ -12,6 +12,7 @@ import { reassignIfOutOfScope } from '../utils/prospect-assignment.js';
 import { handleDuplicateOrReinject, reinjectProspect } from '../utils/prospect-reinject.js';
 import { runCleaningBatch, deleteMarkedProspects, getProspectsToDelete, getCleaningStats } from '../utils/prospect-cleaner.js';
 import { googleContactsService } from '../services/googleContactsService.js';
+import { calculateWorkingDays } from '../utils/working-days-calculator.js';
 
 const router = express.Router();
 
@@ -342,8 +343,6 @@ router.get('/',
       // =====================================================
       // CALCUL ÉCART D'INSCRIPTION
       // =====================================================
-
-      const { calculateWorkingDays } = require('../utils/working-days-calculator');
 
       // 1. Récupérer l'objectif de l'utilisateur connecté
       const employeeResult = await pool.query(`
