@@ -101,6 +101,10 @@ export interface PayslipSummary {
   department?: string;
   gross_salary: number;
   net_salary: number;
+  cnss_employee: number;
+  amo_employee: number;
+  igr: number;
+  other_deductions?: number;
   status: string;
 }
 

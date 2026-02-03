@@ -30,7 +30,7 @@ export function PayslipDetailModal({
     enabled: open && !!payslipId,
   });
 
-  const payslip = data?.data as Payslip | undefined;
+  const payslip = (data as any)?.payslip as Payslip | undefined;
 
   if (!payslip && isLoading) {
     return (

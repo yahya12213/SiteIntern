@@ -6,7 +6,6 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { PERMISSIONS } from '@/config/permissions';
 import { useToast } from '@/hooks/use-toast';
@@ -89,7 +88,7 @@ export function PayrollManagement() {
 
       toast({
         title: 'Calcul terminé',
-        description: `${result.data.employees_processed} bulletin(s) généré(s). Total net: ${result.data.total_net.toFixed(2)} MAD`,
+        description: `${(result as any).employees_processed || 0} bulletin(s) généré(s). Total net: ${((result as any).total_net || 0).toFixed(2)} MAD`,
       });
     } catch (error: unknown) {
       toast({
@@ -211,7 +210,7 @@ export function PayrollManagement() {
   };
 
   return (
-    <AppLayout requiredPermission={PERMISSIONS.ressources_humaines.gestion_paie.voir}>
+    <AppLayout>
       <div className="space-y-6 p-6">
         {/* En-tête */}
         <Card className="p-6">

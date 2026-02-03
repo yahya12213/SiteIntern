@@ -31,7 +31,9 @@ export function PayslipsList({
   canValidate = false,
   canExport = false,
 }: PayslipsListProps) {
-  const { data, isLoading } = usePayslips(periodId || undefined);
+  const { data, isLoading } = usePayslips(
+    periodId ? { period_id: periodId } : undefined
+  );
   const payslips = data?.payslips || [];
 
   const formatAmount = (amount: number) => {

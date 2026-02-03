@@ -20,13 +20,13 @@ export function PayrollConfiguration() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { data, isLoading } = usePayrollConfig();
-  const config = data?.data || [];
+  const config = (data as any)?.config || [];
 
   const [isSaving, setIsSaving] = useState(false);
 
   // Helper pour récupérer une valeur de config
   const getConfigValue = (key: string): string => {
-    const item = config.find((c) => c.config_key === key);
+    const item = config.find((c: any) => c.config_key === key);
     return item?.config_value || '';
   };
 
@@ -84,9 +84,7 @@ export function PayrollConfiguration() {
 
   if (isLoading) {
     return (
-      <AppLayout
-        requiredPermission={PERMISSIONS.ressources_humaines.gestion_paie.configuration.voir}
-      >
+      <AppLayout>
         <div className="flex items-center justify-center h-96">
           <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           <span className="ml-3 text-gray-600">Chargement de la configuration...</span>
@@ -96,9 +94,7 @@ export function PayrollConfiguration() {
   }
 
   return (
-    <AppLayout
-      requiredPermission={PERMISSIONS.ressources_humaines.gestion_paie.configuration.voir}
-    >
+    <AppLayout>
       <div className="space-y-6 p-6">
         {/* En-tête */}
         <Card>
@@ -123,7 +119,7 @@ export function PayrollConfiguration() {
         </Card>
 
         {/* Onglets Configuration */}
-        <Tabs defaultValue="cotisations" className="space-y-4">
+        <Tabs value="cotisations" className="space-y-4">
           <TabsList>
             <TabsTrigger value="cotisations">Cotisations Sociales</TabsTrigger>
             <TabsTrigger value="heures-sup">Heures Supplémentaires</TabsTrigger>

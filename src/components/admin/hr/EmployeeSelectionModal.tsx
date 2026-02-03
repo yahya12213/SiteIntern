@@ -35,7 +35,9 @@ export function EmployeeSelectionModal({
   }, [searchQuery]);
 
   // Charger les employés
-  const { data, isLoading } = usePayrollEmployees(debouncedSearch || undefined);
+  const { data, isLoading } = usePayrollEmployees(
+    debouncedSearch ? { search: debouncedSearch } : undefined
+  );
 
   const employees = data?.employees || [];
 

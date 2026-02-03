@@ -36,7 +36,7 @@ import PermissionsDiagnostic from './pages/admin/PermissionsDiagnostic';
 import HREmployees from './pages/admin/hr/HREmployees';
 import ValidationWorkflows from './pages/admin/hr/ValidationWorkflows';
 import ScheduleManagement from './pages/admin/hr/ScheduleManagement';
-import PayrollManagement from './pages/admin/hr/PayrollManagement';
+import { PayrollManagement } from './pages/admin/hr/PayrollManagement';
 import { PayrollConfiguration } from './pages/admin/hr/PayrollConfiguration';
 import EmployeePortal from './pages/admin/hr/EmployeePortal';
 import RequestsValidation from './pages/admin/hr/RequestsValidation';
@@ -434,7 +434,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/admin/hr/payroll/configuration"
         element={
-          <ProtectedRoute requiredPermission={PERMISSIONS.hr.payroll.config}>
+          <ProtectedRoute requiredPermission={PERMISSIONS.ressources_humaines.gestion_paie.configuration.modifier}>
             <PayrollConfiguration />
           </ProtectedRoute>
         }

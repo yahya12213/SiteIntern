@@ -145,7 +145,7 @@ export function EmployeeChecklistTable({
                     className="cursor-pointer hover:bg-gray-50"
                     onClick={() => toggleEmployee(emp.id)}
                   >
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedIds.includes(emp.id)}
                         onCheckedChange={() => toggleEmployee(emp.id)}
