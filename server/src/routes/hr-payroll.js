@@ -555,13 +555,19 @@ router.post('/calculate/:period_id',
         // Get enrollment bonuses for this period
         const enrollmentBonuses = await client.query(`
           SELECT
-            COALESCE(SUM(bonus_amount), 0) as total,
+            COALESCE(SUM(f.prime_assistante), 0) as total,
             COUNT(*) as count
-          FROM hr_enrollment_bonuses
-          WHERE employee_id = $1
-          AND payroll_period_id = $2
-          AND status = 'validated'
-        `, [emp.id, period_id]);
+          FROM session_etudiants se
+          JOIN sessions_formation sf ON sf.id = se.session_id
+          JOIN formations f ON f.id = se.formation_id
+          WHERE sf.segment_id = $1
+            AND ($2::TEXT IS NULL OR sf.ville_id = $2::TEXT)
+            AND COALESCE(se.date_inscription, se.created_at)::date >= $3
+            AND COALESCE(se.date_inscription, se.created_at)::date <= $4
+            AND COALESCE(f.prime_assistante, 0) > 0
+            AND sf.statut != 'annulee'
+            AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
+        `, [emp.segment_id, emp.ville_id, periodData.start_date, periodData.end_date]);
 
         const enrollmentBonusTotal = parseFloat(enrollmentBonuses.rows[0]?.total) || 0;
         const enrollmentBonusCount = parseInt(enrollmentBonuses.rows[0]?.count) || 0;
