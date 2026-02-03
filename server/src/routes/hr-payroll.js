@@ -572,8 +572,22 @@ router.post('/calculate/:period_id',
         const enrollmentBonusTotal = parseFloat(enrollmentBonuses.rows[0]?.total) || 0;
         const enrollmentBonusCount = parseInt(enrollmentBonuses.rows[0]?.count) || 0;
 
+        // 🔍 LOG DÉTAILLÉ: Primes d'inscription
+        console.log(`\n📊 [PAYROLL-CALC] Employé: ${emp.first_name} ${emp.last_name} (${emp.id})`);
+        console.log(`   Segment ID: ${emp.segment_id}`);
+        console.log(`   Ville ID: ${emp.ville_id}`);
+        console.log(`   Période: ${periodData.start_date} → ${periodData.end_date}`);
+        console.log(`   ✅ Primes inscription trouvées: ${enrollmentBonusCount} inscriptions = ${enrollmentBonusTotal.toFixed(2)} MAD`);
+
         // Gross salary (incluant primes inscription)
         const grossSalary = adjustedBaseSalary + overtimeAmount + seniorityBonus + enrollmentBonusTotal;
+
+        // 🔍 LOG DÉTAILLÉ: Calcul salaire brut
+        console.log(`   💰 Salaire base ajusté: ${adjustedBaseSalary.toFixed(2)} MAD`);
+        console.log(`   ⏰ Heures sup: ${overtimeAmount.toFixed(2)} MAD`);
+        console.log(`   📅 Prime ancienneté: ${seniorityBonus.toFixed(2)} MAD`);
+        console.log(`   🎓 Primes inscription: ${enrollmentBonusTotal.toFixed(2)} MAD`);
+        console.log(`   ➡️  SALAIRE BRUT TOTAL: ${grossSalary.toFixed(2)} MAD`);
 
         // Vérifier si l'employé est assujetti à la CNSS/AMO
         const isCnssSubject = emp.is_cnss_subject !== false; // true par défaut
@@ -623,6 +637,13 @@ router.post('/calculate/:period_id',
         // Net salary
         const totalDeductions = cnssEmployee + amoEmployee + monthlyIgr;
         const netSalary = grossSalary - totalDeductions;
+
+        // 🔍 LOG DÉTAILLÉ: Retenues et net
+        console.log(`   🏦 CNSS employé: ${cnssEmployee.toFixed(2)} MAD (assujetti: ${isCnssSubject})`);
+        console.log(`   🏥 AMO employé: ${amoEmployee.toFixed(2)} MAD (assujetti: ${isAmoSubject})`);
+        console.log(`   💸 IGR: ${monthlyIgr.toFixed(2)} MAD`);
+        console.log(`   ➖ Total retenues: ${totalDeductions.toFixed(2)} MAD`);
+        console.log(`   ✅ SALAIRE NET: ${netSalary.toFixed(2)} MAD\n`);
 
         // Insert payslip
         const payslipResult = await client.query(`
@@ -934,6 +955,18 @@ router.get('/payslips',
       query += ' ORDER BY ps.employee_name';
 
       const result = await pool.query(query, params);
+
+      // 🔍 LOG DÉTAILLÉ: API GET /payslips
+      console.log(`\n📋 [API-GET-PAYSLIPS] Requête reçue`);
+      console.log(`   Filtres: period_id=${period_id}, employee_id=${employee_id}, status=${status}`);
+      console.log(`   Nombre de bulletins trouvés: ${result.rows.length}`);
+      if (result.rows.length > 0) {
+        result.rows.forEach((ps, idx) => {
+          console.log(`   [${idx + 1}] ${ps.employee_name} - Brut: ${ps.gross_salary} MAD, Net: ${ps.net_salary} MAD, Statut: ${ps.status}`);
+        });
+      }
+      console.log(`   ✅ Réponse envoyée au frontend\n`);
+
       res.json({ success: true, payslips: result.rows });
     } catch (error) {
       console.error('Error fetching payslips:', error);
@@ -988,6 +1021,17 @@ router.get('/payslips/:id',
         WHERE payslip_id = $1
         ORDER BY display_order, line_type
       `, [id]);
+
+      // 🔍 LOG DÉTAILLÉ: API GET /payslips/:id
+      console.log(`\n📄 [API-GET-PAYSLIP-DETAIL] ID: ${id}`);
+      console.log(`   Employé: ${payslip.rows[0].employee_name}`);
+      console.log(`   Brut: ${payslip.rows[0].gross_salary} MAD`);
+      console.log(`   Net: ${payslip.rows[0].net_salary} MAD`);
+      console.log(`   Lignes détail: ${lines.rows.length}`);
+      lines.rows.forEach(line => {
+        console.log(`     - ${line.label}: ${line.amount} MAD (${line.line_type})`);
+      });
+      console.log(`   ✅ Réponse envoyée\n`);
 
       // Audit log for viewing
       await pool.query(`
