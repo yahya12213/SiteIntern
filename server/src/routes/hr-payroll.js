@@ -1083,11 +1083,12 @@ router.get('/payslips/:id/pdf',
       const isAdmin = req.user.role === 'admin';
 
       if (!isAdmin && !isOwner) {
-        // Check for view_all permission
+        // Check for view_all permission (utilise la nouvelle table user_role_permissions)
         const hasViewAll = await pool.query(`
-          SELECT 1 FROM user_permissions up
-          JOIN permissions p ON p.id = up.permission_id
-          WHERE up.user_id = $1 AND p.code = 'hr.payroll.view_all_payslips'
+          SELECT 1 FROM user_role_permissions urp
+          WHERE urp.user_id = $1
+          AND urp.permission_key = 'ressources_humaines.gestion_paie.bulletins.voir'
+          AND urp.can_perform = true
         `, [userId]);
 
         if (hasViewAll.rows.length === 0) {
