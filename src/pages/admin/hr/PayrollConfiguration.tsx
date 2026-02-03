@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePayrollConfig } from '@/hooks/usePayroll';
-import { PERMISSIONS } from '@/config/permissions';
 
 export function PayrollConfiguration() {
   const navigate = useNavigate();
@@ -119,7 +118,7 @@ export function PayrollConfiguration() {
         </Card>
 
         {/* Onglets Configuration */}
-        <Tabs value="cotisations" className="space-y-4">
+        <Tabs defaultValue="cotisations" className="space-y-4">
           <TabsList>
             <TabsTrigger value="cotisations">Cotisations Sociales</TabsTrigger>
             <TabsTrigger value="heures-sup">Heures Supplémentaires</TabsTrigger>
