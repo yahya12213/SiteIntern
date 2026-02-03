@@ -18,6 +18,7 @@ import { usePayrollConfig } from '@/hooks/usePayroll';
 export function PayrollConfiguration() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('cotisations');
   const { data, isLoading } = usePayrollConfig();
   const config = (data as any)?.config || [];
 
@@ -118,7 +119,7 @@ export function PayrollConfiguration() {
         </Card>
 
         {/* Onglets Configuration */}
-        <Tabs defaultValue="cotisations" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="cotisations">Cotisations Sociales</TabsTrigger>
             <TabsTrigger value="heures-sup">Heures Supplémentaires</TabsTrigger>
