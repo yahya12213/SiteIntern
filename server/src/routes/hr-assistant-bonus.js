@@ -90,7 +90,7 @@ router.get('/calculate', async (req, res) => {
     }
 
     try {
-      // Récupérer les infos de l'employé (segment, objectif, jour coupure, ville via centre)
+      // Récupérer les infos de l'employé (segment, objectif, jour coupure, ville directe)
       const employeeResult = await pool.query(`
         SELECT
           e.id,
@@ -98,11 +98,10 @@ router.get('/calculate', async (req, res) => {
           e.segment_id,
           COALESCE(e.inscription_objective, 0) as inscription_objective,
           COALESCE(e.payroll_cutoff_day, 18) as payroll_cutoff_day,
-          ci.id as ville_id,
-          c.ville as centre_ville
+          e.ville_id,
+          c.name as ville_name
         FROM hr_employees e
-        LEFT JOIN centres c ON c.id = e.centre_id::text
-        LEFT JOIN cities ci ON ci.name = c.ville
+        LEFT JOIN cities c ON c.id = e.ville_id
         WHERE e.id = $1
       `, [employee_id]);
 
@@ -115,6 +114,19 @@ router.get('/calculate', async (req, res) => {
 
       const employee = employeeResult.rows[0];
       const targetDate = date || new Date().toISOString().split('T')[0];
+
+      // VALIDATION: Avertir si ville_id est NULL
+      if (!employee.ville_id && employee.segment_id) {
+        console.warn(`⚠️  [PRIME WARNING] Employee ${employee_id} has NULL ville_id!`);
+        console.warn(`   Segment: ${employee.segment_id}`);
+        console.warn(`   This will count ALL segment cities, not just employee's city.`);
+        console.warn(`   Please assign this employee to a specific city.`);
+      }
+
+      if (!employee.segment_id) {
+        console.warn(`⚠️  [PRIME WARNING] Employee ${employee_id} has NULL segment_id!`);
+        console.warn(`   Cannot calculate bonuses without segment assignment.`);
+      }
 
       // Calculer la période automatiquement basée sur payroll_cutoff_day
       const periode = calculatePeriod(employee.payroll_cutoff_day, targetDate);
@@ -162,7 +174,7 @@ router.get('/calculate', async (req, res) => {
         LEFT JOIN cities c ON c.id = sf.ville_id
         LEFT JOIN students st ON st.id = se.student_id
         WHERE sf.segment_id = $1
-          AND ($2 IS NULL OR sf.ville_id = $2)
+          AND ($2::TEXT IS NULL OR sf.ville_id = $2::TEXT)
           AND COALESCE(se.date_inscription, se.created_at)::date = $3
           AND COALESCE(f.prime_assistante, 0) > 0
           AND sf.statut != 'annulee'
@@ -187,7 +199,7 @@ router.get('/calculate', async (req, res) => {
         FROM session_etudiants se
         JOIN sessions_formation sf ON sf.id = se.session_id
         WHERE sf.segment_id = $1
-          AND ($2 IS NULL OR sf.ville_id = $2)
+          AND ($2::TEXT IS NULL OR sf.ville_id = $2::TEXT)
           AND COALESCE(se.date_inscription, se.created_at)::date >= $3
           AND COALESCE(se.date_inscription, se.created_at)::date <= $4
           AND sf.statut != 'annulee'
@@ -250,7 +262,7 @@ router.get('/period', async (req, res) => {
     }
 
     try {
-      // Récupérer les infos de l'employé + sa ville via le centre
+      // Récupérer les infos de l'employé + sa ville directe
       const employeeResult = await pool.query(`
         SELECT
           e.id,
@@ -258,11 +270,10 @@ router.get('/period', async (req, res) => {
           e.segment_id,
           COALESCE(e.inscription_objective, 0) as inscription_objective,
           COALESCE(e.payroll_cutoff_day, 18) as payroll_cutoff_day,
-          ci.id as ville_id,
-          c.ville as centre_ville
+          e.ville_id,
+          c.name as ville_name
         FROM hr_employees e
-        LEFT JOIN centres c ON c.id = e.centre_id::text
-        LEFT JOIN cities ci ON ci.name = c.ville
+        LEFT JOIN cities c ON c.id = e.ville_id
         WHERE e.id = $1
       `, [employee_id]);
 
@@ -274,6 +285,19 @@ router.get('/period', async (req, res) => {
       }
 
       const employee = employeeResult.rows[0];
+
+      // VALIDATION: Avertir si ville_id est NULL
+      if (!employee.ville_id && employee.segment_id) {
+        console.warn(`⚠️  [PRIME WARNING] Employee ${employee_id} has NULL ville_id!`);
+        console.warn(`   Segment: ${employee.segment_id}`);
+        console.warn(`   This will count ALL segment cities, not just employee's city.`);
+        console.warn(`   Please assign this employee to a specific city.`);
+      }
+
+      if (!employee.segment_id) {
+        console.warn(`⚠️  [PRIME WARNING] Employee ${employee_id} has NULL segment_id!`);
+        console.warn(`   Cannot calculate bonuses without segment assignment.`);
+      }
 
       // Calculer la période automatique pour la fin de la période demandée
       const periode = calculatePeriod(employee.payroll_cutoff_day, end_date);
@@ -307,7 +331,7 @@ router.get('/period', async (req, res) => {
         JOIN sessions_formation sf ON sf.id = se.session_id
         JOIN formations f ON f.id = se.formation_id
         WHERE sf.segment_id = $1
-          AND ($2 IS NULL OR sf.ville_id = $2)
+          AND ($2::TEXT IS NULL OR sf.ville_id = $2::TEXT)
           AND COALESCE(se.date_inscription, se.created_at)::date >= $3
           AND COALESCE(se.date_inscription, se.created_at)::date <= $4
           AND COALESCE(f.prime_assistante, 0) > 0
@@ -340,7 +364,7 @@ router.get('/period', async (req, res) => {
           FROM session_etudiants se
           JOIN sessions_formation sf ON sf.id = se.session_id
           WHERE sf.segment_id = $1
-            AND ($2 IS NULL OR sf.ville_id = $2)
+            AND ($2::TEXT IS NULL OR sf.ville_id = $2::TEXT)
             AND COALESCE(se.date_inscription, se.created_at)::date >= $3
             AND COALESCE(se.date_inscription, se.created_at)::date <= $4
             AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
@@ -405,19 +429,17 @@ router.post('/batch', async (req, res) => {
       const results = {};
 
       for (const employee_id of employee_ids) {
-        // Récupérer les infos de l'employé + sa ville via le centre
+        // Récupérer les infos de l'employé + sa ville directe
         const employeeResult = await pool.query(`
           SELECT
             e.id,
             e.segment_id,
-            e.centre_id,
             COALESCE(e.inscription_objective, 0) as inscription_objective,
             COALESCE(e.payroll_cutoff_day, 18) as payroll_cutoff_day,
-            c.ville as centre_ville,
-            ci.id as ville_id
+            e.ville_id,
+            c.name as ville_name
           FROM hr_employees e
-          LEFT JOIN centres c ON c.id = e.centre_id::text
-          LEFT JOIN cities ci ON ci.name = c.ville
+          LEFT JOIN cities c ON c.id = e.ville_id
           WHERE e.id = $1
         `, [employee_id]);
 
@@ -427,6 +449,19 @@ router.post('/batch', async (req, res) => {
         }
 
         const employee = employeeResult.rows[0];
+
+        // VALIDATION: Avertir si ville_id est NULL
+        if (!employee.ville_id && employee.segment_id) {
+          console.warn(`⚠️  [PRIME WARNING] Employee ${employee_id} has NULL ville_id!`);
+          console.warn(`   Segment: ${employee.segment_id}`);
+          console.warn(`   This will count ALL segment cities, not just employee's city.`);
+          console.warn(`   Please assign this employee to a specific city.`);
+        }
+
+        if (!employee.segment_id) {
+          console.warn(`⚠️  [PRIME WARNING] Employee ${employee_id} has NULL segment_id!`);
+          console.warn(`   Cannot calculate bonuses without segment assignment.`);
+        }
 
         // Calculer la période automatiquement
         const periode = calculatePeriod(employee.payroll_cutoff_day, targetDate);
@@ -445,7 +480,7 @@ router.post('/batch', async (req, res) => {
           JOIN sessions_formation sf ON sf.id = se.session_id
           JOIN formations f ON f.id = se.formation_id
           WHERE sf.segment_id = $1
-            AND ($2 IS NULL OR sf.ville_id = $2)
+            AND ($2::TEXT IS NULL OR sf.ville_id = $2::TEXT)
             AND COALESCE(se.date_inscription, se.created_at)::date = $3
             AND COALESCE(f.prime_assistante, 0) > 0
             AND sf.statut != 'annulee'
@@ -473,7 +508,7 @@ router.post('/batch', async (req, res) => {
         console.log(`[DEBUG] Employee ${employee_id} - Date ${targetDate}:`);
         console.log(`  segment_id: ${employee.segment_id}`);
         console.log(`  ville_id: ${employee.ville_id || 'NULL'}`);
-        console.log(`  centre_ville: ${employee.centre_ville || 'NULL'}`);
+        console.log(`  ville_name: ${employee.ville_name || 'NULL'}`);
         console.log(`  total_inscriptions: ${debugResult.rows[0].total_inscriptions}`);
         console.log(`  inscriptions_avec_prime: ${debugResult.rows[0].inscriptions_avec_prime}`);
         console.log(`  total_prime: ${debugResult.rows[0].total_prime}`);
@@ -491,7 +526,7 @@ router.post('/batch', async (req, res) => {
             FROM session_etudiants se
             JOIN sessions_formation sf ON sf.id = se.session_id
             WHERE sf.segment_id = $1
-              AND ($2 IS NULL OR sf.ville_id = $2)
+              AND ($2::TEXT IS NULL OR sf.ville_id = $2::TEXT)
               AND COALESCE(se.date_inscription, se.created_at)::date >= $3
               AND COALESCE(se.date_inscription, se.created_at)::date <= $4
               AND sf.statut != 'annulee'
