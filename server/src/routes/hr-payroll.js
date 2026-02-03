@@ -248,7 +248,7 @@ router.get('/employees',
   authenticateToken,
   requirePermission('hr.payroll.calculate'),
   async (req, res) => {
-    const { search } = req.query;
+    const { search, segment_id } = req.query;
 
     try {
       let query = `
@@ -261,8 +261,13 @@ router.get('/employees',
           e.position,
           e.hourly_rate,
           e.payroll_cutoff_day,
+          e.segment_id,
+          e.is_cnss_subject,
+          e.is_amo_subject,
           s.name as segment_name,
-          c.salary_gross as base_salary
+          s.color as segment_color,
+          c.salary_gross as base_salary,
+          c.working_hours_per_week
         FROM hr_employees e
         LEFT JOIN segments s ON e.segment_id = s.id
         LEFT JOIN hr_contracts c ON c.employee_id = e.id AND c.status = 'active'
@@ -270,15 +275,25 @@ router.get('/employees',
       `;
 
       const params = [];
+      let paramCount = 1;
 
+      // Filtre par segment
+      if (segment_id && segment_id !== 'all') {
+        query += ` AND e.segment_id = $${paramCount}`;
+        params.push(segment_id);
+        paramCount++;
+      }
+
+      // Filtre recherche
       if (search) {
         query += ` AND (
-          e.first_name ILIKE $1
-          OR e.last_name ILIKE $1
-          OR e.employee_number ILIKE $1
-          OR CONCAT(e.first_name, ' ', e.last_name) ILIKE $1
+          e.first_name ILIKE $${paramCount}
+          OR e.last_name ILIKE $${paramCount}
+          OR e.employee_number ILIKE $${paramCount}
+          OR CONCAT(e.first_name, ' ', e.last_name) ILIKE $${paramCount}
         )`;
         params.push(`%${search}%`);
+        paramCount++;
       }
 
       query += ' ORDER BY e.last_name, e.first_name';
@@ -291,6 +306,40 @@ router.get('/employees',
       });
     } catch (error) {
       console.error('Error fetching payroll employees:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get employee counts by segment
+ * GET /api/hr/payroll/employees/counts-by-segment
+ */
+router.get('/employees/counts-by-segment',
+  authenticateToken,
+  requirePermission('hr.payroll.view_page'),
+  async (req, res) => {
+    try {
+      const query = `
+        SELECT
+          s.id,
+          s.name,
+          s.color,
+          COUNT(e.id)::integer as employee_count
+        FROM segments s
+        LEFT JOIN hr_employees e ON e.segment_id = s.id AND e.employment_status = 'active'
+        GROUP BY s.id, s.name, s.color
+        ORDER BY s.name
+      `;
+
+      const result = await pool.query(query);
+
+      res.json({
+        success: true,
+        data: result.rows
+      });
+    } catch (error) {
+      console.error('Error fetching employee counts by segment:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   }

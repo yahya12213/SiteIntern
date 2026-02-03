@@ -118,10 +118,21 @@ export const useClosePeriod = () => {
 /**
  * Hook pour récupérer les employés éligibles au calcul de paie
  */
-export const usePayrollEmployees = (search?: string) => {
+export const usePayrollEmployees = (filters?: { search?: string; segment_id?: string }) => {
   return useQuery({
-    queryKey: ['payroll', 'employees', search],
-    queryFn: () => payrollApi.getPayrollEmployees(search),
+    queryKey: ['payroll', 'employees', filters],
+    queryFn: () => payrollApi.getPayrollEmployees(filters),
+  });
+};
+
+/**
+ * Hook pour récupérer le compteur d'employés par segment
+ */
+export const useEmployeeCountsBySegment = () => {
+  return useQuery({
+    queryKey: ['payroll', 'employees', 'counts-by-segment'],
+    queryFn: () => payrollApi.getEmployeeCountsBySegment(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
 

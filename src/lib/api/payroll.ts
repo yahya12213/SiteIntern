@@ -174,10 +174,22 @@ export interface PayrollEmployee {
   last_name: string;
   department?: string;
   position?: string;
+  segment_id?: string;
   segment_name?: string;
+  segment_color?: string;
   hourly_rate?: number;
   base_salary?: number;
+  working_hours_per_week?: number;
   payroll_cutoff_day?: number;
+  is_cnss_subject?: boolean;
+  is_amo_subject?: boolean;
+}
+
+export interface SegmentWithCount {
+  id: string;
+  name: string;
+  color: string;
+  employee_count: number;
 }
 
 export interface CalculatePayrollOptions {
@@ -278,9 +290,16 @@ export const payrollApi = {
 
   // === EMPLOYEES ===
 
-  getPayrollEmployees: async (search?: string): Promise<{ success: boolean; employees: PayrollEmployee[] }> => {
-    const params = search ? `?search=${encodeURIComponent(search)}` : '';
-    return apiClient.get<{ success: boolean; employees: PayrollEmployee[] }>(`/hr/payroll/employees${params}`);
+  getPayrollEmployees: async (filters?: { search?: string; segment_id?: string }): Promise<{ success: boolean; employees: PayrollEmployee[] }> => {
+    const params = new URLSearchParams();
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.segment_id) params.append('segment_id', filters.segment_id);
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    return apiClient.get<{ success: boolean; employees: PayrollEmployee[] }>(`/hr/payroll/employees${queryString}`);
+  },
+
+  getEmployeeCountsBySegment: async (): Promise<{ success: boolean; data: SegmentWithCount[] }> => {
+    return apiClient.get<{ success: boolean; data: SegmentWithCount[] }>('/hr/payroll/employees/counts-by-segment');
   },
 
   // === CALCULATION ===
