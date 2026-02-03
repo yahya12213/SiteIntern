@@ -40,3 +40,4 @@ comptabilite_PL/
 *.sln
 *.sw?
 NUL
+# Force rebuild
