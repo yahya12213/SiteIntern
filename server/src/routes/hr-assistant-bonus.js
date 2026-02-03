@@ -434,6 +434,28 @@ router.post('/batch', async (req, res) => {
         const primeResult = await pool.query(primeQuery, [employee.segment_id, targetDate]);
         const prime_journaliere = parseFloat(primeResult.rows[0].prime_journaliere || 0);
 
+        // Debug logging - requête diagnostic pour comprendre pourquoi prime = 0
+        const debugQuery = `
+          SELECT
+            COUNT(*) as total_inscriptions,
+            COUNT(CASE WHEN f.prime_assistante IS NOT NULL AND f.prime_assistante > 0 THEN 1 END) as inscriptions_avec_prime,
+            SUM(COALESCE(f.prime_assistante, 0)) as total_prime
+          FROM session_etudiants se
+          JOIN sessions_formation sf ON sf.id = se.session_id
+          LEFT JOIN formations f ON f.id = sf.formation_id
+          WHERE sf.segment_id = $1
+            AND COALESCE(se.date_inscription, se.created_at)::date = $2
+            AND sf.statut != 'annulee'
+        `;
+        const debugResult = await pool.query(debugQuery, [employee.segment_id, targetDate]);
+
+        console.log(`[DEBUG] Employee ${employee_id} - Date ${targetDate}:`);
+        console.log(`  segment_id: ${employee.segment_id}`);
+        console.log(`  total_inscriptions: ${debugResult.rows[0].total_inscriptions}`);
+        console.log(`  inscriptions_avec_prime: ${debugResult.rows[0].inscriptions_avec_prime}`);
+        console.log(`  total_prime: ${debugResult.rows[0].total_prime}`);
+        console.log(`  prime_journaliere (retourné): ${prime_journaliere}`);
+
         // Vérifier l'objectif basé sur la période automatique
         // Pour sessions en ligne, seuls les étudiants avec statut "livree" comptent
         // Utilise date_inscription si disponible, sinon created_at
