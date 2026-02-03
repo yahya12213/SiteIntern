@@ -253,8 +253,12 @@ router.get('/',
       const statsResult = await pool.query(statsQuery, statsParams);
 
       // Requete pour inscrits_session - utiliser les tables francaises (sessions_formation + session_etudiants)
+      // Requête avec COUNT conditionnel pour obtenir total, livrée et non_livrée
       let inscritsSessionQuery = `
-        SELECT COUNT(DISTINCT se.student_id) as count
+        SELECT
+          COUNT(DISTINCT se.student_id) as total,
+          COUNT(DISTINCT CASE WHEN se.delivery_status = 'livree' THEN se.student_id END) as livree,
+          COUNT(DISTINCT CASE WHEN se.delivery_status = 'non_livree' THEN se.student_id END) as non_livree
         FROM session_etudiants se
         JOIN sessions_formation sf ON sf.id = se.session_id
         WHERE sf.statut != 'annulee'
@@ -327,8 +331,10 @@ router.get('/',
 
       const appelsResult = await pool.query(appelsQuery, appelsParams);
 
-      // Calculer le taux de conversion
-      const inscritsSession = parseInt(inscritsSessionResult.rows[0].count || 0);
+      // Extraire les données de session
+      const inscritsSessionData = inscritsSessionResult.rows[0];
+      const inscritsSession = parseInt(inscritsSessionData.total || 0);
+      const inscritsSessionLivree = parseInt(inscritsSessionData.livree || 0);
       const appels30sCount = parseInt(appelsResult.rows[0].appels_30s_count || 0);
       const tauxConversion = appels30sCount > 0
         ? parseFloat(((inscritsSession / appels30sCount) * 100).toFixed(2))
@@ -428,8 +434,8 @@ router.get('/',
           dailyObjective = inscriptionObjective / totalWorkingDays;
           expectedInscriptions = Math.round(elapsedWorkingDays * dailyObjective);
 
-          // Écart = réel - attendu
-          inscriptionGap = inscritsSession - expectedInscriptions;
+          // Écart = réel (livrés uniquement) - attendu
+          inscriptionGap = inscritsSessionLivree - expectedInscriptions;
         }
 
         console.log('📊 [PROSPECTS] Écart inscription:', {
@@ -441,6 +447,7 @@ router.get('/',
           dailyObjective: dailyObjective ? dailyObjective.toFixed(2) : null,
           expectedInscriptions,
           inscritsSession,
+          inscritsSessionLivree,
           inscriptionGap
         });
 
@@ -453,7 +460,9 @@ router.get('/',
         prospects: rows,
         stats: {
           ...statsResult.rows[0],
-          inscrits_session: parseInt(inscritsSessionResult.rows[0].count || 0),
+          inscrits_session: inscritsSession,
+          inscrits_session_livree: inscritsSessionLivree,
+          inscrits_session_non_livree: parseInt(inscritsSessionData.non_livree) || 0,
           appels_30s_count: appels30sCount,
           taux_conversion: tauxConversion,
           // NOUVEAUX CHAMPS pour l'écart d'inscription

@@ -55,6 +55,7 @@ import {
   Key,
   ExternalLink,
   CheckCircle,
+  CheckCircle2,
   XCircle,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
@@ -305,6 +306,8 @@ export default function Prospects() {
     sans_rdv: 0,
     inscrits_prospect: 0,
     inscrits_session: 0,
+    inscrits_session_livree: 0,
+    inscrits_session_non_livree: 0,
     appels_30s_count: 0,
     taux_conversion: 0,
   };
@@ -536,8 +539,25 @@ export default function Prospects() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
-              {stats.inscrits_session}
+            {/* Total */}
+            <div className="text-2xl font-bold text-purple-600 mb-2">
+              Total: {stats.inscrits_session}
+            </div>
+
+            {/* Détails livrée / non livrée */}
+            <div className="flex gap-4 text-sm mb-3">
+              <div className="flex items-center gap-1">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <span className="text-green-600 font-medium">
+                  Livrée: {stats.inscrits_session_livree}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <XCircle className="h-4 w-4 text-red-600" />
+                <span className="text-red-600 font-medium">
+                  Non livré: {stats.inscrits_session_non_livree}
+                </span>
+              </div>
             </div>
 
             {/* Indicateur d'écart d'inscription */}
