@@ -569,6 +569,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 151: Ville Assignation pour Employés',
     description: '🏙️ PRIME RH: Ajoute colonne ville_id à hr_employees. Auto-assigne les employés à leur ville basé sur les inscriptions de leur segment. Résout l\'erreur PostgreSQL "could not determine data type of parameter $2" et permet le calcul des primes d\'inscription par ville.',
     endpoint: '/migration-151-add-ville-to-employees'
+  },
+  {
+    id: 'migration-152',
+    name: 'Migration 152: Date de Livraison Auto pour Sessions En Ligne',
+    description: '📅 SESSIONS: Ajoute colonne original_date_inscription à session_etudiants. La date d\'inscription change automatiquement à la date de livraison pour les sessions en ligne, et se restaure quand le statut repasse à "non livré".',
+    endpoint: '/migration-152-delivery-date-tracking'
   }
 ];
 

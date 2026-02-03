@@ -62,6 +62,7 @@ export interface SessionEtudiant {
   numero_bon?: string;
   statut_compte?: 'actif' | 'inactif' | 'suspendu' | 'diplome';
   date_inscription: string;
+  original_date_inscription?: string; // Date d'inscription originale (préservée lors des changements de statut de livraison)
   created_at: string;
   updated_at: string;
 

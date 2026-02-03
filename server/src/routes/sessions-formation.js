@@ -1232,14 +1232,14 @@ router.put('/:sessionId/etudiants/:etudiantId',
     // Note: etudiantId peut être soit l'ID de l'inscription (session_etudiants.id) soit le student_id
     // On cherche d'abord par ID d'inscription, sinon par student_id pour compatibilité
     let currentResult = await pool.query(
-      'SELECT id, student_id, montant_total, discount_amount, discount_percentage, formation_original_price, montant_paye FROM session_etudiants WHERE id = $1 AND session_id = $2',
+      'SELECT id, student_id, montant_total, discount_amount, discount_percentage, formation_original_price, montant_paye, delivery_status, date_inscription, original_date_inscription FROM session_etudiants WHERE id = $1 AND session_id = $2',
       [etudiantId, sessionId]
     );
 
     // Si pas trouvé par ID, essayer par student_id (compatibilité)
     if (currentResult.rows.length === 0) {
       currentResult = await pool.query(
-        'SELECT id, student_id, montant_total, discount_amount, discount_percentage, formation_original_price, montant_paye FROM session_etudiants WHERE student_id = $1 AND session_id = $2',
+        'SELECT id, student_id, montant_total, discount_amount, discount_percentage, formation_original_price, montant_paye, delivery_status, date_inscription, original_date_inscription FROM session_etudiants WHERE student_id = $1 AND session_id = $2',
         [etudiantId, sessionId]
       );
     }
@@ -1303,6 +1303,50 @@ router.put('/:sessionId/etudiants/:etudiantId',
       }
     }
 
+    // ============================================
+    // GESTION AUTOMATIQUE DE LA DATE D'INSCRIPTION
+    // Pour les sessions en ligne uniquement
+    // ============================================
+    let updated_date_inscription = date_inscription || null;
+    let updated_original_date_inscription = null;
+
+    // Si delivery_status est fourni, gérer la mise à jour automatique de la date
+    if (delivery_status !== undefined) {
+      const current_delivery_status = currentResult.rows[0].delivery_status;
+      const current_date_inscription = currentResult.rows[0].date_inscription;
+      const current_original_date_inscription = currentResult.rows[0].original_date_inscription;
+
+      // Récupérer le type de session
+      const sessionTypeResult = await pool.query(
+        'SELECT session_type FROM sessions_formation WHERE id = $1',
+        [sessionId]
+      );
+
+      if (sessionTypeResult.rows.length > 0) {
+        const session_type = sessionTypeResult.rows[0].session_type;
+
+        // Logique uniquement pour les sessions en ligne
+        if (session_type === 'en_ligne') {
+          // Transition: non_livree → livree
+          if (current_delivery_status === 'non_livree' && delivery_status === 'livree') {
+            // Sauvegarder la date d'inscription originale si pas déjà sauvegardée
+            if (!current_original_date_inscription) {
+              updated_original_date_inscription = current_date_inscription;
+            }
+            // Mettre date_inscription à la date actuelle (date de livraison)
+            updated_date_inscription = now;
+          }
+          // Transition: livree → non_livree
+          else if (current_delivery_status === 'livree' && delivery_status === 'non_livree') {
+            // Restaurer la date d'inscription originale
+            if (current_original_date_inscription) {
+              updated_date_inscription = current_original_date_inscription;
+            }
+          }
+        }
+      }
+    }
+
     const query = `
       UPDATE session_etudiants
       SET
@@ -1317,8 +1361,9 @@ router.put('/:sessionId/etudiants/:etudiantId',
         numero_bon = COALESCE($9, numero_bon),
         delivery_status = COALESCE($10, delivery_status),
         date_inscription = COALESCE($11, date_inscription),
-        updated_at = $12
-      WHERE id = $13
+        original_date_inscription = COALESCE($12, original_date_inscription),
+        updated_at = $13
+      WHERE id = $14
       RETURNING *
     `;
 
@@ -1333,7 +1378,8 @@ router.put('/:sessionId/etudiants/:etudiantId',
       formation_id || null,
       numero_bon || null,
       delivery_status || null,
-      (isAdmin && date_inscription) ? date_inscription : null,
+      (isAdmin && date_inscription) ? date_inscription : updated_date_inscription,
+      updated_original_date_inscription,
       now,
       inscriptionId
     ];
