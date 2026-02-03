@@ -143,7 +143,7 @@ router.get('/calculate', async (req, res) => {
         SELECT
           se.id as enrollment_id,
           se.session_id,
-          sf.formation_id,
+          se.formation_id,
           f.title as formation_name,
           COALESCE(f.prime_assistante, 0) as prime_assistante,
           sf.titre as session_name,
@@ -155,7 +155,7 @@ router.get('/calculate', async (req, res) => {
           st.prenom || ' ' || st.nom as student_name
         FROM session_etudiants se
         JOIN sessions_formation sf ON sf.id = se.session_id
-        JOIN formations f ON f.id = sf.formation_id
+        JOIN formations f ON f.id = se.formation_id
         LEFT JOIN segments s ON s.id = sf.segment_id
         LEFT JOIN cities c ON c.id = sf.ville_id
         LEFT JOIN students st ON st.id = se.student_id
@@ -294,7 +294,7 @@ router.get('/period', async (req, res) => {
           SUM(COALESCE(f.prime_assistante, 0)) as prime_journaliere
         FROM session_etudiants se
         JOIN sessions_formation sf ON sf.id = se.session_id
-        JOIN formations f ON f.id = sf.formation_id
+        JOIN formations f ON f.id = se.formation_id
         WHERE sf.segment_id = $1
           AND COALESCE(se.date_inscription, se.created_at)::date >= $2
           AND COALESCE(se.date_inscription, se.created_at)::date <= $3
@@ -423,7 +423,7 @@ router.post('/batch', async (req, res) => {
           SELECT COALESCE(SUM(f.prime_assistante), 0) as prime_journaliere
           FROM session_etudiants se
           JOIN sessions_formation sf ON sf.id = se.session_id
-          JOIN formations f ON f.id = sf.formation_id
+          JOIN formations f ON f.id = se.formation_id
           WHERE sf.segment_id = $1
             AND COALESCE(se.date_inscription, se.created_at)::date = $2
             AND COALESCE(f.prime_assistante, 0) > 0
@@ -442,7 +442,7 @@ router.post('/batch', async (req, res) => {
             SUM(COALESCE(f.prime_assistante, 0)) as total_prime
           FROM session_etudiants se
           JOIN sessions_formation sf ON sf.id = se.session_id
-          LEFT JOIN formations f ON f.id = sf.formation_id
+          LEFT JOIN formations f ON f.id = se.formation_id
           WHERE sf.segment_id = $1
             AND COALESCE(se.date_inscription, se.created_at)::date = $2
             AND sf.statut != 'annulee'
