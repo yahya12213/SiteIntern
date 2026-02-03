@@ -1001,13 +1001,16 @@ router.get('/payslips/:id',
 
       // Check if user can view this payslip
       const isOwn = payslip.rows[0].profile_id === userId;
-      if (!isOwn) {
-        // Check for view_all permission using the new permissions system
+      const isAdmin = req.user.role === 'admin';
+
+      if (!isOwn && !isAdmin) {
+        // Check for view_all permission using role_permissions + permissions tables
         const hasPermission = await pool.query(`
-          SELECT 1 FROM user_role_permissions urp
-          WHERE urp.user_id = $1
-          AND urp.permission_key = 'ressources_humaines.gestion_paie.bulletins.voir'
-          AND urp.can_perform = true
+          SELECT 1 FROM role_permissions rp
+          JOIN permissions p ON p.id = rp.permission_id
+          JOIN profiles pr ON pr.role_id = rp.role_id
+          WHERE pr.id = $1
+          AND p.code = 'ressources_humaines.gestion_paie.bulletins.voir'
         `, [userId]);
 
         if (hasPermission.rows.length === 0) {
@@ -1083,12 +1086,13 @@ router.get('/payslips/:id/pdf',
       const isAdmin = req.user.role === 'admin';
 
       if (!isAdmin && !isOwner) {
-        // Check for view_all permission (utilise la nouvelle table user_role_permissions)
+        // Check for view_all permission using role_permissions + permissions tables
         const hasViewAll = await pool.query(`
-          SELECT 1 FROM user_role_permissions urp
-          WHERE urp.user_id = $1
-          AND urp.permission_key = 'ressources_humaines.gestion_paie.bulletins.voir'
-          AND urp.can_perform = true
+          SELECT 1 FROM role_permissions rp
+          JOIN permissions p ON p.id = rp.permission_id
+          JOIN profiles pr ON pr.role_id = rp.role_id
+          WHERE pr.id = $1
+          AND p.code = 'ressources_humaines.gestion_paie.bulletins.voir'
         `, [userId]);
 
         if (hasViewAll.rows.length === 0) {
