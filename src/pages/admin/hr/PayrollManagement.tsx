@@ -88,7 +88,7 @@ export function PayrollManagement() {
 
       toast({
         title: 'Calcul terminé',
-        description: `${(result as any).employees_processed || 0} bulletin(s) généré(s). Total net: ${((result as any).total_net || 0).toFixed(2)} MAD`,
+        description: `${(result as any).employees_processed || 0} bulletin(s) généré(s). Total net: ${Number((result as any).total_net || 0).toFixed(2)} MAD`,
       });
     } catch (error: unknown) {
       toast({
@@ -284,7 +284,7 @@ export function PayrollManagement() {
               {selectedPeriod && (selectedPeriod.status === 'calculated' || selectedPeriod.status === 'validated') && (
                 <p className="text-sm text-gray-600 flex items-center">
                   {selectedPeriod.total_employees || 0} bulletin(s) généré(s) •{' '}
-                  Net total: {(selectedPeriod.total_net || 0).toFixed(2)} MAD
+                  Net total: {Number(selectedPeriod.total_net || 0).toFixed(2)} MAD
                 </p>
               )}
             </div>
