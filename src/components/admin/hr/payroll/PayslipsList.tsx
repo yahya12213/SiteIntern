@@ -36,9 +36,11 @@ export function PayslipsList({
   );
   const payslips = data?.payslips || [];
 
-  const formatAmount = (amount: number) => {
-    if (typeof amount === 'number' && !isNaN(amount)) {
-      return amount.toFixed(2) + ' MAD';
+  const formatAmount = (amount: number | string | null | undefined) => {
+    // PostgreSQL retourne les numeric comme des strings, donc on parse
+    const num = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
+    if (!isNaN(num) && num !== null && num !== undefined) {
+      return num.toFixed(2) + ' MAD';
     }
     return '0.00 MAD';
   };
@@ -109,11 +111,16 @@ export function PayslipsList({
               </TableHeader>
               <TableBody>
                 {payslips.map((payslip: PayslipSummary) => {
+                  // PostgreSQL retourne les numeric comme des strings, donc on parse
+                  const parseNum = (val: number | string | null | undefined) => {
+                    if (val === null || val === undefined) return 0;
+                    return typeof val === 'string' ? parseFloat(val) || 0 : Number(val) || 0;
+                  };
                   const totalDeductions =
-                    payslip.cnss_employee +
-                    payslip.amo_employee +
-                    payslip.igr +
-                    (payslip.other_deductions || 0);
+                    parseNum(payslip.cnss_employee) +
+                    parseNum(payslip.amo_employee) +
+                    parseNum(payslip.igr_amount) +
+                    parseNum(payslip.other_deductions);
 
                   return (
                     <TableRow key={payslip.id}>

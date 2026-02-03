@@ -103,7 +103,7 @@ export interface PayslipSummary {
   net_salary: number;
   cnss_employee: number;
   amo_employee: number;
-  igr: number;
+  igr_amount: number;  // Nom correct de la colonne dans la BDD
   other_deductions?: number;
   status: string;
 }
