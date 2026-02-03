@@ -563,6 +563,12 @@ const MIGRATIONS: Migration[] = [
     name: 'Migration 148: Fusionner Statuts Récupération',
     description: '🔄 RÉCUP: Fusionne recovery_paid et recovery_unpaid en un seul statut "recovery". Le jour de récupération n\'a plus de paie (le salarié "rembourse" les heures déjà payées).',
     endpoint: '/migration-148-merge-recovery-statuses'
+  },
+  {
+    id: 'migration-151',
+    name: 'Migration 151: Ville Assignation pour Employés',
+    description: '🏙️ PRIME RH: Ajoute colonne ville_id à hr_employees. Auto-assigne les employés à leur ville basé sur les inscriptions de leur segment. Résout l\'erreur PostgreSQL "could not determine data type of parameter $2" et permet le calcul des primes d\'inscription par ville.',
+    endpoint: '/migration-151-add-ville-to-employees'
   }
 ];
 
