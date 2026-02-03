@@ -50,7 +50,17 @@ export function PayslipDetailModal({
   }
 
   const formatAmount = (amount: number) => {
-    return amount.toFixed(2) + ' MAD';
+    if (typeof amount === 'number' && !isNaN(amount)) {
+      return amount.toFixed(2) + ' MAD';
+    }
+    return '0.00 MAD';
+  };
+
+  const formatHours = (hours: number) => {
+    if (typeof hours === 'number' && !isNaN(hours)) {
+      return hours.toFixed(2) + 'h';
+    }
+    return '0.00h';
   };
 
   const gains = payslip.lines?.filter((l) => l.line_type === 'earning') || [];
@@ -94,24 +104,24 @@ export function PayslipDetailModal({
               <div className="text-sm space-y-1">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Heures travaillées</span>
-                  <span className="font-medium">{payslip.worked_hours.toFixed(2)}h</span>
+                  <span className="font-medium">{formatHours(payslip.worked_hours)}</span>
                 </div>
                 {payslip.overtime_hours_25 > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Heures sup. 25%</span>
-                    <span className="font-medium">{payslip.overtime_hours_25.toFixed(2)}h</span>
+                    <span className="font-medium">{formatHours(payslip.overtime_hours_25)}</span>
                   </div>
                 )}
                 {payslip.overtime_hours_50 > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Heures sup. 50%</span>
-                    <span className="font-medium">{payslip.overtime_hours_50.toFixed(2)}h</span>
+                    <span className="font-medium">{formatHours(payslip.overtime_hours_50)}</span>
                   </div>
                 )}
                 {payslip.overtime_hours_100 > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Heures sup. 100%</span>
-                    <span className="font-medium">{payslip.overtime_hours_100.toFixed(2)}h</span>
+                    <span className="font-medium">{formatHours(payslip.overtime_hours_100)}</span>
                   </div>
                 )}
               </div>

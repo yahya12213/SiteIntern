@@ -37,7 +37,10 @@ export function PayslipsList({
   const payslips = data?.payslips || [];
 
   const formatAmount = (amount: number) => {
-    return amount.toFixed(2) + ' MAD';
+    if (typeof amount === 'number' && !isNaN(amount)) {
+      return amount.toFixed(2) + ' MAD';
+    }
+    return '0.00 MAD';
   };
 
   const allValidated = payslips.length > 0 && payslips.every((p) => p.status === 'validated');
