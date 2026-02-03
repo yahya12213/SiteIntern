@@ -963,11 +963,12 @@ router.get('/payslips/:id',
       // Check if user can view this payslip
       const isOwn = payslip.rows[0].profile_id === userId;
       if (!isOwn) {
-        // Check for view_all permission
+        // Check for view_all permission using the new permissions system
         const hasPermission = await pool.query(`
-          SELECT 1 FROM user_permissions up
-          JOIN permissions p ON p.id = up.permission_id
-          WHERE up.user_id = $1 AND p.id = 'hr.payroll.view_all_payslips'
+          SELECT 1 FROM user_role_permissions urp
+          WHERE urp.user_id = $1
+          AND urp.permission_key = 'ressources_humaines.gestion_paie.bulletins.voir'
+          AND urp.can_perform = true
         `, [userId]);
 
         if (hasPermission.rows.length === 0) {
