@@ -390,15 +390,20 @@ router.post('/batch', async (req, res) => {
       const results = {};
 
       for (const employee_id of employee_ids) {
-        // Récupérer les infos de l'employé
+        // Récupérer les infos de l'employé + sa ville via le centre
         const employeeResult = await pool.query(`
           SELECT
-            id,
-            segment_id,
-            COALESCE(inscription_objective, 0) as inscription_objective,
-            COALESCE(payroll_cutoff_day, 18) as payroll_cutoff_day
-          FROM hr_employees
-          WHERE id = $1
+            e.id,
+            e.segment_id,
+            e.centre_id,
+            COALESCE(e.inscription_objective, 0) as inscription_objective,
+            COALESCE(e.payroll_cutoff_day, 18) as payroll_cutoff_day,
+            c.ville as centre_ville,
+            ci.id as ville_id
+          FROM hr_employees e
+          LEFT JOIN centres c ON c.id = e.centre_id
+          LEFT JOIN cities ci ON ci.nom = c.ville
+          WHERE e.id = $1
         `, [employee_id]);
 
         if (employeeResult.rows.length === 0) {
@@ -425,13 +430,14 @@ router.post('/batch', async (req, res) => {
           JOIN sessions_formation sf ON sf.id = se.session_id
           JOIN formations f ON f.id = se.formation_id
           WHERE sf.segment_id = $1
-            AND COALESCE(se.date_inscription, se.created_at)::date = $2
+            AND ($2::uuid IS NULL OR sf.ville_id = $2)
+            AND COALESCE(se.date_inscription, se.created_at)::date = $3
             AND COALESCE(f.prime_assistante, 0) > 0
             AND sf.statut != 'annulee'
             AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
         `;
 
-        const primeResult = await pool.query(primeQuery, [employee.segment_id, targetDate]);
+        const primeResult = await pool.query(primeQuery, [employee.segment_id, employee.ville_id, targetDate]);
         const prime_journaliere = parseFloat(primeResult.rows[0].prime_journaliere || 0);
 
         // Debug logging - requête diagnostic pour comprendre pourquoi prime = 0
@@ -451,6 +457,8 @@ router.post('/batch', async (req, res) => {
 
         console.log(`[DEBUG] Employee ${employee_id} - Date ${targetDate}:`);
         console.log(`  segment_id: ${employee.segment_id}`);
+        console.log(`  ville_id: ${employee.ville_id || 'NULL'}`);
+        console.log(`  centre_ville: ${employee.centre_ville || 'NULL'}`);
         console.log(`  total_inscriptions: ${debugResult.rows[0].total_inscriptions}`);
         console.log(`  inscriptions_avec_prime: ${debugResult.rows[0].inscriptions_avec_prime}`);
         console.log(`  total_prime: ${debugResult.rows[0].total_prime}`);
@@ -468,19 +476,25 @@ router.post('/batch', async (req, res) => {
             FROM session_etudiants se
             JOIN sessions_formation sf ON sf.id = se.session_id
             WHERE sf.segment_id = $1
-              AND COALESCE(se.date_inscription, se.created_at)::date >= $2
-              AND COALESCE(se.date_inscription, se.created_at)::date <= $3
+              AND ($2::uuid IS NULL OR sf.ville_id = $2)
+              AND COALESCE(se.date_inscription, se.created_at)::date >= $3
+              AND COALESCE(se.date_inscription, se.created_at)::date <= $4
               AND sf.statut != 'annulee'
               AND (sf.session_type != 'en_ligne' OR COALESCE(se.delivery_status, 'non_livree') = 'livree')
           `;
 
           const periodResult = await pool.query(periodQuery, [
             employee.segment_id,
+            employee.ville_id,
             periode.start,
             periode.end
           ]);
           total_periode = parseInt(periodResult.rows[0].count);
           objectif_atteint = total_periode >= employee.inscription_objective;
+          console.log(`[DEBUG] Objectif check:`);
+          console.log(`  total_periode: ${total_periode}`);
+          console.log(`  inscription_objective: ${employee.inscription_objective}`);
+          console.log(`  objectif_atteint: ${objectif_atteint}`);
         }
 
         results[employee_id] = {
