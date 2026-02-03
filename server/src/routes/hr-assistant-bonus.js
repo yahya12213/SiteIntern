@@ -402,7 +402,7 @@ router.post('/batch', async (req, res) => {
             ci.id as ville_id
           FROM hr_employees e
           LEFT JOIN centres c ON c.id = e.centre_id::text
-          LEFT JOIN cities ci ON ci.nom = c.ville
+          LEFT JOIN cities ci ON ci.name = c.ville
           WHERE e.id = $1
         `, [employee_id]);
 
