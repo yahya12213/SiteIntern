@@ -57,12 +57,12 @@ export function EmployeeChecklistTable({
   };
 
   const formatSalary = (emp: PayrollEmployee) => {
-    if (emp.base_salary) {
+    if (emp.base_salary && typeof emp.base_salary === 'number') {
       return `${emp.base_salary.toFixed(0)} MAD`;
-    } else if (emp.hourly_rate && emp.working_hours_per_week) {
+    } else if (emp.hourly_rate && typeof emp.hourly_rate === 'number' && emp.working_hours_per_week && typeof emp.working_hours_per_week === 'number') {
       const monthlySalary = emp.hourly_rate * emp.working_hours_per_week * 4.33;
       return `${emp.hourly_rate.toFixed(2)} MAD/h (≈${monthlySalary.toFixed(0)} MAD/mois)`;
-    } else if (emp.hourly_rate) {
+    } else if (emp.hourly_rate && typeof emp.hourly_rate === 'number') {
       return `${emp.hourly_rate.toFixed(2)} MAD/h`;
     }
     return 'Non défini';
