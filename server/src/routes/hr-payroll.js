@@ -1028,16 +1028,22 @@ router.get('/payslips/:id',
 
       // Check if user can view this payslip
       const isOwn = payslip.rows[0].profile_id === userId;
-      const isAdmin = req.user.role === 'admin';
+      // More flexible admin check (support multiple role names)
+      const adminRoles = ['admin', 'administrator', 'administrateur', 'Admin', 'ADMIN'];
+      const isAdmin = adminRoles.includes(req.user.role);
 
       if (!isOwn && !isAdmin) {
-        // Check for view_all permission using role_permissions + permissions tables
+        // Check for view permission using role_permissions + permissions tables
         const hasPermission = await pool.query(`
           SELECT 1 FROM role_permissions rp
           JOIN permissions p ON p.id = rp.permission_id
           JOIN profiles pr ON pr.role_id = rp.role_id
           WHERE pr.id = $1
-          AND p.code = 'ressources_humaines.gestion_paie.bulletins.voir'
+          AND p.code IN (
+            'ressources_humaines.gestion_paie.bulletins.voir',
+            'hr.payroll.view_all_payslips',
+            'hr.payroll.view_page'
+          )
         `, [userId]);
 
         if (hasPermission.rows.length === 0) {
@@ -1110,21 +1116,39 @@ router.get('/payslips/:id/pdf',
 
       // Check permission - admin or owner
       const isOwner = payslipData.profile_id === userId;
-      const isAdmin = req.user.role === 'admin';
+      // More flexible admin check (support multiple role names)
+      const adminRoles = ['admin', 'administrator', 'administrateur', 'Admin', 'ADMIN'];
+      const isAdmin = adminRoles.includes(req.user.role);
+
+      // 🔍 LOG: Permission check for PDF download
+      console.log(`\n📄 [PDF-DOWNLOAD] Payslip: ${id}`);
+      console.log(`   User ID: ${userId}, Role: ${req.user.role}`);
+      console.log(`   isAdmin: ${isAdmin}, isOwner: ${isOwner}`);
 
       if (!isAdmin && !isOwner) {
-        // Check for view_all permission using role_permissions + permissions tables
-        const hasViewAll = await pool.query(`
-          SELECT 1 FROM role_permissions rp
+        // Check for view or download permission using role_permissions + permissions tables
+        const hasPermission = await pool.query(`
+          SELECT p.code FROM role_permissions rp
           JOIN permissions p ON p.id = rp.permission_id
           JOIN profiles pr ON pr.role_id = rp.role_id
           WHERE pr.id = $1
-          AND p.code = 'ressources_humaines.gestion_paie.bulletins.voir'
+          AND p.code IN (
+            'ressources_humaines.gestion_paie.bulletins.voir',
+            'ressources_humaines.gestion_paie.bulletins.telecharger',
+            'hr.payroll.view_all_payslips',
+            'hr.payroll.view_page'
+          )
         `, [userId]);
 
-        if (hasViewAll.rows.length === 0) {
+        console.log(`   Permissions found: ${hasPermission.rows.map(r => r.code).join(', ') || 'NONE'}`);
+
+        if (hasPermission.rows.length === 0) {
+          console.log(`   ❌ Access denied - no permission found`);
           return res.status(403).json({ success: false, error: 'Access denied' });
         }
+        console.log(`   ✅ Access granted via permission`);
+      } else {
+        console.log(`   ✅ Access granted (admin: ${isAdmin}, owner: ${isOwner})`);
       }
 
       // Générer ou récupérer le PDF
