@@ -494,6 +494,25 @@ router.post('/calculate/:period_id',
         const absenceDays = parseInt(attendance.rows[0].absence_days) || 0;
         const lateMinutes = parseInt(attendance.rows[0].total_late_minutes) || 0;
 
+        // 🔍 LOG DIAGNOSTIC DÉTAILLÉ - DONNÉES SOURCES
+        console.log(`\n${'='.repeat(70)}`);
+        console.log(`🧑 EMPLOYÉ: ${emp.first_name} ${emp.last_name} (ID: ${emp.id})`);
+        console.log(`${'='.repeat(70)}`);
+        console.log(`📅 PÉRIODE: ${periodData.start_date} → ${periodData.end_date}`);
+        console.log(`\n📋 DONNÉES CONTRAT (hr_contracts):`);
+        console.log(`   base_salary (salary_gross): ${emp.base_salary ?? 'NULL'}`);
+        console.log(`   working_hours_per_week: ${emp.working_hours_per_week ?? 'NULL'}`);
+        console.log(`\n📋 DONNÉES EMPLOYÉ (hr_employees):`);
+        console.log(`   hourly_rate: ${emp.hourly_rate ?? 'NULL'}`);
+        console.log(`   segment_id: ${emp.segment_id ?? 'NULL'}`);
+        console.log(`   ville_id: ${emp.ville_id ?? 'NULL'}`);
+        console.log(`\n⏱️ DONNÉES POINTAGE (hr_attendance_daily):`);
+        console.log(`   worked_minutes brut: ${attendance.rows[0].worked_minutes}`);
+        console.log(`   holiday_paid_minutes: ${holidayPaidMinutes}`);
+        console.log(`   total_paid_hours: ${totalPaidHours.toFixed(2)} h`);
+        console.log(`   absence_days: ${absenceDays}`);
+        console.log(`   late_minutes: ${lateMinutes}`);
+
         // Calculate base salary and hourly rate
         const empHourlyRate = parseFloat(emp.hourly_rate) || 0;
         let baseSalary;
@@ -502,10 +521,18 @@ router.post('/calculate/:period_id',
         if (emp.base_salary) {
           baseSalary = parseFloat(emp.base_salary);
           hourlyRate = baseSalary / (config.working_hours_monthly || 191);
+          console.log(`\n💵 MODE SALAIRE FIXE:`);
+          console.log(`   baseSalary (contrat): ${baseSalary.toFixed(2)} MAD`);
+          console.log(`   hourlyRate calculé: ${hourlyRate.toFixed(2)} MAD/h`);
         } else if (empHourlyRate > 0) {
           hourlyRate = empHourlyRate;
           baseSalary = hourlyRate * totalPaidHours;
+          console.log(`\n💵 MODE SALAIRE HORAIRE:`);
+          console.log(`   hourlyRate (employé): ${hourlyRate.toFixed(2)} MAD/h`);
+          console.log(`   baseSalary calculé: ${hourlyRate.toFixed(2)} x ${totalPaidHours.toFixed(2)}h = ${baseSalary.toFixed(2)} MAD`);
         } else {
+          console.log(`\n⚠️ AUCUNE DONNÉE SALAIRE - EMPLOYÉ IGNORÉ`);
+          console.log(`${'='.repeat(70)}\n`);
           continue; // Skip employees without salary data
         }
 
