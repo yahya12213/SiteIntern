@@ -246,13 +246,18 @@ console.log('  - Reason:', rawPort === 5432 ? '⚠️  PostgreSQL port detected 
 app.set('trust proxy', 1);
 
 // CORS Configuration - Allow Railway production URL and localhost
+// Includes Diray Centre (Django) domains for external API integration
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')
   : [
       'http://localhost:5173',
       'http://localhost:3001',
-      'https://spectacular-enthusiasm-production.up.railway.app'
-    ];
+      'http://localhost:8000',      // Django development server (Diray Centre)
+      'http://127.0.0.1:8000',      // Django development server (alternate)
+      'https://spectacular-enthusiasm-production.up.railway.app',
+      // Diray Centre production domains (add your actual domain here)
+      // process.env.DIRAY_FRONTEND_URL // Uncomment and set in .env
+    ].filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {

@@ -54,7 +54,7 @@ interface NavItem {
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const { hasPermission } = useAuth();
-  const [expandedSections, setExpandedSections] = useState<string[]>(['gestion-comptable', 'formation', 'ressources-humaines', 'mon-equipe', 'mon-espace-rh', 'commercialisation']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['utilisateur-etudiant', 'gestion-comptable', 'formation', 'ressources-humaines', 'mon-equipe', 'mon-espace-rh', 'commercialisation']);
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev =>
@@ -65,6 +65,17 @@ export const Sidebar: React.FC = () => {
   };
 
   const sections: NavSection[] = [
+    // Section Utilisateur Étudiant (pour les étudiants connectés)
+    {
+      id: 'utilisateur-etudiant',
+      title: 'Utilisateur Étudiant',
+      icon: GraduationCap,
+      items: [
+        { to: '/student/dashboard', icon: Home, label: 'Mon Tableau de bord', permission: PERMISSIONS.training.student.dashboard.view_page },
+        { to: '/student/catalog', icon: BookOpen, label: 'Mes Formations', permission: PERMISSIONS.training.student.catalog.view_page },
+        { to: '/student/certificates', icon: FileText, label: 'Mes Certificats', permission: PERMISSIONS.training.student.certificates.view },
+      ],
+    },
     {
       id: 'gestion-comptable',
       title: 'Gestion Comptable',

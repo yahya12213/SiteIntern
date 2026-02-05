@@ -32,7 +32,7 @@ export class PayslipPDFGenerator {
           ps.*,
           e.first_name, e.last_name, e.employee_number, e.cin, e.hire_date,
           e.department, e.position, e.email, e.phone,
-          s.name as segment_name,
+          s.name as segment_name, s.logo_url as segment_logo,
           p.name as period_name, p.year, p.month, p.start_date, p.end_date, p.pay_date
         FROM hr_payslips ps
         JOIN hr_employees e ON e.id = ps.employee_id

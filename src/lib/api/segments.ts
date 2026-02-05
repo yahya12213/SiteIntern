@@ -4,6 +4,7 @@ export interface Segment {
   id: string;
   name: string;
   color?: string;
+  logo_url?: string;
   created_at: string;
 }
 
@@ -63,5 +64,21 @@ export const segmentsApi = {
    */
   async delete(id: string): Promise<{ message: string }> {
     return apiClient.delete<{ message: string }>(`/segments/${id}`);
+  },
+
+  /**
+   * Upload logo pour un segment
+   */
+  async uploadLogo(segmentId: string, file: File): Promise<{ success: boolean; segment: Segment }> {
+    const formData = new FormData();
+    formData.append('logo', file);
+    return apiClient.post<{ success: boolean; segment: Segment }>(`/segments/${segmentId}/logo`, formData);
+  },
+
+  /**
+   * Supprimer logo d'un segment
+   */
+  async deleteLogo(segmentId: string): Promise<{ success: boolean; segment: Segment }> {
+    return apiClient.delete<{ success: boolean; segment: Segment }>(`/segments/${segmentId}/logo`);
   },
 };

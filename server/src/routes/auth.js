@@ -513,6 +513,173 @@ router.post('/refresh', authenticateToken, (req, res) => {
   }
 });
 
+// POST external-login - Authentication endpoint for external applications (Diray Centre)
+// This endpoint allows Diray Centre to authenticate students via API
+router.post('/external-login', async (req, res) => {
+  try {
+    const { email, password, app_key } = req.body;
+
+    // Validate API key from external application
+    const validApiKey = process.env.DIRAY_API_KEY;
+    if (!validApiKey) {
+      console.error('❌ [EXTERNAL-LOGIN] DIRAY_API_KEY not configured in environment');
+      return res.status(500).json({
+        success: false,
+        error: 'External authentication not configured',
+      });
+    }
+
+    if (!app_key || app_key !== validApiKey) {
+      console.log('❌ [EXTERNAL-LOGIN] Invalid API key attempt');
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid API key',
+      });
+    }
+
+    // Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password are required',
+      });
+    }
+
+    console.log('🔍 [EXTERNAL-LOGIN] Authentication attempt for email:', email);
+
+    // Strategy 1: Find student by email in students table
+    let studentResult = await pool.query(
+      `SELECT s.*, p.id as profile_id, p.password as profile_password, p.username
+       FROM students s
+       LEFT JOIN profiles p ON p.username = s.cin
+       WHERE LOWER(s.email) = LOWER($1)`,
+      [email]
+    );
+
+    let student = null;
+    let user = null;
+
+    if (studentResult.rows.length > 0) {
+      student = studentResult.rows[0];
+
+      // Check if student has a linked profile account
+      if (student.profile_id) {
+        user = {
+          id: student.profile_id,
+          username: student.cin,
+          full_name: `${student.prenom} ${student.nom}`,
+          role: 'student',
+          password: student.profile_password,
+          student_id: student.id,
+          student_cin: student.cin,
+          student_email: student.email,
+          student_phone: student.phone
+        };
+      } else {
+        // No profile exists - return error (profile should be created first)
+        return res.status(401).json({
+          success: false,
+          error: 'No account found. Please contact administration.',
+        });
+      }
+    } else {
+      // Strategy 2: Try to find by email in profiles table (for admin/professor accounts if needed)
+      const profileResult = await pool.query(
+        `SELECT p.*, s.id as student_id, s.cin as student_cin, s.email as student_email, s.phone as student_phone, s.prenom, s.nom
+         FROM profiles p
+         LEFT JOIN students s ON p.username = s.cin
+         WHERE LOWER(p.email) = LOWER($1) OR p.username = $1`,
+        [email]
+      );
+
+      if (profileResult.rows.length > 0) {
+        const profile = profileResult.rows[0];
+        user = {
+          id: profile.id,
+          username: profile.username,
+          full_name: profile.full_name || `${profile.prenom || ''} ${profile.nom || ''}`.trim(),
+          role: profile.role || 'student',
+          password: profile.password,
+          student_id: profile.student_id,
+          student_cin: profile.student_cin,
+          student_email: profile.student_email || profile.email,
+          student_phone: profile.student_phone || profile.phone
+        };
+      }
+    }
+
+    // If no user found
+    if (!user) {
+      console.log('❌ [EXTERNAL-LOGIN] No user found for email:', email);
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid credentials',
+      });
+    }
+
+    // Verify password
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+      console.log('❌ [EXTERNAL-LOGIN] Password mismatch for email:', email);
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid credentials',
+      });
+    }
+
+    console.log('✅ [EXTERNAL-LOGIN] Password valid for email:', email);
+
+    // Get student's enrolled formations
+    let formations = [];
+    if (user.student_id) {
+      const formationsResult = await pool.query(
+        `SELECT DISTINCT f.id, f.nom as name, f.code, sf.id as session_id, sf.nom as session_name,
+                sf.date_debut, sf.date_fin, sf.session_type
+         FROM session_etudiants se
+         JOIN sessions_formation sf ON se.session_id = sf.id
+         JOIN formations f ON sf.formation_id = f.id
+         WHERE se.student_id = $1
+         AND se.student_status != 'abandonne'
+         ORDER BY sf.date_debut DESC`,
+        [user.student_id]
+      );
+      formations = formationsResult.rows;
+    }
+
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = user;
+
+    // Generate JWT token
+    const token = generateToken(userWithoutPassword);
+
+    // Return success response with student data
+    res.json({
+      success: true,
+      student: {
+        id: user.student_id,
+        profile_id: user.id,
+        cin: user.student_cin,
+        full_name: user.full_name,
+        email: user.student_email,
+        phone: user.student_phone,
+        role: user.role,
+        formations: formations
+      },
+      token,
+      expiresIn: '24h',
+    });
+
+    console.log(`✅ [EXTERNAL-LOGIN] Successful login for student: ${user.full_name} (${user.student_email})`);
+
+  } catch (error) {
+    console.error('❌ [EXTERNAL-LOGIN] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Authentication failed. Please try again.',
+    });
+  }
+});
+
 // POST logout (client-side token removal, but we can log it)
 router.post('/logout', authenticateToken, (req, res) => {
   // In a more advanced system, you would invalidate the token here

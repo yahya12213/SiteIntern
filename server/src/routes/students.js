@@ -219,6 +219,131 @@ router.get('/',
 });
 
 /**
+ * Get current student's data (for external apps like Diray Centre)
+ * GET /api/students/me/profile
+ * Protected: Requires authentication (student role)
+ * Returns: Student profile with enrolled formations and schedule
+ */
+router.get('/me/profile',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      // Get student_id from JWT token (set during external-login)
+      const studentId = req.user.student_id;
+
+      if (!studentId) {
+        return res.status(403).json({
+          success: false,
+          error: 'This endpoint is only available for student accounts'
+        });
+      }
+
+      // Get student profile
+      const studentResult = await pool.query(
+        `SELECT id, nom, prenom, cin, email, phone, whatsapp,
+                date_naissance, lieu_naissance, adresse, statut_compte, profile_image_url,
+                created_at
+         FROM students
+         WHERE id = $1`,
+        [studentId]
+      );
+
+      if (studentResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Student not found'
+        });
+      }
+
+      const student = studentResult.rows[0];
+
+      // Get enrolled formations with session details
+      const formationsResult = await pool.query(
+        `SELECT
+          f.id as formation_id,
+          f.nom as formation_name,
+          f.code as formation_code,
+          f.description as formation_description,
+          f.duree_heures,
+          sf.id as session_id,
+          sf.titre as session_name,
+          sf.date_debut,
+          sf.date_fin,
+          sf.session_type,
+          sf.statut as session_status,
+          c.name as ville,
+          se.statut_paiement,
+          se.montant_total,
+          se.montant_paye,
+          se.montant_du,
+          se.student_status
+         FROM session_etudiants se
+         JOIN sessions_formation sf ON se.session_id = sf.id
+         JOIN formations f ON sf.formation_id = f.id
+         LEFT JOIN cities c ON sf.ville_id = c.id
+         WHERE se.student_id = $1
+         AND se.student_status != 'abandonne'
+         ORDER BY sf.date_debut DESC`,
+        [studentId]
+      );
+
+      // Get upcoming schedule (next 30 days)
+      const scheduleResult = await pool.query(
+        `SELECT
+          sch.id,
+          sch.date_seance,
+          sch.heure_debut,
+          sch.heure_fin,
+          sch.type_seance,
+          sch.salle,
+          sch.formateur,
+          sf.titre as session_name,
+          f.nom as formation_name
+         FROM session_schedules sch
+         JOIN sessions_formation sf ON sch.session_id = sf.id
+         JOIN formations f ON sf.formation_id = f.id
+         JOIN session_etudiants se ON se.session_id = sf.id
+         WHERE se.student_id = $1
+         AND se.student_status != 'abandonne'
+         AND sch.date_seance >= CURRENT_DATE
+         AND sch.date_seance <= CURRENT_DATE + INTERVAL '30 days'
+         ORDER BY sch.date_seance, sch.heure_debut`,
+        [studentId]
+      );
+
+      res.json({
+        success: true,
+        student: {
+          id: student.id,
+          full_name: `${student.prenom} ${student.nom}`,
+          first_name: student.prenom,
+          last_name: student.nom,
+          cin: student.cin,
+          email: student.email,
+          phone: student.phone,
+          whatsapp: student.whatsapp,
+          birth_date: student.date_naissance,
+          birth_place: student.lieu_naissance,
+          address: student.adresse,
+          account_status: student.statut_compte,
+          profile_image: student.profile_image_url,
+          created_at: student.created_at
+        },
+        formations: formationsResult.rows,
+        schedule: scheduleResult.rows
+      });
+
+    } catch (error) {
+      console.error('Error fetching student profile:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Error fetching student profile'
+      });
+    }
+  }
+);
+
+/**
  * Get student by ID
  * GET /api/students/:id
  * Protected: Requires authentication and students view permission

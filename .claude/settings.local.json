@@ -160,7 +160,18 @@
       "mcp__kapture__screenshot",
       "mcp__kapture__show",
       "mcp__kapture__elements",
-      "mcp__kapture__list_tabs"
+      "mcp__kapture__list_tabs",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git -C \"D:/Project/Project\" status)",
+      "Bash(git -C \"/d/Project/Project\" status)",
+      "Bash(.venvScriptsactivate)",
+      "Bash(\".venv/Scripts/python.exe\" manage.py dumpdata --exclude contenttypes --exclude auth.permission --exclude admin.logentry --exclude sessions.session --indent 2 --output data_export.json)",
+      "Bash(where:*)",
+      "Bash(sqlite3:*)",
+      "Bash(.venv_new/Scripts/pip install:*)",
+      "Bash(.venv_new/Scripts/python:*)"
     ],
     "deny": [],
     "ask": []

@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Edit, Trash2, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, Upload, Image, X } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import ImportCitiesModal from '@/components/admin/ImportCitiesModal';
-import { useSegments, useCreateSegment, useUpdateSegment, useDeleteSegment } from '@/hooks/useSegments';
+import { useSegments, useCreateSegment, useUpdateSegment, useDeleteSegment, useUploadSegmentLogo } from '@/hooks/useSegments';
 import { usePermission } from '@/hooks/usePermission';
 import type { Segment } from '@/hooks/useSegments';
 
@@ -14,6 +14,7 @@ export default function Segments() {
   const createSegment = useCreateSegment();
   const updateSegment = useUpdateSegment();
   const deleteSegment = useDeleteSegment();
+  const uploadLogo = useUploadSegmentLogo();
   const { accounting } = usePermission();
 
   const [showForm, setShowForm] = useState(false);
@@ -24,6 +25,8 @@ export default function Segments() {
     name: '',
     color: '#3b82f6',
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +38,11 @@ export default function Segments() {
           name: formData.name,
           color: formData.color,
         });
+
+        // Upload logo si nouveau fichier sélectionné
+        if (logoFile) {
+          await uploadLogo.mutateAsync({ segmentId: editingId, file: logoFile });
+        }
       } else {
         await createSegment.mutateAsync({
           name: formData.name,
@@ -53,6 +61,8 @@ export default function Segments() {
       name: segment.name,
       color: segment.color || '#3B82F6',
     });
+    setLogoPreview(segment.logo_url || null);
+    setLogoFile(null);
     setEditingId(segment.id);
     setShowForm(true);
   };
@@ -72,6 +82,8 @@ export default function Segments() {
     setFormData({ name: '', color: '#3b82f6' });
     setEditingId(null);
     setShowForm(false);
+    setLogoFile(null);
+    setLogoPreview(null);
   };
 
   const handleOpenImport = (segment: Segment) => {
@@ -137,6 +149,54 @@ export default function Segments() {
                     </div>
                   </div>
                 </div>
+
+                {/* Logo - uniquement en mode édition */}
+                {editingId && (
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      <Image className="h-4 w-4 inline mr-1" />
+                      Logo du segment (pour bulletins de paie)
+                    </label>
+                    <div className="flex items-center gap-4">
+                      {/* Preview */}
+                      {logoPreview && (
+                        <div className="relative w-20 h-20 border rounded overflow-hidden bg-gray-50">
+                          <img
+                            src={logoPreview}
+                            alt="Logo"
+                            className="w-full h-full object-contain"
+                          />
+                          <button
+                            type="button"
+                            title="Supprimer le logo"
+                            onClick={() => {
+                              setLogoFile(null);
+                              setLogoPreview(null);
+                            }}
+                            className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-bl"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+                      {/* Input file */}
+                      <div className="flex-1">
+                        <Input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setLogoFile(file);
+                              setLogoPreview(URL.createObjectURL(file));
+                            }
+                          }}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">PNG, JPG ou WebP. Max 2MB. Apparaîtra sur les bulletins PDF.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button type="submit" disabled={createSegment.isPending || updateSegment.isPending} className="w-full sm:w-auto">

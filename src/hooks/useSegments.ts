@@ -99,3 +99,28 @@ export const useDeleteSegment = () => {
     },
   });
 };
+
+// Upload logo pour un segment
+export const useUploadSegmentLogo = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ segmentId, file }: { segmentId: string; file: File }) =>
+      segmentsApi.uploadLogo(segmentId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['segments'] });
+    },
+  });
+};
+
+// Supprimer logo d'un segment
+export const useDeleteSegmentLogo = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (segmentId: string) => segmentsApi.deleteLogo(segmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['segments'] });
+    },
+  });
+};
