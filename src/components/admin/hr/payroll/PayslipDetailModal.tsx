@@ -49,18 +49,20 @@ export function PayslipDetailModal({
     return null;
   }
 
-  const formatAmount = (amount: number) => {
-    if (typeof amount === 'number' && !isNaN(amount)) {
-      return amount.toFixed(2) + ' MAD';
-    }
-    return '0.00 MAD';
+  // PostgreSQL retourne les numeric comme des strings, donc on parse
+  const parseNum = (val: number | string | null | undefined): number => {
+    if (val === null || val === undefined) return 0;
+    return typeof val === 'string' ? parseFloat(val) || 0 : Number(val) || 0;
   };
 
-  const formatHours = (hours: number) => {
-    if (typeof hours === 'number' && !isNaN(hours)) {
-      return hours.toFixed(2) + 'h';
-    }
-    return '0.00h';
+  const formatAmount = (amount: number | string | null | undefined) => {
+    const num = parseNum(amount);
+    return num.toFixed(2) + ' MAD';
+  };
+
+  const formatHours = (hours: number | string | null | undefined) => {
+    const num = parseNum(hours);
+    return num.toFixed(2) + 'h';
   };
 
   const gains = payslip.lines?.filter((l) => l.line_type === 'earning') || [];
@@ -98,7 +100,7 @@ export function PayslipDetailModal({
           </div>
 
           {/* Heures travaillées */}
-          {payslip.worked_hours > 0 && (
+          {parseNum(payslip.worked_hours) > 0 && (
             <div>
               <h3 className="font-semibold mb-2">Heures</h3>
               <div className="text-sm space-y-1">
@@ -106,19 +108,19 @@ export function PayslipDetailModal({
                   <span className="text-gray-600">Heures travaillées</span>
                   <span className="font-medium">{formatHours(payslip.worked_hours)}</span>
                 </div>
-                {payslip.overtime_hours_25 > 0 && (
+                {parseNum(payslip.overtime_hours_25) > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Heures sup. 25%</span>
                     <span className="font-medium">{formatHours(payslip.overtime_hours_25)}</span>
                   </div>
                 )}
-                {payslip.overtime_hours_50 > 0 && (
+                {parseNum(payslip.overtime_hours_50) > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Heures sup. 50%</span>
                     <span className="font-medium">{formatHours(payslip.overtime_hours_50)}</span>
                   </div>
                 )}
-                {payslip.overtime_hours_100 > 0 && (
+                {parseNum(payslip.overtime_hours_100) > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Heures sup. 100%</span>
                     <span className="font-medium">{formatHours(payslip.overtime_hours_100)}</span>
@@ -167,7 +169,7 @@ export function PayslipDetailModal({
                 ))
               ) : (
                 <>
-                  {payslip.cnss_employee > 0 && (
+                  {parseNum(payslip.cnss_employee) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-700">CNSS (Salarié)</span>
                       <span className="font-medium text-red-700">
@@ -175,7 +177,7 @@ export function PayslipDetailModal({
                       </span>
                     </div>
                   )}
-                  {payslip.amo_employee > 0 && (
+                  {parseNum(payslip.amo_employee) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-700">AMO (Salarié)</span>
                       <span className="font-medium text-red-700">
@@ -183,11 +185,11 @@ export function PayslipDetailModal({
                       </span>
                     </div>
                   )}
-                  {payslip.igr > 0 && (
+                  {parseNum((payslip as any).igr_amount || payslip.igr) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-700">IGR (Impôt sur le revenu)</span>
                       <span className="font-medium text-red-700">
-                        -{formatAmount(payslip.igr)}
+                        -{formatAmount((payslip as any).igr_amount || payslip.igr)}
                       </span>
                     </div>
                   )}
@@ -198,10 +200,10 @@ export function PayslipDetailModal({
                 <span>Total Retenues</span>
                 <span className="text-red-700">
                   -{formatAmount(
-                    payslip.cnss_employee +
-                      payslip.amo_employee +
-                      payslip.igr +
-                      (payslip.other_deductions || 0)
+                    parseNum(payslip.cnss_employee) +
+                      parseNum(payslip.amo_employee) +
+                      parseNum((payslip as any).igr_amount || payslip.igr) +
+                      parseNum(payslip.other_deductions)
                   )}
                 </span>
               </div>

@@ -1044,7 +1044,7 @@ router.get('/payslips/:id',
 
       res.json({
         success: true,
-        data: {
+        payslip: {
           ...payslip.rows[0],
           lines: lines.rows
         }

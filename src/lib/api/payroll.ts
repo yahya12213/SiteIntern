@@ -72,7 +72,8 @@ export interface Payslip {
   cnss_employer: number;
   amo_employee: number;
   amo_employer: number;
-  igr: number;
+  igr: number;  // Alias pour igr_amount
+  igr_amount: number;  // Nom de la colonne dans la BDD
 
   // Heures
   worked_hours: number;
