@@ -32,6 +32,7 @@ export class PayslipPDFGenerator {
           ps.*,
           e.first_name, e.last_name, e.employee_number, e.cin, e.hire_date,
           e.department, e.position, e.email, e.phone,
+          e.social_security_number as employee_cnss,
           s.name as segment_name, s.logo_url as segment_logo,
           p.name as period_name, p.year, p.month, p.start_date, p.end_date, p.pay_date
         FROM hr_payslips ps
@@ -46,6 +47,17 @@ export class PayslipPDFGenerator {
       }
 
       const payslip = payslipResult.rows[0];
+
+      // 1b. Récupérer les infos employeur depuis config
+      const configResult = await client.query(`
+        SELECT config_key, config_value
+        FROM hr_payroll_config
+        WHERE config_key IN ('employer_cnss_number', 'company_name', 'company_address')
+      `);
+      const companyConfig = {};
+      configResult.rows.forEach(row => {
+        companyConfig[row.config_key] = row.config_value;
+      });
 
       // 2. Récupérer les lignes de détail
       const linesResult = await client.query(`
@@ -82,7 +94,11 @@ export class PayslipPDFGenerator {
 
       // Nom de l'entreprise / segment
       doc.fontSize(12).font('Helvetica-Bold')
-        .text(payslip.segment_name || 'PROLEAN', 450, yPosition, { align: 'right' });
+        .text(companyConfig.company_name || payslip.segment_name || 'PROLEAN', 450, yPosition, { align: 'right' });
+      if (companyConfig.employer_cnss_number) {
+        doc.fontSize(8).font('Helvetica')
+          .text(`CNSS: ${companyConfig.employer_cnss_number}`, 450, yPosition + 15, { align: 'right' });
+      }
       yPosition += 80;
 
       // 5. Titre
@@ -117,6 +133,11 @@ export class PayslipPDFGenerator {
 
       doc.text(`Date d'embauche : ${formatDate(payslip.hire_date)}`, 50, yPosition);
       doc.text(`CIN : ${payslip.cin || 'N/A'}`, 350, yPosition);
+      yPosition += 15;
+
+      doc.text(`N° CNSS : ${payslip.employee_cnss || 'N/A'}`, 50, yPosition);
+      const workedHours = parseFloat(payslip.worked_hours) || 0;
+      doc.text(`Heures travaillées : ${workedHours.toFixed(2)}h`, 350, yPosition);
       yPosition += 30;
 
       // 7. Lignes de détail - Gains
