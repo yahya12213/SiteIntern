@@ -1097,7 +1097,18 @@ router.get('/payslips/:id/pdf',
   authenticateToken,
   async (req, res) => {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user?.id;
+
+    // 🔍 LOG IMMÉDIAT - Route PDF atteinte
+    console.log(`\n🔴 [PDF-ROUTE-START] ==================`);
+    console.log(`   Payslip ID: ${id}`);
+    console.log(`   User: ${JSON.stringify(req.user)}`);
+    console.log(`   Headers Auth: ${req.headers.authorization ? 'Present' : 'MISSING'}`);
+
+    if (!req.user || !userId) {
+      console.log(`   ❌ No user/userId - returning 403`);
+      return res.status(403).json({ success: false, error: 'Not authenticated' });
+    }
 
     try {
       // Vérifier accès (admin ou propriétaire)
