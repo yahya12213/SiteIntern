@@ -341,12 +341,24 @@ export const payrollApi = {
   },
 
   getPayslipPdf: async (id: string): Promise<Blob> => {
+    // Utiliser tokenManager pour récupérer le token correctement (clé 'auth_token')
+    const { tokenManager } = await import('./client');
+    const token = tokenManager.getToken();
+
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
     const response = await fetch(`/api/hr/payroll/payslips/${id}/pdf`, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
+        Authorization: `Bearer ${token}`,
       },
     });
-    if (!response.ok) throw new Error('Failed to download PDF');
+
+    if (!response.ok) {
+      throw new Error(`Failed to download PDF: ${response.status}`);
+    }
+
     return response.blob();
   },
 
@@ -382,12 +394,24 @@ export const payrollApi = {
   },
 
   downloadPayslipsZip: async (periodId: string): Promise<Blob> => {
+    // Utiliser tokenManager pour récupérer le token correctement (clé 'auth_token')
+    const { tokenManager } = await import('./client');
+    const token = tokenManager.getToken();
+
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
     const response = await fetch(`/api/hr/payroll/export/payslips/${periodId}`, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
+        Authorization: `Bearer ${token}`,
       },
     });
-    if (!response.ok) throw new Error('Failed to download payslips');
+
+    if (!response.ok) {
+      throw new Error(`Failed to download payslips: ${response.status}`);
+    }
+
     return response.blob();
   },
 
