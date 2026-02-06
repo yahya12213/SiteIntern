@@ -48,6 +48,16 @@ interface Employee {
   objective_period_start?: string;
   objective_period_end?: string;
   payroll_cutoff_day?: number;
+  // Champs IR
+  marital_status?: 'single' | 'married' | 'divorced' | 'widowed';
+  spouse_dependent?: boolean;
+  dependent_children?: number;
+  other_dependents?: number;
+  professional_category?: 'normal' | 'increased' | 'special_35' | 'special_40' | 'special_45';
+  cimr_affiliated?: boolean;
+  cimr_rate?: number;
+  mutual_affiliated?: boolean;
+  mutual_contribution?: number;
 }
 
 export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormModalProps) {
@@ -83,6 +93,16 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     objective_period_start: '',
     objective_period_end: '',
     payroll_cutoff_day: 18 as number | string,
+    // Champs IR
+    marital_status: 'single' as 'single' | 'married' | 'divorced' | 'widowed',
+    spouse_dependent: false,
+    dependent_children: 0 as number | string,
+    other_dependents: 0 as number | string,
+    professional_category: 'normal' as 'normal' | 'increased' | 'special_35' | 'special_40' | 'special_45',
+    cimr_affiliated: false,
+    cimr_rate: 0 as number | string,
+    mutual_affiliated: false,
+    mutual_contribution: 0 as number | string,
   });
 
   // State pour les managers multiples avec rangs
@@ -179,6 +199,16 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         objective_period_start: formatDateForInput(employeeData.objective_period_start),
         objective_period_end: formatDateForInput(employeeData.objective_period_end),
         payroll_cutoff_day: employeeData.payroll_cutoff_day ?? 18,
+        // Champs IR
+        marital_status: employeeData.marital_status || 'single',
+        spouse_dependent: employeeData.spouse_dependent ?? false,
+        dependent_children: employeeData.dependent_children ?? 0,
+        other_dependents: employeeData.other_dependents ?? 0,
+        professional_category: employeeData.professional_category || 'normal',
+        cimr_affiliated: employeeData.cimr_affiliated ?? false,
+        cimr_rate: employeeData.cimr_rate ?? 0,
+        mutual_affiliated: employeeData.mutual_affiliated ?? false,
+        mutual_contribution: employeeData.mutual_contribution ?? 0,
       });
     }
   }, [employeeData]);
@@ -719,6 +749,184 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                 <p className="text-xs text-gray-500 mt-1">
                   Numéro d'immatriculation CNSS de l'employé (apparaîtra sur les bulletins de paie)
                 </p>
+              </div>
+
+              {/* Situation familiale pour IR */}
+              <div className="md:col-span-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                <h3 className="text-sm font-medium text-amber-800 mb-3 flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Situation familiale (calcul IR)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {/* Situation matrimoniale */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Situation matrimoniale
+                    </label>
+                    <select
+                      value={formData.marital_status}
+                      onChange={(e) => handleChange('marital_status', e.target.value)}
+                      title="Situation matrimoniale"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="single">Célibataire</option>
+                      <option value="married">Marié(e)</option>
+                      <option value="divorced">Divorcé(e)</option>
+                      <option value="widowed">Veuf/Veuve</option>
+                    </select>
+                  </div>
+
+                  {/* Conjoint à charge - visible si marié */}
+                  {formData.marital_status === 'married' && (
+                    <div className="flex items-center">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="spouse_dependent"
+                          checked={formData.spouse_dependent}
+                          onChange={(e) => handleChange('spouse_dependent', e.target.checked)}
+                          className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="spouse_dependent" className="text-sm font-medium text-gray-700">
+                          Conjoint à charge
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Enfants à charge */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Enfants à charge
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="6"
+                      value={formData.dependent_children}
+                      onChange={(e) => handleChange('dependent_children', parseInt(e.target.value) || 0)}
+                      title="Nombre d'enfants à charge"
+                      placeholder="0"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Moins de 27 ans</p>
+                  </div>
+
+                  {/* Autres personnes à charge */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Autres à charge
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="6"
+                      value={formData.other_dependents}
+                      onChange={(e) => handleChange('other_dependents', parseInt(e.target.value) || 0)}
+                      title="Autres personnes à charge"
+                      placeholder="0"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Parents, etc.</p>
+                  </div>
+                </div>
+
+                {/* Affichage du total déductions */}
+                {(() => {
+                  const total = (formData.spouse_dependent && formData.marital_status === 'married' ? 1 : 0) +
+                    (Number(formData.dependent_children) || 0) +
+                    (Number(formData.other_dependents) || 0);
+                  const totalCapped = Math.min(total, 6);
+                  const deduction = (totalCapped * 41.67).toFixed(2);
+                  return (
+                    <p className="text-xs text-amber-700 mt-3 font-medium">
+                      Total personnes à charge: {totalCapped} → Déduction IR: {deduction} DH/mois (max 250 DH)
+                    </p>
+                  );
+                })()}
+              </div>
+
+              {/* Catégorie professionnelle */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Catégorie professionnelle
+                </label>
+                <select
+                  value={formData.professional_category}
+                  onChange={(e) => handleChange('professional_category', e.target.value)}
+                  title="Catégorie professionnelle"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="normal">Normale (20%)</option>
+                  <option value="increased">Majorée (25%)</option>
+                  <option value="special_35">Spéciale - Journalistes (35%)</option>
+                  <option value="special_40">Spéciale - Mineurs (40%)</option>
+                  <option value="special_45">Spéciale - Autres (45%)</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Taux frais professionnels (plafond 2 500 DH/mois)</p>
+              </div>
+
+              {/* Affiliations complémentaires */}
+              <div className="md:col-span-2 p-4 bg-green-50 rounded-lg border border-green-200">
+                <h3 className="text-sm font-medium text-green-800 mb-3">
+                  Affiliations complémentaires
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* CIMR */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        type="checkbox"
+                        id="cimr_affiliated"
+                        checked={formData.cimr_affiliated}
+                        onChange={(e) => handleChange('cimr_affiliated', e.target.checked)}
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="cimr_affiliated" className="text-sm font-medium text-gray-700">
+                        Affilié CIMR
+                      </label>
+                    </div>
+                    {formData.cimr_affiliated && (
+                      <select
+                        value={formData.cimr_rate}
+                        onChange={(e) => handleChange('cimr_rate', parseFloat(e.target.value))}
+                        title="Taux CIMR"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      >
+                        <option value="3">3%</option>
+                        <option value="4">4%</option>
+                        <option value="6">6%</option>
+                      </select>
+                    )}
+                  </div>
+
+                  {/* Mutuelle */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        type="checkbox"
+                        id="mutual_affiliated"
+                        checked={formData.mutual_affiliated}
+                        onChange={(e) => handleChange('mutual_affiliated', e.target.checked)}
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="mutual_affiliated" className="text-sm font-medium text-gray-700">
+                        Affilié Mutuelle
+                      </label>
+                    </div>
+                    {formData.mutual_affiliated && (
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.mutual_contribution}
+                        onChange={(e) => handleChange('mutual_contribution', parseFloat(e.target.value) || 0)}
+                        placeholder="Cotisation mensuelle (DH)"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Objectif d'Inscription (Prime Assistante) */}
