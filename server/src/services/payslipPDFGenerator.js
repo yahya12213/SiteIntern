@@ -92,10 +92,10 @@ export class PayslipPDFGenerator {
         }
       }
 
-      // Nom de l'entreprise / segment
+      // Nom de l'entreprise / segment - priorité au segment (chaque segment = entreprise indépendante)
       doc.fontSize(12).font('Helvetica-Bold')
-        .text(companyConfig.company_name || payslip.segment_name || 'PROLEAN', 450, yPosition, { align: 'right' });
-      // Use segment CNSS if available, otherwise fall back to global config
+        .text(payslip.segment_name || companyConfig.company_name || 'PROLEAN', 450, yPosition, { align: 'right' });
+      // CNSS Employeur - priorité au segment
       const employerCnss = payslip.segment_cnss || companyConfig.employer_cnss_number;
       if (employerCnss) {
         doc.fontSize(8).font('Helvetica')
