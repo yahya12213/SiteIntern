@@ -5,6 +5,7 @@ export interface Segment {
   name: string;
   color?: string;
   logo_url?: string;
+  cnss_number?: string;
   created_at: string;
 }
 
@@ -17,6 +18,7 @@ export interface UpdateSegmentInput {
   id: string;
   name: string;
   color: string;
+  cnss_number?: string;
 }
 
 /**

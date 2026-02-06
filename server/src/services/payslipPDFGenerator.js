@@ -33,7 +33,7 @@ export class PayslipPDFGenerator {
           e.first_name, e.last_name, e.employee_number, e.cin, e.hire_date,
           e.department, e.position, e.email, e.phone,
           e.social_security_number as employee_cnss,
-          s.name as segment_name, s.logo_url as segment_logo,
+          s.name as segment_name, s.logo_url as segment_logo, s.cnss_number as segment_cnss,
           p.name as period_name, p.year, p.month, p.start_date, p.end_date, p.pay_date
         FROM hr_payslips ps
         JOIN hr_employees e ON e.id = ps.employee_id
@@ -95,9 +95,11 @@ export class PayslipPDFGenerator {
       // Nom de l'entreprise / segment
       doc.fontSize(12).font('Helvetica-Bold')
         .text(companyConfig.company_name || payslip.segment_name || 'PROLEAN', 450, yPosition, { align: 'right' });
-      if (companyConfig.employer_cnss_number) {
+      // Use segment CNSS if available, otherwise fall back to global config
+      const employerCnss = payslip.segment_cnss || companyConfig.employer_cnss_number;
+      if (employerCnss) {
         doc.fontSize(8).font('Helvetica')
-          .text(`CNSS: ${companyConfig.employer_cnss_number}`, 450, yPosition + 15, { align: 'right' });
+          .text(`CNSS Employeur: ${employerCnss}`, 450, yPosition + 15, { align: 'right' });
       }
       yPosition += 80;
 

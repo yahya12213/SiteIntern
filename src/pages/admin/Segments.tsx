@@ -24,6 +24,7 @@ export default function Segments() {
   const [formData, setFormData] = useState({
     name: '',
     color: '#3b82f6',
+    cnss_number: '',
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -37,6 +38,7 @@ export default function Segments() {
           id: editingId,
           name: formData.name,
           color: formData.color,
+          cnss_number: formData.cnss_number || undefined,
         });
 
         // Upload logo si nouveau fichier sélectionné
@@ -60,6 +62,7 @@ export default function Segments() {
     setFormData({
       name: segment.name,
       color: segment.color || '#3B82F6',
+      cnss_number: segment.cnss_number || '',
     });
     setLogoPreview(segment.logo_url || null);
     setLogoFile(null);
@@ -79,7 +82,7 @@ export default function Segments() {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', color: '#3b82f6' });
+    setFormData({ name: '', color: '#3b82f6', cnss_number: '' });
     setEditingId(null);
     setShowForm(false);
     setLogoFile(null);
@@ -195,6 +198,23 @@ export default function Segments() {
                         <p className="text-xs text-gray-500 mt-1">PNG, JPG ou WebP. Max 2MB. Apparaîtra sur les bulletins PDF.</p>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* N° CNSS Employeur - uniquement en mode édition */}
+                {editingId && (
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      N° CNSS Employeur (pour ce segment)
+                    </label>
+                    <Input
+                      value={formData.cnss_number}
+                      onChange={(e) => setFormData({ ...formData, cnss_number: e.target.value })}
+                      placeholder="Ex: 1234567"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Numéro d'affiliation CNSS de l'employeur pour ce segment. Apparaîtra sur les bulletins de paie.
+                    </p>
                   </div>
                 )}
 

@@ -43,6 +43,7 @@ interface Employee {
   hourly_rate?: number;
   is_cnss_subject?: boolean;
   is_amo_subject?: boolean;
+  social_security_number?: string;
   inscription_objective?: number;
   objective_period_start?: string;
   objective_period_end?: string;
@@ -77,6 +78,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     hourly_rate: '' as string | number,
     is_cnss_subject: true,
     is_amo_subject: true,
+    social_security_number: '',
     inscription_objective: '' as string | number,
     objective_period_start: '',
     objective_period_end: '',
@@ -172,6 +174,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         hourly_rate: employeeData.hourly_rate ?? '',
         is_cnss_subject: employeeData.is_cnss_subject ?? true,
         is_amo_subject: employeeData.is_amo_subject ?? true,
+        social_security_number: employeeData.social_security_number || '',
         inscription_objective: employeeData.inscription_objective ?? '',
         objective_period_start: formatDateForInput(employeeData.objective_period_start),
         objective_period_end: formatDateForInput(employeeData.objective_period_end),
@@ -675,6 +678,23 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                 </div>
                 <p className="text-xs text-gray-500 w-full mt-2">
                   Ces options affectent le calcul des cotisations sociales sur la paie.
+                </p>
+              </div>
+
+              {/* N° CNSS Employé */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  N° CNSS Employé
+                </label>
+                <input
+                  type="text"
+                  value={formData.social_security_number}
+                  onChange={(e) => handleChange('social_security_number', e.target.value)}
+                  placeholder="Ex: 123456789"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Numéro d'immatriculation CNSS de l'employé (apparaîtra sur les bulletins de paie)
                 </p>
               </div>
 

@@ -147,11 +147,11 @@ router.put('/:id',
   async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, color } = req.body;
+    const { name, color, cnss_number } = req.body;
 
     // Build update query with scope filter
-    let query = 'UPDATE segments SET name = $1, color = $2 WHERE id = $3';
-    const params = [name, color, id];
+    let query = 'UPDATE segments SET name = $1, color = $2, cnss_number = $3 WHERE id = $4';
+    const params = [name, color, cnss_number || null, id];
 
     // SBAC: Verify user has access to this segment
     const scopeFilter = buildScopeFilter(req, 'id', null);
