@@ -670,4 +670,142 @@ router.get('/:id/approval-chain',
   }
 });
 
+// =====================================================
+// PRIMES EMPLOYÉ
+// =====================================================
+
+/**
+ * Get all prime types (référentiel)
+ * GET /api/hr/employees/prime-types
+ */
+router.get('/prime-types',
+  authenticateToken,
+  requirePermission('hr.employees.view_page'),
+  async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT * FROM hr_prime_types
+        WHERE is_active = true
+        ORDER BY category DESC, display_order
+      `);
+
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching prime types:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get employee primes
+ * GET /api/hr/employees/:id/primes
+ */
+router.get('/:id/primes',
+  authenticateToken,
+  requirePermission('hr.employees.view_page'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const result = await pool.query(`
+        SELECT
+          ep.*,
+          pt.label,
+          pt.description as prime_description,
+          pt.category,
+          pt.exemption_ceiling,
+          pt.exemption_unit,
+          pt.display_order
+        FROM hr_employee_primes ep
+        JOIN hr_prime_types pt ON pt.code = ep.prime_type_code
+        WHERE ep.employee_id = $1
+        ORDER BY pt.category DESC, pt.display_order
+      `, [id]);
+
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching employee primes:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Update employee primes (bulk upsert)
+ * PUT /api/hr/employees/:id/primes
+ * Body: { primes: [{ prime_type_code, is_active, amount, frequency, notes }, ...] }
+ */
+router.put('/:id/primes',
+  authenticateToken,
+  requirePermission('hr.employees.update'),
+  async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+      const { id } = req.params;
+      const { primes } = req.body;
+
+      if (!Array.isArray(primes)) {
+        return res.status(400).json({
+          success: false,
+          error: 'primes doit être un tableau'
+        });
+      }
+
+      await client.query('BEGIN');
+
+      for (const prime of primes) {
+        if (!prime.prime_type_code) continue;
+
+        await client.query(`
+          INSERT INTO hr_employee_primes (
+            employee_id, prime_type_code, is_active, amount, frequency, notes
+          )
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (employee_id, prime_type_code)
+          DO UPDATE SET
+            is_active = EXCLUDED.is_active,
+            amount = EXCLUDED.amount,
+            frequency = EXCLUDED.frequency,
+            notes = EXCLUDED.notes,
+            updated_at = NOW()
+        `, [
+          id,
+          prime.prime_type_code,
+          prime.is_active ?? false,
+          prime.amount ?? 0,
+          prime.frequency ?? 'monthly',
+          prime.notes ?? null
+        ]);
+      }
+
+      await client.query('COMMIT');
+
+      // Fetch updated primes
+      const result = await pool.query(`
+        SELECT
+          ep.*,
+          pt.label,
+          pt.category,
+          pt.exemption_ceiling,
+          pt.exemption_unit,
+          pt.display_order
+        FROM hr_employee_primes ep
+        JOIN hr_prime_types pt ON pt.code = ep.prime_type_code
+        WHERE ep.employee_id = $1
+        ORDER BY pt.category DESC, pt.display_order
+      `, [id]);
+
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error updating employee primes:', error);
+      res.status(500).json({ success: false, error: error.message });
+    } finally {
+      client.release();
+    }
+  }
+);
+
 export default router;

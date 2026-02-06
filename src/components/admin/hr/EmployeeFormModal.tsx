@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle, Plus, Trash2, Users, Target } from 'lucide-react';
+import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle, Plus, Trash2, Users, Target, Gift } from 'lucide-react';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { apiClient } from '@/lib/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -14,6 +14,34 @@ interface ManagerEntry {
 interface EmployeeFormModalProps {
   employeeId: string | null;
   onClose: () => void;
+}
+
+// Types pour les primes
+interface PrimeType {
+  id: string;
+  code: string;
+  label: string;
+  description?: string;
+  category: 'imposable' | 'exoneree';
+  exemption_ceiling: number;
+  exemption_unit: 'month' | 'day' | 'percent';
+  display_order: number;
+}
+
+interface EmployeePrime {
+  id?: string;
+  employee_id?: string;
+  prime_type_code: string;
+  is_active: boolean;
+  amount: number;
+  frequency: 'monthly' | 'daily' | 'yearly' | 'one_time';
+  notes?: string;
+  // Champs joints depuis hr_prime_types
+  label?: string;
+  category?: 'imposable' | 'exoneree';
+  exemption_ceiling?: number;
+  exemption_unit?: string;
+  display_order?: number;
 }
 
 interface Employee {
@@ -108,6 +136,10 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
   // State pour les managers multiples avec rangs
   const [employeeManagers, setEmployeeManagers] = useState<ManagerEntry[]>([]);
 
+  // State pour les primes employé
+  const [primeTypes, setPrimeTypes] = useState<PrimeType[]>([]);
+  const [employeePrimes, setEmployeePrimes] = useState<Record<string, EmployeePrime>>({});
+
   const isEdit = !!employeeId;
 
   // Fetch employee data if editing
@@ -144,6 +176,26 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     },
   });
   const availableProfiles = profilesData || [];
+
+  // Fetch prime types (référentiel)
+  const { data: primeTypesData } = useQuery({
+    queryKey: ['hr-prime-types'],
+    queryFn: async () => {
+      const response = await apiClient.get('/hr/employees/prime-types');
+      return (response as any).data as PrimeType[];
+    },
+  });
+
+  // Fetch employee primes (when editing)
+  const { data: employeePrimesData } = useQuery({
+    queryKey: ['hr-employee-primes', employeeId],
+    queryFn: async () => {
+      if (!employeeId) return [];
+      const response = await apiClient.get(`/hr/employees/${employeeId}/primes`);
+      return (response as any).data as EmployeePrime[];
+    },
+    enabled: !!employeeId,
+  });
 
   // Fetch existing managers for this employee (when editing)
   const { data: existingManagersData } = useQuery({
@@ -226,6 +278,24 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     }
   }, [existingManagersData]);
 
+  // Load prime types from API
+  useEffect(() => {
+    if (primeTypesData) {
+      setPrimeTypes(primeTypesData);
+    }
+  }, [primeTypesData]);
+
+  // Load employee primes when editing
+  useEffect(() => {
+    if (employeePrimesData && employeePrimesData.length > 0) {
+      const primesMap: Record<string, EmployeePrime> = {};
+      for (const prime of employeePrimesData) {
+        primesMap[prime.prime_type_code] = prime;
+      }
+      setEmployeePrimes(primesMap);
+    }
+  }, [employeePrimesData]);
+
   // Mutation pour sauvegarder les managers d'un employé
   const saveManagers = async (empId: string) => {
     if (employeeManagers.length > 0) {
@@ -236,6 +306,46 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         }))
       });
     }
+  };
+
+  // Mutation pour sauvegarder les primes d'un employé
+  const savePrimes = async (empId: string) => {
+    const primesToSave = Object.values(employeePrimes).filter(p =>
+      p.is_active || p.amount > 0
+    );
+
+    if (primesToSave.length > 0) {
+      await apiClient.put(`/hr/employees/${empId}/primes`, {
+        primes: primesToSave.map(p => ({
+          prime_type_code: p.prime_type_code,
+          is_active: p.is_active,
+          amount: p.amount || 0,
+          frequency: p.frequency || 'monthly',
+          notes: p.notes
+        }))
+      });
+    }
+  };
+
+  // Helper pour mettre à jour une prime
+  const handlePrimeChange = (primeCode: string, updates: Partial<EmployeePrime>) => {
+    setEmployeePrimes(prev => {
+      const existing = prev[primeCode];
+      const defaultPrime: EmployeePrime = {
+        prime_type_code: primeCode,
+        is_active: false,
+        amount: 0,
+        frequency: 'monthly'
+      };
+      return {
+        ...prev,
+        [primeCode]: {
+          ...defaultPrime,
+          ...existing,
+          ...updates
+        }
+      };
+    });
   };
 
   // Create mutation
@@ -252,6 +362,12 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         } catch (error) {
           console.error('Erreur lors de la sauvegarde des managers:', error);
         }
+      }
+      // Sauvegarder les primes après création
+      try {
+        await savePrimes(newEmployee.id);
+      } catch (error) {
+        console.error('Erreur lors de la sauvegarde des primes:', error);
       }
       queryClient.invalidateQueries({ queryKey: ['hr-employees'] });
       queryClient.invalidateQueries({ queryKey: ['hr-potential-managers'] });
@@ -272,9 +388,16 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
       } catch (error) {
         console.error('Erreur lors de la sauvegarde des managers:', error);
       }
+      // Sauvegarder les primes après mise à jour
+      try {
+        await savePrimes(employeeId!);
+      } catch (error) {
+        console.error('Erreur lors de la sauvegarde des primes:', error);
+      }
       queryClient.invalidateQueries({ queryKey: ['hr-employees'] });
       queryClient.invalidateQueries({ queryKey: ['hr-employee', employeeId] });
       queryClient.invalidateQueries({ queryKey: ['hr-employee-managers', employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['hr-employee-primes', employeeId] });
       queryClient.invalidateQueries({ queryKey: ['hr-potential-managers'] });
       onClose();
     },
@@ -928,6 +1051,181 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                   </div>
                 </div>
               </div>
+
+              {/* Primes et Indemnités */}
+              {primeTypes.length > 0 && (
+                <div className="md:col-span-3 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <h3 className="text-sm font-medium text-purple-800 mb-4 flex items-center gap-2">
+                    <Gift className="w-4 h-4" />
+                    Primes et Indemnités
+                  </h3>
+
+                  {/* Primes IMPOSABLES */}
+                  <div className="mb-4">
+                    <h4 className="text-xs font-semibold text-red-700 uppercase mb-2 flex items-center gap-1">
+                      <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                      Primes Imposables (soumises intégralement à l'IR)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {primeTypes
+                        .filter(pt => pt.category === 'imposable')
+                        .map(prime => {
+                          const primeValue = employeePrimes[prime.code] || {
+                            prime_type_code: prime.code,
+                            is_active: false,
+                            amount: 0,
+                            frequency: 'monthly' as const
+                          };
+                          return (
+                            <div
+                              key={prime.code}
+                              className={`p-3 rounded-lg border transition-colors ${
+                                primeValue.is_active
+                                  ? 'bg-red-100 border-red-300'
+                                  : 'bg-white border-gray-200'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-2">
+                                <input
+                                  type="checkbox"
+                                  id={`prime_${prime.code}`}
+                                  checked={primeValue.is_active}
+                                  onChange={(e) =>
+                                    handlePrimeChange(prime.code, { is_active: e.target.checked })
+                                  }
+                                  className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                                />
+                                <label
+                                  htmlFor={`prime_${prime.code}`}
+                                  className="text-sm font-medium text-gray-700 cursor-pointer"
+                                >
+                                  {prime.label}
+                                </label>
+                              </div>
+
+                              {primeValue.is_active && (
+                                <div className="flex items-center gap-2 ml-6">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={primeValue.amount || ''}
+                                    onChange={(e) =>
+                                      handlePrimeChange(prime.code, {
+                                        amount: parseFloat(e.target.value) || 0
+                                      })
+                                    }
+                                    placeholder="Montant"
+                                    className="w-28 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-red-500"
+                                  />
+                                  <span className="text-xs text-gray-500">MAD/mois</span>
+                                </div>
+                              )}
+
+                              {prime.description && (
+                                <p className="text-xs text-gray-500 mt-1 ml-6">{prime.description}</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  {/* Primes EXONÉRÉES */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-green-700 uppercase mb-2 flex items-center gap-1">
+                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                      Primes Exonérées (avec plafonds d'exonération)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {primeTypes
+                        .filter(pt => pt.category === 'exoneree')
+                        .map(prime => {
+                          const primeValue = employeePrimes[prime.code] || {
+                            prime_type_code: prime.code,
+                            is_active: false,
+                            amount: 0,
+                            frequency: 'monthly' as const
+                          };
+                          return (
+                            <div
+                              key={prime.code}
+                              className={`p-3 rounded-lg border transition-colors ${
+                                primeValue.is_active
+                                  ? 'bg-green-100 border-green-300'
+                                  : 'bg-white border-gray-200'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-2">
+                                <input
+                                  type="checkbox"
+                                  id={`prime_${prime.code}`}
+                                  checked={primeValue.is_active}
+                                  onChange={(e) =>
+                                    handlePrimeChange(prime.code, { is_active: e.target.checked })
+                                  }
+                                  className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                                />
+                                <label
+                                  htmlFor={`prime_${prime.code}`}
+                                  className="text-sm font-medium text-gray-700 cursor-pointer"
+                                >
+                                  {prime.label}
+                                </label>
+                              </div>
+
+                              {primeValue.is_active && (
+                                <div className="flex items-center gap-2 ml-6">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={primeValue.amount || ''}
+                                    onChange={(e) =>
+                                      handlePrimeChange(prime.code, {
+                                        amount: parseFloat(e.target.value) || 0
+                                      })
+                                    }
+                                    placeholder="Montant"
+                                    className="w-28 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500"
+                                  />
+                                  <span className="text-xs text-gray-500">
+                                    MAD/{prime.exemption_unit === 'day' ? 'jour' : 'mois'}
+                                  </span>
+                                </div>
+                              )}
+
+                              {prime.exemption_ceiling > 0 && (
+                                <p className="text-xs text-green-600 mt-1 ml-6">
+                                  Exonéré jusqu'à {prime.exemption_ceiling}{' '}
+                                  {prime.exemption_unit === 'percent'
+                                    ? '% du salaire base'
+                                    : prime.exemption_unit === 'day'
+                                    ? 'MAD/jour'
+                                    : 'MAD/mois'}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+
+                  {/* Résumé des primes actives */}
+                  {Object.values(employeePrimes).some(p => p.is_active && p.amount > 0) && (
+                    <div className="mt-4 pt-3 border-t border-purple-200">
+                      <p className="text-xs text-purple-700 font-medium">
+                        Total primes mensuelles:{' '}
+                        {Object.values(employeePrimes)
+                          .filter(p => p.is_active && p.amount > 0)
+                          .reduce((sum, p) => sum + (p.amount || 0), 0)
+                          .toFixed(2)}{' '}
+                        MAD
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Objectif d'Inscription (Prime Assistante) */}
               <div className="md:col-span-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
