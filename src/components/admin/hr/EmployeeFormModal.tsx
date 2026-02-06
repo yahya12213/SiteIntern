@@ -601,6 +601,29 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                 </select>
               </div>
 
+              {/* Date de fin de contrat - visible pour tous types sauf CDI, ou si statut terminé */}
+              {(formData.employment_type !== 'full_time' || formData.employment_status === 'terminated') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date de fin de contrat
+                    {formData.employment_type === 'temporary' && <span className="text-red-500 ml-1">*</span>}
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="date"
+                      value={formData.termination_date}
+                      onChange={(e) => handleChange('termination_date', e.target.value)}
+                      title="Date de fin de contrat"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.employment_type === 'temporary' ? 'Obligatoire pour les CDD' : 'Date de fin prévue du contrat'}
+                  </p>
+                </div>
+              )}
+
               {/* Poste */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -835,28 +858,6 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                   </div>
                 )}
               </div>
-
-              {/* Date de fin de contrat - visible pour tous types sauf CDI, ou si statut terminé */}
-              {(formData.employment_type !== 'full_time' || formData.employment_status === 'terminated') && (
-                <div className="md:col-span-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date de fin de contrat
-                    {formData.employment_type === 'temporary' && <span className="text-red-500 ml-1">*</span>}
-                  </label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input
-                      type="date"
-                      value={formData.termination_date}
-                      onChange={(e) => handleChange('termination_date', e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {formData.employment_type === 'temporary' ? 'Obligatoire pour les CDD' : 'Date de fin prévue du contrat'}
-                  </p>
-                </div>
-              )}
             </div>
           </div>
 
