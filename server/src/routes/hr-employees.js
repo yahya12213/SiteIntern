@@ -70,6 +70,33 @@ router.get('/',
   }
 });
 
+// =====================================================
+// PRIMES EMPLOYÉ - Ces routes doivent être AVANT /:id
+// =====================================================
+
+/**
+ * Get all prime types (référentiel)
+ * GET /api/hr/employees/prime-types
+ */
+router.get('/prime-types',
+  authenticateToken,
+  requirePermission('hr.employees.view_page'),
+  async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT * FROM hr_prime_types
+        WHERE is_active = true
+        ORDER BY category DESC, display_order
+      `);
+
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching prime types:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
 /**
  * Get single employee with all details
  * Protected: Requires hr.employees.view_page permission
@@ -671,31 +698,8 @@ router.get('/:id/approval-chain',
 });
 
 // =====================================================
-// PRIMES EMPLOYÉ
+// PRIMES EMPLOYÉ - Routes avec :id
 // =====================================================
-
-/**
- * Get all prime types (référentiel)
- * GET /api/hr/employees/prime-types
- */
-router.get('/prime-types',
-  authenticateToken,
-  requirePermission('hr.employees.view_page'),
-  async (req, res) => {
-    try {
-      const result = await pool.query(`
-        SELECT * FROM hr_prime_types
-        WHERE is_active = true
-        ORDER BY category DESC, display_order
-      `);
-
-      res.json({ success: true, data: result.rows });
-    } catch (error) {
-      console.error('Error fetching prime types:', error);
-      res.status(500).json({ success: false, error: error.message });
-    }
-  }
-);
 
 /**
  * Get employee primes
