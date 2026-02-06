@@ -33,6 +33,7 @@ export class PayslipPDFGenerator {
           e.first_name, e.last_name, e.employee_number, e.cin, e.hire_date,
           e.department, e.position, e.email, e.phone,
           e.social_security_number as employee_cnss, e.employment_type, e.termination_date,
+          e.marital_status, e.dependent_children,
           s.name as segment_name, s.logo_url as segment_logo, s.cnss_number as segment_cnss,
           p.name as period_name, p.year, p.month, p.start_date, p.end_date, p.pay_date
         FROM hr_payslips ps
@@ -134,6 +135,18 @@ export class PayslipPDFGenerator {
       doc.text(`N° CNSS : ${payslip.employee_cnss || 'N/A'}`, 50, yPosition);
       const workedHours = parseFloat(payslip.worked_hours) || 0;
       doc.text(`Heures travaillées : ${workedHours.toFixed(2)}h`, 350, yPosition);
+      yPosition += 15;
+
+      // Situation familiale et enfants à charge
+      const maritalLabels = {
+        'single': 'Célibataire',
+        'married': 'Marié(e)',
+        'divorced': 'Divorcé(e)',
+        'widowed': 'Veuf/Veuve'
+      };
+      const situationFamiliale = maritalLabels[payslip.marital_status] || 'N/A';
+      doc.text(`Situation familiale : ${situationFamiliale}`, 50, yPosition);
+      doc.text(`Enfants à charge : ${payslip.dependent_children || 0}`, 350, yPosition);
       yPosition += 30;
 
       // 7. Lignes de détail - Gains
