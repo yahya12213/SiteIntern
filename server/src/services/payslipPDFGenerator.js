@@ -77,35 +77,8 @@ export class PayslipPDFGenerator {
       const stream = fs.createWriteStream(outputPath);
       doc.pipe(stream);
 
-      // 4. En-tête avec logo du segment (logo + infos entreprise à gauche)
+      // 4. Titre (en haut de page)
       let yPosition = 50;
-      let logoHeight = 60;
-
-      if (payslip.segment_logo) {
-        try {
-          // Construct logo path
-          const logoPath = path.join(UPLOADS_BASE, 'segments', path.basename(payslip.segment_logo));
-          if (fs.existsSync(logoPath)) {
-            doc.image(logoPath, 50, yPosition, { width: 100 });
-            logoHeight = 70;
-          }
-        } catch (err) {
-          console.warn('Could not load segment logo:', err);
-        }
-      }
-
-      // Nom de l'entreprise sous le logo (à gauche)
-      const companyName = payslip.segment_name || companyConfig.company_name || 'PROLEAN';
-      doc.fontSize(12).font('Helvetica-Bold')
-        .text(companyName, 50, yPosition + logoHeight);
-
-      // CNSS Employeur sous le nom
-      const employerCnss = payslip.segment_cnss || companyConfig.employer_cnss_number;
-      if (employerCnss) {
-        doc.fontSize(8).font('Helvetica')
-          .text(`CNSS Employeur: ${employerCnss}`, 50, yPosition + logoHeight + 15);
-      }
-      yPosition += logoHeight + 50;
 
       // 5. Titre
       doc.fontSize(18).font('Helvetica-Bold')
@@ -230,13 +203,47 @@ export class PayslipPDFGenerator {
         yPosition += 20;
       }
 
-      // 11. Pied de page
+      // 11. Pied de page avec identifiants société
+      const footerY = 720;
+
+      // Logo du segment (à gauche)
+      let logoWidth = 0;
+      if (payslip.segment_logo) {
+        try {
+          const logoPath = path.join(UPLOADS_BASE, 'segments', path.basename(payslip.segment_logo));
+          if (fs.existsSync(logoPath)) {
+            doc.image(logoPath, 50, footerY, { height: 40 });
+            logoWidth = 50; // Espace après le logo
+          }
+        } catch (err) {
+          console.warn('Could not load segment logo:', err);
+        }
+      }
+
+      // Nom de l'entreprise et CNSS (à côté du logo)
+      const companyName = payslip.segment_name || companyConfig.company_name || 'PROLEAN';
+      const employerCnss = payslip.segment_cnss || companyConfig.employer_cnss_number;
+
+      doc.fillColor('#333333');
+      doc.fontSize(10).font('Helvetica-Bold')
+        .text(companyName, 50 + logoWidth + 10, footerY + 5);
+
+      if (employerCnss) {
+        doc.fontSize(8).font('Helvetica')
+          .text(`CNSS Employeur: ${employerCnss}`, 50 + logoWidth + 10, footerY + 20);
+      }
+
+      // Date de génération (à droite)
       doc.fontSize(8).font('Helvetica').fillColor('#666666');
       doc.text(
-        `Généré le ${new Date().toLocaleDateString('fr-FR')} - Document confidentiel`,
-        50, 750,
-        { align: 'center' }
+        `Généré le ${new Date().toLocaleDateString('fr-FR')}`,
+        400, footerY + 30,
+        { align: 'right', width: 145 }
       );
+
+      // Ligne de séparation au-dessus du pied de page
+      doc.strokeColor('#cccccc').lineWidth(0.5);
+      doc.moveTo(50, footerY - 10).lineTo(545, footerY - 10).stroke();
 
       // Finaliser
       doc.end();
