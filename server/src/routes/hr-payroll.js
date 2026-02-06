@@ -599,7 +599,7 @@ router.post('/calculate/:period_id',
         const enrollmentBonusTotal = parseFloat(enrollmentBonuses.rows[0]?.total) || 0;
         const enrollmentBonusCount = parseInt(enrollmentBonuses.rows[0]?.count) || 0;
 
-        // 🔍 LOG DÉTAILLÉ: Primes d'inscription
+        // 🔍 LOG DÉTAILLÉ: Prime de rendement (inscriptions)
         console.log(`\n📊 [PAYROLL-CALC] Employé: ${emp.first_name} ${emp.last_name} (${emp.id})`);
         console.log(`   Segment ID: ${emp.segment_id}`);
         console.log(`   Ville ID: ${emp.ville_id}`);
@@ -729,11 +729,11 @@ router.post('/calculate/:period_id',
           `, [payslipId, overtimeHours25 + overtimeHours50 + overtimeHours100, hourlyRate, overtimeAmount]);
         }
 
-        // Enrollment bonus line (if applicable)
+        // Prime de rendement (enrollment bonus) line (if applicable)
         if (enrollmentBonusTotal > 0) {
           await client.query(`
             INSERT INTO hr_payslip_lines (payslip_id, line_type, category, code, label, quantity, amount, display_order)
-            VALUES ($1, 'earning', 'commission', 'PRIME_INSCR', 'Primes d''inscription', $2, $3, 4)
+            VALUES ($1, 'earning', 'commission', 'PRIME_REND', 'Prime de rendement', $2, $3, 4)
           `, [payslipId, enrollmentBonusCount, enrollmentBonusTotal]);
 
           // Marquer les primes comme payées

@@ -1068,7 +1068,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {primeTypes
-                        .filter(pt => pt.category === 'imposable')
+                        .filter(pt => pt.category === 'imposable' && pt.code !== 'prime_rendement')
                         .map(prime => {
                           const primeValue = employeePrimes[prime.code] || {
                             prime_type_code: prime.code,
