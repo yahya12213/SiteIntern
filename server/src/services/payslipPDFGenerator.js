@@ -32,7 +32,7 @@ export class PayslipPDFGenerator {
           ps.*,
           e.first_name, e.last_name, e.employee_number, e.cin, e.hire_date,
           e.department, e.position, e.email, e.phone,
-          e.social_security_number as employee_cnss,
+          e.social_security_number as employee_cnss, e.employment_type, e.termination_date,
           s.name as segment_name, s.logo_url as segment_logo, s.cnss_number as segment_cnss,
           p.name as period_name, p.year, p.month, p.start_date, p.end_date, p.pay_date
         FROM hr_payslips ps
@@ -77,8 +77,9 @@ export class PayslipPDFGenerator {
       const stream = fs.createWriteStream(outputPath);
       doc.pipe(stream);
 
-      // 4. En-tête avec logo du segment
+      // 4. En-tête avec logo du segment (logo + infos entreprise à gauche)
       let yPosition = 50;
+      let logoHeight = 60;
 
       if (payslip.segment_logo) {
         try {
@@ -86,22 +87,25 @@ export class PayslipPDFGenerator {
           const logoPath = path.join(UPLOADS_BASE, 'segments', path.basename(payslip.segment_logo));
           if (fs.existsSync(logoPath)) {
             doc.image(logoPath, 50, yPosition, { width: 100 });
+            logoHeight = 70;
           }
         } catch (err) {
           console.warn('Could not load segment logo:', err);
         }
       }
 
-      // Nom de l'entreprise / segment - priorité au segment (chaque segment = entreprise indépendante)
+      // Nom de l'entreprise sous le logo (à gauche)
+      const companyName = payslip.segment_name || companyConfig.company_name || 'PROLEAN';
       doc.fontSize(12).font('Helvetica-Bold')
-        .text(payslip.segment_name || companyConfig.company_name || 'PROLEAN', 450, yPosition, { align: 'right' });
-      // CNSS Employeur - priorité au segment
+        .text(companyName, 50, yPosition + logoHeight);
+
+      // CNSS Employeur sous le nom
       const employerCnss = payslip.segment_cnss || companyConfig.employer_cnss_number;
       if (employerCnss) {
         doc.fontSize(8).font('Helvetica')
-          .text(`CNSS Employeur: ${employerCnss}`, 450, yPosition + 15, { align: 'right' });
+          .text(`CNSS Employeur: ${employerCnss}`, 50, yPosition + logoHeight + 15);
       }
-      yPosition += 80;
+      yPosition += logoHeight + 50;
 
       // 5. Titre
       doc.fontSize(18).font('Helvetica-Bold')
@@ -124,6 +128,16 @@ export class PayslipPDFGenerator {
       doc.fontSize(11).font('Helvetica-Bold').text('INFORMATIONS EMPLOYÉ', 50, yPosition);
       yPosition += 20;
 
+      // Mapping type de contrat
+      const contractTypeLabels = {
+        'full_time': 'CDI',
+        'part_time': 'Temps partiel',
+        'intern': 'Stagiaire',
+        'freelance': 'Freelance',
+        'temporary': 'CDD'
+      };
+      const contractType = contractTypeLabels[payslip.employment_type] || payslip.employment_type || 'N/A';
+
       doc.fontSize(9).font('Helvetica');
       doc.text(`Nom et prénom : ${payslip.first_name} ${payslip.last_name}`, 50, yPosition);
       doc.text(`Matricule : ${payslip.employee_number || 'N/A'}`, 350, yPosition);
@@ -133,8 +147,15 @@ export class PayslipPDFGenerator {
       doc.text(`Département : ${payslip.department || 'N/A'}`, 350, yPosition);
       yPosition += 15;
 
-      doc.text(`Date d'embauche : ${formatDate(payslip.hire_date)}`, 50, yPosition);
+      doc.text(`Type de contrat : ${contractType}`, 50, yPosition);
       doc.text(`CIN : ${payslip.cin || 'N/A'}`, 350, yPosition);
+      yPosition += 15;
+
+      doc.text(`Date d'embauche : ${formatDate(payslip.hire_date)}`, 50, yPosition);
+      // Afficher date fin contrat si non CDI et si définie
+      if (payslip.employment_type !== 'full_time' && payslip.termination_date) {
+        doc.text(`Date fin contrat : ${formatDate(payslip.termination_date)}`, 350, yPosition);
+      }
       yPosition += 15;
 
       doc.text(`N° CNSS : ${payslip.employee_cnss || 'N/A'}`, 50, yPosition);
