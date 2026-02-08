@@ -753,10 +753,58 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Initialize app_settings table (auto-migration for AI settings)
+async function initializeAppSettings() {
+  try {
+    console.log('🔧 Initializing app_settings table...');
+
+    // Create app_settings table if not exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        id SERIAL PRIMARY KEY,
+        key VARCHAR(255) UNIQUE NOT NULL,
+        value TEXT,
+        description TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create index on key
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_app_settings_key ON app_settings(key);
+    `);
+
+    // Insert default AI settings if not exist
+    const defaultSettings = [
+      { key: 'ai_provider', value: '', description: 'AI provider: claude, openai, or gemini' },
+      { key: 'ai_api_key', value: '', description: 'API key for the AI provider' },
+      { key: 'ai_model', value: '', description: 'AI model to use' },
+      { key: 'ai_enabled', value: 'false', description: 'Whether AI features are enabled' }
+    ];
+
+    for (const setting of defaultSettings) {
+      await pool.query(`
+        INSERT INTO app_settings (key, value, description)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (key) DO NOTHING
+      `, [setting.key, setting.value, setting.description]);
+    }
+
+    console.log('✅ app_settings table initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize app_settings:', error.message);
+    // Non-fatal error - continue server startup
+  }
+}
+
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📊 API endpoints available at http://localhost:${PORT}/api`);
+
+  // Initialize app_settings table for AI configuration
+  await initializeAppSettings();
 
   // Auto-retry failed Google Contacts syncs every 10 minutes
   import('./services/googleContactsService.js').then(({ googleContactsService }) => {
