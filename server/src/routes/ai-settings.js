@@ -179,7 +179,8 @@ router.post('/test', async (req, res) => {
           testResult = { success: false, message: error.error?.message || 'Connection failed' };
         }
       } else if (settings.ai_provider === 'gemini') {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${settings.ai_model || 'gemini-pro'}:generateContent?key=${settings.ai_api_key}`, {
+        const modelName = settings.ai_model || 'gemini-2.0-flash';
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${settings.ai_api_key}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -407,7 +408,7 @@ async function callOpenAIAPI(apiKey, model, prompt) {
 
 // Helper function to call Gemini API
 async function callGeminiAPI(apiKey, model, prompt) {
-  const modelName = model || 'gemini-pro';
+  const modelName = model || 'gemini-2.0-flash';
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

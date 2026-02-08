@@ -67,9 +67,9 @@ const providers = [
     name: 'Gemini (Google)',
     description: 'Modèles Gemini de Google',
     models: [
-      { id: 'gemini-pro', name: 'Gemini Pro' },
-      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Rapide)' },
-      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Plus puissant)' },
+      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Recommandé, Rapide)' },
+      { id: 'gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash Latest' },
+      { id: 'gemini-1.5-pro-latest', name: 'Gemini 1.5 Pro (Plus puissant)' },
     ],
     docUrl: 'https://aistudio.google.com/app/apikey',
   },
