@@ -219,6 +219,7 @@ import migration148Router from './routes/migration-148-merge-recovery-statuses.j
 import migration151Router from './routes/migration-151-add-ville-to-employees.js';
 import migration152Router from './routes/migration-152-delivery-date-tracking.js';
 import migration153Router from './routes/migration-153-profile-image.js';
+import migration154Router from './routes/migration-154-initial-leave-balance.js';
 import hrEnrollmentBonusesRouter from './routes/hr-enrollment-bonuses.js';
 import hrAssistantBonusRouter from './routes/hr-assistant-bonus.js';
 import testWorkflowRouter from './routes/test-workflow.js';
@@ -505,6 +506,7 @@ app.use('/api/migration-148-merge-recovery-statuses', ...adminOnly, migration148
 app.use('/api/migration-151-add-ville-to-employees', ...adminOnly, migration151Router);
 app.use('/api/migration-152-delivery-date-tracking', ...adminOnly, migration152Router);
 app.use('/api/migration-153-profile-image', ...adminOnly, migration153Router);
+app.use('/api/migration-154-initial-leave-balance', ...adminOnly, migration154Router);
 app.use('/api/migration-150-ai-settings', ...adminOnly, migration150Router);
 app.use('/api/test-workflow', ...adminOnly, testWorkflowRouter);
 // Note: /my/correction-requests routes are in hr-employee-self.js (mounted at /api/hr/my)

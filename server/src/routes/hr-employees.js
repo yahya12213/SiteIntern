@@ -394,7 +394,8 @@ router.post('/',
       cimr_affiliated = false,
       cimr_rate = 0,
       mutual_affiliated = false,
-      mutual_contribution = 0
+      mutual_contribution = 0,
+      initial_leave_balance = 0
     } = req.body;
 
     const result = await pool.query(`
@@ -408,8 +409,9 @@ router.post('/',
         inscription_objective, objective_period_start, objective_period_end,
         payroll_cutoff_day,
         marital_status, spouse_dependent, dependent_children, other_dependents,
-        professional_category, cimr_affiliated, cimr_rate, mutual_affiliated, mutual_contribution
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
+        professional_category, cimr_affiliated, cimr_rate, mutual_affiliated, mutual_contribution,
+        initial_leave_balance
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)
       RETURNING *
     `, [
       profile_id, employee_number, first_name, last_name, cin,
@@ -421,7 +423,8 @@ router.post('/',
       inscription_objective || 0, objective_period_start || null, objective_period_end || null,
       payroll_cutoff_day || 18,
       marital_status, spouse_dependent, dependent_children || 0, other_dependents || 0,
-      professional_category, cimr_affiliated, cimr_rate || 0, mutual_affiliated, mutual_contribution || 0
+      professional_category, cimr_affiliated, cimr_rate || 0, mutual_affiliated, mutual_contribution || 0,
+      initial_leave_balance || 0
     ]);
 
     res.status(201).json({ success: true, data: result.rows[0] });

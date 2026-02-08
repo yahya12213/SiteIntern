@@ -127,6 +127,7 @@ interface Employee {
   cimr_rate?: number;
   mutual_affiliated?: boolean;
   mutual_contribution?: number;
+  initial_leave_balance?: number; // Solde de congé initial (en jours)
   // Documents du dossier (retournés par l'API)
   contracts?: EmployeeContract[];
   documents?: EmployeeDocument[];
@@ -176,6 +177,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     cimr_rate: 0 as number | string,
     mutual_affiliated: false,
     mutual_contribution: 0 as number | string,
+    initial_leave_balance: 0 as number | string,
   });
 
   // State pour les managers multiples avec rangs
@@ -318,6 +320,7 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         cimr_rate: employeeData.cimr_rate ?? 0,
         mutual_affiliated: employeeData.mutual_affiliated ?? false,
         mutual_contribution: employeeData.mutual_contribution ?? 0,
+        initial_leave_balance: employeeData.initial_leave_balance ?? 0,
       });
       // Load photo URL
       if ((employeeData as any).photo_url) {
@@ -1518,6 +1521,24 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
                     </select>
                     <p className="text-xs text-gray-500 mt-1">
                       Ex: 18 = période du 19 mois précédent au 18 mois courant
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Calendar className="w-4 h-4 inline mr-1 text-green-600" />
+                      Solde congé initial (jours)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      value={formData.initial_leave_balance}
+                      onChange={(e) => handleChange('initial_leave_balance', e.target.value ? parseFloat(e.target.value) : 0)}
+                      placeholder="Ex: 18"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Solde de congé initial lors de l'embauche (affiché sur le bulletin de paie)
                     </p>
                   </div>
                 </div>
