@@ -8,6 +8,7 @@ export interface User {
   role_id?: string;
   role_name?: string;
   role_description?: string;
+  profile_image_url?: string; // User profile photo URL
 }
 
 export interface LoginResponse {

@@ -1,8 +1,10 @@
 import express from 'express';
 import pool from '../config/database.js';
 import bcrypt from 'bcryptjs';
+import path from 'path';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import { injectUserScope } from '../middleware/requireScope.js';
+import { uploadProfileImage, deleteFile } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -702,5 +704,120 @@ router.delete('/:id',
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+/**
+ * POST upload profile photo for current user
+ * POST /api/profiles/me/photo
+ * Allows authenticated user to upload their own profile photo
+ */
+router.post('/me/photo',
+  authenticateToken,
+  (req, res, next) => {
+    uploadProfileImage(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ success: false, error: err.message });
+      }
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: 'Aucun fichier fourni' });
+      }
+
+      const userId = req.user.id;
+
+      // Get old photo URL to delete it later
+      const oldPhotoResult = await pool.query(
+        'SELECT profile_image_url FROM profiles WHERE id = $1',
+        [userId]
+      );
+
+      const profile_image_url = `/uploads/profiles/${req.file.filename}`;
+
+      // Update profile with new photo URL
+      const result = await pool.query(`
+        UPDATE profiles
+        SET profile_image_url = $1
+        WHERE id = $2
+        RETURNING id, username, full_name, profile_image_url
+      `, [profile_image_url, userId]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Profil non trouvé' });
+      }
+
+      // Delete old photo if exists
+      if (oldPhotoResult.rows.length > 0 && oldPhotoResult.rows[0].profile_image_url) {
+        const oldUrl = oldPhotoResult.rows[0].profile_image_url;
+        const uploadsDir = process.env.UPLOADS_PATH || path.join(process.cwd(), 'uploads');
+        const oldFilePath = path.join(uploadsDir, 'profiles', path.basename(oldUrl));
+        deleteFile(oldFilePath);
+      }
+
+      console.log(`✅ Profile photo updated for user ${userId}: ${profile_image_url}`);
+
+      res.json({
+        success: true,
+        data: result.rows[0],
+        message: 'Photo de profil mise à jour'
+      });
+    } catch (error) {
+      console.error('Error uploading profile photo:', error);
+      res.status(500).json({ success: false, error: 'Erreur lors de l\'upload de la photo' });
+    }
+  }
+);
+
+/**
+ * DELETE profile photo for current user
+ * DELETE /api/profiles/me/photo
+ * Allows authenticated user to delete their own profile photo
+ */
+router.delete('/me/photo',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const userId = req.user.id;
+
+      // Get current photo URL
+      const photoResult = await pool.query(
+        'SELECT profile_image_url FROM profiles WHERE id = $1',
+        [userId]
+      );
+
+      if (photoResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Profil non trouvé' });
+      }
+
+      const profile_image_url = photoResult.rows[0].profile_image_url;
+
+      // Update profile to remove photo URL
+      await pool.query(`
+        UPDATE profiles
+        SET profile_image_url = NULL
+        WHERE id = $1
+      `, [userId]);
+
+      // Delete physical file if exists
+      if (profile_image_url) {
+        const uploadsDir = process.env.UPLOADS_PATH || path.join(process.cwd(), 'uploads');
+        const filePath = path.join(uploadsDir, 'profiles', path.basename(profile_image_url));
+        deleteFile(filePath);
+      }
+
+      console.log(`✅ Profile photo deleted for user ${userId}`);
+
+      res.json({
+        success: true,
+        message: 'Photo de profil supprimée'
+      });
+    } catch (error) {
+      console.error('Error deleting profile photo:', error);
+      res.status(500).json({ success: false, error: 'Erreur lors de la suppression de la photo' });
+    }
+  }
+);
 
 export default router;

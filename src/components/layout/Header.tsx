@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, HardHat } from 'lucide-react';
+import { LogOut, HardHat, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { MobileNav } from './MobileNav';
@@ -51,6 +51,18 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
 
           {/* Right Section: User Info + Logout (Hidden on mobile, shown via MobileNav) */}
           <div className="hidden lg:flex items-center gap-4">
+            {/* User Profile Photo */}
+            {user?.profile_image_url ? (
+              <img
+                src={user.profile_image_url}
+                alt={user.full_name || user.username}
+                className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 shadow-sm"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200">
+                <User className="w-5 h-5 text-gray-400" />
+              </div>
+            )}
             {/* User Info */}
             <div className="text-right px-4 py-2 rounded-input bg-surface-secondary border border-gray-100 transition-all duration-fast hover:border-gray-200">
               <p className="text-sm font-semibold text-gray-800">{user?.full_name || user?.username}</p>

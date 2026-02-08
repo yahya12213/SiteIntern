@@ -37,6 +37,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import {
   Users,
+  User,
   Plus,
   Phone,
   Trash2,
@@ -66,6 +67,7 @@ import { useProspects, useDeleteProspect } from '@/hooks/useProspects';
 import { useSegments } from '@/hooks/useSegments';
 import { useCities } from '@/hooks/useCities';
 import { usePermission } from '@/hooks/usePermission';
+import { useAuth } from '@/contexts/AuthContext';
 import type { ProspectFilters } from '@/lib/api/prospects';
 import { QuickAddProspectModal } from '@/components/prospects/QuickAddProspectModal';
 import { ImportProspectsModal } from '@/components/prospects/ImportProspectsModal';
@@ -143,6 +145,7 @@ const getRdvStyle = (dateRdv: string | null) => {
 
 export default function Prospects() {
   const { commercialisation } = usePermission();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   // Filtres
@@ -830,13 +833,27 @@ export default function Prospects() {
       <div className="p-6">
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6">
-          {/* Ligne 1: Titre + Actions */}
+          {/* Ligne 1: Titre + Photo Utilisateur + Actions */}
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Gestion des Prospects</h1>
-              <p className="text-muted-foreground mt-1">
-                Gérez vos prospects avec affectation automatique et qualification
-              </p>
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-3xl font-bold">Gestion des Prospects</h1>
+                <p className="text-muted-foreground mt-1">
+                  Gérez vos prospects avec affectation automatique et qualification
+                </p>
+              </div>
+              {/* User Profile Photo */}
+              {user?.profile_image_url ? (
+                <img
+                  src={user.profile_image_url}
+                  alt={user.full_name || user.username}
+                  className="w-12 h-12 rounded-full object-cover border-2 border-blue-200 shadow-md"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200 shadow-md">
+                  <User className="w-6 h-6 text-gray-400" />
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               {commercialisation.canImportProspects && (
