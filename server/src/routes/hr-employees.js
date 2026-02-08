@@ -3,6 +3,7 @@ import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 import { uploadEmployeeDocument, getEmployeeDocumentsDir, deleteFile, uploadEmployeePhoto, getEmployeePhotosDir } from '../middleware/upload.js';
 import path from 'path';
+import { getCurrentLeaveBalance } from '../services/leaveBalanceService.js';
 
 const router = express.Router();
 
@@ -279,6 +280,39 @@ router.delete('/:id/photo',
       res.json({ success: true, message: 'Photo supprimée' });
     } catch (error) {
       console.error('Error deleting employee photo:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get employee leave balance
+ * GET /api/hr/employees/:id/leave-balance
+ */
+router.get('/:id/leave-balance',
+  authenticateToken,
+  requirePermission('hr.employees.view_page'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Vérifier que l'employé existe
+      const empCheck = await pool.query('SELECT id, first_name, last_name FROM hr_employees WHERE id = $1', [id]);
+      if (empCheck.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Employé non trouvé' });
+      }
+
+      const balance = await getCurrentLeaveBalance(id);
+
+      res.json({
+        success: true,
+        data: {
+          employee: empCheck.rows[0],
+          balance
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching leave balance:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   }

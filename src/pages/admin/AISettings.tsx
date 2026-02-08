@@ -245,6 +245,14 @@ export default function AISettings() {
         ai_gemini_api_key: settings.ai_gemini_api_key,
         ai_gemini_model: settings.ai_gemini_model,
         ai_gemini_enabled: settings.ai_gemini_enabled === 'true',
+        // DeepSeek
+        ai_deepseek_api_key: settings.ai_deepseek_api_key,
+        ai_deepseek_model: settings.ai_deepseek_model,
+        ai_deepseek_enabled: settings.ai_deepseek_enabled === 'true',
+        // Groq
+        ai_groq_api_key: settings.ai_groq_api_key,
+        ai_groq_model: settings.ai_groq_model,
+        ai_groq_enabled: settings.ai_groq_enabled === 'true',
       });
 
       // Reload settings
