@@ -3,6 +3,7 @@ import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 import { uploadDeclarationAttachment } from '../middleware/upload.js';
 import { checkLeaveOverlap } from '../utils/leave-validation.js';
+import { deductLeaveBalance } from '../services/leaveBalanceService.js';
 
 const router = express.Router();
 
@@ -188,14 +189,36 @@ router.put('/requests/:id/approve', authenticateToken, requirePermission('hr.lea
       newStatus = 'approved';
     }
 
-    const result = await pool.query(`
-      UPDATE hr_leave_requests
-      SET ${updateQuery}, status = $4, updated_at = NOW()
-      WHERE id = $1
-      RETURNING *
-    `, [id, req.user.id, comment, newStatus]);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    res.json({ success: true, data: result.rows[0] });
+      const result = await client.query(`
+        UPDATE hr_leave_requests
+        SET ${updateQuery}, status = $4, updated_at = NOW()
+        WHERE id = $1
+        RETURNING *
+      `, [id, req.user.id, comment, newStatus]);
+
+      // Si le congé est approuvé définitivement, déduire du solde
+      if (newStatus === 'approved') {
+        try {
+          await deductLeaveBalance(id, req.user.id, client);
+          console.log(`✅ Leave balance deducted for request ${id}`);
+        } catch (deductError) {
+          console.error('Error deducting leave balance:', deductError);
+          // Ne pas bloquer l'approbation si la déduction échoue
+        }
+      }
+
+      await client.query('COMMIT');
+      res.json({ success: true, data: result.rows[0] });
+    } catch (txError) {
+      await client.query('ROLLBACK');
+      throw txError;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error('Error approving leave:', error);
     res.status(500).json({ success: false, error: error.message });

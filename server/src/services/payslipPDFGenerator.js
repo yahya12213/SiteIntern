@@ -26,7 +26,7 @@ export class PayslipPDFGenerator {
     const client = await pool.connect();
 
     try {
-      // 1. Récupérer les données du bulletin
+      // 1. Récupérer les données du bulletin avec solde congés
       const payslipResult = await client.query(`
         SELECT
           ps.*,
@@ -35,11 +35,16 @@ export class PayslipPDFGenerator {
           e.social_security_number as employee_cnss, e.employment_type, e.termination_date,
           e.marital_status, e.dependent_children, e.initial_leave_balance,
           s.name as segment_name, s.logo_url as segment_logo, s.cnss_number as segment_cnss,
-          p.name as period_name, p.year, p.month, p.start_date, p.end_date, p.pay_date
+          p.name as period_name, p.year, p.month, p.start_date, p.end_date, p.pay_date,
+          lb.current_balance as leave_balance,
+          lb.accrued as leave_accrued,
+          lb.taken as leave_taken
         FROM hr_payslips ps
         JOIN hr_employees e ON e.id = ps.employee_id
         LEFT JOIN segments s ON e.segment_id = s.id
         JOIN hr_payroll_periods p ON p.id = ps.period_id
+        LEFT JOIN hr_leave_types lt ON lt.code = 'ANNUAL'
+        LEFT JOIN hr_leave_balances lb ON lb.employee_id = e.id AND lb.leave_type_id = lt.id AND lb.year = p.year
         WHERE ps.id = $1
       `, [payslipId]);
 
@@ -149,9 +154,13 @@ export class PayslipPDFGenerator {
       doc.text(`Enfants à charge : ${payslip.dependent_children || 0}`, 350, yPosition);
       yPosition += 15;
 
-      // Solde de congé
-      const leaveBalance = parseFloat(payslip.initial_leave_balance) || 0;
-      doc.text(`Solde congé : ${leaveBalance.toFixed(1)} jours`, 50, yPosition);
+      // Jours travaillés (pour déclaration CNSS) et solde congé
+      const workedDays = parseFloat(payslip.worked_days) || Math.round(workedHours / 8);
+      doc.text(`Jours travaillés : ${workedDays}`, 50, yPosition);
+
+      // Solde de congé (priorité au solde réel, sinon solde initial)
+      const leaveBalance = parseFloat(payslip.leave_balance) || parseFloat(payslip.initial_leave_balance) || 0;
+      doc.text(`Solde congé : ${leaveBalance.toFixed(1)} jours`, 350, yPosition);
       yPosition += 25;
 
       // 7. Lignes de détail - Gains
