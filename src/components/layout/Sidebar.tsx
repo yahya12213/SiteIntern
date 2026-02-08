@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { PERMISSIONS } from '@/config/permissions';
 import {
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Home,
   Calculator,
   MapPin,
@@ -51,7 +53,12 @@ interface NavItem {
   permission?: string; // Permission code required to see this menu item
 }
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isCollapsed?: boolean;
+  onToggle?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggle }) => {
   const location = useLocation();
   const { hasPermission } = useAuth();
   const [expandedSections, setExpandedSections] = useState<string[]>(['utilisateur-etudiant', 'gestion-comptable', 'formation', 'ressources-humaines', 'mon-equipe', 'mon-espace-rh', 'commercialisation']);
@@ -167,8 +174,24 @@ export const Sidebar: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:w-72 bg-gradient-to-b from-white via-white to-surface-secondary border-r border-gray-100 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto shadow-elevation-1">
-      <nav className="flex-1 px-3 py-4 space-y-2">
+    <aside className={`hidden lg:flex lg:flex-col ${isCollapsed ? 'lg:w-20' : 'lg:w-72'} bg-gradient-to-b from-white via-white to-surface-secondary border-r border-gray-100 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto shadow-elevation-1 transition-all duration-300`}>
+      {/* Bouton Toggle */}
+      <div className={`flex ${isCollapsed ? 'justify-center' : 'justify-end'} px-2 py-2 border-b border-gray-100`}>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+          title={isCollapsed ? 'Afficher le menu' : 'Réduire le menu'}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-5 w-5" />
+          ) : (
+            <ChevronLeft className="h-5 w-5" />
+          )}
+        </button>
+      </div>
+
+      <nav className={`flex-1 ${isCollapsed ? 'px-2' : 'px-3'} py-4 space-y-2`}>
         {filteredSections.map((section) => {
           const isExpanded = expandedSections.includes(section.id);
           const SectionIcon = section.icon;
@@ -176,24 +199,38 @@ export const Sidebar: React.FC = () => {
           return (
             <div key={section.id} className="space-y-1">
               {/* Section Header */}
-              <button
-                onClick={() => toggleSection(section.id)}
-                className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-primary-50 hover:text-primary-700 rounded-input menu-transition group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-1.5 rounded-badge bg-gray-100 group-hover:bg-primary-100 menu-transition">
-                    <SectionIcon className="h-4 w-4 text-gray-600 group-hover:text-primary-600 menu-transition" />
+              {isCollapsed ? (
+                // Mode replié: juste l'icône de section avec tooltip
+                <div
+                  className="flex justify-center py-2 text-gray-500"
+                  title={section.title}
+                >
+                  <div className="p-2 rounded-lg bg-gray-100">
+                    <SectionIcon className="h-4 w-4" />
                   </div>
-                  <span className="group-hover:text-primary-600 menu-transition">{section.title}</span>
                 </div>
-                <div className={`menu-transition ${isExpanded ? 'rotate-180' : ''}`}>
-                  <ChevronDown className="h-4 w-4 text-gray-400 group-hover:text-primary-500" />
-                </div>
-              </button>
+              ) : (
+                // Mode déplié: header complet avec expand/collapse
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.id)}
+                  className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-primary-50 hover:text-primary-700 rounded-input menu-transition group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 rounded-badge bg-gray-100 group-hover:bg-primary-100 menu-transition">
+                      <SectionIcon className="h-4 w-4 text-gray-600 group-hover:text-primary-600 menu-transition" />
+                    </div>
+                    <span className="group-hover:text-primary-600 menu-transition">{section.title}</span>
+                  </div>
+                  <div className={`menu-transition ${isExpanded ? 'rotate-180' : ''}`}>
+                    <ChevronDown className="h-4 w-4 text-gray-400 group-hover:text-primary-500" />
+                  </div>
+                </button>
+              )}
 
               {/* Section Items */}
-              {isExpanded && (
-                <div className="ml-3 space-y-0.5 border-l-2 border-primary-100 pl-3 animate-fade-in">
+              {(isCollapsed || isExpanded) && (
+                <div className={isCollapsed ? 'space-y-1' : 'ml-3 space-y-0.5 border-l-2 border-primary-100 pl-3 animate-fade-in'}>
                   {section.items.map((item) => {
                     const ItemIcon = item.icon;
                     const active = isActive(item.to);
@@ -202,7 +239,8 @@ export const Sidebar: React.FC = () => {
                       <Link
                         key={item.to}
                         to={item.to}
-                        className={`flex items-center gap-3 px-3 py-2 text-sm rounded-input menu-transition ${
+                        title={isCollapsed ? item.label : undefined}
+                        className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} ${isCollapsed ? 'p-2' : 'px-3 py-2'} text-sm rounded-input menu-transition ${
                           active
                             ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-elevation-1'
                             : 'text-gray-600 hover:bg-surface-secondary hover:text-gray-900'
@@ -211,7 +249,7 @@ export const Sidebar: React.FC = () => {
                         <ItemIcon
                           className={`h-4 w-4 menu-transition ${active ? 'text-white' : 'text-gray-400'}`}
                         />
-                        <span>{item.label}</span>
+                        {!isCollapsed && <span>{item.label}</span>}
                       </Link>
                     );
                   })}
@@ -223,10 +261,14 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-gray-100 bg-white/80">
-        <p className="text-xs text-gray-400 text-center font-medium">
-          Comptabilité PL © 2025
-        </p>
+      <div className={`${isCollapsed ? 'px-2' : 'px-6'} py-4 border-t border-gray-100 bg-white/80`}>
+        {isCollapsed ? (
+          <p className="text-xs text-gray-400 text-center font-medium">©</p>
+        ) : (
+          <p className="text-xs text-gray-400 text-center font-medium">
+            Comptabilité PL © 2025
+          </p>
+        )}
       </div>
     </aside>
   );
