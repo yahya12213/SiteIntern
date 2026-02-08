@@ -84,6 +84,8 @@ export default function AISettings() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dynamicModels, setDynamicModels] = useState<{ id: string; name: string }[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
 
   // Check if user is admin
   useEffect(() => {
@@ -147,7 +149,40 @@ export default function AISettings() {
     }
   };
 
+  // Load available models from API (especially for Gemini)
+  const loadModels = async () => {
+    if (!settings.ai_provider || !settings.ai_api_key_configured) return;
+
+    setLoadingModels(true);
+    try {
+      const result = await apiClient.get<{ models: { id: string; name: string }[] }>(
+        `/ai-settings/models?provider=${settings.ai_provider}`
+      );
+      setDynamicModels(result.models);
+      // If current model is not in the list, clear it
+      if (settings.ai_model && !result.models.find(m => m.id === settings.ai_model)) {
+        setSettings(s => ({ ...s, ai_model: '' }));
+      }
+    } catch (err: any) {
+      console.error('Failed to load models:', err);
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  // Auto-load models for Gemini when API key is configured
+  useEffect(() => {
+    if (settings.ai_provider === 'gemini' && settings.ai_api_key_configured) {
+      loadModels();
+    } else {
+      setDynamicModels([]);
+    }
+  }, [settings.ai_provider, settings.ai_api_key_configured]);
+
   const selectedProvider = providers.find(p => p.id === settings.ai_provider);
+
+  // Use dynamic models if available, otherwise use static list
+  const availableModels = dynamicModels.length > 0 ? dynamicModels : selectedProvider?.models || [];
 
   if (user?.role !== 'admin') {
     return null;
@@ -270,22 +305,51 @@ export default function AISettings() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="model">Modèle</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="model">Modèle</Label>
+                      {settings.ai_provider === 'gemini' && settings.ai_api_key_configured && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={loadModels}
+                          disabled={loadingModels}
+                          className="text-xs"
+                        >
+                          {loadingModels ? (
+                            <>
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              Chargement...
+                            </>
+                          ) : (
+                            <>
+                              <Server className="h-3 w-3 mr-1" />
+                              Actualiser les modèles
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
                     <Select
                       value={settings.ai_model || ''}
                       onValueChange={(value) => setSettings(s => ({ ...s, ai_model: value }))}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Sélectionnez un modèle" />
+                        <SelectValue placeholder={loadingModels ? "Chargement des modèles..." : "Sélectionnez un modèle"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {selectedProvider?.models.map((model) => (
+                        {availableModels.map((model) => (
                           <SelectItem key={model.id} value={model.id}>
                             {model.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {settings.ai_provider === 'gemini' && dynamicModels.length > 0 && (
+                      <p className="text-xs text-green-600">
+                        ✓ {dynamicModels.length} modèles détectés depuis votre compte Google
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">

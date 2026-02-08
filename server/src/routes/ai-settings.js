@@ -110,6 +110,75 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET /api/ai-settings/models - Get available models for a provider
+router.get('/models', async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { provider } = req.query;
+
+    // Get API key from database
+    const result = await pool.query(`
+      SELECT value FROM app_settings WHERE key = 'ai_api_key'
+    `);
+
+    const apiKey = result.rows[0]?.value;
+
+    if (!apiKey) {
+      return res.status(400).json({ error: 'API key not configured' });
+    }
+
+    let models = [];
+
+    if (provider === 'gemini') {
+      // Fetch models from Google Gemini API
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        models = data.models
+          .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+          .map(m => ({
+            id: m.name.replace('models/', ''),
+            name: m.displayName || m.name.replace('models/', ''),
+            description: m.description || ''
+          }))
+          .sort((a, b) => {
+            // Sort to put flash/recommended models first
+            if (a.id.includes('flash') && !b.id.includes('flash')) return -1;
+            if (!a.id.includes('flash') && b.id.includes('flash')) return 1;
+            return a.name.localeCompare(b.name);
+          });
+      } else {
+        const error = await response.json();
+        return res.status(400).json({ error: error.error?.message || 'Failed to fetch models' });
+      }
+    } else if (provider === 'openai') {
+      // OpenAI models (static list - API requires different endpoint)
+      models = [
+        { id: 'gpt-4o-mini', name: 'GPT-4o Mini (Rapide, économique)' },
+        { id: 'gpt-4o', name: 'GPT-4o (Plus puissant)' },
+        { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+      ];
+    } else if (provider === 'claude') {
+      // Claude models (static list)
+      models = [
+        { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku (Rapide, économique)' },
+        { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet (Équilibré)' },
+        { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus (Plus puissant)' },
+      ];
+    }
+
+    res.json({ models });
+  } catch (error) {
+    console.error('Error fetching models:', error);
+    res.status(500).json({ error: 'Failed to fetch models' });
+  }
+});
+
 // POST /api/ai-settings/test - Test AI connection
 router.post('/test', async (req, res) => {
   try {
