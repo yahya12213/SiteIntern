@@ -106,8 +106,8 @@ const providers: ProviderConfig[] = [
     bgColor: 'bg-orange-50',
     borderColor: 'border-orange-500',
     defaultModels: [
-      { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku (Rapide)' },
-      { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet (Équilibré)' },
+      { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (Recommandé)' },
+      { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku (Rapide)' },
       { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus (Puissant)' },
     ],
     docUrl: 'https://console.anthropic.com/',
