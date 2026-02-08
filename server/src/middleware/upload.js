@@ -14,10 +14,11 @@ const fontsDir = path.join(uploadsDir, 'fonts');
 const profilesDir = path.join(uploadsDir, 'profiles');
 const declarationsDir = path.join(uploadsDir, 'declarations'); // Nouveau: pièces jointes déclarations
 const employeeDocumentsDir = path.join(uploadsDir, 'employee-documents'); // Documents employé (contrats, CV, diplômes, etc.)
+const employeePhotosDir = path.join(uploadsDir, 'employee-photos'); // Photos d'identité des employés
 
 console.log('📁 Verifying upload directories...');
 console.log(`📁 Base uploads path: ${uploadsDir} ${process.env.UPLOADS_PATH ? '(from UPLOADS_PATH env)' : '(default local)'}`);
-[uploadsDir, backgroundsDir, fontsDir, profilesDir, declarationsDir, employeeDocumentsDir].forEach(dir => {
+[uploadsDir, backgroundsDir, fontsDir, profilesDir, declarationsDir, employeeDocumentsDir, employeePhotosDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     console.log(`  Creating directory: ${dir}`);
     fs.mkdirSync(dir, { recursive: true });
@@ -139,6 +140,30 @@ const employeeDocumentStorage = multer.diskStorage({
   }
 });
 
+// Storage pour les photos d'employés (photo d'identité)
+const employeePhotoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    try {
+      if (!fs.existsSync(employeePhotosDir)) {
+        console.log(`📁 Creating employee-photos directory at write time: ${employeePhotosDir}`);
+        fs.mkdirSync(employeePhotosDir, { recursive: true });
+      }
+      console.log(`📁 Employee photo upload destination: ${employeePhotosDir}`);
+      cb(null, employeePhotosDir);
+    } catch (err) {
+      console.error(`❌ Error ensuring employee-photos directory exists:`, err);
+      cb(err);
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const filename = `employee-photo-${uniqueSuffix}${ext}`;
+    console.log(`📁 Employee photo filename: ${filename}`);
+    cb(null, filename);
+  }
+});
+
 // Filtres pour les types de fichiers
 const imageFileFilter = (req, file, cb) => {
   const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'];
@@ -222,6 +247,18 @@ export const uploadEmployeeDocument = multer({
 
 // Exporter le chemin des documents employé
 export const getEmployeeDocumentsDir = () => employeeDocumentsDir;
+
+// Upload photo employé (photo d'identité)
+export const uploadEmployeePhoto = multer({
+  storage: employeePhotoStorage,
+  fileFilter: imageFileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5 MB max
+  }
+}).single('photo');
+
+// Exporter le chemin des photos employé
+export const getEmployeePhotosDir = () => employeePhotosDir;
 
 // Helper pour supprimer un fichier
 export const deleteFile = (filePath) => {

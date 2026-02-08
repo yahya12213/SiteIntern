@@ -59,6 +59,7 @@ interface Employee {
   hire_date: string;
   segment_name: string;
   requires_clocking: boolean;
+  photo_url?: string;
 }
 
 interface Contract {
@@ -536,11 +537,24 @@ export default function HREmployees() {
                     {employees.map((employee: Employee) => (
                       <tr key={employee.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {employee.first_name} {employee.last_name}
+                          <div className="flex items-center gap-3">
+                            {employee.photo_url ? (
+                              <img
+                                src={employee.photo_url}
+                                alt={`${employee.first_name} ${employee.last_name}`}
+                                className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
+                                <Users className="w-5 h-5 text-gray-400" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                {employee.first_name} {employee.last_name}
+                              </div>
+                              <div className="text-sm text-gray-500">{employee.email}</div>
                             </div>
-                            <div className="text-sm text-gray-500">{employee.email}</div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

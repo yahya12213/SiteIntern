@@ -1,7 +1,7 @@
 import express from 'express';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
-import { uploadEmployeeDocument, getEmployeeDocumentsDir, deleteFile } from '../middleware/upload.js';
+import { uploadEmployeeDocument, getEmployeeDocumentsDir, deleteFile, uploadEmployeePhoto, getEmployeePhotosDir } from '../middleware/upload.js';
 import path from 'path';
 
 const router = express.Router();
@@ -174,6 +174,111 @@ router.get('/all-disciplinary',
       res.json({ success: true, data: result.rows });
     } catch (error) {
       console.error('Error fetching all disciplinary actions:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Upload employee photo
+ * POST /api/hr/employees/:id/photo
+ */
+router.post('/:id/photo',
+  authenticateToken,
+  requirePermission('hr.employees.update'),
+  (req, res, next) => {
+    uploadEmployeePhoto(req, res, (err) => {
+      if (err) {
+        console.error('Photo upload error:', err);
+        return res.status(400).json({ success: false, error: err.message });
+      }
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: 'Aucune photo fournie' });
+      }
+
+      // Get old photo URL to delete it later
+      const oldPhotoResult = await pool.query(
+        'SELECT photo_url FROM hr_employees WHERE id = $1',
+        [id]
+      );
+
+      const photo_url = `/uploads/employee-photos/${req.file.filename}`;
+
+      // Update employee with new photo URL
+      const result = await pool.query(`
+        UPDATE hr_employees
+        SET photo_url = $1, updated_at = NOW()
+        WHERE id = $2
+        RETURNING id, photo_url
+      `, [photo_url, id]);
+
+      if (result.rows.length === 0) {
+        // Delete uploaded file since employee not found
+        const filePath = path.join(getEmployeePhotosDir(), req.file.filename);
+        deleteFile(filePath);
+        return res.status(404).json({ success: false, error: 'Employé non trouvé' });
+      }
+
+      // Delete old photo if exists
+      if (oldPhotoResult.rows.length > 0 && oldPhotoResult.rows[0].photo_url) {
+        const oldFilePath = path.join(getEmployeePhotosDir(), path.basename(oldPhotoResult.rows[0].photo_url));
+        deleteFile(oldFilePath);
+      }
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error uploading employee photo:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Delete employee photo
+ * DELETE /api/hr/employees/:id/photo
+ */
+router.delete('/:id/photo',
+  authenticateToken,
+  requirePermission('hr.employees.update'),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // Get current photo URL
+      const photoResult = await pool.query(
+        'SELECT photo_url FROM hr_employees WHERE id = $1',
+        [id]
+      );
+
+      if (photoResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Employé non trouvé' });
+      }
+
+      const photo_url = photoResult.rows[0].photo_url;
+
+      // Update employee to remove photo URL
+      await pool.query(`
+        UPDATE hr_employees
+        SET photo_url = NULL, updated_at = NOW()
+        WHERE id = $1
+      `, [id]);
+
+      // Delete physical file if exists
+      if (photo_url) {
+        const filePath = path.join(getEmployeePhotosDir(), path.basename(photo_url));
+        deleteFile(filePath);
+      }
+
+      res.json({ success: true, message: 'Photo supprimée' });
+    } catch (error) {
+      console.error('Error deleting employee photo:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   }

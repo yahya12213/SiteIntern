@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle, Plus, Trash2, Users, Target, Gift } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle, Plus, Trash2, Users, Target, Gift, Camera, Upload } from 'lucide-react';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { apiClient } from '@/lib/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -140,6 +140,13 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
   const [primeTypes, setPrimeTypes] = useState<PrimeType[]>([]);
   const [employeePrimes, setEmployeePrimes] = useState<Record<string, EmployeePrime>>({});
 
+  // State pour la photo employé
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
   const isEdit = !!employeeId;
 
   // Fetch employee data if editing
@@ -262,6 +269,10 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         mutual_affiliated: employeeData.mutual_affiliated ?? false,
         mutual_contribution: employeeData.mutual_contribution ?? 0,
       });
+      // Load photo URL
+      if ((employeeData as any).photo_url) {
+        setPhotoUrl((employeeData as any).photo_url);
+      }
     }
   }, [employeeData]);
 
@@ -369,6 +380,14 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
       } catch (error) {
         console.error('Erreur lors de la sauvegarde des primes:', error);
       }
+      // Upload de la photo après création
+      if (photoFile) {
+        try {
+          await uploadPhoto(newEmployee.id);
+        } catch (error) {
+          console.error('Erreur lors de l\'upload de la photo:', error);
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ['hr-employees'] });
       queryClient.invalidateQueries({ queryKey: ['hr-potential-managers'] });
       onClose();
@@ -393,6 +412,14 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
         await savePrimes(employeeId!);
       } catch (error) {
         console.error('Erreur lors de la sauvegarde des primes:', error);
+      }
+      // Upload de la photo après mise à jour
+      if (photoFile) {
+        try {
+          await uploadPhoto(employeeId!);
+        } catch (error) {
+          console.error('Erreur lors de l\'upload de la photo:', error);
+        }
       }
       queryClient.invalidateQueries({ queryKey: ['hr-employees'] });
       queryClient.invalidateQueries({ queryKey: ['hr-employee', employeeId] });
@@ -434,6 +461,95 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Handle photo selection
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Format non supporté. Utilisez JPG, PNG ou WEBP.');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La photo est trop volumineuse (max 5 MB)');
+      return;
+    }
+
+    setPhotoFile(file);
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPhotoPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Upload photo to server
+  const uploadPhoto = async (empId: string) => {
+    if (!photoFile) return;
+
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append('photo', photoFile);
+
+      const response = await fetch(`/api/hr/employees/${empId}/photo`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erreur lors de l\'upload de la photo');
+      }
+
+      const result = await response.json();
+      setPhotoUrl(result.data.photo_url);
+      setPhotoFile(null);
+      setPhotoPreview(null);
+    } catch (error: any) {
+      console.error('Error uploading photo:', error);
+      alert(error.message || 'Erreur lors de l\'upload de la photo');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  // Delete photo
+  const deletePhoto = async () => {
+    if (!employeeId || !photoUrl) return;
+
+    if (!confirm('Êtes-vous sûr de vouloir supprimer la photo ?')) return;
+
+    try {
+      const response = await fetch(`/api/hr/employees/${employeeId}/photo`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la suppression de la photo');
+      }
+
+      setPhotoUrl(null);
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      queryClient.invalidateQueries({ queryKey: ['hr-employee', employeeId] });
+    } catch (error: any) {
+      console.error('Error deleting photo:', error);
+      alert(error.message || 'Erreur lors de la suppression de la photo');
+    }
+  };
+
   const isPending = createEmployee.isPending || updateEmployee.isPending;
 
   return (
@@ -466,6 +582,89 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Photo de l'employé */}
+          <div className="flex items-start gap-6 pb-6 border-b border-gray-200">
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative">
+                {(photoPreview || photoUrl) ? (
+                  <img
+                    src={photoPreview || photoUrl || ''}
+                    alt="Photo employé"
+                    className="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
+                  />
+                ) : (
+                  <div className="w-32 h-32 rounded-full bg-gray-100 border-4 border-gray-200 flex items-center justify-center">
+                    <User className="w-16 h-16 text-gray-400" />
+                  </div>
+                )}
+                {uploadingPhoto && (
+                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                onChange={handlePhotoSelect}
+                className="hidden"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                  title="Changer la photo"
+                >
+                  <Camera className="w-4 h-4" />
+                  {photoUrl || photoPreview ? 'Changer' : 'Ajouter'}
+                </button>
+                {(photoUrl || photoPreview) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (photoUrl && isEdit) {
+                        deletePhoto();
+                      } else {
+                        setPhotoFile(null);
+                        setPhotoPreview(null);
+                      }
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                    title="Supprimer la photo"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {photoFile && (
+                <p className="text-xs text-amber-600">
+                  Photo en attente d'upload
+                </p>
+              )}
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                <Camera className="w-5 h-5 text-blue-600" />
+                Photo d'identité
+              </h3>
+              <p className="text-sm text-gray-500">
+                Ajoutez une photo d'identité de l'employé. Formats acceptés : JPG, PNG, WEBP (max 5 MB).
+                {isEdit && photoFile && (
+                  <button
+                    type="button"
+                    onClick={() => uploadPhoto(employeeId!)}
+                    disabled={uploadingPhoto}
+                    className="ml-2 text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Enregistrer maintenant
+                  </button>
+                )}
+              </p>
+            </div>
+          </div>
+
           {/* Informations de base */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
