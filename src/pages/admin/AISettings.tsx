@@ -51,6 +51,11 @@ interface AISettings {
   ai_gemini_api_key_configured?: boolean;
   ai_gemini_model?: string;
   ai_gemini_enabled?: string;
+  // DeepSeek
+  ai_deepseek_api_key?: string;
+  ai_deepseek_api_key_configured?: boolean;
+  ai_deepseek_model?: string;
+  ai_deepseek_enabled?: string;
   // Legacy
   ai_provider?: string;
   ai_api_key_configured?: boolean;
@@ -111,6 +116,19 @@ const providers: ProviderConfig[] = [
       { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus (Puissant)' },
     ],
     docUrl: 'https://console.anthropic.com/',
+  },
+  {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    description: 'Économique - Très bon rapport qualité/prix',
+    color: 'text-purple-600',
+    bgColor: 'bg-purple-50',
+    borderColor: 'border-purple-500',
+    defaultModels: [
+      { id: 'deepseek-chat', name: 'DeepSeek Chat (Recommandé)' },
+      { id: 'deepseek-reasoner', name: 'DeepSeek Reasoner (R1)' },
+    ],
+    docUrl: 'https://platform.deepseek.com/api_keys',
   },
 ];
 

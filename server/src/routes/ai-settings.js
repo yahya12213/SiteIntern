@@ -4,7 +4,7 @@ import pool from '../config/database.js';
 const router = express.Router();
 
 // Provider configuration
-const PROVIDERS = ['claude', 'openai', 'gemini'];
+const PROVIDERS = ['claude', 'openai', 'gemini', 'deepseek'];
 
 // GET /api/ai-settings - Get AI configuration (multi-provider)
 router.get('/', async (req, res) => {
@@ -99,7 +99,9 @@ router.post('/', async (req, res) => {
       // OpenAI
       ai_openai_api_key, ai_openai_model, ai_openai_enabled,
       // Gemini
-      ai_gemini_api_key, ai_gemini_model, ai_gemini_enabled
+      ai_gemini_api_key, ai_gemini_model, ai_gemini_enabled,
+      // DeepSeek
+      ai_deepseek_api_key, ai_deepseek_model, ai_deepseek_enabled
     } = req.body;
 
     const settings = [];
@@ -143,6 +145,17 @@ router.post('/', async (req, res) => {
     }
     if (ai_gemini_enabled !== undefined) {
       settings.push({ key: 'ai_gemini_enabled', value: ai_gemini_enabled ? 'true' : 'false' });
+    }
+
+    // DeepSeek settings
+    if (ai_deepseek_api_key && !ai_deepseek_api_key.includes('*')) {
+      settings.push({ key: 'ai_deepseek_api_key', value: ai_deepseek_api_key });
+    }
+    if (ai_deepseek_model !== undefined) {
+      settings.push({ key: 'ai_deepseek_model', value: ai_deepseek_model || '' });
+    }
+    if (ai_deepseek_enabled !== undefined) {
+      settings.push({ key: 'ai_deepseek_enabled', value: ai_deepseek_enabled ? 'true' : 'false' });
     }
 
     // Legacy support: single provider settings
@@ -233,9 +246,15 @@ router.get('/models', async (req, res) => {
     } else if (provider === 'claude') {
       // Claude models (static list)
       models = [
-        { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku (Rapide, économique)' },
-        { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet (Équilibré)' },
+        { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (Recommandé)' },
+        { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku (Rapide)' },
         { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus (Plus puissant)' },
+      ];
+    } else if (provider === 'deepseek') {
+      // DeepSeek models (static list)
+      models = [
+        { id: 'deepseek-chat', name: 'DeepSeek Chat (Recommandé)' },
+        { id: 'deepseek-reasoner', name: 'DeepSeek Reasoner (R1)' },
       ];
     }
 
@@ -339,6 +358,26 @@ router.post('/test', async (req, res) => {
           const error = await response.json();
           testResult = { success: false, message: error.error?.message || 'Connection failed' };
         }
+      } else if (providerToTest === 'deepseek') {
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: model || 'deepseek-chat',
+            max_tokens: 10,
+            messages: [{ role: 'user', content: 'Test' }]
+          })
+        });
+
+        if (response.ok) {
+          testResult = { success: true, message: 'Connexion à DeepSeek API réussie', provider: 'deepseek' };
+        } else {
+          const error = await response.json();
+          testResult = { success: false, message: error.error?.message || 'Connection failed', provider: 'deepseek' };
+        }
       }
     } catch (fetchError) {
       testResult = { success: false, message: `Network error: ${fetchError.message}` };
@@ -433,6 +472,8 @@ router.post('/analyze', async (req, res) => {
           aiResponse = await callOpenAIAPI(provider.apiKey, provider.model, prompt);
         } else if (provider.name === 'gemini') {
           aiResponse = await callGeminiAPI(provider.apiKey, provider.model, prompt);
+        } else if (provider.name === 'deepseek') {
+          aiResponse = await callDeepSeekAPI(provider.apiKey, provider.model, prompt);
         }
 
         usedProvider = provider.name;
@@ -629,6 +670,33 @@ async function callGeminiAPI(apiKey, model, prompt) {
 
   const data = await response.json();
   return data.candidates[0].content.parts[0].text;
+}
+
+// Helper function to call DeepSeek API
+async function callDeepSeekAPI(apiKey, model, prompt) {
+  const response = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: model || 'deepseek-chat',
+      max_tokens: 4000,
+      messages: [
+        { role: 'system', content: 'Tu es un expert en analyse commerciale CRM.' },
+        { role: 'user', content: prompt }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'DeepSeek API error');
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
 }
 
 export default router;
