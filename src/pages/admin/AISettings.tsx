@@ -56,6 +56,11 @@ interface AISettings {
   ai_deepseek_api_key_configured?: boolean;
   ai_deepseek_model?: string;
   ai_deepseek_enabled?: string;
+  // Groq
+  ai_groq_api_key?: string;
+  ai_groq_api_key_configured?: boolean;
+  ai_groq_model?: string;
+  ai_groq_enabled?: string;
   // Legacy
   ai_provider?: string;
   ai_api_key_configured?: boolean;
@@ -129,6 +134,21 @@ const providers: ProviderConfig[] = [
       { id: 'deepseek-reasoner', name: 'DeepSeek Reasoner (R1)' },
     ],
     docUrl: 'https://platform.deepseek.com/api_keys',
+  },
+  {
+    id: 'groq',
+    name: 'Groq',
+    description: 'Gratuit - Ultra rapide (LPU)',
+    color: 'text-rose-600',
+    bgColor: 'bg-rose-50',
+    borderColor: 'border-rose-500',
+    defaultModels: [
+      { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B (Recommandé)' },
+      { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B (Ultra rapide)' },
+      { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B' },
+      { id: 'gemma2-9b-it', name: 'Gemma 2 9B' },
+    ],
+    docUrl: 'https://console.groq.com/keys',
   },
 ];
 

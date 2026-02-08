@@ -4,7 +4,7 @@ import pool from '../config/database.js';
 const router = express.Router();
 
 // Provider configuration
-const PROVIDERS = ['claude', 'openai', 'gemini', 'deepseek'];
+const PROVIDERS = ['claude', 'openai', 'gemini', 'deepseek', 'groq'];
 
 // GET /api/ai-settings - Get AI configuration (multi-provider)
 router.get('/', async (req, res) => {
@@ -101,7 +101,9 @@ router.post('/', async (req, res) => {
       // Gemini
       ai_gemini_api_key, ai_gemini_model, ai_gemini_enabled,
       // DeepSeek
-      ai_deepseek_api_key, ai_deepseek_model, ai_deepseek_enabled
+      ai_deepseek_api_key, ai_deepseek_model, ai_deepseek_enabled,
+      // Groq
+      ai_groq_api_key, ai_groq_model, ai_groq_enabled
     } = req.body;
 
     const settings = [];
@@ -156,6 +158,17 @@ router.post('/', async (req, res) => {
     }
     if (ai_deepseek_enabled !== undefined) {
       settings.push({ key: 'ai_deepseek_enabled', value: ai_deepseek_enabled ? 'true' : 'false' });
+    }
+
+    // Groq settings
+    if (ai_groq_api_key && !ai_groq_api_key.includes('*')) {
+      settings.push({ key: 'ai_groq_api_key', value: ai_groq_api_key });
+    }
+    if (ai_groq_model !== undefined) {
+      settings.push({ key: 'ai_groq_model', value: ai_groq_model || '' });
+    }
+    if (ai_groq_enabled !== undefined) {
+      settings.push({ key: 'ai_groq_enabled', value: ai_groq_enabled ? 'true' : 'false' });
     }
 
     // Legacy support: single provider settings
@@ -255,6 +268,14 @@ router.get('/models', async (req, res) => {
       models = [
         { id: 'deepseek-chat', name: 'DeepSeek Chat (Recommandé)' },
         { id: 'deepseek-reasoner', name: 'DeepSeek Reasoner (R1)' },
+      ];
+    } else if (provider === 'groq') {
+      // Groq models (static list)
+      models = [
+        { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B (Recommandé)' },
+        { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B (Ultra rapide)' },
+        { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B' },
+        { id: 'gemma2-9b-it', name: 'Gemma 2 9B' },
       ];
     }
 
@@ -378,6 +399,26 @@ router.post('/test', async (req, res) => {
           const error = await response.json();
           testResult = { success: false, message: error.error?.message || 'Connection failed', provider: 'deepseek' };
         }
+      } else if (providerToTest === 'groq') {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: model || 'llama-3.3-70b-versatile',
+            max_tokens: 10,
+            messages: [{ role: 'user', content: 'Test' }]
+          })
+        });
+
+        if (response.ok) {
+          testResult = { success: true, message: 'Connexion à Groq API réussie', provider: 'groq' };
+        } else {
+          const error = await response.json();
+          testResult = { success: false, message: error.error?.message || 'Connection failed', provider: 'groq' };
+        }
       }
     } catch (fetchError) {
       testResult = { success: false, message: `Network error: ${fetchError.message}` };
@@ -474,6 +515,8 @@ router.post('/analyze', async (req, res) => {
           aiResponse = await callGeminiAPI(provider.apiKey, provider.model, prompt);
         } else if (provider.name === 'deepseek') {
           aiResponse = await callDeepSeekAPI(provider.apiKey, provider.model, prompt);
+        } else if (provider.name === 'groq') {
+          aiResponse = await callGroqAPI(provider.apiKey, provider.model, prompt);
         }
 
         usedProvider = provider.name;
@@ -693,6 +736,33 @@ async function callDeepSeekAPI(apiKey, model, prompt) {
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error?.message || 'DeepSeek API error');
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
+// Helper function to call Groq API
+async function callGroqAPI(apiKey, model, prompt) {
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: model || 'llama-3.3-70b-versatile',
+      max_tokens: 4000,
+      messages: [
+        { role: 'system', content: 'Tu es un expert en analyse commerciale CRM.' },
+        { role: 'user', content: prompt }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error?.message || 'Groq API error');
   }
 
   const data = await response.json();

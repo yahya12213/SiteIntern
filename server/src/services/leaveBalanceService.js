@@ -75,23 +75,30 @@ export async function getOrCreateLeaveBalance(employeeId, year, client = null) {
 
   const leaveTypeId = typeResult.rows[0].id;
 
-  // Calculer le report de l'année précédente
+  // Calculer le solde initial et le report
+  const hireYear = new Date(employee.hire_date).getFullYear();
+  let initialBalance = 0;
   let carriedOver = 0;
-  if (year > new Date(employee.hire_date).getFullYear()) {
+
+  if (year > hireYear) {
+    // Chercher le solde de l'année précédente
     const prevResult = await db.query(`
       SELECT current_balance FROM hr_leave_balances
       WHERE employee_id = $1 AND year = $2 AND leave_type_id = $3
     `, [employeeId, year - 1, leaveTypeId]);
 
     if (prevResult.rows.length > 0 && prevResult.rows[0].current_balance > 0) {
-      // Maximum 30 jours peuvent être reportés
+      // Report de l'année précédente (max 30 jours)
       carriedOver = Math.min(parseFloat(prevResult.rows[0].current_balance), 30);
+    } else {
+      // Pas de solde année précédente = première utilisation du système
+      // Utiliser initial_leave_balance comme point de départ
+      initialBalance = parseFloat(employee.initial_leave_balance || 0);
     }
+  } else {
+    // Année d'embauche - utiliser le solde initial
+    initialBalance = parseFloat(employee.initial_leave_balance || 0);
   }
-
-  // Calculer le solde initial (uniquement pour la première année d'embauche)
-  const hireYear = new Date(employee.hire_date).getFullYear();
-  const initialBalance = hireYear === year ? parseFloat(employee.initial_leave_balance || 0) : 0;
 
   // Créer le nouveau solde
   result = await db.query(`

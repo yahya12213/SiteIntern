@@ -3,7 +3,7 @@ import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
 import { uploadDeclarationAttachment } from '../middleware/upload.js';
 import { checkLeaveOverlap } from '../utils/leave-validation.js';
-import { deductLeaveBalance } from '../services/leaveBalanceService.js';
+import { deductLeaveBalance, accrueMonthlyLeave, getCurrentLeaveBalance } from '../services/leaveBalanceService.js';
 
 const router = express.Router();
 
@@ -397,6 +397,135 @@ router.get('/calendar', authenticateToken, requirePermission('hr.leaves.view_pag
     res.json({ success: true, data: result.rows });
   } catch (error) {
     console.error('Error fetching calendar:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get accrual periods
+router.get('/periods', authenticateToken, requirePermission('hr.leaves.view_page'), async (req, res) => {
+  const { year } = req.query;
+  const targetYear = year || new Date().getFullYear();
+
+  try {
+    const result = await pool.query(`
+      SELECT p.*,
+        (SELECT COUNT(*) FROM hr_leave_balance_history h WHERE h.period_id = p.id AND h.movement_type = 'accrual') as accruals_count
+      FROM hr_leave_accrual_periods p
+      WHERE p.year = $1
+      ORDER BY p.month
+    `, [targetYear]);
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching periods:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Run monthly accrual for all active employees in a period
+router.post('/accrue/:periodId', authenticateToken, requirePermission('hr.leaves.edit'), async (req, res) => {
+  const { periodId } = req.params;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Vérifier que la période existe et est terminée
+    const periodCheck = await client.query(`
+      SELECT * FROM hr_leave_accrual_periods WHERE id = $1
+    `, [periodId]);
+
+    if (periodCheck.rows.length === 0) {
+      return res.status(404).json({ success: false, error: `Période ${periodId} non trouvée` });
+    }
+
+    const period = periodCheck.rows[0];
+    const today = new Date();
+
+    if (today <= new Date(period.end_date)) {
+      return res.status(400).json({
+        success: false,
+        error: `La période ${period.label} n'est pas encore terminée (fin: ${period.end_date})`
+      });
+    }
+
+    // Récupérer tous les employés actifs
+    const employees = await client.query(`
+      SELECT id, first_name, last_name, employee_number
+      FROM hr_employees
+      WHERE employment_status = 'active'
+    `);
+
+    const results = [];
+    const errors = [];
+
+    for (const emp of employees.rows) {
+      try {
+        const result = await accrueMonthlyLeave(emp.id, periodId, client);
+        if (result) {
+          results.push({
+            employeeId: emp.id,
+            employeeName: `${emp.first_name} ${emp.last_name}`,
+            employeeNumber: emp.employee_number,
+            ...result
+          });
+        }
+      } catch (empError) {
+        errors.push({
+          employeeId: emp.id,
+          employeeName: `${emp.first_name} ${emp.last_name}`,
+          error: empError.message
+        });
+      }
+    }
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      period: period.label,
+      totalEmployees: employees.rows.length,
+      accrued: results.length,
+      skipped: employees.rows.length - results.length - errors.length,
+      errors: errors.length,
+      details: results,
+      errorDetails: errors
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error running accrual:', error);
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Get current leave balance for an employee (detailed)
+router.get('/balance/:employeeId', authenticateToken, requirePermission('hr.leaves.view_page'), async (req, res) => {
+  const { employeeId } = req.params;
+
+  try {
+    const balance = await getCurrentLeaveBalance(employeeId);
+
+    // Get balance history
+    const history = await pool.query(`
+      SELECT h.*, lt.name as leave_type_name
+      FROM hr_leave_balance_history h
+      LEFT JOIN hr_leave_types lt ON h.leave_type_id = lt.id
+      WHERE h.employee_id = $1
+      ORDER BY h.created_at DESC
+      LIMIT 20
+    `, [employeeId]);
+
+    res.json({
+      success: true,
+      data: {
+        ...balance,
+        history: history.rows
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching balance:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
