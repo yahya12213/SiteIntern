@@ -21,6 +21,9 @@ import {
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import EmployeeFormModal from '@/components/admin/hr/EmployeeFormModal';
+import { DocumentUploadModal } from '@/components/admin/hr/DocumentUploadModal';
+import { ContractFormModal } from '@/components/admin/hr/ContractFormModal';
+import { DisciplinaryFormModal } from '@/components/admin/hr/DisciplinaryFormModal';
 import {
   Dialog,
   DialogContent,
@@ -152,6 +155,12 @@ export default function HREmployees() {
   // Disciplinary modal (controlled by selectedDisciplinary)
   const [selectedDisciplinary, setSelectedDisciplinary] = useState<DisciplinaryAction | null>(null);
 
+  // Upload modals - for adding new documents/contracts/disciplinary
+  const [showDocumentUploadModal, setShowDocumentUploadModal] = useState(false);
+  const [showContractFormModal, setShowContractFormModal] = useState(false);
+  const [showDisciplinaryFormModal, setShowDisciplinaryFormModal] = useState(false);
+  const [selectedEmployeeForModal, setSelectedEmployeeForModal] = useState<{ id: string; name: string } | null>(null);
+
   // Fetch employees
   const { data: employeesData, isLoading } = useQuery({
     queryKey: ['hr-employees', searchTerm, statusFilter, departmentFilter],
@@ -177,9 +186,9 @@ export default function HREmployees() {
 
   // Fetch contracts
   const { data: contractsData, isLoading: contractsLoading } = useQuery({
-    queryKey: ['hr-contracts'],
+    queryKey: ['hr-all-contracts'],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: Contract[] }>('/hr/employees/contracts');
+      const response = await apiClient.get<{ success: boolean; data: Contract[] }>('/hr/employees/all-contracts');
       return (response as { data: Contract[] }).data;
     },
     enabled: activeTab === 'contracts',
@@ -187,9 +196,9 @@ export default function HREmployees() {
 
   // Fetch documents
   const { data: documentsData, isLoading: documentsLoading } = useQuery({
-    queryKey: ['hr-documents'],
+    queryKey: ['hr-all-documents'],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: EmployeeDocument[] }>('/hr/employees/documents');
+      const response = await apiClient.get<{ success: boolean; data: EmployeeDocument[] }>('/hr/employees/all-documents');
       return (response as { data: EmployeeDocument[] }).data;
     },
     enabled: activeTab === 'documents',
@@ -197,9 +206,9 @@ export default function HREmployees() {
 
   // Fetch disciplinary actions
   const { data: disciplinaryData, isLoading: disciplinaryLoading } = useQuery({
-    queryKey: ['hr-disciplinary'],
+    queryKey: ['hr-all-disciplinary'],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: DisciplinaryAction[] }>('/hr/employees/disciplinary');
+      const response = await apiClient.get<{ success: boolean; data: DisciplinaryAction[] }>('/hr/employees/all-disciplinary');
       return (response as { data: DisciplinaryAction[] }).data;
     },
     enabled: activeTab === 'disciplinary',
@@ -599,6 +608,47 @@ export default function HREmployees() {
         {/* Content - Contracts Tab */}
         {activeTab === 'contracts' && (
           <div className="bg-white rounded-lg shadow overflow-hidden">
+            {/* Add Contract Button */}
+            {hr.canViewContracts && employees.length > 0 && (
+              <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+                <p className="text-sm text-gray-600">
+                  Gérez les contrats de travail des employés
+                </p>
+                <div className="flex items-center gap-2">
+                  <select
+                    aria-label="Sélectionner un employé pour le contrat"
+                    className="border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => {
+                      const emp = employees.find((emp: Employee) => emp.id === e.target.value);
+                      if (emp) {
+                        setSelectedEmployeeForModal({ id: emp.id, name: `${emp.first_name} ${emp.last_name}` });
+                      }
+                    }}
+                    value={selectedEmployeeForModal?.id || ''}
+                  >
+                    <option value="">Sélectionner un employé</option>
+                    {employees.map((emp: Employee) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.first_name} {emp.last_name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedEmployeeForModal) {
+                        setShowContractFormModal(true);
+                      }
+                    }}
+                    disabled={!selectedEmployeeForModal}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Ajouter un contrat
+                  </button>
+                </div>
+              </div>
+            )}
             {contractsLoading ? (
               <div className="p-8 text-center">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto" />
@@ -718,6 +768,47 @@ export default function HREmployees() {
         {/* Content - Documents Tab */}
         {activeTab === 'documents' && (
           <div className="bg-white rounded-lg shadow overflow-hidden">
+            {/* Add Document Button */}
+            {hr.canManageDocuments && employees.length > 0 && (
+              <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+                <p className="text-sm text-gray-600">
+                  Gérez les documents administratifs des employés (CV, diplômes, CIN, RIB, etc.)
+                </p>
+                <div className="flex items-center gap-2">
+                  <select
+                    aria-label="Sélectionner un employé pour le document"
+                    className="border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => {
+                      const emp = employees.find((emp: Employee) => emp.id === e.target.value);
+                      if (emp) {
+                        setSelectedEmployeeForModal({ id: emp.id, name: `${emp.first_name} ${emp.last_name}` });
+                      }
+                    }}
+                    value={selectedEmployeeForModal?.id || ''}
+                  >
+                    <option value="">Sélectionner un employé</option>
+                    {employees.map((emp: Employee) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.first_name} {emp.last_name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedEmployeeForModal) {
+                        setShowDocumentUploadModal(true);
+                      }
+                    }}
+                    disabled={!selectedEmployeeForModal}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Ajouter un document
+                  </button>
+                </div>
+              </div>
+            )}
             {documentsLoading ? (
               <div className="p-8 text-center">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto" />
@@ -837,6 +928,47 @@ export default function HREmployees() {
         {/* Content - Disciplinary Tab */}
         {activeTab === 'disciplinary' && (
           <div className="bg-white rounded-lg shadow overflow-hidden">
+            {/* Add Disciplinary Action Button */}
+            {hr.canViewDisciplinary && employees.length > 0 && (
+              <div className="p-4 border-b bg-red-50 flex justify-between items-center">
+                <p className="text-sm text-gray-600">
+                  Gérez les actions disciplinaires (avertissements, blâmes, mises à pied, etc.)
+                </p>
+                <div className="flex items-center gap-2">
+                  <select
+                    aria-label="Sélectionner un employé pour l'action disciplinaire"
+                    className="border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-red-500"
+                    onChange={(e) => {
+                      const emp = employees.find((emp: Employee) => emp.id === e.target.value);
+                      if (emp) {
+                        setSelectedEmployeeForModal({ id: emp.id, name: `${emp.first_name} ${emp.last_name}` });
+                      }
+                    }}
+                    value={selectedEmployeeForModal?.id || ''}
+                  >
+                    <option value="">Sélectionner un employé</option>
+                    {employees.map((emp: Employee) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.first_name} {emp.last_name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedEmployeeForModal) {
+                        setShowDisciplinaryFormModal(true);
+                      }
+                    }}
+                    disabled={!selectedEmployeeForModal}
+                    className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Nouvelle action
+                  </button>
+                </div>
+              </div>
+            )}
             {disciplinaryLoading ? (
               <div className="p-8 text-center">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto" />
@@ -1097,6 +1229,42 @@ export default function HREmployees() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Document Upload Modal */}
+        {showDocumentUploadModal && selectedEmployeeForModal && (
+          <DocumentUploadModal
+            employeeId={selectedEmployeeForModal.id}
+            employeeName={selectedEmployeeForModal.name}
+            onClose={() => {
+              setShowDocumentUploadModal(false);
+              setSelectedEmployeeForModal(null);
+            }}
+          />
+        )}
+
+        {/* Contract Form Modal */}
+        {showContractFormModal && selectedEmployeeForModal && (
+          <ContractFormModal
+            employeeId={selectedEmployeeForModal.id}
+            employeeName={selectedEmployeeForModal.name}
+            onClose={() => {
+              setShowContractFormModal(false);
+              setSelectedEmployeeForModal(null);
+            }}
+          />
+        )}
+
+        {/* Disciplinary Form Modal */}
+        {showDisciplinaryFormModal && selectedEmployeeForModal && (
+          <DisciplinaryFormModal
+            employeeId={selectedEmployeeForModal.id}
+            employeeName={selectedEmployeeForModal.name}
+            onClose={() => {
+              setShowDisciplinaryFormModal(false);
+              setSelectedEmployeeForModal(null);
+            }}
+          />
+        )}
       </div>
     </AppLayout>
   );

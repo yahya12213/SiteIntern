@@ -1,6 +1,8 @@
 import express from 'express';
 import { authenticateToken, requirePermission } from '../middleware/auth.js';
 import pool from '../config/database.js';
+import { uploadEmployeeDocument, getEmployeeDocumentsDir, deleteFile } from '../middleware/upload.js';
+import path from 'path';
 
 const router = express.Router();
 
@@ -92,6 +94,86 @@ router.get('/prime-types',
       res.json({ success: true, data: result.rows });
     } catch (error) {
       console.error('Error fetching prime types:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+// =====================================================
+// ROUTES GLOBALES DOCUMENTS/CONTRATS/DISCIPLINAIRE
+// Ces routes doivent être AVANT /:id
+// =====================================================
+
+/**
+ * Get all contracts across all employees
+ * GET /api/hr/employees/all-contracts
+ */
+router.get('/all-contracts',
+  authenticateToken,
+  requirePermission('hr.contracts.manage'),
+  async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT
+          c.*,
+          e.first_name, e.last_name, e.employee_number
+        FROM hr_contracts c
+        JOIN hr_employees e ON e.id = c.employee_id
+        ORDER BY c.start_date DESC
+      `);
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching all contracts:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get all documents across all employees
+ * GET /api/hr/employees/all-documents
+ */
+router.get('/all-documents',
+  authenticateToken,
+  requirePermission('hr.documents.manage'),
+  async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT
+          d.*,
+          e.first_name, e.last_name, e.employee_number
+        FROM hr_employee_documents d
+        JOIN hr_employees e ON e.id = d.employee_id
+        ORDER BY d.uploaded_at DESC
+      `);
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching all documents:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Get all disciplinary actions across all employees
+ * GET /api/hr/employees/all-disciplinary
+ */
+router.get('/all-disciplinary',
+  authenticateToken,
+  requirePermission('hr.discipline.manage'),
+  async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT
+          da.*,
+          e.first_name, e.last_name, e.employee_number
+        FROM hr_disciplinary_actions da
+        JOIN hr_employees e ON e.id = da.employee_id
+        ORDER BY da.issue_date DESC
+      `);
+      res.json({ success: true, data: result.rows });
+    } catch (error) {
+      console.error('Error fetching all disciplinary actions:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   }
@@ -369,6 +451,144 @@ router.post('/:id/contracts',
   }
 });
 
+/**
+ * Upload contract with file
+ * POST /api/hr/employees/:id/contracts/upload
+ */
+router.post('/:id/contracts/upload',
+  authenticateToken,
+  requirePermission('hr.contracts.manage'),
+  (req, res, next) => {
+    uploadEmployeeDocument(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ success: false, error: err.message });
+      }
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        contract_type, start_date, end_date, trial_period_end,
+        base_salary, salary_currency, payment_frequency,
+        work_hours_per_week, position, department, notes
+      } = req.body;
+
+      let document_url = null;
+      if (req.file) {
+        document_url = `/uploads/employee-documents/${req.file.filename}`;
+      }
+
+      const result = await pool.query(`
+        INSERT INTO hr_contracts (
+          employee_id, contract_type, start_date, end_date,
+          trial_period_end, base_salary, salary_currency,
+          payment_frequency, work_hours_per_week, position,
+          department, document_url, notes, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        RETURNING *
+      `, [
+        id, contract_type, start_date, end_date || null,
+        trial_period_end || null, base_salary, salary_currency || 'MAD',
+        payment_frequency || 'monthly', work_hours_per_week || 44,
+        position, department, document_url, notes, req.user.id
+      ]);
+
+      res.status(201).json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error creating contract with upload:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Update contract
+ * PUT /api/hr/employees/contracts/:contractId
+ */
+router.put('/contracts/:contractId',
+  authenticateToken,
+  requirePermission('hr.contracts.manage'),
+  async (req, res) => {
+    try {
+      const { contractId } = req.params;
+      const {
+        contract_type, start_date, end_date, trial_period_end,
+        base_salary, position, department, notes, status
+      } = req.body;
+
+      const result = await pool.query(`
+        UPDATE hr_contracts
+        SET contract_type = COALESCE($1, contract_type),
+            start_date = COALESCE($2, start_date),
+            end_date = $3,
+            trial_period_end = $4,
+            base_salary = COALESCE($5, base_salary),
+            position = COALESCE($6, position),
+            department = COALESCE($7, department),
+            notes = $8,
+            status = COALESCE($9, status),
+            updated_at = NOW()
+        WHERE id = $10
+        RETURNING *
+      `, [
+        contract_type, start_date, end_date || null,
+        trial_period_end || null, base_salary, position,
+        department, notes, status, contractId
+      ]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Contract not found' });
+      }
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error updating contract:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Delete contract
+ * DELETE /api/hr/employees/contracts/:contractId
+ */
+router.delete('/contracts/:contractId',
+  authenticateToken,
+  requirePermission('hr.contracts.manage'),
+  async (req, res) => {
+    try {
+      const { contractId } = req.params;
+
+      // Get file path first
+      const contractResult = await pool.query(
+        'SELECT document_url FROM hr_contracts WHERE id = $1',
+        [contractId]
+      );
+
+      if (contractResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Contract not found' });
+      }
+
+      // Delete from database
+      await pool.query('DELETE FROM hr_contracts WHERE id = $1', [contractId]);
+
+      // Delete physical file if exists
+      const document_url = contractResult.rows[0].document_url;
+      if (document_url) {
+        const filePath = path.join(getEmployeeDocumentsDir(), path.basename(document_url));
+        deleteFile(filePath);
+      }
+
+      res.json({ success: true, message: 'Contrat supprimé' });
+    } catch (error) {
+      console.error('Error deleting contract:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
 // === DOCUMENTS ===
 
 /**
@@ -412,6 +632,58 @@ router.post('/:id/documents',
   }
 });
 
+/**
+ * Upload document with file
+ * POST /api/hr/employees/:id/documents/upload
+ * Protected: Requires hr.documents.manage permission
+ */
+router.post('/:id/documents/upload',
+  authenticateToken,
+  requirePermission('hr.documents.manage'),
+  (req, res, next) => {
+    uploadEmployeeDocument(req, res, (err) => {
+      if (err) {
+        console.error('Upload error:', err);
+        return res.status(400).json({ success: false, error: err.message });
+      }
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { document_type, title, description, expiry_date } = req.body;
+
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: 'Aucun fichier fourni' });
+      }
+
+      const file_url = `/uploads/employee-documents/${req.file.filename}`;
+      const file_name = req.file.originalname;
+      const file_size = req.file.size;
+      const mime_type = req.file.mimetype;
+
+      const result = await pool.query(`
+        INSERT INTO hr_employee_documents (
+          employee_id, document_type, title, description,
+          file_url, file_name, file_size, mime_type,
+          expiry_date, uploaded_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING *
+      `, [
+        id, document_type, title || file_name, description,
+        file_url, file_name, file_size, mime_type,
+        expiry_date || null, req.user.id
+      ]);
+
+      res.status(201).json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
 // Verify document
 /**
  * Verify document
@@ -440,6 +712,79 @@ router.put('/documents/:docId/verify',
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+/**
+ * Update document
+ * PUT /api/hr/employees/documents/:docId
+ */
+router.put('/documents/:docId',
+  authenticateToken,
+  requirePermission('hr.documents.manage'),
+  async (req, res) => {
+    try {
+      const { docId } = req.params;
+      const { document_type, title, description, expiry_date } = req.body;
+
+      const result = await pool.query(`
+        UPDATE hr_employee_documents
+        SET document_type = COALESCE($1, document_type),
+            title = COALESCE($2, title),
+            description = COALESCE($3, description),
+            expiry_date = $4
+        WHERE id = $5
+        RETURNING *
+      `, [document_type, title, description, expiry_date || null, docId]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Document not found' });
+      }
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error updating document:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Delete document
+ * DELETE /api/hr/employees/documents/:docId
+ */
+router.delete('/documents/:docId',
+  authenticateToken,
+  requirePermission('hr.documents.manage'),
+  async (req, res) => {
+    try {
+      const { docId } = req.params;
+
+      // Get file path first
+      const docResult = await pool.query(
+        'SELECT file_url FROM hr_employee_documents WHERE id = $1',
+        [docId]
+      );
+
+      if (docResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Document not found' });
+      }
+
+      // Delete from database
+      await pool.query('DELETE FROM hr_employee_documents WHERE id = $1', [docId]);
+
+      // Delete physical file
+      const file_url = docResult.rows[0].file_url;
+      if (file_url) {
+        const filePath = path.join(getEmployeeDocumentsDir(), path.basename(file_url));
+        deleteFile(filePath);
+      }
+
+      res.json({ success: true, message: 'Document supprimé' });
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
 
 // === DISCIPLINARY ===
 
@@ -485,6 +830,140 @@ router.post('/:id/disciplinary',
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+/**
+ * Upload disciplinary action with file
+ * POST /api/hr/employees/:id/disciplinary/upload
+ */
+router.post('/:id/disciplinary/upload',
+  authenticateToken,
+  requirePermission('hr.discipline.manage'),
+  (req, res, next) => {
+    uploadEmployeeDocument(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ success: false, error: err.message });
+      }
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        action_type, severity, issue_date, reason,
+        description, duration_days, salary_impact, witnesses
+      } = req.body;
+
+      let document_url = null;
+      if (req.file) {
+        document_url = `/uploads/employee-documents/${req.file.filename}`;
+      }
+
+      const result = await pool.query(`
+        INSERT INTO hr_disciplinary_actions (
+          employee_id, action_type, severity, issue_date,
+          reason, description, document_url, duration_days,
+          salary_impact, witnesses, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING *
+      `, [
+        id, action_type, severity, issue_date,
+        reason, description, document_url, duration_days || null,
+        salary_impact || null, witnesses ? JSON.parse(witnesses) : [], req.user.id
+      ]);
+
+      res.status(201).json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error creating disciplinary action with upload:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Update disciplinary action
+ * PUT /api/hr/employees/disciplinary/:actionId
+ */
+router.put('/disciplinary/:actionId',
+  authenticateToken,
+  requirePermission('hr.discipline.manage'),
+  async (req, res) => {
+    try {
+      const { actionId } = req.params;
+      const {
+        action_type, severity, issue_date, reason,
+        description, duration_days, salary_impact, is_final
+      } = req.body;
+
+      const result = await pool.query(`
+        UPDATE hr_disciplinary_actions
+        SET action_type = COALESCE($1, action_type),
+            severity = COALESCE($2, severity),
+            issue_date = COALESCE($3, issue_date),
+            reason = COALESCE($4, reason),
+            description = $5,
+            duration_days = $6,
+            salary_impact = $7,
+            is_final = COALESCE($8, is_final),
+            updated_at = NOW()
+        WHERE id = $9
+        RETURNING *
+      `, [
+        action_type, severity, issue_date, reason,
+        description, duration_days || null, salary_impact || null,
+        is_final, actionId
+      ]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Disciplinary action not found' });
+      }
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error('Error updating disciplinary action:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
+
+/**
+ * Delete disciplinary action
+ * DELETE /api/hr/employees/disciplinary/:actionId
+ */
+router.delete('/disciplinary/:actionId',
+  authenticateToken,
+  requirePermission('hr.discipline.manage'),
+  async (req, res) => {
+    try {
+      const { actionId } = req.params;
+
+      // Get file path first
+      const actionResult = await pool.query(
+        'SELECT document_url FROM hr_disciplinary_actions WHERE id = $1',
+        [actionId]
+      );
+
+      if (actionResult.rows.length === 0) {
+        return res.status(404).json({ success: false, error: 'Disciplinary action not found' });
+      }
+
+      // Delete from database
+      await pool.query('DELETE FROM hr_disciplinary_actions WHERE id = $1', [actionId]);
+
+      // Delete physical file if exists
+      const document_url = actionResult.rows[0].document_url;
+      if (document_url) {
+        const filePath = path.join(getEmployeeDocumentsDir(), path.basename(document_url));
+        deleteFile(filePath);
+      }
+
+      res.json({ success: true, message: 'Action disciplinaire supprimée' });
+    } catch (error) {
+      console.error('Error deleting disciplinary action:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+);
 
 /**
  * Get departments list

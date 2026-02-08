@@ -13,10 +13,11 @@ const backgroundsDir = path.join(uploadsDir, 'backgrounds');
 const fontsDir = path.join(uploadsDir, 'fonts');
 const profilesDir = path.join(uploadsDir, 'profiles');
 const declarationsDir = path.join(uploadsDir, 'declarations'); // Nouveau: pièces jointes déclarations
+const employeeDocumentsDir = path.join(uploadsDir, 'employee-documents'); // Documents employé (contrats, CV, diplômes, etc.)
 
 console.log('📁 Verifying upload directories...');
 console.log(`📁 Base uploads path: ${uploadsDir} ${process.env.UPLOADS_PATH ? '(from UPLOADS_PATH env)' : '(default local)'}`);
-[uploadsDir, backgroundsDir, fontsDir, profilesDir, declarationsDir].forEach(dir => {
+[uploadsDir, backgroundsDir, fontsDir, profilesDir, declarationsDir, employeeDocumentsDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     console.log(`  Creating directory: ${dir}`);
     fs.mkdirSync(dir, { recursive: true });
@@ -113,6 +114,31 @@ const declarationStorage = multer.diskStorage({
   }
 });
 
+// Storage pour les documents employé (contrats, CV, diplômes, RIB, etc.)
+const employeeDocumentStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    try {
+      if (!fs.existsSync(employeeDocumentsDir)) {
+        console.log(`📁 Creating employee-documents directory at write time: ${employeeDocumentsDir}`);
+        fs.mkdirSync(employeeDocumentsDir, { recursive: true });
+      }
+      console.log(`📁 Employee document upload destination: ${employeeDocumentsDir}`);
+      cb(null, employeeDocumentsDir);
+    } catch (err) {
+      console.error(`❌ Error ensuring employee-documents directory exists:`, err);
+      cb(err);
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filename = `doc-${uniqueSuffix}-${safeOriginalName}`;
+    console.log(`📁 Employee document filename: ${filename}`);
+    cb(null, filename);
+  }
+});
+
 // Filtres pour les types de fichiers
 const imageFileFilter = (req, file, cb) => {
   const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/svg+xml'];
@@ -184,6 +210,18 @@ export const uploadDeclarationAttachment = multer({
     fileSize: 10 * 1024 * 1024 // 10 MB max
   }
 }).single('attachment');
+
+// Upload documents employé (contrats, CV, diplômes, RIB, certificats, etc.)
+export const uploadEmployeeDocument = multer({
+  storage: employeeDocumentStorage,
+  fileFilter: documentFileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10 MB max
+  }
+}).single('document');
+
+// Exporter le chemin des documents employé
+export const getEmployeeDocumentsDir = () => employeeDocumentsDir;
 
 // Helper pour supprimer un fichier
 export const deleteFile = (filePath) => {
