@@ -529,6 +529,102 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// TEMPORARY: Run migration-155 (leave balance system) - NO AUTH - DELETE AFTER USE
+app.get('/run-migration-155', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Create leave balance history table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hr_leave_balance_history (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        employee_id UUID NOT NULL REFERENCES hr_employees(id) ON DELETE CASCADE,
+        leave_type_id UUID REFERENCES hr_leave_types(id),
+        movement_type TEXT NOT NULL,
+        amount DECIMAL(5,2) NOT NULL,
+        balance_before DECIMAL(5,2) NOT NULL,
+        balance_after DECIMAL(5,2) NOT NULL,
+        reference_id UUID,
+        period_id TEXT,
+        description TEXT,
+        created_by TEXT REFERENCES profiles(id),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // 2. Create accrual periods table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hr_leave_accrual_periods (
+        id TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+        year INTEGER NOT NULL,
+        month INTEGER NOT NULL,
+        is_closed BOOLEAN DEFAULT FALSE,
+        closed_at TIMESTAMP,
+        closed_by TEXT REFERENCES profiles(id),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // 3. Create employee period summary table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hr_employee_period_summary (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        employee_id UUID NOT NULL REFERENCES hr_employees(id) ON DELETE CASCADE,
+        period_id TEXT NOT NULL,
+        days_worked INTEGER DEFAULT 0,
+        days_holiday_paid INTEGER DEFAULT 0,
+        days_leave_paid INTEGER DEFAULT 0,
+        days_sick_paid INTEGER DEFAULT 0,
+        days_absent_unpaid INTEGER DEFAULT 0,
+        leave_accrued DECIMAL(4,2) DEFAULT 0,
+        leave_taken DECIMAL(4,2) DEFAULT 0,
+        leave_balance_after DECIMAL(5,2) DEFAULT 0,
+        is_complete_month BOOLEAN DEFAULT FALSE,
+        hire_date_in_period DATE,
+        termination_date_in_period DATE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(employee_id, period_id)
+      )
+    `);
+
+    // 4. Add seniority bonus field
+    await client.query(`ALTER TABLE hr_employees ADD COLUMN IF NOT EXISTS seniority_bonus_days DECIMAL(4,2) DEFAULT 0`);
+
+    // 5. Generate periods for 2025-2026
+    const monthNames = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    for (const year of [2025, 2026]) {
+      for (let month = 1; month <= 12; month++) {
+        const monthStr = String(month).padStart(2, '0');
+        const periodId = year + '-' + monthStr;
+        const startMonth = month === 1 ? 12 : month - 1;
+        const startYear = month === 1 ? year - 1 : year;
+        const startDate = startYear + '-' + String(startMonth).padStart(2, '0') + '-19';
+        const endDate = year + '-' + monthStr + '-18';
+        const label = monthNames[month] + ' ' + year;
+
+        await client.query(`
+          INSERT INTO hr_leave_accrual_periods (id, label, start_date, end_date, year, month)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (id) DO NOTHING
+        `, [periodId, label, startDate, endDate, year, month]);
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Migration 155 completed: Leave balance system created' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
 // TEMPORARY: Debug endpoint to check profiles table - NO AUTH
 app.get('/check-admin-profiles', async (req, res) => {
   try {
