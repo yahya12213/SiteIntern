@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle, Plus, Trash2, Users, Target, Gift, Camera } from 'lucide-react';
+import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle, Plus, Trash2, Users, Target, Gift, Camera, FileText, Download, Eye, Shield, CreditCard, AlertTriangle, File } from 'lucide-react';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { apiClient } from '@/lib/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSegments } from '@/hooks/useSegments';
+import { DocumentUploadModal } from './DocumentUploadModal';
+import { ContractFormModal } from './ContractFormModal';
+import { DisciplinaryFormModal } from './DisciplinaryFormModal';
 
 interface ManagerEntry {
   manager_id: string;
@@ -42,6 +45,44 @@ interface EmployeePrime {
   exemption_ceiling?: number;
   exemption_unit?: string;
   display_order?: number;
+}
+
+// Types pour les documents du dossier employé
+interface EmployeeDocument {
+  id: string;
+  employee_id: string;
+  document_type: string;
+  title: string;
+  description?: string;
+  file_url?: string;
+  expiry_date?: string;
+  is_verified?: boolean;
+  uploaded_at: string;
+}
+
+interface EmployeeContract {
+  id: string;
+  employee_id: string;
+  contract_type: string;
+  start_date: string;
+  end_date?: string;
+  trial_period_end?: string;
+  base_salary?: number;
+  position?: string;
+  document_url?: string;
+  created_at: string;
+}
+
+interface DisciplinaryAction {
+  id: string;
+  employee_id: string;
+  action_type: string;
+  severity: string;
+  issue_date: string;
+  reason: string;
+  description?: string;
+  document_url?: string;
+  created_at: string;
 }
 
 interface Employee {
@@ -86,6 +127,10 @@ interface Employee {
   cimr_rate?: number;
   mutual_affiliated?: boolean;
   mutual_contribution?: number;
+  // Documents du dossier (retournés par l'API)
+  contracts?: EmployeeContract[];
+  documents?: EmployeeDocument[];
+  disciplinary_actions?: DisciplinaryAction[];
 }
 
 export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormModalProps) {
@@ -146,6 +191,11 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // State pour les modals de documents
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [showContractModal, setShowContractModal] = useState(false);
+  const [showDisciplinaryModal, setShowDisciplinaryModal] = useState(false);
 
   const isEdit = !!employeeId;
 
@@ -1602,6 +1652,220 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
             </div>
           </div>
 
+          {/* Section Documents du Dossier - Only show when editing */}
+          {isEdit && employeeId && (
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-600" />
+                Documents du Dossier
+              </h3>
+
+              {/* Quick Add Buttons */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setShowDocumentModal(true)}
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Document (CIN, CNSS, CV...)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowContractModal(true)}
+                  className="flex items-center gap-2 px-3 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Contrat
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDisciplinaryModal(true)}
+                  className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Action Disciplinaire
+                </button>
+              </div>
+
+              {/* Documents List */}
+              <div className="space-y-4">
+                {/* Contracts */}
+                {employeeData?.contracts && employeeData.contracts.length > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h4 className="font-medium text-green-800 mb-2 flex items-center gap-2">
+                      <Briefcase className="w-4 h-4" />
+                      Contrats ({employeeData.contracts.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {employeeData.contracts.map((contract) => (
+                        <div key={contract.id} className="flex items-center justify-between bg-white rounded-lg p-3 border border-green-100">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                              <FileText className="w-4 h-4 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900 text-sm">
+                                {contract.contract_type?.toUpperCase() || 'Contrat'}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Du {new Date(contract.start_date).toLocaleDateString('fr-FR')}
+                                {contract.end_date && ` au ${new Date(contract.end_date).toLocaleDateString('fr-FR')}`}
+                              </p>
+                            </div>
+                          </div>
+                          {contract.document_url && (
+                            <a
+                              href={contract.document_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200"
+                            >
+                              <Eye className="w-3 h-3" />
+                              Voir
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Documents (CIN, CNSS, CV, etc.) */}
+                {employeeData?.documents && employeeData.documents.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
+                      <File className="w-4 h-4" />
+                      Documents ({employeeData.documents.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {employeeData.documents.map((doc) => (
+                        <div key={doc.id} className="flex items-center justify-between bg-white rounded-lg p-3 border border-blue-100">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              doc.document_type === 'cin' ? 'bg-purple-100' :
+                              doc.document_type === 'cnss' ? 'bg-orange-100' :
+                              doc.document_type === 'rib' ? 'bg-yellow-100' :
+                              doc.document_type === 'cv' ? 'bg-cyan-100' :
+                              doc.document_type === 'diploma' ? 'bg-pink-100' :
+                              'bg-blue-100'
+                            }`}>
+                              {doc.document_type === 'cin' ? <CreditCard className="w-4 h-4 text-purple-600" /> :
+                               doc.document_type === 'cnss' ? <Shield className="w-4 h-4 text-orange-600" /> :
+                               <FileText className={`w-4 h-4 ${
+                                 doc.document_type === 'rib' ? 'text-yellow-600' :
+                                 doc.document_type === 'cv' ? 'text-cyan-600' :
+                                 doc.document_type === 'diploma' ? 'text-pink-600' :
+                                 'text-blue-600'
+                               }`} />
+                              }
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900 text-sm">
+                                {doc.title || doc.document_type?.toUpperCase()}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {new Date(doc.uploaded_at).toLocaleDateString('fr-FR')}
+                                {doc.expiry_date && ` • Expire: ${new Date(doc.expiry_date).toLocaleDateString('fr-FR')}`}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {doc.is_verified && (
+                              <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded">Vérifié</span>
+                            )}
+                            {doc.file_url && (
+                              <a
+                                href={doc.file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200"
+                              >
+                                <Eye className="w-3 h-3" />
+                                Voir
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Disciplinary Actions */}
+                {employeeData?.disciplinary_actions && employeeData.disciplinary_actions.length > 0 && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h4 className="font-medium text-red-800 mb-2 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      Actions Disciplinaires ({employeeData.disciplinary_actions.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {employeeData.disciplinary_actions.map((action) => (
+                        <div key={action.id} className="flex items-center justify-between bg-white rounded-lg p-3 border border-red-100">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                              <AlertTriangle className="w-4 h-4 text-red-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900 text-sm">
+                                {action.action_type === 'verbal_warning' ? 'Avertissement verbal' :
+                                 action.action_type === 'written_warning' ? 'Avertissement écrit' :
+                                 action.action_type === 'blame' ? 'Blâme' :
+                                 action.action_type === 'suspension' ? 'Mise à pied' :
+                                 action.action_type === 'dismissal' ? 'Licenciement' :
+                                 action.action_type}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {new Date(action.issue_date).toLocaleDateString('fr-FR')} • {action.reason}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              action.severity === 'low' ? 'bg-yellow-100 text-yellow-700' :
+                              action.severity === 'medium' ? 'bg-orange-100 text-orange-700' :
+                              action.severity === 'high' ? 'bg-red-100 text-red-700' :
+                              'bg-red-200 text-red-800'
+                            }`}>
+                              {action.severity === 'low' ? 'Faible' :
+                               action.severity === 'medium' ? 'Moyen' :
+                               action.severity === 'high' ? 'Élevé' :
+                               action.severity === 'critical' ? 'Critique' : action.severity}
+                            </span>
+                            {action.document_url && (
+                              <a
+                                href={action.document_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200"
+                              >
+                                <Eye className="w-3 h-3" />
+                                Voir
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {(!employeeData?.contracts || employeeData.contracts.length === 0) &&
+                 (!employeeData?.documents || employeeData.documents.length === 0) &&
+                 (!employeeData?.disciplinary_actions || employeeData.disciplinary_actions.length === 0) && (
+                  <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
+                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm">Aucun document dans le dossier</p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      Utilisez les boutons ci-dessus pour ajouter des documents
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Requires Clocking Checkbox */}
           <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg p-4">
             <input
@@ -1660,6 +1924,43 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
           </div>
         </form>
       </div>
+
+      {/* Document Upload Modals */}
+      {showDocumentModal && employeeId && (
+        <DocumentUploadModal
+          employeeId={employeeId}
+          employeeName={`${formData.first_name} ${formData.last_name}`}
+          onClose={() => {
+            setShowDocumentModal(false);
+            // Refresh employee data to show new document
+            queryClient.invalidateQueries({ queryKey: ['hr-employee', employeeId] });
+          }}
+        />
+      )}
+
+      {showContractModal && employeeId && (
+        <ContractFormModal
+          employeeId={employeeId}
+          employeeName={`${formData.first_name} ${formData.last_name}`}
+          onClose={() => {
+            setShowContractModal(false);
+            // Refresh employee data to show new contract
+            queryClient.invalidateQueries({ queryKey: ['hr-employee', employeeId] });
+          }}
+        />
+      )}
+
+      {showDisciplinaryModal && employeeId && (
+        <DisciplinaryFormModal
+          employeeId={employeeId}
+          employeeName={`${formData.first_name} ${formData.last_name}`}
+          onClose={() => {
+            setShowDisciplinaryModal(false);
+            // Refresh employee data to show new disciplinary action
+            queryClient.invalidateQueries({ queryKey: ['hr-employee', employeeId] });
+          }}
+        />
+      )}
     </div>
   );
 }
