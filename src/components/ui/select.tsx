@@ -101,13 +101,13 @@ export const SelectTrigger = ({
     <button
       type="button"
       id={id}
-      className={`w-full flex items-center justify-between px-4 py-2.5 h-11 border border-gray-200 rounded-xl bg-white text-left text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 ${isOpen ? 'ring-2 ring-blue-500/40 border-blue-400' : ''} ${className}`}
+      className={`w-full flex items-center justify-between px-4 py-2.5 h-11 border border-gray-200 rounded-input bg-white text-left text-sm transition-all duration-fast disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-secondary hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 ${isOpen ? 'ring-2 ring-primary-500/40 border-primary-400' : ''} ${className}`}
       onClick={() => !disabled && setIsOpen(!isOpen)}
       disabled={disabled}
     >
       <span className="truncate text-gray-900">{children}</span>
       <svg
-        className={`ml-2 h-4 w-4 shrink-0 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+        className={`ml-2 h-4 w-4 shrink-0 text-gray-400 transition-transform duration-normal ${isOpen ? 'rotate-180' : ''}`}
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 20 20"
         fill="currentColor"
@@ -148,7 +148,7 @@ export const SelectContent = ({
 
   return (
     <div
-      className={`absolute z-[100] min-w-[200px] w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-soft-lg max-h-60 overflow-auto animate-scale-in ${className}`}
+      className={`absolute z-[100] min-w-[200px] w-full mt-2 bg-white border border-gray-100 rounded-input shadow-elevation-2 max-h-60 overflow-auto dropdown-enter ${className}`}
     >
       <div className="p-1">
         {children}
@@ -180,16 +180,16 @@ export const SelectItem = ({
 
   return (
     <div
-      className={`px-3 py-2.5 text-sm cursor-pointer transition-all duration-150 rounded-lg mx-1 ${
+      className={`px-3 py-2.5 text-sm cursor-pointer transition-all duration-fast rounded-badge mx-1 ${
         isSelected
-          ? 'bg-blue-50 text-blue-700 font-medium'
-          : 'hover:bg-gray-50 text-gray-700 hover:text-gray-900'
+          ? 'bg-primary-50 text-primary-700 font-medium'
+          : 'hover:bg-surface-secondary text-gray-700 hover:text-gray-900'
       } ${className}`}
       onClick={handleClick}
     >
       <div className="flex items-center">
         {isSelected && (
-          <svg className="mr-2 h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <svg className="mr-2 h-4 w-4 text-primary-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
           </svg>
         )}

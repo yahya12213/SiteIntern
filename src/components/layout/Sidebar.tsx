@@ -167,7 +167,7 @@ export const Sidebar: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:w-72 bg-gradient-to-b from-white to-gray-50/50 border-r border-gray-100 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto shadow-soft">
+    <aside className="hidden lg:flex lg:flex-col lg:w-72 bg-gradient-to-b from-white via-white to-surface-secondary border-r border-gray-100 h-[calc(100vh-64px)] sticky top-16 overflow-y-auto shadow-elevation-1">
       <nav className="flex-1 px-3 py-4 space-y-2">
         {filteredSections.map((section) => {
           const isExpanded = expandedSections.includes(section.id);
@@ -178,22 +178,22 @@ export const Sidebar: React.FC = () => {
               {/* Section Header */}
               <button
                 onClick={() => toggleSection(section.id)}
-                className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-white hover:shadow-sm rounded-xl transition-all duration-200 group"
+                className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-primary-50 hover:text-primary-700 rounded-input menu-transition group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-1.5 rounded-lg bg-gray-100 group-hover:bg-blue-100 transition-colors duration-200">
-                    <SectionIcon className="h-4 w-4 text-gray-600 group-hover:text-blue-600 transition-colors duration-200" />
+                  <div className="p-1.5 rounded-badge bg-gray-100 group-hover:bg-primary-100 menu-transition">
+                    <SectionIcon className="h-4 w-4 text-gray-600 group-hover:text-primary-600 menu-transition" />
                   </div>
-                  <span className="group-hover:text-blue-600 transition-colors duration-200">{section.title}</span>
+                  <span className="group-hover:text-primary-600 menu-transition">{section.title}</span>
                 </div>
-                <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                <div className={`menu-transition ${isExpanded ? 'rotate-180' : ''}`}>
+                  <ChevronDown className="h-4 w-4 text-gray-400 group-hover:text-primary-500" />
                 </div>
               </button>
 
               {/* Section Items */}
               {isExpanded && (
-                <div className="ml-3 space-y-0.5 border-l-2 border-gray-200/60 pl-3 animate-fade-in">
+                <div className="ml-3 space-y-0.5 border-l-2 border-primary-100 pl-3 animate-fade-in">
                   {section.items.map((item) => {
                     const ItemIcon = item.icon;
                     const active = isActive(item.to);
@@ -202,14 +202,14 @@ export const Sidebar: React.FC = () => {
                       <Link
                         key={item.to}
                         to={item.to}
-                        className={`flex items-center gap-3 px-3 py-2 text-sm rounded-xl transition-all duration-200 ${
+                        className={`flex items-center gap-3 px-3 py-2 text-sm rounded-input menu-transition ${
                           active
-                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium shadow-sm shadow-blue-500/25'
-                            : 'text-gray-600 hover:bg-white hover:shadow-sm hover:text-gray-900'
+                            ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-elevation-1'
+                            : 'text-gray-600 hover:bg-surface-secondary hover:text-gray-900'
                         }`}
                       >
                         <ItemIcon
-                          className={`h-4 w-4 transition-colors duration-200 ${active ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}`}
+                          className={`h-4 w-4 menu-transition ${active ? 'text-white' : 'text-gray-400'}`}
                         />
                         <span>{item.label}</span>
                       </Link>
@@ -223,7 +223,7 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-gray-100 bg-white/50">
+      <div className="px-6 py-4 border-t border-gray-100 bg-white/80">
         <p className="text-xs text-gray-400 text-center font-medium">
           Comptabilité PL © 2025
         </p>

@@ -20,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   };
 
   return (
-    <header className="bg-white/80 backdrop-blur-md shadow-soft border-b border-gray-100 sticky top-0 z-30">
+    <header className="glass-header shadow-elevation-1 sticky top-0 z-30 transition-all duration-normal">
       <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between">
           {/* Left Section: Mobile Nav + Logo/Title */}
@@ -30,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
 
             {/* Logo - Hidden on mobile, visible on larger screens */}
             <div className="hidden lg:flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 shadow-sm shadow-orange-500/25">
+              <div className="p-2 rounded-input bg-gradient-to-br from-accent-500 to-accent-600 shadow-elevation-1 transition-transform duration-normal hover:scale-105">
                 <HardHat className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
               </div>
               <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">Comptabilité PL</span>
@@ -38,7 +38,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
 
             {/* Page Title - Visible on all screens */}
             {title && (
-              <div className="flex flex-col ml-2 lg:ml-4 pl-4 lg:pl-6 border-l-2 border-gray-200">
+              <div className="flex flex-col ml-2 lg:ml-4 pl-4 lg:pl-6 border-l-2 border-primary-200">
                 <h1 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800 truncate max-w-[150px] sm:max-w-none">
                   {title}
                 </h1>
@@ -52,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
           {/* Right Section: User Info + Logout (Hidden on mobile, shown via MobileNav) */}
           <div className="hidden lg:flex items-center gap-4">
             {/* User Info */}
-            <div className="text-right px-4 py-2 rounded-xl bg-gray-50/80 border border-gray-100">
+            <div className="text-right px-4 py-2 rounded-input bg-surface-secondary border border-gray-100 transition-all duration-fast hover:border-gray-200">
               <p className="text-sm font-semibold text-gray-800">{user?.full_name || user?.username}</p>
               <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
             </div>
@@ -62,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
               onClick={handleLogout}
               variant="outline"
               size="sm"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 hover-lift interactive-scale"
             >
               <LogOut className="h-4 w-4" />
               <span className="hidden xl:inline">Déconnexion</span>
@@ -72,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
           {/* Mobile Logo - Only visible on mobile when no title */}
           {!title && (
             <div className="lg:hidden flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 shadow-sm">
+              <div className="p-1.5 rounded-badge bg-gradient-to-br from-accent-500 to-accent-600 shadow-elevation-1">
                 <HardHat className="h-5 w-5 text-white" />
               </div>
               <span className="text-base font-bold text-gray-800">Comptabilité PL</span>

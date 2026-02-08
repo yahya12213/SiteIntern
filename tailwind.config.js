@@ -17,6 +17,10 @@ export default {
         xl: '1rem',
         '2xl': '1.25rem',
         '3xl': '1.5rem',
+        // Semantic border radius
+        'card': '1rem',
+        'input': '0.75rem',
+        'badge': '0.5rem',
       },
       colors: {
         // Primary palette
@@ -32,10 +36,22 @@ export default {
           800: 'hsl(217, 91%, 30%)',
           900: 'hsl(217, 91%, 20%)',
         },
+        // Accent palette (orange)
+        accent: {
+          50: 'hsl(24, 95%, 97%)',
+          100: 'hsl(24, 95%, 92%)',
+          200: 'hsl(24, 95%, 80%)',
+          300: 'hsl(24, 95%, 68%)',
+          400: 'hsl(24, 95%, 58%)',
+          500: 'hsl(24, 95%, 53%)',
+          600: 'hsl(24, 95%, 45%)',
+          700: 'hsl(24, 95%, 38%)',
+        },
         // Success palette
         success: {
           50: 'hsl(142, 76%, 97%)',
           100: 'hsl(142, 76%, 95%)',
+          200: 'hsl(142, 76%, 85%)',
           500: 'hsl(142, 76%, 45%)',
           600: 'hsl(142, 76%, 36%)',
           700: 'hsl(142, 76%, 28%)',
@@ -44,6 +60,7 @@ export default {
         warning: {
           50: 'hsl(38, 92%, 97%)',
           100: 'hsl(38, 92%, 95%)',
+          200: 'hsl(38, 92%, 85%)',
           500: 'hsl(38, 92%, 50%)',
           600: 'hsl(38, 92%, 42%)',
         },
@@ -51,8 +68,15 @@ export default {
         danger: {
           50: 'hsl(0, 84%, 97%)',
           100: 'hsl(0, 84%, 95%)',
+          200: 'hsl(0, 84%, 85%)',
           500: 'hsl(0, 84%, 60%)',
           600: 'hsl(0, 84%, 50%)',
+        },
+        // Surface colors (backgrounds)
+        surface: {
+          DEFAULT: 'hsl(0, 0%, 100%)',
+          secondary: 'hsl(220, 14%, 98%)',
+          tertiary: 'hsl(220, 14%, 96%)',
         },
       },
       boxShadow: {
@@ -61,6 +85,15 @@ export default {
         'soft-xl': '0 8px 20px -4px rgba(0, 0, 0, 0.08), 0 16px 40px -8px rgba(0, 0, 0, 0.12)',
         'glow': '0 0 20px rgba(59, 130, 246, 0.15)',
         'glow-success': '0 0 20px rgba(34, 197, 94, 0.15)',
+        // Semantic elevation shadows
+        'elevation-1': '0 1px 3px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.06)',
+        'elevation-2': '0 4px 12px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.12)',
+        'elevation-3': '0 8px 20px rgba(0, 0, 0, 0.12), 0 16px 40px rgba(0, 0, 0, 0.16)',
+      },
+      transitionDuration: {
+        'fast': '150ms',
+        'normal': '200ms',
+        'slow': '300ms',
       },
       animation: {
         'fade-in': 'fade-in 0.3s ease-out forwards',

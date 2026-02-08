@@ -52,11 +52,11 @@ export const Dialog = ({ children, open, onOpenChange }: DialogProps) => {
   return (
     <DialogContext.Provider value={{ isResizingRef }}>
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md"
         onClick={handleBackdropClick}
       >
         <div
-          className="bg-white rounded-2xl shadow-soft-xl animate-in fade-in zoom-in-95 duration-200 border border-gray-100"
+          className="bg-white rounded-card shadow-elevation-3 animate-scale-in border border-gray-100"
           onClick={(e) => e.stopPropagation()}
         >
           {children}
@@ -184,7 +184,7 @@ export const DialogContent = ({ children, className = '', resizable = false, fit
         <>
           {/* Coin bas-droite - avec icône visible */}
           <div
-            className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize bg-gray-400 hover:bg-blue-500 rounded-tl z-20 flex items-center justify-center"
+            className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize bg-gray-400 hover:bg-primary-500 rounded-tl z-20 flex items-center justify-center transition-colors duration-fast"
             onMouseDown={(e) => handleMouseDown(e, 'se')}
             title="Redimensionner"
           >
@@ -213,25 +213,25 @@ export const DialogContent = ({ children, className = '', resizable = false, fit
 
           {/* Bord droit */}
           <div
-            className="absolute top-4 right-0 w-2 h-[calc(100%-32px)] cursor-e-resize hover:bg-blue-300/50 z-10"
+            className="absolute top-4 right-0 w-2 h-[calc(100%-32px)] cursor-e-resize hover:bg-primary-300/50 z-10 transition-colors duration-fast"
             onMouseDown={(e) => handleMouseDown(e, 'e')}
           />
 
           {/* Bord gauche */}
           <div
-            className="absolute top-4 left-0 w-2 h-[calc(100%-32px)] cursor-w-resize hover:bg-blue-300/50 z-10"
+            className="absolute top-4 left-0 w-2 h-[calc(100%-32px)] cursor-w-resize hover:bg-primary-300/50 z-10 transition-colors duration-fast"
             onMouseDown={(e) => handleMouseDown(e, 'w')}
           />
 
           {/* Bord haut */}
           <div
-            className="absolute top-0 left-4 w-[calc(100%-32px)] h-2 cursor-n-resize hover:bg-blue-300/50 z-10"
+            className="absolute top-0 left-4 w-[calc(100%-32px)] h-2 cursor-n-resize hover:bg-primary-300/50 z-10 transition-colors duration-fast"
             onMouseDown={(e) => handleMouseDown(e, 'n')}
           />
 
           {/* Bord bas */}
           <div
-            className="absolute bottom-0 left-4 w-[calc(100%-32px)] h-2 cursor-s-resize hover:bg-blue-300/50 z-10"
+            className="absolute bottom-0 left-4 w-[calc(100%-32px)] h-2 cursor-s-resize hover:bg-primary-300/50 z-10 transition-colors duration-fast"
             onMouseDown={(e) => handleMouseDown(e, 's')}
           />
         </>

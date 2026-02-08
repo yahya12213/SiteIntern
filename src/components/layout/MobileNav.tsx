@@ -13,7 +13,6 @@ import {
   ClipboardCheck,
   List,
   ChevronDown,
-  ChevronUp,
   GraduationCap,
   BookOpen,
   CalendarCheck,
@@ -198,40 +197,36 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
         <Menu className="h-6 w-6" />
       </Button>
 
-      {/* Overlay - Plus opaque pour masquer le contenu dessous */}
+      {/* Overlay - Enhanced blur and darkness */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-gray-900/60 backdrop-blur-md z-40 lg:hidden menu-transition"
           onClick={() => setIsOpen(false)}
         />
       )}
 
-      {/* Drawer - Fond blanc solide, flex container pour le scroll */}
+      {/* Drawer - Clean white background with elevation */}
       <div
-        className={`fixed top-0 left-0 w-72 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out lg:hidden flex flex-col ${
+        className={`fixed top-0 left-0 w-72 bg-white shadow-elevation-3 z-50 transform transition-transform duration-slow ease-out lg:hidden flex flex-col h-[100dvh] min-h-screen ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
-        style={{
-          height: '100dvh',
-          minHeight: '100vh',
-          backgroundColor: '#ffffff',
-        }}
       >
         {/* Header */}
-        <div className="flex-shrink-0 flex items-center justify-between p-4 border-b bg-white">
+        <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-100 bg-white">
           <h2 className="text-lg font-semibold text-gray-800">Menu</h2>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsOpen(false)}
             aria-label="Close menu"
+            className="hover:bg-primary-50 hover:text-primary-600 menu-transition"
           >
             <X className="h-6 w-6" />
           </Button>
         </div>
 
         {/* User Info */}
-        <div className="flex-shrink-0 p-4 bg-gray-50 border-b">
+        <div className="flex-shrink-0 p-4 bg-surface-secondary border-b border-gray-100">
           <p className="text-sm font-medium text-gray-800">{user?.full_name || user?.username}</p>
           <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
         </div>
@@ -248,22 +243,22 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
                 {/* Section Header */}
                 <button
                   onClick={() => toggleSection(section.id)}
-                  className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-primary-50 hover:text-primary-700 rounded-input menu-transition group"
                 >
                   <div className="flex items-center gap-3">
-                    <SectionIcon className="h-5 w-5 text-gray-600" />
-                    <span>{section.title}</span>
+                    <div className="p-1.5 rounded-badge bg-gray-100 group-hover:bg-primary-100 menu-transition">
+                      <SectionIcon className="h-4 w-4 text-gray-600 group-hover:text-primary-600 menu-transition" />
+                    </div>
+                    <span className="group-hover:text-primary-600 menu-transition">{section.title}</span>
                   </div>
-                  {isExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-gray-400" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-gray-400" />
-                  )}
+                  <div className={`menu-transition ${isExpanded ? 'rotate-180' : ''}`}>
+                    <ChevronDown className="h-4 w-4 text-gray-400 group-hover:text-primary-500" />
+                  </div>
                 </button>
 
                 {/* Section Items */}
                 {isExpanded && (
-                  <div className="ml-6 space-y-0.5">
+                  <div className="ml-3 space-y-0.5 border-l-2 border-primary-100 pl-3 animate-fade-in">
                     {section.items.map((item) => {
                       const ItemIcon = item.icon;
                       const active = isActive(item.to);
@@ -273,13 +268,13 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
                           key={item.to}
                           to={item.to}
                           onClick={() => setIsOpen(false)}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                          className={`flex items-center gap-3 px-3 py-2 rounded-input text-sm menu-transition ${
                             active
-                              ? 'bg-blue-50 text-blue-700 font-medium'
-                              : 'text-gray-600 hover:bg-gray-50'
+                              ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-elevation-1'
+                              : 'text-gray-600 hover:bg-surface-secondary hover:text-gray-900'
                           }`}
                         >
-                          <ItemIcon className={`h-4 w-4 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
+                          <ItemIcon className={`h-4 w-4 menu-transition ${active ? 'text-white' : 'text-gray-400'}`} />
                           <span>{item.label}</span>
                         </Link>
                       );
@@ -296,24 +291,24 @@ export const MobileNav: React.FC<MobileNavProps> = ({ className = '' }) => {
               key={link.to}
               to={link.to}
               onClick={() => setIsOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-input text-sm menu-transition ${
                 isActive(link.to)
-                  ? 'bg-blue-50 text-blue-700 font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium shadow-elevation-1'
+                  : 'text-gray-700 hover:bg-surface-secondary'
               }`}
             >
-              <link.icon className={`h-5 w-5 ${isActive(link.to) ? 'text-blue-600' : 'text-gray-400'}`} />
+              <link.icon className={`h-5 w-5 ${isActive(link.to) ? 'text-white' : 'text-gray-400'}`} />
               <span className="font-medium">{link.label}</span>
             </Link>
           ))}
         </nav>
 
         {/* Logout Button */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-100 bg-white">
           <Button
             onClick={handleLogout}
             variant="outline"
-            className="w-full flex items-center justify-center gap-2"
+            className="w-full flex items-center justify-center gap-2 hover-lift interactive-scale"
           >
             <LogOut className="h-4 w-4" />
             Déconnexion
