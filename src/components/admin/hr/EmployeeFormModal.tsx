@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle, Plus, Trash2, Users, Target, Gift, Camera, Upload } from 'lucide-react';
+import { X, UserPlus, User, Mail, Phone, Calendar, MapPin, Briefcase, Hash, AlertCircle, Plus, Trash2, Users, Target, Gift, Camera } from 'lucide-react';
 import { ProtectedButton } from '@/components/ui/ProtectedButton';
 import { apiClient } from '@/lib/api/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
