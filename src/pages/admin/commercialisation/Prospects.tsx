@@ -58,6 +58,7 @@ import {
   CheckCircle2,
   XCircle,
   BarChart3,
+  Brain,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -73,6 +74,7 @@ import { DeclareVisitModal } from '@/components/prospects/DeclareVisitModal';
 import { EcartDetailsModal } from '@/components/prospects/EcartDetailsModal';
 import { PayrollPeriodFilter } from '@/components/prospects/PayrollPeriodFilter';
 import { IndicateursModal } from '@/components/prospects/IndicateursModal';
+import { AnalyseIntelligenteModal } from '@/components/prospects/AnalyseIntelligenteModal';
 import { prospectsApi } from '@/lib/api/prospects';
 import { useQuery } from '@tanstack/react-query';
 import { getPayrollPeriod } from '@/utils/payroll-period';
@@ -220,6 +222,7 @@ export default function Prospects() {
   const [selectedProspectForVisits, setSelectedProspectForVisits] = useState<any>(null);
   const [showEcartModal, setShowEcartModal] = useState(false);
   const [showIndicateursModal, setShowIndicateursModal] = useState(false);
+  const [showAnalyseModal, setShowAnalyseModal] = useState(false);
 
   // Query pour les détails de l'écart (chargé au démarrage pour afficher les comptages)
   // Utilise statsDateRange au lieu de filters pour respecter le filtre période
@@ -860,15 +863,23 @@ export default function Prospects() {
             </div>
           </div>
 
-          {/* Ligne 2: Bouton Indicateurs centré */}
-          <div className="flex justify-center">
+          {/* Ligne 2: Boutons Indicateurs et Analyse IA centrés */}
+          <div className="flex justify-center gap-4">
             <Button
               onClick={() => setShowIndicateursModal(true)}
-              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-3 text-base font-semibold"
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 px-6 py-3 text-base font-semibold"
               size="lg"
             >
               <BarChart3 className="h-5 w-5 mr-2" />
               Indicateurs
+            </Button>
+            <Button
+              onClick={() => setShowAnalyseModal(true)}
+              className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 px-6 py-3 text-base font-semibold"
+              size="lg"
+            >
+              <Brain className="h-5 w-5 mr-2" />
+              Analyse IA
             </Button>
           </div>
         </div>
@@ -1249,6 +1260,16 @@ export default function Prospects() {
         <IndicateursModal
           open={showIndicateursModal}
           onClose={() => setShowIndicateursModal(false)}
+          filters={{
+            segment_id: filters.segment_id,
+            ville_id: filters.ville_id,
+          }}
+        />
+
+        {/* Modal Analyse Intelligente */}
+        <AnalyseIntelligenteModal
+          open={showAnalyseModal}
+          onClose={() => setShowAnalyseModal(false)}
           filters={{
             segment_id: filters.segment_id,
             ville_id: filters.ville_id,
