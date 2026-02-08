@@ -525,29 +525,6 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// TEMPORARY: Run migration-153 (profile_image_url) - NO AUTH - DELETE AFTER USE
-app.get('/run-migration-153', async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const checkColumn = await client.query(`
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_name = 'profiles' AND column_name = 'profile_image_url'
-    `);
-
-    if (checkColumn.rows.length === 0) {
-      await client.query('ALTER TABLE profiles ADD COLUMN profile_image_url TEXT');
-      res.json({ success: true, message: 'Added profile_image_url column to profiles table' });
-    } else {
-      res.json({ success: true, message: 'profile_image_url column already exists' });
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  } finally {
-    client.release();
-  }
-});
-
 // TEMPORARY: Debug endpoint to check profiles table - NO AUTH
 app.get('/check-admin-profiles', async (req, res) => {
   try {
