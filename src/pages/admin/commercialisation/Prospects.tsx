@@ -57,6 +57,7 @@ import {
   CheckCircle,
   CheckCircle2,
   XCircle,
+  BarChart3,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -71,6 +72,7 @@ import { CallProspectModal } from '@/components/prospects/CallProspectModal';
 import { DeclareVisitModal } from '@/components/prospects/DeclareVisitModal';
 import { EcartDetailsModal } from '@/components/prospects/EcartDetailsModal';
 import { PayrollPeriodFilter } from '@/components/prospects/PayrollPeriodFilter';
+import { IndicateursModal } from '@/components/prospects/IndicateursModal';
 import { prospectsApi } from '@/lib/api/prospects';
 import { useQuery } from '@tanstack/react-query';
 import { getPayrollPeriod } from '@/utils/payroll-period';
@@ -217,6 +219,7 @@ export default function Prospects() {
   const [showVisitsModal, setShowVisitsModal] = useState(false);
   const [selectedProspectForVisits, setSelectedProspectForVisits] = useState<any>(null);
   const [showEcartModal, setShowEcartModal] = useState(false);
+  const [showIndicateursModal, setShowIndicateursModal] = useState(false);
 
   // Query pour les détails de l'écart (chargé au démarrage pour afficher les comptages)
   // Utilise statsDateRange au lieu de filters pour respecter le filtre période
@@ -823,34 +826,49 @@ export default function Prospects() {
     <AppLayout>
       <div className="p-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Gestion des Prospects</h1>
-            <p className="text-muted-foreground mt-1">
-              Gérez vos prospects avec affectation automatique et qualification
-            </p>
+        <div className="flex flex-col gap-4 mb-6">
+          {/* Ligne 1: Titre + Actions */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Gestion des Prospects</h1>
+              <p className="text-muted-foreground mt-1">
+                Gérez vos prospects avec affectation automatique et qualification
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {commercialisation.canImportProspects && (
+                <Button onClick={() => setShowImportModal(true)} variant="outline">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import
+                </Button>
+              )}
+              {commercialisation.canExportProspects && (
+                <Button onClick={handleExport} variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+              )}
+              {commercialisation.canCreateProspect && (
+                <Button onClick={() => setShowAddModal(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter prospect
+                </Button>
+              )}
+              <Button onClick={() => refetch()} variant="ghost" size="icon">
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            {commercialisation.canImportProspects && (
-              <Button onClick={() => setShowImportModal(true)} variant="outline">
-                <Upload className="h-4 w-4 mr-2" />
-                Import
-              </Button>
-            )}
-            {commercialisation.canExportProspects && (
-              <Button onClick={handleExport} variant="outline">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-            )}
-            {commercialisation.canCreateProspect && (
-              <Button onClick={() => setShowAddModal(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter prospect
-              </Button>
-            )}
-            <Button onClick={() => refetch()} variant="ghost" size="icon">
-              <RefreshCw className="h-4 w-4" />
+
+          {/* Ligne 2: Bouton Indicateurs centré */}
+          <div className="flex justify-center">
+            <Button
+              onClick={() => setShowIndicateursModal(true)}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-3 text-base font-semibold"
+              size="lg"
+            >
+              <BarChart3 className="h-5 w-5 mr-2" />
+              Indicateurs
             </Button>
           </div>
         </div>
@@ -1225,6 +1243,16 @@ export default function Prospects() {
           data={ecartDetails || null}
           isLoading={ecartLoading}
           error={ecartError ? (ecartError as Error).message : null}
+        />
+
+        {/* Modal Indicateurs */}
+        <IndicateursModal
+          open={showIndicateursModal}
+          onClose={() => setShowIndicateursModal(false)}
+          filters={{
+            segment_id: filters.segment_id,
+            ville_id: filters.ville_id,
+          }}
         />
       </div>
     </AppLayout>
