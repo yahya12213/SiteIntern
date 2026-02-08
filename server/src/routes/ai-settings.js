@@ -3,7 +3,10 @@ import pool from '../config/database.js';
 
 const router = express.Router();
 
-// GET /api/ai-settings - Get AI configuration
+// Provider configuration
+const PROVIDERS = ['claude', 'openai', 'gemini'];
+
+// GET /api/ai-settings - Get AI configuration (multi-provider)
 router.get('/', async (req, res) => {
   try {
     // Check if user is admin
@@ -16,19 +19,29 @@ router.get('/', async (req, res) => {
       WHERE key LIKE 'ai_%'
     `);
 
-    // Convert to object, mask API key
+    // Convert to object, mask API keys
     const settings = {};
     result.rows.forEach(row => {
-      if (row.key === 'ai_api_key' && row.value) {
-        // Mask the API key, show only last 4 characters
+      // Mask any API key field
+      if (row.key.includes('_api_key') && row.value) {
         settings[row.key] = row.value.length > 4
           ? '*'.repeat(row.value.length - 4) + row.value.slice(-4)
           : '****';
-        settings.ai_api_key_configured = true;
+        settings[row.key + '_configured'] = true;
       } else {
         settings[row.key] = row.value;
       }
     });
+
+    // Legacy support: map old single-provider settings to new format
+    if (settings.ai_api_key_configured && settings.ai_provider) {
+      const provider = settings.ai_provider;
+      if (!settings[`ai_${provider}_api_key_configured`]) {
+        settings[`ai_${provider}_api_key_configured`] = true;
+        settings[`ai_${provider}_model`] = settings.ai_model;
+        settings[`ai_${provider}_enabled`] = settings.ai_enabled;
+      }
+    }
 
     res.json(settings);
   } catch (error) {
@@ -67,7 +80,7 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// POST /api/ai-settings - Save AI configuration
+// POST /api/ai-settings - Save AI configuration (multi-provider)
 router.post('/', async (req, res) => {
   try {
     // Check if user is admin
@@ -75,24 +88,75 @@ router.post('/', async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    const { ai_provider, ai_api_key, ai_model, ai_enabled } = req.body;
+    const {
+      // Legacy single provider
+      ai_provider, ai_api_key, ai_model, ai_enabled,
+      // Multi-provider settings
+      ai_primary_provider,
+      ai_fallback_enabled,
+      // Claude
+      ai_claude_api_key, ai_claude_model, ai_claude_enabled,
+      // OpenAI
+      ai_openai_api_key, ai_openai_model, ai_openai_enabled,
+      // Gemini
+      ai_gemini_api_key, ai_gemini_model, ai_gemini_enabled
+    } = req.body;
 
-    // Validate provider
-    const validProviders = ['claude', 'openai', 'gemini'];
-    if (ai_provider && !validProviders.includes(ai_provider)) {
-      return res.status(400).json({ error: 'Invalid AI provider' });
+    const settings = [];
+
+    // Multi-provider settings
+    if (ai_primary_provider !== undefined) {
+      settings.push({ key: 'ai_primary_provider', value: ai_primary_provider || 'gemini' });
+    }
+    if (ai_fallback_enabled !== undefined) {
+      settings.push({ key: 'ai_fallback_enabled', value: ai_fallback_enabled ? 'true' : 'false' });
     }
 
-    // Upsert settings
-    const settings = [
-      { key: 'ai_provider', value: ai_provider || '' },
-      { key: 'ai_model', value: ai_model || '' },
-      { key: 'ai_enabled', value: ai_enabled ? 'true' : 'false' }
-    ];
+    // Claude settings
+    if (ai_claude_api_key && !ai_claude_api_key.includes('*')) {
+      settings.push({ key: 'ai_claude_api_key', value: ai_claude_api_key });
+    }
+    if (ai_claude_model !== undefined) {
+      settings.push({ key: 'ai_claude_model', value: ai_claude_model || '' });
+    }
+    if (ai_claude_enabled !== undefined) {
+      settings.push({ key: 'ai_claude_enabled', value: ai_claude_enabled ? 'true' : 'false' });
+    }
 
-    // Only update API key if provided (not masked)
+    // OpenAI settings
+    if (ai_openai_api_key && !ai_openai_api_key.includes('*')) {
+      settings.push({ key: 'ai_openai_api_key', value: ai_openai_api_key });
+    }
+    if (ai_openai_model !== undefined) {
+      settings.push({ key: 'ai_openai_model', value: ai_openai_model || '' });
+    }
+    if (ai_openai_enabled !== undefined) {
+      settings.push({ key: 'ai_openai_enabled', value: ai_openai_enabled ? 'true' : 'false' });
+    }
+
+    // Gemini settings
+    if (ai_gemini_api_key && !ai_gemini_api_key.includes('*')) {
+      settings.push({ key: 'ai_gemini_api_key', value: ai_gemini_api_key });
+    }
+    if (ai_gemini_model !== undefined) {
+      settings.push({ key: 'ai_gemini_model', value: ai_gemini_model || '' });
+    }
+    if (ai_gemini_enabled !== undefined) {
+      settings.push({ key: 'ai_gemini_enabled', value: ai_gemini_enabled ? 'true' : 'false' });
+    }
+
+    // Legacy support: single provider settings
+    if (ai_provider !== undefined) {
+      settings.push({ key: 'ai_provider', value: ai_provider || '' });
+    }
     if (ai_api_key && !ai_api_key.includes('*')) {
       settings.push({ key: 'ai_api_key', value: ai_api_key });
+    }
+    if (ai_model !== undefined) {
+      settings.push({ key: 'ai_model', value: ai_model || '' });
+    }
+    if (ai_enabled !== undefined) {
+      settings.push({ key: 'ai_enabled', value: ai_enabled ? 'true' : 'false' });
     }
 
     for (const setting of settings) {
@@ -120,15 +184,18 @@ router.get('/models', async (req, res) => {
 
     const { provider } = req.query;
 
-    // Get API key from database
+    // Get API key from database - try provider-specific key first, then legacy
     const result = await pool.query(`
-      SELECT value FROM app_settings WHERE key = 'ai_api_key'
+      SELECT key, value FROM app_settings
+      WHERE key IN ('ai_${provider}_api_key', 'ai_api_key')
     `);
 
-    const apiKey = result.rows[0]?.value;
+    const keyMap = {};
+    result.rows.forEach(row => { keyMap[row.key] = row.value; });
+    const apiKey = keyMap[`ai_${provider}_api_key`] || keyMap['ai_api_key'];
 
     if (!apiKey) {
-      return res.status(400).json({ error: 'API key not configured' });
+      return res.status(400).json({ error: 'API key not configured for ' + provider });
     }
 
     let models = [];
@@ -179,7 +246,7 @@ router.get('/models', async (req, res) => {
   }
 });
 
-// POST /api/ai-settings/test - Test AI connection
+// POST /api/ai-settings/test - Test AI connection (supports specific provider via query param)
 router.post('/test', async (req, res) => {
   try {
     // Check if user is admin
@@ -187,69 +254,78 @@ router.post('/test', async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    // Get current settings
+    const { provider: specificProvider } = req.query;
+
+    // Get all AI settings
     const result = await pool.query(`
       SELECT key, value FROM app_settings
-      WHERE key IN ('ai_provider', 'ai_api_key', 'ai_model')
+      WHERE key LIKE 'ai_%'
     `);
 
-    const settings = {};
+    const allSettings = {};
     result.rows.forEach(row => {
-      settings[row.key] = row.value;
+      allSettings[row.key] = row.value;
     });
 
-    if (!settings.ai_provider || !settings.ai_api_key) {
-      return res.status(400).json({ error: 'AI not configured' });
+    // Determine which provider to test
+    let providerToTest = specificProvider || allSettings.ai_primary_provider || allSettings.ai_provider;
+
+    // Get provider-specific settings, fallback to legacy
+    const apiKey = allSettings[`ai_${providerToTest}_api_key`] || allSettings.ai_api_key;
+    const model = allSettings[`ai_${providerToTest}_model`] || allSettings.ai_model;
+
+    if (!providerToTest || !apiKey) {
+      return res.status(400).json({ error: `Configuration manquante pour ${providerToTest || 'IA'}` });
     }
 
     // Test connection based on provider
-    let testResult = { success: false, message: '' };
+    let testResult = { success: false, message: '', provider: providerToTest };
 
     try {
-      if (settings.ai_provider === 'claude') {
+      if (providerToTest === 'claude') {
         const response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': settings.ai_api_key,
+            'x-api-key': apiKey,
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
-            model: settings.ai_model || 'claude-3-haiku-20240307',
+            model: model || 'claude-3-haiku-20240307',
             max_tokens: 10,
             messages: [{ role: 'user', content: 'Test' }]
           })
         });
 
         if (response.ok) {
-          testResult = { success: true, message: 'Connection to Claude API successful' };
+          testResult = { success: true, message: 'Connexion à Claude API réussie', provider: 'claude' };
         } else {
           const error = await response.json();
-          testResult = { success: false, message: error.error?.message || 'Connection failed' };
+          testResult = { success: false, message: error.error?.message || 'Connection failed', provider: 'claude' };
         }
-      } else if (settings.ai_provider === 'openai') {
+      } else if (providerToTest === 'openai') {
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${settings.ai_api_key}`
+            'Authorization': `Bearer ${apiKey}`
           },
           body: JSON.stringify({
-            model: settings.ai_model || 'gpt-4o-mini',
+            model: model || 'gpt-4o-mini',
             max_tokens: 10,
             messages: [{ role: 'user', content: 'Test' }]
           })
         });
 
         if (response.ok) {
-          testResult = { success: true, message: 'Connection to OpenAI API successful' };
+          testResult = { success: true, message: 'Connexion à OpenAI API réussie', provider: 'openai' };
         } else {
           const error = await response.json();
-          testResult = { success: false, message: error.error?.message || 'Connection failed' };
+          testResult = { success: false, message: error.error?.message || 'Connection failed', provider: 'openai' };
         }
-      } else if (settings.ai_provider === 'gemini') {
-        const modelName = settings.ai_model || 'gemini-2.0-flash';
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${settings.ai_api_key}`, {
+      } else if (providerToTest === 'gemini') {
+        const modelName = model || 'gemini-2.0-flash';
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -258,7 +334,7 @@ router.post('/test', async (req, res) => {
         });
 
         if (response.ok) {
-          testResult = { success: true, message: 'Connection to Gemini API successful' };
+          testResult = { success: true, message: 'Connexion à Gemini API réussie', provider: 'gemini' };
         } else {
           const error = await response.json();
           testResult = { success: false, message: error.error?.message || 'Connection failed' };
@@ -275,15 +351,15 @@ router.post('/test', async (req, res) => {
   }
 });
 
-// POST /api/ai-settings/analyze - Run AI analysis on prospects data
+// POST /api/ai-settings/analyze - Run AI analysis on prospects data (with fallback support)
 router.post('/analyze', async (req, res) => {
   try {
     const { indicators, filters } = req.body;
 
-    // Get AI settings
+    // Get all AI settings
     const settingsResult = await pool.query(`
       SELECT key, value FROM app_settings
-      WHERE key IN ('ai_provider', 'ai_api_key', 'ai_model', 'ai_enabled')
+      WHERE key LIKE 'ai_%'
     `);
 
     const settings = {};
@@ -291,50 +367,109 @@ router.post('/analyze', async (req, res) => {
       settings[row.key] = row.value;
     });
 
-    if (!settings.ai_enabled || settings.ai_enabled !== 'true') {
-      return res.status(400).json({
-        error: 'AI not enabled',
-        code: 'AI_NOT_ENABLED',
-        message: 'L\'IA n\'est pas activée. Contactez l\'administrateur pour configurer l\'IA.'
-      });
+    // Build list of available providers (enabled with API key)
+    const availableProviders = [];
+
+    // Check each provider
+    for (const provider of PROVIDERS) {
+      const apiKey = settings[`ai_${provider}_api_key`];
+      const enabled = settings[`ai_${provider}_enabled`] === 'true';
+
+      if (apiKey && enabled) {
+        availableProviders.push({
+          name: provider,
+          apiKey,
+          model: settings[`ai_${provider}_model`]
+        });
+      }
     }
 
-    if (!settings.ai_provider || !settings.ai_api_key) {
+    // Legacy fallback: check old single-provider settings
+    if (availableProviders.length === 0 && settings.ai_provider && settings.ai_api_key) {
+      if (settings.ai_enabled === 'true') {
+        availableProviders.push({
+          name: settings.ai_provider,
+          apiKey: settings.ai_api_key,
+          model: settings.ai_model
+        });
+      }
+    }
+
+    if (availableProviders.length === 0) {
       return res.status(400).json({
         error: 'AI not configured',
         code: 'AI_NOT_CONFIGURED',
-        message: 'L\'IA n\'est pas configurée. Contactez l\'administrateur.'
+        message: 'Aucun fournisseur IA n\'est configuré et activé. Contactez l\'administrateur.'
       });
     }
+
+    // Determine provider order (primary first, then others)
+    const primaryProvider = settings.ai_primary_provider || availableProviders[0]?.name;
+    const fallbackEnabled = settings.ai_fallback_enabled === 'true';
+
+    // Sort providers: primary first, then others
+    availableProviders.sort((a, b) => {
+      if (a.name === primaryProvider) return -1;
+      if (b.name === primaryProvider) return 1;
+      return 0;
+    });
 
     // Build the analysis prompt
     const prompt = buildAnalysisPrompt(indicators, filters);
 
-    // Call AI API based on provider
-    let aiResponse;
-    try {
-      if (settings.ai_provider === 'claude') {
-        aiResponse = await callClaudeAPI(settings.ai_api_key, settings.ai_model, prompt);
-      } else if (settings.ai_provider === 'openai') {
-        aiResponse = await callOpenAIAPI(settings.ai_api_key, settings.ai_model, prompt);
-      } else if (settings.ai_provider === 'gemini') {
-        aiResponse = await callGeminiAPI(settings.ai_api_key, settings.ai_model, prompt);
-      } else {
-        return res.status(400).json({ error: 'Unknown AI provider' });
+    // Try providers in order with fallback
+    let aiResponse = null;
+    let usedProvider = null;
+    let usedModel = null;
+    const errors = [];
+
+    for (const provider of availableProviders) {
+      try {
+        console.log(`🤖 Trying AI provider: ${provider.name}`);
+
+        if (provider.name === 'claude') {
+          aiResponse = await callClaudeAPI(provider.apiKey, provider.model, prompt);
+        } else if (provider.name === 'openai') {
+          aiResponse = await callOpenAIAPI(provider.apiKey, provider.model, prompt);
+        } else if (provider.name === 'gemini') {
+          aiResponse = await callGeminiAPI(provider.apiKey, provider.model, prompt);
+        }
+
+        usedProvider = provider.name;
+        usedModel = provider.model;
+        console.log(`✅ AI response received from ${provider.name}`);
+        break; // Success - exit loop
+
+      } catch (apiError) {
+        console.error(`❌ ${provider.name} API error:`, apiError.message);
+        errors.push({ provider: provider.name, error: apiError.message });
+
+        // If fallback is disabled, don't try other providers
+        if (!fallbackEnabled) {
+          return res.status(500).json({
+            error: 'AI API error',
+            message: `Erreur ${provider.name}: ${apiError.message}`,
+            provider: provider.name
+          });
+        }
+        // Continue to next provider
       }
-    } catch (apiError) {
-      console.error('AI API error:', apiError);
+    }
+
+    if (!aiResponse) {
       return res.status(500).json({
-        error: 'AI API error',
-        message: apiError.message
+        error: 'All AI providers failed',
+        message: 'Tous les fournisseurs IA ont échoué. Réessayez plus tard.',
+        errors
       });
     }
 
     res.json({
       success: true,
       analysis: aiResponse,
-      provider: settings.ai_provider,
-      model: settings.ai_model
+      provider: usedProvider,
+      model: usedModel,
+      fallbackUsed: usedProvider !== primaryProvider
     });
 
   } catch (error) {

@@ -23,55 +23,94 @@ import {
   Server,
   CheckCircle,
   XCircle,
-  AlertTriangle,
   Loader2,
-  Settings,
   Sparkles,
   Shield,
   ExternalLink,
+  RefreshCw,
+  ArrowRightLeft,
+  Zap,
 } from 'lucide-react';
 
 interface AISettings {
+  // Multi-provider settings
+  ai_primary_provider?: string;
+  ai_fallback_enabled?: string;
+  // Claude
+  ai_claude_api_key?: string;
+  ai_claude_api_key_configured?: boolean;
+  ai_claude_model?: string;
+  ai_claude_enabled?: string;
+  // OpenAI
+  ai_openai_api_key?: string;
+  ai_openai_api_key_configured?: boolean;
+  ai_openai_model?: string;
+  ai_openai_enabled?: string;
+  // Gemini
+  ai_gemini_api_key?: string;
+  ai_gemini_api_key_configured?: boolean;
+  ai_gemini_model?: string;
+  ai_gemini_enabled?: string;
+  // Legacy
   ai_provider?: string;
-  ai_api_key?: string;
   ai_api_key_configured?: boolean;
   ai_model?: string;
   ai_enabled?: string;
 }
 
-const providers = [
+interface ProviderConfig {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  defaultModels: { id: string; name: string }[];
+  docUrl: string;
+}
+
+const providers: ProviderConfig[] = [
   {
-    id: 'claude',
-    name: 'Claude (Anthropic)',
-    description: 'Modèle Claude d\'Anthropic - Excellent pour l\'analyse',
-    models: [
-      { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku (Rapide, économique)' },
-      { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet (Équilibré)' },
-      { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus (Plus puissant)' },
+    id: 'gemini',
+    name: 'Gemini (Google)',
+    description: 'Gratuit - Recommandé pour commencer',
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-500',
+    defaultModels: [
+      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Rapide)' },
+      { id: 'gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash' },
+      { id: 'gemini-1.5-pro-latest', name: 'Gemini 1.5 Pro' },
     ],
-    docUrl: 'https://console.anthropic.com/',
+    docUrl: 'https://aistudio.google.com/app/apikey',
   },
   {
     id: 'openai',
     name: 'OpenAI (GPT)',
-    description: 'Modèles GPT d\'OpenAI',
-    models: [
-      { id: 'gpt-4o-mini', name: 'GPT-4o Mini (Rapide, économique)' },
-      { id: 'gpt-4o', name: 'GPT-4o (Plus puissant)' },
+    description: 'Payant - Très performant',
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-500',
+    defaultModels: [
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini (Économique)' },
+      { id: 'gpt-4o', name: 'GPT-4o (Puissant)' },
       { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
     ],
     docUrl: 'https://platform.openai.com/api-keys',
   },
   {
-    id: 'gemini',
-    name: 'Gemini (Google)',
-    description: 'Modèles Gemini de Google',
-    models: [
-      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash (Recommandé, Rapide)' },
-      { id: 'gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash Latest' },
-      { id: 'gemini-1.5-pro-latest', name: 'Gemini 1.5 Pro (Plus puissant)' },
+    id: 'claude',
+    name: 'Claude (Anthropic)',
+    description: 'Payant - Excellent pour l\'analyse',
+    color: 'text-orange-600',
+    bgColor: 'bg-orange-50',
+    borderColor: 'border-orange-500',
+    defaultModels: [
+      { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku (Rapide)' },
+      { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet (Équilibré)' },
+      { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus (Puissant)' },
     ],
-    docUrl: 'https://aistudio.google.com/app/apikey',
+    docUrl: 'https://console.anthropic.com/',
   },
 ];
 
@@ -81,11 +120,12 @@ export default function AISettings() {
   const [settings, setSettings] = useState<AISettings>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testingProvider, setTestingProvider] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
   const [error, setError] = useState<string | null>(null);
-  const [dynamicModels, setDynamicModels] = useState<{ id: string; name: string }[]>([]);
-  const [loadingModels, setLoadingModels] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [dynamicModels, setDynamicModels] = useState<Record<string, { id: string; name: string }[]>>({});
+  const [loadingModels, setLoadingModels] = useState<string | null>(null);
 
   // Check if user is admin
   useEffect(() => {
@@ -100,6 +140,17 @@ export default function AISettings() {
       try {
         const data = await apiClient.get<AISettings>('/ai-settings');
         setSettings(data);
+
+        // Migrate legacy settings if needed
+        if (data.ai_provider && !data.ai_primary_provider) {
+          setSettings(prev => ({
+            ...prev,
+            ai_primary_provider: data.ai_provider,
+            [`ai_${data.ai_provider}_enabled`]: data.ai_enabled,
+            [`ai_${data.ai_provider}_model`]: data.ai_model,
+            [`ai_${data.ai_provider}_api_key_configured`]: data.ai_api_key_configured,
+          }));
+        }
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -109,24 +160,61 @@ export default function AISettings() {
     loadSettings();
   }, []);
 
+  // Load models for a provider
+  const loadModels = async (providerId: string) => {
+    if (!settings[`ai_${providerId}_api_key_configured`] && !settings.ai_api_key_configured) {
+      return;
+    }
+
+    setLoadingModels(providerId);
+    try {
+      const result = await apiClient.get<{ models: { id: string; name: string }[] }>(
+        `/ai-settings/models?provider=${providerId}`
+      );
+      setDynamicModels(prev => ({ ...prev, [providerId]: result.models }));
+    } catch (err: any) {
+      console.error(`Failed to load models for ${providerId}:`, err);
+    } finally {
+      setLoadingModels(null);
+    }
+  };
+
+  // Auto-load Gemini models when configured
+  useEffect(() => {
+    if (settings.ai_gemini_api_key_configured || (settings.ai_provider === 'gemini' && settings.ai_api_key_configured)) {
+      loadModels('gemini');
+    }
+  }, [settings.ai_gemini_api_key_configured, settings.ai_api_key_configured, settings.ai_provider]);
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
-    setTestResult(null);
+    setSuccessMessage(null);
 
     try {
       await apiClient.post('/ai-settings', {
-        ai_provider: settings.ai_provider,
-        ai_api_key: settings.ai_api_key,
-        ai_model: settings.ai_model,
-        ai_enabled: settings.ai_enabled === 'true',
+        ai_primary_provider: settings.ai_primary_provider || 'gemini',
+        ai_fallback_enabled: settings.ai_fallback_enabled === 'true',
+        // Claude
+        ai_claude_api_key: settings.ai_claude_api_key,
+        ai_claude_model: settings.ai_claude_model,
+        ai_claude_enabled: settings.ai_claude_enabled === 'true',
+        // OpenAI
+        ai_openai_api_key: settings.ai_openai_api_key,
+        ai_openai_model: settings.ai_openai_model,
+        ai_openai_enabled: settings.ai_openai_enabled === 'true',
+        // Gemini
+        ai_gemini_api_key: settings.ai_gemini_api_key,
+        ai_gemini_model: settings.ai_gemini_model,
+        ai_gemini_enabled: settings.ai_gemini_enabled === 'true',
       });
 
-      // Reload settings to get masked API key
+      // Reload settings
       const data = await apiClient.get<AISettings>('/ai-settings');
       setSettings(data);
 
-      setTestResult({ success: true, message: 'Configuration sauvegardée avec succès!' });
+      setSuccessMessage('Configuration sauvegardée avec succès!');
+      setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -134,55 +222,36 @@ export default function AISettings() {
     }
   };
 
-  const handleTest = async () => {
-    setTesting(true);
-    setTestResult(null);
-    setError(null);
+  const handleTest = async (providerId: string) => {
+    setTestingProvider(providerId);
+    setTestResults(prev => ({ ...prev, [providerId]: undefined }));
 
     try {
-      const result = await apiClient.post<{ success: boolean; message: string }>('/ai-settings/test');
-      setTestResult(result);
-    } catch (err: any) {
-      setTestResult({ success: false, message: err.message });
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  // Load available models from API (especially for Gemini)
-  const loadModels = async () => {
-    if (!settings.ai_provider || !settings.ai_api_key_configured) return;
-
-    setLoadingModels(true);
-    try {
-      const result = await apiClient.get<{ models: { id: string; name: string }[] }>(
-        `/ai-settings/models?provider=${settings.ai_provider}`
+      const result = await apiClient.post<{ success: boolean; message: string; provider: string }>(
+        `/ai-settings/test?provider=${providerId}`
       );
-      setDynamicModels(result.models);
-      // If current model is not in the list, clear it
-      if (settings.ai_model && !result.models.find(m => m.id === settings.ai_model)) {
-        setSettings(s => ({ ...s, ai_model: '' }));
-      }
+      setTestResults(prev => ({ ...prev, [providerId]: result }));
     } catch (err: any) {
-      console.error('Failed to load models:', err);
+      setTestResults(prev => ({ ...prev, [providerId]: { success: false, message: err.message } }));
     } finally {
-      setLoadingModels(false);
+      setTestingProvider(null);
     }
   };
 
-  // Auto-load models for Gemini when API key is configured
-  useEffect(() => {
-    if (settings.ai_provider === 'gemini' && settings.ai_api_key_configured) {
-      loadModels();
-    } else {
-      setDynamicModels([]);
-    }
-  }, [settings.ai_provider, settings.ai_api_key_configured]);
+  const getProviderStatus = (providerId: string) => {
+    const enabled = settings[`ai_${providerId}_enabled`] === 'true';
+    const configured = settings[`ai_${providerId}_api_key_configured`] ||
+      (settings.ai_provider === providerId && settings.ai_api_key_configured);
+    return { enabled, configured };
+  };
 
-  const selectedProvider = providers.find(p => p.id === settings.ai_provider);
+  const getEnabledProvidersCount = () => {
+    return providers.filter(p => getProviderStatus(p.id).enabled && getProviderStatus(p.id).configured).length;
+  };
 
-  // Use dynamic models if available, otherwise use static list
-  const availableModels = dynamicModels.length > 0 ? dynamicModels : selectedProvider?.models || [];
+  const getModelsForProvider = (providerId: string) => {
+    return dynamicModels[providerId] || providers.find(p => p.id === providerId)?.defaultModels || [];
+  };
 
   if (user?.role !== 'admin') {
     return null;
@@ -190,7 +259,7 @@ export default function AISettings() {
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="p-6 max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-lg">
@@ -198,24 +267,24 @@ export default function AISettings() {
           </div>
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-              Configuration IA
+              Configuration IA Multi-Fournisseur
             </h1>
             <p className="text-gray-500 mt-1">
-              Configurez l'intelligence artificielle pour l'analyse des données
+              Configurez plusieurs fournisseurs IA avec basculement automatique
             </p>
           </div>
         </div>
 
-        {/* Warning Card */}
-        <Card className="mb-6 border-amber-200 bg-amber-50">
+        {/* Info Card */}
+        <Card className="mb-6 border-blue-200 bg-blue-50">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <Shield className="h-5 w-5 text-amber-600 mt-0.5" />
+              <ArrowRightLeft className="h-5 w-5 text-blue-600 mt-0.5" />
               <div>
-                <h3 className="font-medium text-amber-800">Configuration sécurisée</h3>
-                <p className="text-sm text-amber-700 mt-1">
-                  Votre clé API est stockée de manière sécurisée et n'est jamais exposée côté client.
-                  Seuls les administrateurs peuvent accéder à cette page.
+                <h3 className="font-medium text-blue-800">Basculement automatique (Fallback)</h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  Configurez plusieurs fournisseurs IA. Si le fournisseur principal atteint son quota ou rencontre une erreur,
+                  le système basculera automatiquement vers le suivant.
                 </p>
               </div>
             </div>
@@ -228,155 +297,222 @@ export default function AISettings() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Provider Selection */}
+            {/* Global Settings */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Server className="h-5 w-5" />
-                  Fournisseur IA
+                  <Zap className="h-5 w-5" />
+                  Paramètres Globaux
                 </CardTitle>
-                <CardDescription>
-                  Choisissez le fournisseur d'IA que vous souhaitez utiliser
-                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {providers.map((provider) => (
-                    <div
-                      key={provider.id}
-                      onClick={() => setSettings(s => ({ ...s, ai_provider: provider.id, ai_model: '' }))}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        settings.ai_provider === provider.id
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="font-medium">{provider.name}</div>
-                      <div className="text-sm text-gray-500 mt-1">{provider.description}</div>
-                      <a
-                        href={provider.docUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1 mt-2"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Obtenir une clé API <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* API Key & Model */}
-            {settings.ai_provider && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Key className="h-5 w-5" />
-                    Configuration {selectedProvider?.name}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="api_key">Clé API</Label>
-                    <div className="relative">
-                      <Input
-                        id="api_key"
-                        type="password"
-                        placeholder="sk-... ou votre clé API"
-                        value={settings.ai_api_key || ''}
-                        onChange={(e) => setSettings(s => ({ ...s, ai_api_key: e.target.value }))}
-                        className="pr-24"
-                      />
-                      {settings.ai_api_key_configured && (
-                        <Badge
-                          variant="success"
-                          className="absolute right-2 top-1/2 -translate-y-1/2"
-                        >
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Configurée
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Laissez vide pour conserver la clé existante
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="model">Modèle</Label>
-                      {settings.ai_provider === 'gemini' && settings.ai_api_key_configured && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={loadModels}
-                          disabled={loadingModels}
-                          className="text-xs"
-                        >
-                          {loadingModels ? (
-                            <>
-                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                              Chargement...
-                            </>
-                          ) : (
-                            <>
-                              <Server className="h-3 w-3 mr-1" />
-                              Actualiser les modèles
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </div>
+                    <Label>Fournisseur Principal</Label>
                     <Select
-                      value={settings.ai_model || ''}
-                      onValueChange={(value) => setSettings(s => ({ ...s, ai_model: value }))}
+                      value={settings.ai_primary_provider || 'gemini'}
+                      onValueChange={(value) => setSettings(s => ({ ...s, ai_primary_provider: value }))}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={loadingModels ? "Chargement des modèles..." : "Sélectionnez un modèle"} />
+                        <SelectValue placeholder="Sélectionnez le fournisseur principal" />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableModels.map((model) => (
-                          <SelectItem key={model.id} value={model.id}>
-                            {model.name}
+                        {providers.map((provider) => (
+                          <SelectItem key={provider.id} value={provider.id}>
+                            {provider.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {settings.ai_provider === 'gemini' && dynamicModels.length > 0 && (
-                      <p className="text-xs text-green-600">
-                        ✓ {dynamicModels.length} modèles détectés depuis votre compte Google
-                      </p>
-                    )}
+                    <p className="text-xs text-gray-500">
+                      Sera utilisé en priorité pour les analyses
+                    </p>
                   </div>
 
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Sparkles className="h-5 w-5 text-purple-600" />
+                      <RefreshCw className="h-5 w-5 text-purple-600" />
                       <div>
-                        <Label htmlFor="enabled" className="text-base font-medium">
-                          Activer l'IA
+                        <Label className="text-base font-medium">
+                          Activer le Fallback
                         </Label>
                         <p className="text-sm text-gray-500">
-                          Active les fonctionnalités d'analyse IA dans l'application
+                          Basculer automatiquement si erreur/quota
                         </p>
                       </div>
                     </div>
                     <Switch
-                      id="enabled"
-                      checked={settings.ai_enabled === 'true'}
+                      checked={settings.ai_fallback_enabled === 'true'}
                       onCheckedChange={(checked) =>
-                        setSettings(s => ({ ...s, ai_enabled: checked ? 'true' : 'false' }))
+                        setSettings(s => ({ ...s, ai_fallback_enabled: checked ? 'true' : 'false' }))
                       }
                     />
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                </div>
 
-            {/* Error/Success Messages */}
+                {/* Status summary */}
+                <div className="flex items-center gap-2 pt-2">
+                  <span className="text-sm text-gray-600">Fournisseurs actifs:</span>
+                  <Badge variant={getEnabledProvidersCount() > 0 ? 'default' : 'secondary'}>
+                    {getEnabledProvidersCount()} / {providers.length}
+                  </Badge>
+                  {getEnabledProvidersCount() > 1 && settings.ai_fallback_enabled === 'true' && (
+                    <Badge variant="outline" className="text-green-600 border-green-300">
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Fallback activé
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Provider Cards */}
+            {providers.map((provider) => {
+              const status = getProviderStatus(provider.id);
+              const testResult = testResults[provider.id];
+              const isPrimary = settings.ai_primary_provider === provider.id;
+              const models = getModelsForProvider(provider.id);
+
+              return (
+                <Card
+                  key={provider.id}
+                  className={`transition-all ${status.enabled ? provider.borderColor + ' border-2' : 'border-gray-200'}`}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <div className={`p-2 rounded-lg ${provider.bgColor}`}>
+                          <Server className={`h-4 w-4 ${provider.color}`} />
+                        </div>
+                        {provider.name}
+                        {isPrimary && (
+                          <Badge variant="default" className="ml-2">Principal</Badge>
+                        )}
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        {status.configured && (
+                          <Badge variant="outline" className="text-green-600 border-green-300">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Configuré
+                          </Badge>
+                        )}
+                        <Switch
+                          checked={status.enabled}
+                          onCheckedChange={(checked) =>
+                            setSettings(s => ({ ...s, [`ai_${provider.id}_enabled`]: checked ? 'true' : 'false' }))
+                          }
+                        />
+                      </div>
+                    </div>
+                    <CardDescription>{provider.description}</CardDescription>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
+                    {/* API Key */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label>Clé API</Label>
+                        <a
+                          href={provider.docUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-purple-600 hover:text-purple-700 flex items-center gap-1"
+                        >
+                          Obtenir une clé <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                      <div className="relative">
+                        <Input
+                          type="password"
+                          placeholder={`Clé API ${provider.name}`}
+                          value={settings[`ai_${provider.id}_api_key`] || ''}
+                          onChange={(e) => setSettings(s => ({ ...s, [`ai_${provider.id}_api_key`]: e.target.value }))}
+                          className="pr-24"
+                        />
+                        {status.configured && (
+                          <Badge variant="success" className="absolute right-2 top-1/2 -translate-y-1/2">
+                            <Key className="h-3 w-3 mr-1" />
+                            OK
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Model Selection */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label>Modèle</Label>
+                        {provider.id === 'gemini' && status.configured && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => loadModels(provider.id)}
+                            disabled={loadingModels === provider.id}
+                            className="text-xs"
+                          >
+                            {loadingModels === provider.id ? (
+                              <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Chargement...</>
+                            ) : (
+                              <><RefreshCw className="h-3 w-3 mr-1" />Actualiser</>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                      <Select
+                        value={settings[`ai_${provider.id}_model`] || ''}
+                        onValueChange={(value) => setSettings(s => ({ ...s, [`ai_${provider.id}_model`]: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionnez un modèle" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {models.map((model) => (
+                            <SelectItem key={model.id} value={model.id}>
+                              {model.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {provider.id === 'gemini' && dynamicModels.gemini?.length > 0 && (
+                        <p className="text-xs text-green-600">
+                          ✓ {dynamicModels.gemini.length} modèles détectés
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Test Result & Button */}
+                    <div className="flex items-center justify-between pt-2">
+                      {testResult && (
+                        <div className={`flex items-center gap-2 text-sm ${testResult.success ? 'text-green-600' : 'text-red-600'}`}>
+                          {testResult.success ? (
+                            <CheckCircle className="h-4 w-4" />
+                          ) : (
+                            <XCircle className="h-4 w-4" />
+                          )}
+                          {testResult.message}
+                        </div>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleTest(provider.id)}
+                        disabled={testingProvider === provider.id || !status.configured}
+                        className="ml-auto"
+                      >
+                        {testingProvider === provider.id ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Test...</>
+                        ) : (
+                          <><Sparkles className="h-4 w-4 mr-2" />Tester</>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+
+            {/* Messages */}
             {error && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
                 <XCircle className="h-5 w-5 text-red-500 mt-0.5" />
@@ -387,72 +523,24 @@ export default function AISettings() {
               </div>
             )}
 
-            {testResult && (
-              <div
-                className={`p-4 rounded-lg flex items-start gap-3 ${
-                  testResult.success
-                    ? 'bg-green-50 border border-green-200'
-                    : 'bg-red-50 border border-red-200'
-                }`}
-              >
-                {testResult.success ? (
-                  <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
-                ) : (
-                  <XCircle className="h-5 w-5 text-red-500 mt-0.5" />
-                )}
-                <div>
-                  <div
-                    className={`font-medium ${
-                      testResult.success ? 'text-green-800' : 'text-red-800'
-                    }`}
-                  >
-                    {testResult.success ? 'Succès' : 'Échec'}
-                  </div>
-                  <div
-                    className={`text-sm ${
-                      testResult.success ? 'text-green-700' : 'text-red-700'
-                    }`}
-                  >
-                    {testResult.message}
-                  </div>
-                </div>
+            {successMessage && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+                <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                <div className="font-medium text-green-800">{successMessage}</div>
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={handleTest}
-                disabled={testing || !settings.ai_provider || !settings.ai_api_key_configured}
-              >
-                {testing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Test en cours...
-                  </>
-                ) : (
-                  <>
-                    <Settings className="h-4 w-4 mr-2" />
-                    Tester la connexion
-                  </>
-                )}
-              </Button>
+            {/* Save Button */}
+            <div className="flex justify-end">
               <Button
                 onClick={handleSave}
-                disabled={saving || !settings.ai_provider}
+                disabled={saving}
                 className="bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700"
               >
                 {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Sauvegarde...
-                  </>
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sauvegarde...</>
                 ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Sauvegarder
-                  </>
+                  <><CheckCircle className="h-4 w-4 mr-2" />Sauvegarder la configuration</>
                 )}
               </Button>
             </div>
