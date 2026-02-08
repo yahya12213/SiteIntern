@@ -497,10 +497,13 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
       const formData = new FormData();
       formData.append('photo', photoFile);
 
+      // Get token from sessionStorage first (session), then localStorage (persistent)
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
+
       const response = await fetch(`/api/hr/employees/${empId}/photo`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: formData
       });
@@ -529,10 +532,13 @@ export default function EmployeeFormModal({ employeeId, onClose }: EmployeeFormM
     if (!confirm('Êtes-vous sûr de vouloir supprimer la photo ?')) return;
 
     try {
+      // Get token from sessionStorage first (session), then localStorage (persistent)
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
+
       const response = await fetch(`/api/hr/employees/${employeeId}/photo`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${token}`
         }
       });
 

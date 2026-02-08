@@ -54,10 +54,13 @@ export function DocumentUploadModal({ employeeId, employeeName, onClose }: Docum
         formDataToSend.append('expiry_date', formData.expiry_date);
       }
 
+      // Get token from sessionStorage first (session), then localStorage (persistent)
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
+
       const response = await fetch(`/api/hr/employees/${employeeId}/documents/upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: formDataToSend
       });

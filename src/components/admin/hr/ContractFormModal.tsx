@@ -52,10 +52,13 @@ export function ContractFormModal({ employeeId, employeeName, onClose }: Contrac
       if (formData.department) formDataToSend.append('department', formData.department);
       if (formData.notes) formDataToSend.append('notes', formData.notes);
 
+      // Get token from sessionStorage first (session), then localStorage (persistent)
+      const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
+
       const response = await fetch(`/api/hr/employees/${employeeId}/contracts/upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: formDataToSend
       });
