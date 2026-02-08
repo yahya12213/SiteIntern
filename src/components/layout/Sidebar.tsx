@@ -36,6 +36,8 @@ import {
   Receipt,
   Send,
   BarChart2,
+  Brain,
+  Settings,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -51,6 +53,7 @@ interface NavItem {
   icon: React.ElementType;
   label: string;
   permission?: string; // Permission code required to see this menu item
+  adminOnly?: boolean; // Only visible to admin users
 }
 
 interface SidebarProps {
@@ -60,8 +63,9 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggle }) => {
   const location = useLocation();
-  const { hasPermission } = useAuth();
-  const [expandedSections, setExpandedSections] = useState<string[]>(['utilisateur-etudiant', 'gestion-comptable', 'formation', 'ressources-humaines', 'mon-equipe', 'mon-espace-rh', 'commercialisation']);
+  const { hasPermission, user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const [expandedSections, setExpandedSections] = useState<string[]>(['utilisateur-etudiant', 'gestion-comptable', 'formation', 'ressources-humaines', 'mon-equipe', 'mon-espace-rh', 'commercialisation', 'administration']);
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev =>
@@ -159,15 +163,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggle 
         { to: '/admin/commercialisation/analyse-publicite', icon: BarChart2, label: 'Analyse Publicite', permission: PERMISSIONS.commercialisation.analyse_publicite.voir },
       ],
     },
+    // Section Administration (Admin Only)
+    {
+      id: 'administration',
+      title: 'Administration',
+      icon: Settings,
+      items: [
+        { to: '/admin/ai-settings', icon: Brain, label: 'Configuration IA', adminOnly: true },
+      ],
+    },
   ];
 
-  // Filter sections based on user permissions
+  // Filter sections based on user permissions and admin status
   const filteredSections = sections
     .map(section => ({
       ...section,
-      items: section.items.filter(item =>
-        !item.permission || hasPermission(item.permission)
-      ),
+      items: section.items.filter(item => {
+        // Check admin-only items
+        if (item.adminOnly && !isAdmin) return false;
+        // Check permission-based items
+        if (item.permission && !hasPermission(item.permission)) return false;
+        return true;
+      }),
     }))
     .filter(section => section.items.length > 0); // Hide empty sections
 

@@ -58,6 +58,7 @@ import Devis from './pages/admin/commercialisation/Devis';
 import Contrats from './pages/admin/commercialisation/Contrats';
 import GoogleContactsManagement from './pages/admin/commercialisation/GoogleContactsManagement';
 import AnalysePublicite from './pages/admin/commercialisation/AnalysePublicite';
+import AISettings from './pages/admin/AISettings';
 import Clocking from './pages/employee/Clocking';
 import StudentDashboard from './pages/student/StudentDashboard';
 import FormationCatalog from './pages/student/FormationCatalog';
@@ -563,6 +564,16 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.analyse_publicite?.voir}>
             <AnalysePublicite />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Admin Routes - Configuration IA (Admin Only) */}
+      <Route
+        path="/admin/ai-settings"
+        element={
+          <ProtectedRoute adminOnly>
+            <AISettings />
           </ProtectedRoute>
         }
       />

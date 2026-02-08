@@ -223,6 +223,8 @@ import hrEnrollmentBonusesRouter from './routes/hr-enrollment-bonuses.js';
 import hrAssistantBonusRouter from './routes/hr-assistant-bonus.js';
 import testWorkflowRouter from './routes/test-workflow.js';
 import debugAuthRouter from './routes/debug-auth.js';
+import aiSettingsRouter from './routes/ai-settings.js';
+import migration150Router from './routes/migration-150-ai-settings.js';
 
 // Import cron jobs
 import { startAbsenceDetectionJob } from './jobs/absence-detection.js';
@@ -336,6 +338,7 @@ app.use('/api/visits', authenticateToken, visitsRouter);
 app.use('/api/facebook-stats', authenticateToken, facebookStatsRouter);
 app.use('/api/projects', authenticateToken, projectsRouter);
 app.use('/api/migration-projects', authenticateToken, migrationProjectsRouter);
+app.use('/api/ai-settings', authenticateToken, aiSettingsRouter);
 
 // Google OAuth routes - callback is public (Google redirects there), other routes require auth
 // The router handles authentication internally per-route
@@ -502,6 +505,7 @@ app.use('/api/migration-148-merge-recovery-statuses', ...adminOnly, migration148
 app.use('/api/migration-151-add-ville-to-employees', ...adminOnly, migration151Router);
 app.use('/api/migration-152-delivery-date-tracking', ...adminOnly, migration152Router);
 app.use('/api/migration-153-profile-image', ...adminOnly, migration153Router);
+app.use('/api/migration-150-ai-settings', ...adminOnly, migration150Router);
 app.use('/api/test-workflow', ...adminOnly, testWorkflowRouter);
 // Note: /my/correction-requests routes are in hr-employee-self.js (mounted at /api/hr/my)
 // Manager routes for correction requests are mounted separately below
