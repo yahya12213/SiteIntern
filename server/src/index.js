@@ -527,30 +527,6 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// TEMPORARY: Run migration-154 (initial_leave_balance) - NO AUTH - DELETE AFTER USE
-app.get('/run-migration-154', async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const checkColumn = await client.query(`
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_name = 'hr_employees' AND column_name = 'initial_leave_balance'
-    `);
-
-    if (checkColumn.rows.length === 0) {
-      await client.query('ALTER TABLE hr_employees ADD COLUMN initial_leave_balance DECIMAL(5,2) DEFAULT 0');
-      await client.query('ALTER TABLE hr_employees ADD COLUMN IF NOT EXISTS leave_balance_updated_at TIMESTAMP');
-      res.json({ success: true, message: 'Added initial_leave_balance column to hr_employees table' });
-    } else {
-      res.json({ success: true, message: 'initial_leave_balance column already exists' });
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  } finally {
-    client.release();
-  }
-});
-
 // TEMPORARY: Debug endpoint to check profiles table - NO AUTH
 app.get('/check-admin-profiles', async (req, res) => {
   try {
