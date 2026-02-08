@@ -77,6 +77,16 @@ export const rolesApi = {
   },
 
   /**
+   * Duplicate a role with all its permissions
+   */
+  async duplicateRole(
+    id: string,
+    data?: { name?: string; description?: string }
+  ): Promise<{ success: boolean; role: Role; permissions_count: number; message: string }> {
+    return apiClient.post(`/roles/${id}/duplicate`, data || {});
+  },
+
+  /**
    * Get all permissions (grouped by module)
    */
   async getAllPermissions(): Promise<{

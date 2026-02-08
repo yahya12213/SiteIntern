@@ -461,6 +461,81 @@ router.delete('/:id', requirePermission('system.roles.delete'), async (req, res)
 });
 
 /**
+ * POST /api/roles/:id/duplicate
+ * Duplicate a role with all its permissions
+ */
+router.post('/:id/duplicate', requirePermission('system.roles.create'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+
+    // Check if source role exists
+    const sourceRoleResult = await client.query('SELECT * FROM roles WHERE id = $1', [id]);
+    if (sourceRoleResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Rôle source introuvable',
+      });
+    }
+
+    const sourceRole = sourceRoleResult.rows[0];
+
+    // Generate new name if not provided
+    const newName = name || `${sourceRole.name} (copie)`;
+
+    // Check if new name already exists
+    const existingRole = await client.query('SELECT id FROM roles WHERE name = $1', [newName]);
+    if (existingRole.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `Un rôle avec le nom "${newName}" existe déjà`,
+      });
+    }
+
+    await client.query('BEGIN');
+
+    // 1. Create the new role
+    const newRoleResult = await client.query(`
+      INSERT INTO roles (name, description, is_system_role, created_at, updated_at)
+      VALUES ($1, $2, false, NOW(), NOW())
+      RETURNING *
+    `, [newName, description || sourceRole.description]);
+
+    const newRole = newRoleResult.rows[0];
+
+    // 2. Copy all permissions from source role to new role
+    const permissionsCopyResult = await client.query(`
+      INSERT INTO role_permissions (role_id, permission_id, granted_at)
+      SELECT $1, permission_id, NOW()
+      FROM role_permissions
+      WHERE role_id = $2
+      RETURNING permission_id
+    `, [newRole.id, sourceRole.id]);
+
+    await client.query('COMMIT');
+
+    console.log(`✅ Role duplicated: "${sourceRole.name}" -> "${newRole.name}" with ${permissionsCopyResult.rowCount} permissions`);
+
+    res.json({
+      success: true,
+      message: `Rôle dupliqué avec succès`,
+      role: newRole,
+      permissions_count: permissionsCopyResult.rowCount,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error duplicating role:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  } finally {
+    client.release();
+  }
+});
+
+/**
  * GET /api/roles/permissions/all
  * Get all available permissions grouped by module
  */

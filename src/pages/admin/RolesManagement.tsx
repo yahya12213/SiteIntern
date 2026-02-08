@@ -21,6 +21,7 @@ import {
   Database,
   CheckCircle,
   AlertTriangle,
+  Copy,
 } from 'lucide-react';
 
 export const RolesManagement: React.FC = () => {
@@ -205,6 +206,25 @@ export const RolesManagement: React.FC = () => {
         loadData();
         if (selectedRole?.id === role.id) {
           setSelectedRole(null);
+        }
+      }
+    } catch (error: any) {
+      alert('Erreur: ' + error.message);
+    }
+  };
+
+  const handleDuplicateRole = async (role: Role) => {
+    const newName = prompt(`Nom du nouveau rôle (copie de "${role.name}"):`, `${role.name} (copie)`);
+    if (!newName) return;
+
+    try {
+      const res = await rolesApi.duplicateRole(role.id, { name: newName });
+      if (res.success) {
+        alert(`Rôle dupliqué avec succès ! ${res.permissions_count} permissions copiées.`);
+        loadData();
+        // Sélectionner le nouveau rôle
+        if (res.role) {
+          loadRoleDetails(res.role);
         }
       }
     } catch (error: any) {
@@ -512,18 +532,34 @@ export const RolesManagement: React.FC = () => {
                         )}
                         <span className="font-medium text-gray-900">{role.name}</span>
                       </div>
-                      {!role.is_system_role && (
+                      <div className="flex items-center gap-1">
+                        {/* Bouton Dupliquer - disponible pour tous les rôles */}
                         <ProtectedButton
-                          permission="system.roles.delete"
+                          permission="system.roles.create"
                           onClick={e => {
                             e.stopPropagation();
-                            handleDeleteRole(role);
+                            handleDuplicateRole(role);
                           }}
-                          className="p-1 text-red-600 hover:bg-red-50 rounded"
+                          className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                          title="Dupliquer ce rôle"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Copy className="h-4 w-4" />
                         </ProtectedButton>
-                      )}
+                        {/* Bouton Supprimer - seulement pour rôles non-système */}
+                        {!role.is_system_role && (
+                          <ProtectedButton
+                            permission="system.roles.delete"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleDeleteRole(role);
+                            }}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded"
+                            title="Supprimer ce rôle"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </ProtectedButton>
+                        )}
+                      </div>
                     </div>
                     <p className="text-sm text-gray-600 mt-1">{role.description || 'Pas de description'}</p>
                     <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
