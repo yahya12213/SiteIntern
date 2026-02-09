@@ -1,13 +1,11 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 
-// CRITICAL: Load environment variables BEFORE any custom imports
-// Some modules (like auth.js) validate env vars at load time
-dotenv.config();
+// Environment variables are now loaded via the first import
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
