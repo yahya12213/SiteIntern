@@ -316,13 +316,17 @@ export class PayslipPDFGenerator {
       y += 16;
 
       // Lignes des gains
-      const workedDays = parseFloat(payslip.worked_days) || 26;
+      // Jours CNSS = min(jours travaillés + jours fériés payés + congés payés, 26)
+      const workedDays = parseFloat(payslip.worked_days) || 0;
+      const paidHolidays = parseFloat(payslip.paid_holidays) || 0;
+      const paidLeaveDays = parseFloat(payslip.paid_leave_days) || 0;
+      const cnssDays = Math.min(workedDays + paidHolidays + paidLeaveDays, 26);
 
       doc.font('Helvetica').fillColor(COLORS.text);
       for (const line of earnings) {
         this.drawPayLine(doc, tableX, y, colWidths, {
           label: line.label,
-          base: line.category === 'base_salary' ? `${workedDays.toFixed(2)} j` : (line.base_amount ? this.formatAmount(line.base_amount) : 'Forfait'),
+          base: line.category === 'base_salary' ? `${cnssDays.toFixed(0)} j` : (line.base_amount ? this.formatAmount(line.base_amount) : 'Forfait'),
           rate: line.rate ? `${parseFloat(line.rate).toFixed(2)} %` : '',
           gain: this.formatAmount(line.amount),
           retenue: ''
