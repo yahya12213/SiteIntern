@@ -117,7 +117,7 @@ export class PayslipPDFGenerator {
       // 3. Créer le PDF A4
       const doc = new PDFDocument({
         size: 'A4',
-        margins: { top: 40, bottom: 40, left: 40, right: 40 }
+        margins: { top: 30, bottom: 30, left: 35, right: 35 }
       });
 
       const stream = fs.createWriteStream(outputPath);
@@ -125,8 +125,8 @@ export class PayslipPDFGenerator {
 
       const pageWidth = 595.28;  // A4 width in points
       const pageHeight = 841.89; // A4 height in points
-      const marginLeft = 40;
-      const marginRight = 40;
+      const marginLeft = 35;
+      const marginRight = 35;
       const contentWidth = pageWidth - marginLeft - marginRight;
 
       // =====================================================
@@ -135,7 +135,7 @@ export class PayslipPDFGenerator {
       const watermarkText = payslip.segment_name || 'PROLEAN';
       doc.save();
       doc.rotate(-45, { origin: [pageWidth / 2, pageHeight / 2] });
-      doc.fontSize(100).fillColor('#000000').opacity(0.03);
+      doc.fontSize(80).fillColor('#000000').opacity(0.03);
       doc.text(watermarkText, 0, pageHeight / 2, { align: 'center', width: pageWidth * 1.5 });
       doc.restore();
       doc.opacity(1);
@@ -143,86 +143,83 @@ export class PayslipPDFGenerator {
       // =====================================================
       // HEADER SECTION
       // =====================================================
-      let y = 40;
+      let y = 30;
 
-      // Logo et infos entreprise (gauche)
-      let logoEndX = marginLeft;
+      // Logo (si disponible)
+      let logoWidth = 0;
       if (payslip.segment_logo) {
         try {
           const logoPath = path.join(UPLOADS_BASE, 'segments', path.basename(payslip.segment_logo));
           if (fs.existsSync(logoPath)) {
-            doc.image(logoPath, marginLeft, y, { height: 50 });
-            logoEndX = marginLeft + 60;
+            doc.image(logoPath, marginLeft, y, { height: 45 });
+            logoWidth = 55;
           }
         } catch (err) {
           console.warn('Could not load segment logo:', err);
         }
       }
 
-      // Nom entreprise (style vert comme dans le modèle)
+      // Nom entreprise (style vert)
+      const textStartX = marginLeft + logoWidth + 5;
+      doc.fontSize(20).font('Helvetica-Bold').fillColor(COLORS.accent);
+      doc.text(payslip.segment_name || 'PROLEAN', textStartX, y);
+
+      // Sous-titre entreprise
       const companyName = (payslip.segment_name || 'PROLEAN').toUpperCase();
-      doc.fontSize(24).font('Helvetica-Bold').fillColor(COLORS.accent);
-      doc.text(payslip.segment_name || 'PROLEAN', logoEndX + 5, y);
+      doc.fontSize(10).font('Helvetica-Bold').fillColor(COLORS.primary);
+      doc.text(`${companyName} SARL`, textStartX, y + 22);
 
-      doc.fontSize(12).font('Helvetica-Bold').fillColor(COLORS.primary);
-      doc.text(`${companyName} SARL`, logoEndX + 5, y + 28);
-
-      // Adresse et infos légales
-      doc.fontSize(9).font('Helvetica').fillColor(COLORS.textLight);
-      let companyY = y + 45;
-      if (payslip.company_address) {
-        doc.text(payslip.company_address, logoEndX + 5, companyY);
-        companyY += 12;
-      }
-
-      // RC, IF, ICE, CNSS sur une ligne
-      let legalInfo = [];
-      if (payslip.registre_commerce) legalInfo.push(`RC: ${payslip.registre_commerce}`);
-      if (payslip.identifiant_fiscal) legalInfo.push(`IF: ${payslip.identifiant_fiscal}`);
-      if (payslip.ice) legalInfo.push(`ICE: ${payslip.ice}`);
-      if (payslip.segment_cnss) legalInfo.push(`CNSS: ${payslip.segment_cnss}`);
-
-      if (legalInfo.length > 0) {
-        doc.text(legalInfo.slice(0, 2).join(' | '), logoEndX + 5, companyY);
-        if (legalInfo.length > 2) {
-          companyY += 12;
-          doc.text(legalInfo.slice(2).join(' | '), logoEndX + 5, companyY);
-        }
+      // CNSS Employeur
+      if (payslip.segment_cnss) {
+        doc.fontSize(8).font('Helvetica').fillColor(COLORS.textLight);
+        doc.text(`CNSS: ${payslip.segment_cnss}`, textStartX, y + 35);
       }
 
       // BULLETIN DE PAIE (droite)
-      doc.fontSize(22).font('Helvetica-Bold').fillColor(COLORS.primary);
-      doc.text('BULLETIN DE PAIE', 350, y, { align: 'right', width: contentWidth - 310 });
+      doc.fontSize(18).font('Helvetica-Bold').fillColor(COLORS.primary);
+      doc.text('BULLETIN DE PAIE', pageWidth - marginRight - 180, y, { width: 180, align: 'right' });
 
-      // Période (avec boîte)
-      const periodBoxY = y + 35;
-      doc.fontSize(10).font('Helvetica').fillColor(COLORS.text);
-      doc.text('Période de paie:', 350, periodBoxY, { align: 'right', width: 120 });
+      // Période
+      const periodText = `${this.formatDate(payslip.start_date)} au`;
+      const periodText2 = this.formatDate(payslip.end_date);
+      doc.fontSize(9).font('Helvetica').fillColor(COLORS.text);
+      doc.text('Période de paie:', pageWidth - marginRight - 180, y + 25, { width: 100, align: 'right' });
 
-      // Boîte période
-      const periodText = `${this.formatDate(payslip.start_date)} au ${this.formatDate(payslip.end_date)}`;
-      doc.roundedRect(470, periodBoxY - 5, 115, 22, 3)
-        .fill(COLORS.background);
-      doc.fontSize(9).font('Helvetica-Bold').fillColor(COLORS.primary);
-      doc.text(periodText, 475, periodBoxY, { width: 105, align: 'center' });
+      // Box période
+      doc.roundedRect(pageWidth - marginRight - 78, y + 22, 78, 28, 3).fill(COLORS.background);
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(COLORS.primary);
+      doc.text(periodText, pageWidth - marginRight - 75, y + 26, { width: 72, align: 'center' });
+      doc.text(periodText2, pageWidth - marginRight - 75, y + 36, { width: 72, align: 'center' });
 
       // Date de paiement
-      doc.fontSize(9).font('Helvetica').fillColor(COLORS.textLight);
-      doc.text(`Date de paiement: ${this.formatDate(payslip.pay_date)}`, 350, periodBoxY + 22, { align: 'right', width: 235 });
+      doc.fontSize(8).font('Helvetica').fillColor(COLORS.textLight);
+      doc.text(`Date de paiement: ${this.formatDate(payslip.pay_date)}`, pageWidth - marginRight - 180, y + 55, { width: 180, align: 'right' });
+
+      // Infos légales (sous le nom entreprise)
+      y = 75;
+      doc.fontSize(7).font('Helvetica').fillColor(COLORS.textLight);
+      let legalParts = [];
+      if (payslip.registre_commerce) legalParts.push(`RC: ${payslip.registre_commerce}`);
+      if (payslip.identifiant_fiscal) legalParts.push(`IF: ${payslip.identifiant_fiscal}`);
+      if (payslip.ice) legalParts.push(`ICE: ${payslip.ice}`);
+      if (legalParts.length > 0) {
+        doc.text(legalParts.join('  |  '), textStartX, y);
+      }
 
       // Ligne de séparation header
-      y = 115;
+      y = 95;
       doc.strokeColor(COLORS.primary).lineWidth(2);
       doc.moveTo(marginLeft, y).lineTo(pageWidth - marginRight, y).stroke();
 
       // =====================================================
       // EMPLOYEE SECTION
       // =====================================================
-      y += 15;
+      y += 10;
 
-      // Fond gris clair avec bordure gauche colorée
-      doc.rect(marginLeft, y, contentWidth, 75).fill(COLORS.background);
-      doc.rect(marginLeft, y, 5, 75).fill(COLORS.primary);
+      // Fond avec bordure gauche colorée
+      const empBoxHeight = 65;
+      doc.rect(marginLeft, y, contentWidth, empBoxHeight).fill(COLORS.background);
+      doc.rect(marginLeft, y, 4, empBoxHeight).fill(COLORS.primary);
 
       // Mapping type de contrat
       const contractTypeLabels = {
@@ -233,75 +230,90 @@ export class PayslipPDFGenerator {
         'temporary': 'CDD'
       };
       const contractType = contractTypeLabels[payslip.employment_type] || payslip.employment_type || 'N/A';
-
       const seniority = this.calculateSeniority(payslip.hire_date);
 
-      // 3 colonnes
-      const col1X = marginLeft + 15;
-      const col2X = marginLeft + 180;
-      const col3X = marginLeft + 360;
-      let empY = y + 10;
+      // Définir 3 colonnes avec positions fixes
+      const col1X = marginLeft + 12;
+      const col2X = marginLeft + 175;
+      const col3X = marginLeft + 350;
 
-      doc.fontSize(9).font('Helvetica');
+      // Colonne 1 - Matricule, Nom, Prénom
+      let empY = y + 8;
+      doc.fontSize(8);
 
-      // Colonne 1
-      this.drawLabelValue(doc, 'Matricule:', payslip.employee_number || 'N/A', col1X, empY);
-      empY += 15;
-      this.drawLabelValue(doc, 'Nom:', (payslip.last_name || '').toUpperCase(), col1X, empY);
-      empY += 15;
-      this.drawLabelValue(doc, 'Prénom:', payslip.first_name || 'N/A', col1X, empY);
+      // Matricule
+      doc.font('Helvetica').fillColor(COLORS.textLight).text('Matricule:', col1X, empY);
+      doc.font('Helvetica-Bold').fillColor(COLORS.text).text(payslip.employee_number || 'N/A', col1X + 50, empY);
 
-      // Colonne 2
-      empY = y + 10;
-      this.drawLabelValue(doc, 'Fonction:', payslip.position || 'N/A', col2X, empY);
-      empY += 15;
-      this.drawLabelValue(doc, 'Statut:', contractType, col2X, empY);
-      empY += 15;
-      this.drawLabelValue(doc, 'Département:', payslip.department || payslip.segment_name || 'N/A', col2X, empY);
+      // Nom
+      empY += 14;
+      doc.font('Helvetica').fillColor(COLORS.textLight).text('Nom:', col1X, empY);
+      doc.font('Helvetica-Bold').fillColor(COLORS.text).text((payslip.last_name || '').toUpperCase(), col1X + 50, empY);
 
-      // Colonne 3
-      empY = y + 10;
-      this.drawLabelValue(doc, 'Embauche:', this.formatDate(payslip.hire_date), col3X, empY);
-      empY += 15;
-      this.drawLabelValue(doc, 'Ancienneté:', `${seniority} an${seniority > 1 ? 's' : ''}`, col3X, empY);
-      empY += 15;
-      this.drawLabelValue(doc, 'N° CNSS:', payslip.employee_cnss || 'N/A', col3X, empY);
-      empY += 15;
-      this.drawLabelValue(doc, 'CIN:', payslip.cin || 'N/A', col3X, empY);
+      // Prénom
+      empY += 14;
+      doc.font('Helvetica').fillColor(COLORS.textLight).text('Prénom:', col1X, empY);
+      doc.font('Helvetica-Bold').fillColor(COLORS.text).text(payslip.first_name || 'N/A', col1X + 50, empY);
 
-      y += 90;
+      // Colonne 2 - Fonction, Statut, Département
+      empY = y + 8;
+      doc.font('Helvetica').fillColor(COLORS.textLight).text('Fonction:', col2X, empY);
+      doc.font('Helvetica-Bold').fillColor(COLORS.text).text(payslip.position || 'N/A', col2X + 55, empY);
+
+      empY += 14;
+      doc.font('Helvetica').fillColor(COLORS.textLight).text('Statut:', col2X, empY);
+      doc.font('Helvetica-Bold').fillColor(COLORS.text).text(contractType, col2X + 55, empY);
+
+      empY += 14;
+      doc.font('Helvetica').fillColor(COLORS.textLight).text('Département:', col2X, empY);
+      doc.font('Helvetica-Bold').fillColor(COLORS.text).text(payslip.department || payslip.segment_name || 'N/A', col2X + 55, empY);
+
+      // Colonne 3 - Embauche, Ancienneté, N° CNSS, CIN
+      empY = y + 8;
+      doc.font('Helvetica').fillColor(COLORS.textLight).text('Embauche:', col3X, empY);
+      doc.font('Helvetica-Bold').fillColor(COLORS.text).text(this.formatDate(payslip.hire_date), col3X + 55, empY);
+
+      empY += 14;
+      doc.font('Helvetica').fillColor(COLORS.textLight).text('N° CNSS:', col3X, empY);
+      doc.font('Helvetica-Bold').fillColor(COLORS.text).text(payslip.employee_cnss || 'N/A', col3X + 55, empY);
+
+      empY += 14;
+      doc.font('Helvetica').fillColor(COLORS.textLight).text('CIN:', col3X, empY);
+      const cinAndSeniority = `${payslip.cin || 'N/A'} (${seniority} an${seniority > 1 ? 's' : ''})`;
+      doc.font('Helvetica-Bold').fillColor(COLORS.text).text(cinAndSeniority, col3X + 55, empY);
+
+      y += empBoxHeight + 10;
 
       // =====================================================
       // PAY TABLE
       // =====================================================
+      const tableX = marginLeft;
+      const colWidths = [195, 80, 55, 85, 85]; // Rubrique, Base/Nombre, Taux, Gains, Retenues
 
       // Table header
-      const tableX = marginLeft;
-      const colWidths = [200, 80, 60, 85, 85]; // Rubrique, Base/Nombre, Taux, Gains, Retenues
+      doc.rect(tableX, y, contentWidth, 22).fill(COLORS.primary);
 
-      doc.rect(tableX, y, contentWidth, 25).fill(COLORS.primary);
-
-      doc.fontSize(9).font('Helvetica-Bold').fillColor(COLORS.white);
-      let headerX = tableX + 8;
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(COLORS.white);
+      let headerX = tableX + 5;
       const headers = ['RUBRIQUE', 'BASE / NOMBRE', 'TAUX', 'GAINS (+)', 'RETENUES (-)'];
       const headerAligns = ['left', 'right', 'center', 'right', 'right'];
 
       for (let i = 0; i < headers.length; i++) {
-        doc.text(headers[i], headerX, y + 8, { width: colWidths[i] - 10, align: headerAligns[i] });
+        doc.text(headers[i], headerX, y + 7, { width: colWidths[i] - 8, align: headerAligns[i] });
         headerX += colWidths[i];
       }
 
-      y += 25;
+      y += 22;
 
       // Lignes de détail
       const earnings = lines.filter(l => l.line_type === 'earning');
       const deductions = lines.filter(l => l.line_type === 'deduction');
 
       // Section Rémunération Brute
-      doc.rect(tableX, y, contentWidth, 18).fill('#fcfcfc');
-      doc.fontSize(9).font('Helvetica-Bold').fillColor(COLORS.textLight);
-      doc.text('Rémunération Brute', tableX + 8, y + 5);
-      y += 18;
+      doc.rect(tableX, y, contentWidth, 16).fill('#fafafa');
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(COLORS.textLight);
+      doc.text('Rémunération Brute', tableX + 5, y + 4);
+      y += 16;
 
       // Lignes des gains
       const workedHours = parseFloat(payslip.worked_hours) || 176;
@@ -315,22 +327,22 @@ export class PayslipPDFGenerator {
           gain: this.formatAmount(line.amount),
           retenue: ''
         });
-        y += 18;
+        y += 16;
       }
 
       // Total Brut
-      doc.rect(tableX, y, contentWidth, 22).fill('#f2f2f2');
-      doc.fontSize(10).font('Helvetica-Bold').fillColor(COLORS.text);
-      doc.text('TOTAL BRUT GLOBAL', tableX + 8, y + 6, { width: colWidths[0] + colWidths[1] + colWidths[2] - 20, align: 'right' });
+      doc.rect(tableX, y, contentWidth, 20).fill('#f0f0f0');
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(COLORS.text);
+      doc.text('TOTAL BRUT GLOBAL', tableX + 5, y + 5, { width: colWidths[0] + colWidths[1] + colWidths[2] - 15, align: 'right' });
       doc.fillColor(COLORS.gain);
-      doc.text(this.formatAmount(payslip.gross_salary), tableX + colWidths[0] + colWidths[1] + colWidths[2], y + 6, { width: colWidths[3] - 10, align: 'right' });
-      y += 22;
+      doc.text(this.formatAmount(payslip.gross_salary), tableX + colWidths[0] + colWidths[1] + colWidths[2], y + 5, { width: colWidths[3] - 8, align: 'right' });
+      y += 20;
 
       // Section Cotisations
-      doc.rect(tableX, y, contentWidth, 18).fill('#fcfcfc');
-      doc.fontSize(9).font('Helvetica-Bold').fillColor(COLORS.textLight);
-      doc.text('Cotisations Sociales & Fiscales', tableX + 8, y + 5);
-      y += 18;
+      doc.rect(tableX, y, contentWidth, 16).fill('#fafafa');
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(COLORS.textLight);
+      doc.text('Cotisations Sociales & Fiscales', tableX + 5, y + 4);
+      y += 16;
 
       // Lignes des retenues
       doc.font('Helvetica').fillColor(COLORS.text);
@@ -346,7 +358,7 @@ export class PayslipPDFGenerator {
           gain: '',
           retenue: this.formatAmount(cnssEmployee)
         });
-        y += 18;
+        y += 16;
       }
 
       // AMO
@@ -359,7 +371,7 @@ export class PayslipPDFGenerator {
           gain: '',
           retenue: this.formatAmount(amoEmployee)
         });
-        y += 18;
+        y += 16;
       }
 
       // IR
@@ -372,7 +384,7 @@ export class PayslipPDFGenerator {
         gain: '',
         retenue: this.formatAmount(igrAmount)
       });
-      y += 18;
+      y += 16;
 
       // Autres retenues
       for (const line of deductions) {
@@ -384,17 +396,17 @@ export class PayslipPDFGenerator {
             gain: '',
             retenue: this.formatAmount(line.amount)
           });
-          y += 18;
+          y += 16;
         }
       }
 
       // Total Retenues
-      doc.rect(tableX, y, contentWidth, 22).fill('#f2f2f2');
-      doc.fontSize(10).font('Helvetica-Bold').fillColor(COLORS.text);
-      doc.text('TOTAL DES RETENUES', tableX + 8, y + 6, { width: colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] - 20, align: 'right' });
+      doc.rect(tableX, y, contentWidth, 20).fill('#f0f0f0');
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(COLORS.text);
+      doc.text('TOTAL DES RETENUES', tableX + 5, y + 5, { width: colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] - 15, align: 'right' });
       doc.fillColor(COLORS.retenue);
-      doc.text(this.formatAmount(payslip.total_deductions), tableX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], y + 6, { width: colWidths[4] - 10, align: 'right' });
-      y += 22;
+      doc.text(this.formatAmount(payslip.total_deductions), tableX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], y + 5, { width: colWidths[4] - 8, align: 'right' });
+      y += 20;
 
       // Ligne de fin de tableau
       doc.strokeColor(COLORS.primary).lineWidth(2);
@@ -403,86 +415,81 @@ export class PayslipPDFGenerator {
       // =====================================================
       // FOOTER DASHBOARD
       // =====================================================
-      y += 30;
+      y += 20;
 
       // Box Congés (gauche)
-      const congesBoxWidth = 180;
-      const congesBoxHeight = 95;
+      const congesBoxWidth = 170;
+      const congesBoxHeight = 85;
       doc.strokeColor(COLORS.line).lineWidth(1);
       doc.roundedRect(tableX, y, congesBoxWidth, congesBoxHeight, 4).stroke();
 
-      doc.fontSize(10).font('Helvetica-Bold').fillColor(COLORS.textLight);
-      doc.text('SUIVI DES CONGÉS', tableX + 10, y + 10);
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(COLORS.textLight);
+      doc.text('SUIVI DES CONGÉS', tableX + 8, y + 8);
 
       doc.strokeColor('#eeeeee').lineWidth(0.5);
-      doc.moveTo(tableX + 10, y + 25).lineTo(tableX + congesBoxWidth - 10, y + 25).stroke();
+      doc.moveTo(tableX + 8, y + 22).lineTo(tableX + congesBoxWidth - 8, y + 22).stroke();
 
-      doc.fontSize(9).font('Helvetica').fillColor(COLORS.text);
+      doc.fontSize(8).font('Helvetica').fillColor(COLORS.text);
 
       const leavePrevious = parseFloat(payslip.leave_previous_balance) || parseFloat(payslip.initial_leave_balance) || 0;
       const leaveAccrued = parseFloat(payslip.leave_accrued) || 0;
       const leaveTaken = parseFloat(payslip.leave_taken) || 0;
       const leaveCurrent = parseFloat(payslip.leave_balance) || (leavePrevious + leaveAccrued - leaveTaken);
 
-      let congesY = y + 32;
-      doc.text('Solde mois précédent:', tableX + 10, congesY);
-      doc.font('Helvetica-Bold').text(`${leavePrevious.toFixed(2)} j`, tableX + 120, congesY, { width: 50, align: 'right' });
+      let congesY = y + 28;
+      doc.text('Solde mois précédent:', tableX + 8, congesY);
+      doc.font('Helvetica-Bold').text(`${leavePrevious.toFixed(2)} j`, tableX + 110, congesY, { width: 50, align: 'right' });
 
-      congesY += 14;
-      doc.font('Helvetica').text('Acquis ce mois:', tableX + 10, congesY);
-      doc.font('Helvetica-Bold').text(`${leaveAccrued.toFixed(2)} j`, tableX + 120, congesY, { width: 50, align: 'right' });
+      congesY += 12;
+      doc.font('Helvetica').text('Acquis ce mois:', tableX + 8, congesY);
+      doc.font('Helvetica-Bold').text(`${leaveAccrued.toFixed(2)} j`, tableX + 110, congesY, { width: 50, align: 'right' });
 
-      congesY += 14;
-      doc.font('Helvetica').text('Pris ce mois:', tableX + 10, congesY);
-      doc.font('Helvetica-Bold').text(`${leaveTaken.toFixed(2)} j`, tableX + 120, congesY, { width: 50, align: 'right' });
+      congesY += 12;
+      doc.font('Helvetica').text('Pris ce mois:', tableX + 8, congesY);
+      doc.font('Helvetica-Bold').text(`${leaveTaken.toFixed(2)} j`, tableX + 110, congesY, { width: 50, align: 'right' });
 
       // Ligne pointillée
       doc.strokeColor('#cccccc').lineWidth(0.5);
       doc.dash(3, 2);
-      doc.moveTo(tableX + 10, congesY + 18).lineTo(tableX + congesBoxWidth - 10, congesY + 18).stroke();
+      doc.moveTo(tableX + 8, congesY + 14).lineTo(tableX + congesBoxWidth - 8, congesY + 14).stroke();
       doc.undash();
 
-      congesY += 23;
-      doc.fontSize(10).font('Helvetica-Bold').fillColor(COLORS.primary);
-      doc.text('SOLDE ACTUEL:', tableX + 10, congesY);
+      congesY += 18;
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(COLORS.primary);
+      doc.text('SOLDE ACTUEL:', tableX + 8, congesY);
       doc.fillColor(COLORS.accent);
-      doc.text(`${leaveCurrent.toFixed(2)} j`, tableX + 120, congesY, { width: 50, align: 'right' });
+      doc.text(`${leaveCurrent.toFixed(2)} j`, tableX + 110, congesY, { width: 50, align: 'right' });
 
       // Box Net à Payer (droite)
-      const netBoxWidth = 180;
-      const netBoxHeight = 80;
+      const netBoxWidth = 170;
+      const netBoxHeight = 70;
       const netBoxX = pageWidth - marginRight - netBoxWidth;
 
-      doc.roundedRect(netBoxX, y, netBoxWidth, netBoxHeight, 6).fill(COLORS.primary);
+      doc.roundedRect(netBoxX, y, netBoxWidth, netBoxHeight, 5).fill(COLORS.accent);
 
-      doc.fontSize(11).font('Helvetica').fillColor(COLORS.white).opacity(0.9);
-      doc.text('Net à Payer', netBoxX, y + 15, { width: netBoxWidth, align: 'center' });
+      doc.fontSize(10).font('Helvetica').fillColor(COLORS.white).opacity(0.9);
+      doc.text('Net à Payer', netBoxX, y + 10, { width: netBoxWidth, align: 'center' });
 
       doc.opacity(1);
-      doc.fontSize(26).font('Helvetica-Bold');
-      doc.text(`${this.formatAmount(payslip.net_salary)} MAD`, netBoxX, y + 32, { width: netBoxWidth, align: 'center' });
+      doc.fontSize(22).font('Helvetica-Bold');
+      doc.text(`${this.formatAmount(payslip.net_salary)} MAD`, netBoxX, y + 26, { width: netBoxWidth, align: 'center' });
 
-      doc.fontSize(9).font('Helvetica').opacity(0.8);
-      doc.text('Payé par virement bancaire', netBoxX, y + 60, { width: netBoxWidth, align: 'center' });
+      doc.fontSize(8).font('Helvetica').opacity(0.85);
+      doc.text('Payé par virement bancaire', netBoxX, y + 52, { width: netBoxWidth, align: 'center' });
       doc.opacity(1);
 
       // =====================================================
       // LEGAL FOOTER
       // =====================================================
-      const legalY = pageHeight - 50;
+      const legalY = pageHeight - 45;
 
       doc.strokeColor('#eeeeee').lineWidth(0.5);
-      doc.moveTo(marginLeft, legalY - 10).lineTo(pageWidth - marginRight, legalY - 10).stroke();
+      doc.moveTo(marginLeft, legalY - 8).lineTo(pageWidth - marginRight, legalY - 8).stroke();
 
-      doc.fontSize(8).font('Helvetica').fillColor(COLORS.textLight);
+      doc.fontSize(7).font('Helvetica').fillColor(COLORS.textLight);
       doc.text(
-        "Conformément à l'article 370 du Code du Travail. Pour faire valoir ce que de droit.",
+        "Conformément à l'article 370 du Code du Travail. Ce bulletin doit être conservé sans limitation de durée.",
         marginLeft, legalY,
-        { width: contentWidth, align: 'center' }
-      );
-      doc.text(
-        "Ce bulletin doit être conservé sans limitation de durée.",
-        marginLeft, legalY + 12,
         { width: contentWidth, align: 'center' }
       );
 
@@ -500,45 +507,35 @@ export class PayslipPDFGenerator {
   }
 
   /**
-   * Draw a label-value pair
-   */
-  drawLabelValue(doc, label, value, x, y) {
-    doc.fontSize(9).font('Helvetica-Bold').fillColor(COLORS.textLight);
-    doc.text(label, x, y, { continued: true, width: 65 });
-    doc.font('Helvetica-Bold').fillColor(COLORS.text);
-    doc.text(` ${value}`, { continued: false });
-  }
-
-  /**
    * Draw a pay line in the table
    */
   drawPayLine(doc, tableX, y, colWidths, data) {
-    let x = tableX + 8;
+    let x = tableX + 5;
 
-    doc.fontSize(9).font('Helvetica').fillColor(COLORS.text);
-    doc.text(data.label, x, y + 4, { width: colWidths[0] - 10 });
+    doc.fontSize(8).font('Helvetica').fillColor(COLORS.text);
+    doc.text(data.label, x, y + 3, { width: colWidths[0] - 8 });
     x += colWidths[0];
 
-    doc.text(data.base, x, y + 4, { width: colWidths[1] - 10, align: 'right' });
+    doc.text(data.base, x, y + 3, { width: colWidths[1] - 8, align: 'right' });
     x += colWidths[1];
 
-    doc.text(data.rate, x, y + 4, { width: colWidths[2] - 10, align: 'center' });
+    doc.text(data.rate, x, y + 3, { width: colWidths[2] - 8, align: 'center' });
     x += colWidths[2];
 
     if (data.gain) {
       doc.fillColor(COLORS.gain);
-      doc.text(data.gain, x, y + 4, { width: colWidths[3] - 10, align: 'right' });
+      doc.text(data.gain, x, y + 3, { width: colWidths[3] - 8, align: 'right' });
     }
     x += colWidths[3];
 
     if (data.retenue) {
       doc.fillColor(COLORS.retenue);
-      doc.text(data.retenue, x, y + 4, { width: colWidths[4] - 10, align: 'right' });
+      doc.text(data.retenue, x, y + 3, { width: colWidths[4] - 8, align: 'right' });
     }
 
     // Ligne de séparation
     doc.strokeColor('#eeeeee').lineWidth(0.5);
-    doc.moveTo(tableX, y + 17).lineTo(tableX + colWidths.reduce((a, b) => a + b, 0), y + 17).stroke();
+    doc.moveTo(tableX, y + 15).lineTo(tableX + colWidths.reduce((a, b) => a + b, 0), y + 15).stroke();
   }
 
   /**
