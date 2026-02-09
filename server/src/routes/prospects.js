@@ -489,6 +489,276 @@ router.get('/',
 );
 
 // ============================================================
+// GET /api/prospects/stats-detailed - Statistiques détaillées pour dashboard
+// IMPORTANT: Cette route DOIT être avant /:id pour éviter les conflits de routing
+// ============================================================
+router.get('/stats-detailed',
+  requirePermission('commercialisation.prospects.view_page'),
+  injectUserScope,
+  async (req, res) => {
+    try {
+      const { segment_id, ville_id, date_from, date_to } = req.query;
+
+      // Build scope filter for user permissions
+      const scopeFilter = buildScopeFilter(req, 'p.segment_id', 'p.ville_id');
+
+      // =====================================================
+      // 1. COMPTEURS PAR STATUT
+      // =====================================================
+      let byStatusQuery = `
+        SELECT
+          statut_contact,
+          COUNT(*) as count
+        FROM prospects p
+        WHERE 1=1
+      `;
+
+      let params = [];
+      let paramIndex = 1;
+
+      if (scopeFilter.hasScope) {
+        const adjustedConditions = scopeFilter.conditions.map(c =>
+          c.replace(/\$(\d+)/g, (_, n) => `$${parseInt(n)}`)
+        );
+        byStatusQuery += ` AND (${adjustedConditions.join(' AND ')})`;
+        params.push(...scopeFilter.params);
+        paramIndex += scopeFilter.params.length;
+      }
+
+      if (segment_id) {
+        byStatusQuery += ` AND p.segment_id = $${paramIndex++}`;
+        params.push(segment_id);
+      }
+      if (ville_id) {
+        byStatusQuery += ` AND p.ville_id = $${paramIndex++}`;
+        params.push(ville_id);
+      }
+      if (date_from) {
+        byStatusQuery += ` AND p.date_injection >= $${paramIndex++}`;
+        params.push(date_from);
+      }
+      if (date_to) {
+        byStatusQuery += ` AND p.date_injection <= $${paramIndex++}`;
+        params.push(date_to);
+      }
+
+      byStatusQuery += ` GROUP BY statut_contact ORDER BY count DESC`;
+
+      const byStatusResult = await pool.query(byStatusQuery, params);
+
+      // Convert to object
+      const byStatus = {};
+      let total = 0;
+      byStatusResult.rows.forEach(row => {
+        byStatus[row.statut_contact || 'inconnu'] = parseInt(row.count);
+        total += parseInt(row.count);
+      });
+
+      // =====================================================
+      // 2. CALCULS DES TAUX
+      // =====================================================
+      const nonContactes = byStatus['non contacté'] || 0;
+      const avecRdv = byStatus['contacté avec rdv'] || 0;
+      const sansRdv = byStatus['contacté sans rdv'] || 0;
+      const inscrits = byStatus['inscrit'] || 0;
+      const contactes = total - nonContactes;
+
+      // Get inscrits session count
+      let sessionQuery = `
+        SELECT COUNT(DISTINCT se.student_id) as inscrits_session
+        FROM session_etudiants se
+        JOIN sessions_formation sf ON sf.id = se.session_id
+        WHERE sf.statut != 'annulee'
+      `;
+
+      const sessionScopeFilter = buildScopeFilter(req, 'sf.segment_id', 'sf.ville_id');
+      let sessionParams = [];
+      let sessionParamIndex = 1;
+
+      if (sessionScopeFilter.hasScope) {
+        sessionQuery += ` AND (${sessionScopeFilter.conditions.join(' AND ')})`;
+        sessionParams.push(...sessionScopeFilter.params);
+        sessionParamIndex += sessionScopeFilter.params.length;
+      }
+
+      if (date_from) {
+        sessionQuery += ` AND se.date_inscription >= $${sessionParamIndex++}`;
+        sessionParams.push(date_from);
+      }
+      if (date_to) {
+        sessionQuery += ` AND se.date_inscription <= $${sessionParamIndex++}`;
+        sessionParams.push(date_to);
+      }
+
+      const sessionResult = await pool.query(sessionQuery, sessionParams);
+      const inscritsSession = parseInt(sessionResult.rows[0]?.inscrits_session || 0);
+
+      // Get appels 30s count
+      let appelsQuery = `
+        SELECT COUNT(DISTINCT pch.prospect_id) as appels_30s
+        FROM prospect_call_history pch
+        INNER JOIN prospects p ON p.id = pch.prospect_id
+        WHERE pch.duration_seconds >= 30
+      `;
+
+      const appelsScopeFilter = buildScopeFilter(req, 'p.segment_id', 'p.ville_id');
+      let appelsParams = [];
+      let appelsParamIndex = 1;
+
+      if (appelsScopeFilter.hasScope) {
+        appelsQuery += ` AND (${appelsScopeFilter.conditions.join(' AND ')})`;
+        appelsParams.push(...appelsScopeFilter.params);
+        appelsParamIndex += appelsScopeFilter.params.length;
+      }
+
+      if (date_from) {
+        appelsQuery += ` AND pch.call_start >= $${appelsParamIndex++}`;
+        appelsParams.push(date_from);
+      }
+      if (date_to) {
+        appelsQuery += ` AND pch.call_start <= $${appelsParamIndex++}`;
+        appelsParams.push(date_to);
+      }
+
+      const appelsResult = await pool.query(appelsQuery, appelsParams);
+      const appels30s = parseInt(appelsResult.rows[0]?.appels_30s || 0);
+
+      // Calculate rates
+      const rates = {
+        contact_rate: total > 0 ? parseFloat(((contactes / total) * 100).toFixed(1)) : 0,
+        rdv_rate: contactes > 0 ? parseFloat(((avecRdv / contactes) * 100).toFixed(1)) : 0,
+        show_up_rate: avecRdv > 0 ? parseFloat(((inscritsSession / avecRdv) * 100).toFixed(1)) : 0,
+        conversion_rate_calls: appels30s > 0 ? parseFloat(((inscritsSession / appels30s) * 100).toFixed(1)) : 0,
+        conversion_rate_global: total > 0 ? parseFloat(((inscrits / total) * 100).toFixed(1)) : 0
+      };
+
+      // =====================================================
+      // 3. GÉNÉRATION DES RECOMMANDATIONS ALGORITHMIQUES
+      // =====================================================
+      const recommendations = [];
+
+      // Taux de contact < 80%
+      if (rates.contact_rate < 80 && nonContactes > 0) {
+        recommendations.push({
+          priority: rates.contact_rate < 50 ? 'urgent' : 'high',
+          title: `Contacter ${nonContactes} prospects en attente`,
+          description: `${nonContactes} prospects n'ont pas encore été contactés. Augmenter l'activité d'appels.`,
+          context: `Taux de contact actuel: ${rates.contact_rate}% (cible: 80%)`,
+          expectedImpact: `+${Math.ceil(nonContactes * 0.05)} inscriptions potentielles`,
+          responsable: 'Assistante commerciale',
+          timeframe: 'Cette semaine',
+          kpiToTrack: 'Taux de contact'
+        });
+      }
+
+      // Taux de RDV < 25%
+      if (rates.rdv_rate < 25 && contactes > 10) {
+        recommendations.push({
+          priority: rates.rdv_rate < 15 ? 'urgent' : 'high',
+          title: 'Améliorer l\'argumentaire téléphonique',
+          description: `Seulement ${avecRdv} RDV obtenus sur ${contactes} prospects contactés. Revoir le script d'appel.`,
+          context: `Taux de RDV actuel: ${rates.rdv_rate}% (cible: 25%)`,
+          expectedImpact: `+${Math.ceil((contactes * 0.25 - avecRdv) * 0.3)} inscriptions potentielles`,
+          responsable: 'Manager',
+          timeframe: 'Cette semaine',
+          kpiToTrack: 'Taux de RDV'
+        });
+      }
+
+      // Taux de show-up < 60%
+      if (rates.show_up_rate < 60 && avecRdv > 5) {
+        const manques = avecRdv - inscritsSession;
+        recommendations.push({
+          priority: rates.show_up_rate < 40 ? 'urgent' : 'medium',
+          title: 'Rappeler les prospects avant leur RDV',
+          description: `${manques} prospects avec RDV n'ont pas finalisé l'inscription. Envoyer des rappels SMS/WhatsApp.`,
+          context: `Taux de show-up actuel: ${rates.show_up_rate}% (cible: 60%)`,
+          expectedImpact: `+${Math.ceil(manques * 0.3)} inscriptions potentielles`,
+          responsable: 'Assistante commerciale',
+          timeframe: 'Immédiat',
+          kpiToTrack: 'Taux de show-up'
+        });
+      }
+
+      // Conversion globale faible
+      if (rates.conversion_rate_global < 5 && total > 50) {
+        recommendations.push({
+          priority: 'medium',
+          title: 'Qualifier les prospects entrants',
+          description: 'Le taux de conversion global est faible. Vérifier la qualité des sources de prospects.',
+          context: `Conversion globale: ${rates.conversion_rate_global}% (cible: 5%)`,
+          expectedImpact: 'Meilleure allocation des ressources',
+          responsable: 'Direction',
+          timeframe: 'Ce mois',
+          kpiToTrack: 'Taux de conversion global'
+        });
+      }
+
+      // Si tout va bien
+      if (recommendations.length === 0) {
+        recommendations.push({
+          priority: 'success',
+          title: 'Performance commerciale satisfaisante',
+          description: 'Les indicateurs sont dans les cibles. Maintenir le rythme actuel.',
+          context: 'Tous les taux sont au-dessus des objectifs',
+          expectedImpact: 'Continuité des résultats',
+          responsable: 'Équipe',
+          timeframe: 'En cours',
+          kpiToTrack: 'Tous les KPIs'
+        });
+      }
+
+      // =====================================================
+      // 4. SYNTHÈSE GLOBALE
+      // =====================================================
+      let status = 'bon';
+      let urgentCount = recommendations.filter(r => r.priority === 'urgent').length;
+      let highCount = recommendations.filter(r => r.priority === 'high').length;
+
+      if (urgentCount >= 2) status = 'critique';
+      else if (urgentCount === 1 || highCount >= 2) status = 'attention';
+      else if (recommendations[0]?.priority === 'success') status = 'excellent';
+
+      const globalAssessment = {
+        status,
+        summary: `Pipeline de ${total} prospects avec ${inscrits} inscrits (${rates.conversion_rate_global}%). ${urgentCount + highCount} actions prioritaires identifiées.`,
+        topPriority: recommendations[0]?.title || 'Aucune action urgente',
+        projection: `Projection: ${inscrits + Math.ceil(recommendations.reduce((sum, r) => {
+          const match = r.expectedImpact?.match(/\+(\d+)/);
+          return sum + (match ? parseInt(match[1]) : 0);
+        }, 0) * 0.5)} inscriptions`,
+        risk: status === 'critique' ? 'Risque de sous-performance si aucune action' : 'Risque modéré'
+      };
+
+      // =====================================================
+      // 5. DONNÉES FUNNEL
+      // =====================================================
+      const funnelData = [
+        { stage: 'Prospects', count: total, color: '#3b82f6' },
+        { stage: 'Contactés', count: contactes, color: '#8b5cf6' },
+        { stage: 'Avec RDV', count: avecRdv, color: '#22c55e' },
+        { stage: 'Inscrits', count: inscritsSession, color: '#06b6d4' }
+      ];
+
+      res.json({
+        total,
+        by_status: byStatus,
+        rates,
+        inscrits_session: inscritsSession,
+        appels_30s: appels30s,
+        funnel: funnelData,
+        recommendations,
+        globalAssessment
+      });
+
+    } catch (error) {
+      console.error('Error fetching detailed stats:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// ============================================================
 // GET /api/prospects/ecart-details - Détails de l'écart entre inscrits prospect et session
 // IMPORTANT: Cette route DOIT être avant /:id pour éviter les conflits de routing
 // ============================================================

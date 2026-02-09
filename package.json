@@ -24,6 +24,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "echarts": "^6.0.0",
+    "echarts-for-react": "^3.0.6",
     "fabric": "^6.9.0",
     "hyperformula": "^3.1.0",
     "jspdf": "^3.0.3",

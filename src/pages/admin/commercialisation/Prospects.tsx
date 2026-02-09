@@ -5,6 +5,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -215,6 +216,7 @@ export default function Prospects() {
   const { data: segments = [] } = useSegments();
   const { data: cities = [] } = useCities(filters.segment_id);
   const deleteProspect = useDeleteProspect();
+  const navigate = useNavigate();
 
   // Modals states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -883,12 +885,12 @@ export default function Prospects() {
           {/* Ligne 2: Boutons Indicateurs et Analyse IA centrés */}
           <div className="flex justify-center gap-4">
             <Button
-              onClick={() => setShowIndicateursModal(true)}
+              onClick={() => navigate('/admin/commercialisation/indicateurs-prospects')}
               className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 px-6 py-3 text-base font-semibold"
               size="lg"
             >
               <BarChart3 className="h-5 w-5 mr-2" />
-              Indicateurs
+              Dashboard Indicateurs
             </Button>
             <Button
               onClick={() => setShowAnalyseModal(true)}

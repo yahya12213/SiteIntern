@@ -58,6 +58,7 @@ import Devis from './pages/admin/commercialisation/Devis';
 import Contrats from './pages/admin/commercialisation/Contrats';
 import GoogleContactsManagement from './pages/admin/commercialisation/GoogleContactsManagement';
 import AnalysePublicite from './pages/admin/commercialisation/AnalysePublicite';
+import IndicateursProspects from './pages/admin/commercialisation/IndicateursProspects';
 import AISettings from './pages/admin/AISettings';
 import Clocking from './pages/employee/Clocking';
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -510,6 +511,15 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.prospects.view_page}>
             <Prospects />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/commercialisation/indicateurs-prospects"
+        element={
+          <ProtectedRoute requiredPermission={PERMISSIONS.commercialisation.prospects.view_page}>
+            <IndicateursProspects />
           </ProtectedRoute>
         }
       />
