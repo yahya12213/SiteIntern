@@ -316,13 +316,13 @@ export class PayslipPDFGenerator {
       y += 16;
 
       // Lignes des gains
-      const workedHours = parseFloat(payslip.worked_hours) || 176;
+      const workedDays = parseFloat(payslip.worked_days) || 26;
 
       doc.font('Helvetica').fillColor(COLORS.text);
       for (const line of earnings) {
         this.drawPayLine(doc, tableX, y, colWidths, {
           label: line.label,
-          base: line.category === 'base_salary' ? `${workedHours.toFixed(2)} h` : (line.base_amount ? this.formatAmount(line.base_amount) : 'Forfait'),
+          base: line.category === 'base_salary' ? `${workedDays.toFixed(2)} j` : (line.base_amount ? this.formatAmount(line.base_amount) : 'Forfait'),
           rate: line.rate ? `${parseFloat(line.rate).toFixed(2)} %` : '',
           gain: this.formatAmount(line.amount),
           retenue: ''
