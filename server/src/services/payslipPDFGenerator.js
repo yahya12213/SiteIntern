@@ -114,6 +114,20 @@ export class PayslipPDFGenerator {
 
       const lines = linesResult.rows;
 
+      // 2b. Calculer les jours CNSS depuis hr_attendance_daily
+      const cnssDaysResult = await client.query(`
+        SELECT COUNT(*) as cnss_days
+        FROM hr_attendance_daily
+        WHERE employee_id = $1
+          AND work_date BETWEEN $2 AND $3
+          AND is_working_day = true
+          AND day_status IN ('present', 'late', 'partial', 'holiday', 'leave', 'sick', 'mission', 'training', 'recovery_day')
+      `, [payslip.employee_id, payslip.start_date, payslip.end_date]);
+
+      let calculatedCnssDays = parseInt(cnssDaysResult.rows[0]?.cnss_days) || 0;
+      if (calculatedCnssDays === 0) calculatedCnssDays = 26; // Fallback si pas de données
+      calculatedCnssDays = Math.min(calculatedCnssDays, 26); // Plafonner à 26
+
       // 3. Créer le PDF A4
       const doc = new PDFDocument({
         size: 'A4',
@@ -316,17 +330,8 @@ export class PayslipPDFGenerator {
       y += 16;
 
       // Lignes des gains
-      // Jours CNSS: utiliser cnss_days si disponible, sinon calculer, sinon 26 par défaut
-      let cnssDays = parseFloat(payslip.cnss_days) || 0;
-      if (cnssDays === 0) {
-        const workedDays = parseFloat(payslip.worked_days) || 0;
-        const paidHolidays = parseFloat(payslip.paid_holidays) || parseFloat(payslip.holiday_days) || 0;
-        const paidLeaveDays = parseFloat(payslip.paid_leave_days) || parseFloat(payslip.leave_days) || 0;
-        cnssDays = workedDays + paidHolidays + paidLeaveDays;
-      }
-      // Si toujours 0, utiliser 26 jours par défaut (mois complet)
-      if (cnssDays === 0) cnssDays = 26;
-      cnssDays = Math.min(cnssDays, 26); // Plafonner à 26
+      // Jours CNSS: calculés depuis hr_attendance_daily (voir requête plus haut)
+      const cnssDays = calculatedCnssDays;
 
       doc.font('Helvetica').fillColor(COLORS.text);
       for (const line of earnings) {
@@ -336,7 +341,7 @@ export class PayslipPDFGenerator {
 
         if (line.category === 'base_salary' || labelLower.includes('salaire de base')) {
           // Salaire de base: afficher le nombre de jours CNSS
-          baseDisplay = `${cnssDays.toFixed(0)} j`;
+          baseDisplay = `${cnssDays} j`;
         } else if (line.category === 'seniority' || line.category === 'anciennete' || labelLower.includes('ancienneté') || labelLower.includes('anciennete')) {
           // Prime d'ancienneté: base = salaire de base
           baseDisplay = this.formatAmount(payslip.base_salary);
