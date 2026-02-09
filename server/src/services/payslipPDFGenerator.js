@@ -316,11 +316,17 @@ export class PayslipPDFGenerator {
       y += 16;
 
       // Lignes des gains
-      // Jours CNSS = min(jours travaillés + jours fériés payés + congés payés, 26)
-      const workedDays = parseFloat(payslip.worked_days) || 0;
-      const paidHolidays = parseFloat(payslip.paid_holidays) || 0;
-      const paidLeaveDays = parseFloat(payslip.paid_leave_days) || 0;
-      const cnssDays = Math.min(workedDays + paidHolidays + paidLeaveDays, 26);
+      // Jours CNSS: utiliser cnss_days si disponible, sinon calculer, sinon 26 par défaut
+      let cnssDays = parseFloat(payslip.cnss_days) || 0;
+      if (cnssDays === 0) {
+        const workedDays = parseFloat(payslip.worked_days) || 0;
+        const paidHolidays = parseFloat(payslip.paid_holidays) || parseFloat(payslip.holiday_days) || 0;
+        const paidLeaveDays = parseFloat(payslip.paid_leave_days) || parseFloat(payslip.leave_days) || 0;
+        cnssDays = workedDays + paidHolidays + paidLeaveDays;
+      }
+      // Si toujours 0, utiliser 26 jours par défaut (mois complet)
+      if (cnssDays === 0) cnssDays = 26;
+      cnssDays = Math.min(cnssDays, 26); // Plafonner à 26
 
       doc.font('Helvetica').fillColor(COLORS.text);
       for (const line of earnings) {
