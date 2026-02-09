@@ -1,8 +1,4 @@
-/**
- * JWT Authentication Middleware
- * Secures API routes with token-based authentication
- */
-
+import 'dotenv/config';
 import jwt from 'jsonwebtoken';
 import pool from '../config/database.js';
 

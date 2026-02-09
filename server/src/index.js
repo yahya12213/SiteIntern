@@ -6,6 +6,16 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 // Environment variables are now loaded via the first import
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️  JWT_SECRET is not defined after initial load. Attempting explicit reload...');
+  try {
+    const dotenv = await import('dotenv');
+    dotenv.config({ path: path.join(process.cwd(), '.env') });
+    console.log('🔄 Reloaded .env from:', path.join(process.cwd(), '.env'));
+  } catch (e) {
+    console.error('❌ Failed to explicitly reload .env:', e.message);
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -254,14 +264,14 @@ app.set('trust proxy', 1);
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')
   : [
-      'http://localhost:5173',
-      'http://localhost:3001',
-      'http://localhost:8000',      // Django development server (Diray Centre)
-      'http://127.0.0.1:8000',      // Django development server (alternate)
-      'https://spectacular-enthusiasm-production.up.railway.app',
-      // Diray Centre production domains (add your actual domain here)
-      // process.env.DIRAY_FRONTEND_URL // Uncomment and set in .env
-    ].filter(Boolean);
+    'http://localhost:5173',
+    'http://localhost:3001',
+    'http://localhost:8000',      // Django development server (Diray Centre)
+    'http://127.0.0.1:8000',      // Django development server (alternate)
+    'https://spectacular-enthusiasm-production.up.railway.app',
+    // Diray Centre production domains (add your actual domain here)
+    // process.env.DIRAY_FRONTEND_URL // Uncomment and set in .env
+  ].filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {
