@@ -175,33 +175,172 @@ export default function IndicateursProspects() {
     }
   }, [periodType, selectedDate]);
 
-  // Fetch detailed stats
-  const { data: stats, isLoading, refetch } = useQuery({
-    queryKey: ['prospects-stats-detailed', filters, dateRanges.current],
+  // Fetch prospects data using existing API
+  const { data: currentData, isLoading, refetch } = useQuery({
+    queryKey: ['prospects-dashboard', filters, dateRanges.current],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (filters.segment_id) params.append('segment_id', filters.segment_id);
-      if (filters.ville_id) params.append('ville_id', filters.ville_id);
-      params.append('date_from', dateRanges.current.start);
-      params.append('date_to', dateRanges.current.end);
-      const res = await apiClient.get(`/prospects/stats-detailed?${params.toString()}`);
-      return res.data;
+      return prospectsApi.getAll({
+        segment_id: filters.segment_id || undefined,
+        ville_id: filters.ville_id || undefined,
+        date_from: dateRanges.current.start,
+        date_to: dateRanges.current.end,
+        limit: 10000 // Get all for statistics
+      });
     }
   });
 
   // Fetch previous period for comparison
-  const { data: prevStats } = useQuery({
-    queryKey: ['prospects-stats-detailed-prev', filters, dateRanges.previous],
+  const { data: prevData } = useQuery({
+    queryKey: ['prospects-dashboard-prev', filters, dateRanges.previous],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (filters.segment_id) params.append('segment_id', filters.segment_id);
-      if (filters.ville_id) params.append('ville_id', filters.ville_id);
-      params.append('date_from', dateRanges.previous.start);
-      params.append('date_to', dateRanges.previous.end);
-      const res = await apiClient.get(`/prospects/stats-detailed?${params.toString()}`);
-      return res.data;
+      return prospectsApi.getAll({
+        segment_id: filters.segment_id || undefined,
+        ville_id: filters.ville_id || undefined,
+        date_from: dateRanges.previous.start,
+        date_to: dateRanges.previous.end,
+        limit: 10000
+      });
     }
   });
+
+  // Transform data to dashboard stats format
+  const stats = useMemo(() => {
+    if (!currentData?.prospects) return null;
+
+    const prospects = currentData.prospects;
+    const total = prospects.length;
+
+    // Count by status
+    const by_status: Record<string, number> = {};
+    prospects.forEach(p => {
+      const status = p.statut_contact || 'inconnu';
+      by_status[status] = (by_status[status] || 0) + 1;
+    });
+
+    // Calculate rates
+    const nonContactes = by_status['non contacté'] || 0;
+    const avecRdv = by_status['contacté avec rdv'] || 0;
+    const inscrits = by_status['inscrit'] || 0;
+    const contactes = total - nonContactes;
+
+    const contact_rate = total > 0 ? Math.round((contactes / total) * 100 * 10) / 10 : 0;
+    const rdv_rate = contactes > 0 ? Math.round((avecRdv / contactes) * 100 * 10) / 10 : 0;
+    const show_up_rate = avecRdv > 0 ? Math.round((inscrits / avecRdv) * 100 * 10) / 10 : 0;
+    const conversion_rate_global = total > 0 ? Math.round((inscrits / total) * 100 * 10) / 10 : 0;
+    const conversion_rate_calls = currentData.stats?.taux_conversion || 0;
+
+    const rates = {
+      contact_rate,
+      rdv_rate,
+      show_up_rate,
+      conversion_rate_calls,
+      conversion_rate_global
+    };
+
+    // Funnel data
+    const funnel = [
+      { stage: 'Total Prospects', count: total, color: '#3b82f6' },
+      { stage: 'Contactés', count: contactes, color: '#8b5cf6' },
+      { stage: 'Avec RDV', count: avecRdv, color: '#22c55e' },
+      { stage: 'Inscrits', count: inscrits, color: '#06b6d4' }
+    ];
+
+    // Generate algorithmic recommendations
+    const recommendations: any[] = [];
+
+    if (contact_rate < 80) {
+      recommendations.push({
+        priority: contact_rate < 50 ? 'urgent' : 'high',
+        title: 'Augmenter le taux de contact',
+        description: `${nonContactes} prospects n'ont pas encore été contactés`,
+        context: `Taux de contact actuel: ${contact_rate}% (objectif: 80%)`,
+        expectedImpact: `+${Math.round(nonContactes * 0.1)} inscriptions potentielles`,
+        responsable: 'Équipe commerciale',
+        timeframe: 'Cette semaine'
+      });
+    }
+
+    if (rdv_rate < 25 && contactes > 0) {
+      recommendations.push({
+        priority: 'high',
+        title: 'Améliorer le taux de RDV',
+        description: 'Le taux de conversion en RDV est inférieur à l\'objectif',
+        context: `Taux de RDV actuel: ${rdv_rate}% (objectif: 25%)`,
+        expectedImpact: 'Améliorer l\'argumentaire téléphonique',
+        responsable: 'Responsable commercial',
+        timeframe: 'Formation cette semaine'
+      });
+    }
+
+    if (show_up_rate < 60 && avecRdv > 0) {
+      recommendations.push({
+        priority: 'medium',
+        title: 'Améliorer le taux de présence',
+        description: 'Trop de prospects avec RDV ne se présentent pas',
+        context: `Taux de show-up actuel: ${show_up_rate}% (objectif: 60%)`,
+        expectedImpact: `+${Math.round((avecRdv * 0.6 - inscrits) * 0.5)} inscriptions potentielles`,
+        responsable: 'Assistantes',
+        timeframe: 'Rappels J-1'
+      });
+    }
+
+    if (recommendations.length === 0 && total > 0) {
+      recommendations.push({
+        priority: 'success',
+        title: 'Performance satisfaisante',
+        description: 'Les indicateurs sont dans les objectifs',
+        context: `Contact: ${contact_rate}%, RDV: ${rdv_rate}%, Show-up: ${show_up_rate}%`,
+        expectedImpact: 'Maintenir les efforts',
+        responsable: 'Toute l\'équipe',
+        timeframe: 'Continu'
+      });
+    }
+
+    // Global assessment
+    let status = 'bon';
+    if (contact_rate < 50 || (inscrits === 0 && total > 10)) status = 'critique';
+    else if (contact_rate < 70 || rdv_rate < 15) status = 'attention';
+    else if (contact_rate >= 90 && rdv_rate >= 30 && show_up_rate >= 70) status = 'excellent';
+
+    const globalAssessment = {
+      status,
+      summary: status === 'excellent'
+        ? 'Excellente performance commerciale ce mois-ci'
+        : status === 'critique'
+        ? 'Situation critique nécessitant une action immédiate'
+        : status === 'attention'
+        ? 'Performance en dessous des objectifs, ajustements nécessaires'
+        : 'Performance correcte, quelques axes d\'amélioration',
+      topPriority: recommendations[0]?.title || 'Maintenir la performance',
+      projection: `${inscrits} inscrits actuellement`,
+      risk: status === 'critique' ? 'Élevé' : status === 'attention' ? 'Modéré' : 'Faible'
+    };
+
+    return {
+      total,
+      by_status,
+      rates,
+      funnel,
+      recommendations,
+      globalAssessment,
+      inscrits_session: currentData.stats?.inscrits_session || 0
+    };
+  }, [currentData]);
+
+  // Previous period stats for trends
+  const prevStats = useMemo(() => {
+    if (!prevData?.prospects) return null;
+    const prospects = prevData.prospects;
+    const by_status: Record<string, number> = {};
+    prospects.forEach(p => {
+      const status = p.statut_contact || 'inconnu';
+      by_status[status] = (by_status[status] || 0) + 1;
+    });
+    return {
+      total: prospects.length,
+      by_status
+    };
+  }, [prevData]);
 
   // Fetch segments and villes
   const { data: segments } = useQuery({
