@@ -25,6 +25,10 @@ export default function Segments() {
     name: '',
     color: '#3b82f6',
     cnss_number: '',
+    identifiant_fiscal: '',
+    registre_commerce: '',
+    ice: '',
+    company_address: '',
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -39,6 +43,10 @@ export default function Segments() {
           name: formData.name,
           color: formData.color,
           cnss_number: formData.cnss_number || undefined,
+          identifiant_fiscal: formData.identifiant_fiscal || undefined,
+          registre_commerce: formData.registre_commerce || undefined,
+          ice: formData.ice || undefined,
+          company_address: formData.company_address || undefined,
         });
 
         // Upload logo si nouveau fichier sélectionné
@@ -63,6 +71,10 @@ export default function Segments() {
       name: segment.name,
       color: segment.color || '#3B82F6',
       cnss_number: segment.cnss_number || '',
+      identifiant_fiscal: segment.identifiant_fiscal || '',
+      registre_commerce: segment.registre_commerce || '',
+      ice: segment.ice || '',
+      company_address: segment.company_address || '',
     });
     setLogoPreview(segment.logo_url || null);
     setLogoFile(null);
@@ -82,7 +94,15 @@ export default function Segments() {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', color: '#3b82f6', cnss_number: '' });
+    setFormData({
+      name: '',
+      color: '#3b82f6',
+      cnss_number: '',
+      identifiant_fiscal: '',
+      registre_commerce: '',
+      ice: '',
+      company_address: '',
+    });
     setEditingId(null);
     setShowForm(false);
     setLogoFile(null);
@@ -201,19 +221,77 @@ export default function Segments() {
                   </div>
                 )}
 
-                {/* N° CNSS Employeur - uniquement en mode édition */}
+                {/* Informations fiscales - uniquement en mode édition */}
                 {editingId && (
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      N° CNSS Employeur (pour ce segment)
-                    </label>
-                    <Input
-                      value={formData.cnss_number}
-                      onChange={(e) => setFormData({ ...formData, cnss_number: e.target.value })}
-                      placeholder="Ex: 1234567"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Numéro d'affiliation CNSS de l'employeur pour ce segment. Apparaîtra sur les bulletins de paie.
+                  <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
+                    <h3 className="font-semibold text-gray-700">Informations Fiscales & Légales</h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* N° CNSS Employeur */}
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          N° CNSS Employeur
+                        </label>
+                        <Input
+                          value={formData.cnss_number}
+                          onChange={(e) => setFormData({ ...formData, cnss_number: e.target.value })}
+                          placeholder="Ex: 1234567"
+                        />
+                      </div>
+
+                      {/* Identifiant Fiscal (IF) */}
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          Identifiant Fiscal (IF)
+                        </label>
+                        <Input
+                          value={formData.identifiant_fiscal}
+                          onChange={(e) => setFormData({ ...formData, identifiant_fiscal: e.target.value })}
+                          placeholder="Ex: 12345678"
+                        />
+                      </div>
+
+                      {/* Registre de Commerce (RC) */}
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          Registre de Commerce (RC)
+                        </label>
+                        <Input
+                          value={formData.registre_commerce}
+                          onChange={(e) => setFormData({ ...formData, registre_commerce: e.target.value })}
+                          placeholder="Ex: 123456"
+                        />
+                      </div>
+
+                      {/* ICE */}
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          ICE (Identifiant Commun de l'Entreprise)
+                        </label>
+                        <Input
+                          value={formData.ice}
+                          onChange={(e) => setFormData({ ...formData, ice: e.target.value })}
+                          placeholder="Ex: 001524896000088"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Adresse siège social */}
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Adresse Siège Social
+                      </label>
+                      <textarea
+                        value={formData.company_address}
+                        onChange={(e) => setFormData({ ...formData, company_address: e.target.value })}
+                        placeholder="Adresse complète du siège social..."
+                        className="w-full p-2 border rounded-md text-sm resize-none"
+                        rows={2}
+                      />
+                    </div>
+
+                    <p className="text-xs text-gray-500">
+                      Ces informations apparaîtront sur les bulletins de paie générés pour ce segment.
                     </p>
                   </div>
                 )}

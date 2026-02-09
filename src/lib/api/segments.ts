@@ -6,12 +6,21 @@ export interface Segment {
   color?: string;
   logo_url?: string;
   cnss_number?: string;
+  identifiant_fiscal?: string;  // IF - Identifiant Fiscal
+  registre_commerce?: string;   // RC - Registre de Commerce
+  ice?: string;                 // ICE
+  company_address?: string;     // Adresse siège social
   created_at: string;
 }
 
 export interface CreateSegmentInput {
   name: string;
   color: string;
+  cnss_number?: string;
+  identifiant_fiscal?: string;
+  registre_commerce?: string;
+  ice?: string;
+  company_address?: string;
 }
 
 export interface UpdateSegmentInput {
@@ -19,6 +28,10 @@ export interface UpdateSegmentInput {
   name: string;
   color: string;
   cnss_number?: string;
+  identifiant_fiscal?: string;
+  registre_commerce?: string;
+  ice?: string;
+  company_address?: string;
 }
 
 /**

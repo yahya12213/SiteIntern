@@ -118,15 +118,16 @@ router.get('/:id',
 // POST créer un segment - requires create permission
 router.post('/', authenticateToken, requirePermission('accounting.segments.create'), async (req, res) => {
   try {
-    const { id, name, color } = req.body;
+    const { id, name, color, cnss_number, identifiant_fiscal, registre_commerce, ice, company_address } = req.body;
 
     if (!id || !name) {
       return res.status(400).json({ error: 'Missing required fields: id, name' });
     }
 
     const result = await pool.query(
-      'INSERT INTO segments (id, name, color) VALUES ($1, $2, $3) RETURNING *',
-      [id, name, color || '#3B82F6']
+      `INSERT INTO segments (id, name, color, cnss_number, identifiant_fiscal, registre_commerce, ice, company_address)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [id, name, color || '#3B82F6', cnss_number || null, identifiant_fiscal || null, registre_commerce || null, ice || null, company_address || null]
     );
 
     res.status(201).json(result.rows[0]);
@@ -147,11 +148,19 @@ router.put('/:id',
   async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, color, cnss_number } = req.body;
+    const { name, color, cnss_number, identifiant_fiscal, registre_commerce, ice, company_address } = req.body;
 
     // Build update query with scope filter
-    let query = 'UPDATE segments SET name = $1, color = $2, cnss_number = $3 WHERE id = $4';
-    const params = [name, color, cnss_number || null, id];
+    let query = `UPDATE segments SET
+      name = $1, color = $2, cnss_number = $3,
+      identifiant_fiscal = $4, registre_commerce = $5,
+      ice = $6, company_address = $7
+      WHERE id = $8`;
+    const params = [
+      name, color, cnss_number || null,
+      identifiant_fiscal || null, registre_commerce || null,
+      ice || null, company_address || null, id
+    ];
 
     // SBAC: Verify user has access to this segment
     const scopeFilter = buildScopeFilter(req, 'id', null);

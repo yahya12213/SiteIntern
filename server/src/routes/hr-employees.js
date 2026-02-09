@@ -514,6 +514,17 @@ router.put('/:id',
       return res.status(404).json({ success: false, error: 'Employee not found' });
     }
 
+    // Synchroniser initial_leave_balance vers hr_leave_balances si modifié
+    if (updates.initial_leave_balance !== undefined) {
+      const currentYear = new Date().getFullYear();
+      await pool.query(`
+        UPDATE hr_leave_balances
+        SET initial_balance = $1, updated_at = NOW()
+        WHERE employee_id = $2 AND year = $3
+      `, [updates.initial_leave_balance, id, currentYear]);
+      console.log(`✅ Synced initial_leave_balance (${updates.initial_leave_balance}) to hr_leave_balances for employee ${id}`);
+    }
+
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Error updating employee:', error);

@@ -39,19 +39,7 @@ export function calculateSeniorityBonus(hireDate, year = new Date().getFullYear(
 export async function getOrCreateLeaveBalance(employeeId, year, client = null) {
   const db = client || pool;
 
-  // Chercher le solde existant
-  let result = await db.query(`
-    SELECT lb.*, lt.code as leave_type_code
-    FROM hr_leave_balances lb
-    JOIN hr_leave_types lt ON lt.id = lb.leave_type_id
-    WHERE lb.employee_id = $1 AND lb.year = $2 AND lt.code = 'ANNUAL'
-  `, [employeeId, year]);
-
-  if (result.rows.length > 0) {
-    return result.rows[0];
-  }
-
-  // Récupérer l'employé et son solde initial
+  // Récupérer l'employé et son solde initial d'abord
   const empResult = await db.query(`
     SELECT e.*, COALESCE(e.initial_leave_balance, 0) as initial_leave_balance
     FROM hr_employees e
@@ -63,6 +51,43 @@ export async function getOrCreateLeaveBalance(employeeId, year, client = null) {
   }
 
   const employee = empResult.rows[0];
+  const empInitialBalance = parseFloat(employee.initial_leave_balance || 0);
+
+  // Chercher le solde existant
+  let result = await db.query(`
+    SELECT lb.*, lt.code as leave_type_code
+    FROM hr_leave_balances lb
+    JOIN hr_leave_types lt ON lt.id = lb.leave_type_id
+    WHERE lb.employee_id = $1 AND lb.year = $2 AND lt.code = 'ANNUAL'
+  `, [employeeId, year]);
+
+  if (result.rows.length > 0) {
+    const existingBalance = result.rows[0];
+    const storedInitialBalance = parseFloat(existingBalance.initial_balance || 0);
+    const carriedOver = parseFloat(existingBalance.carried_over || 0);
+
+    // Vérifier si synchronisation nécessaire
+    // Sync seulement si: différent ET pas de report (première année système)
+    if (storedInitialBalance !== empInitialBalance && carriedOver === 0) {
+      console.log(`🔄 Syncing initial_balance: ${storedInitialBalance} → ${empInitialBalance} for employee ${employeeId}`);
+
+      await db.query(`
+        UPDATE hr_leave_balances
+        SET initial_balance = $1, updated_at = NOW()
+        WHERE id = $2
+      `, [empInitialBalance, existingBalance.id]);
+
+      // Re-fetch pour avoir current_balance recalculé par PostgreSQL
+      result = await db.query(`
+        SELECT lb.*, lt.code as leave_type_code
+        FROM hr_leave_balances lb
+        JOIN hr_leave_types lt ON lt.id = lb.leave_type_id
+        WHERE lb.id = $1
+      `, [existingBalance.id]);
+    }
+
+    return result.rows[0];
+  }
 
   // Récupérer le type de congé annuel
   const typeResult = await db.query(`
