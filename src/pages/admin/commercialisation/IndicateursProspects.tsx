@@ -33,7 +33,7 @@ import {
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, subYears } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 import { prospectsApi } from '@/lib/api/prospects';
 
 type PeriodType = 'mensuel' | 'annuel';
