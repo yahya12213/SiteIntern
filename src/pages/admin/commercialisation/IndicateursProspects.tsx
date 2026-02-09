@@ -28,7 +28,9 @@ import {
   ArrowLeft,
   Phone,
   UserCheck,
-  Percent
+  UserX,
+  Percent,
+  Clock
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, subYears } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -175,7 +177,7 @@ export default function IndicateursProspects() {
     }
   }, [periodType, selectedDate]);
 
-  // Fetch prospects data using existing API
+  // Fetch stats using existing API (like IndicateursModal)
   const { data: currentData, isLoading, refetch } = useQuery({
     queryKey: ['prospects-dashboard', filters, dateRanges.current],
     queryFn: async () => {
@@ -184,7 +186,8 @@ export default function IndicateursProspects() {
         ville_id: filters.ville_id || undefined,
         date_from: dateRanges.current.start,
         date_to: dateRanges.current.end,
-        limit: 10000 // Get all for statistics
+        page: 1,
+        limit: 1 // Just get stats, not all prospects
       });
     }
   });
@@ -198,36 +201,87 @@ export default function IndicateursProspects() {
         ville_id: filters.ville_id || undefined,
         date_from: dateRanges.previous.start,
         date_to: dateRanges.previous.end,
-        limit: 10000
+        page: 1,
+        limit: 1
       });
     }
   });
 
-  // Transform data to dashboard stats format
+  // Fetch écart details (current period)
+  const { data: currentEcart } = useQuery({
+    queryKey: ['prospects-ecart-current', filters, dateRanges.current],
+    queryFn: () => prospectsApi.getEcartDetails({
+      segment_id: filters.segment_id || undefined,
+      ville_id: filters.ville_id || undefined,
+      date_from: dateRanges.current.start,
+      date_to: dateRanges.current.end,
+    })
+  });
+
+  // Fetch écart details (previous period)
+  const { data: prevEcart } = useQuery({
+    queryKey: ['prospects-ecart-prev', filters, dateRanges.previous],
+    queryFn: () => prospectsApi.getEcartDetails({
+      segment_id: filters.segment_id || undefined,
+      ville_id: filters.ville_id || undefined,
+      date_from: dateRanges.previous.start,
+      date_to: dateRanges.previous.end,
+    })
+  });
+
+  // Use stats from API response (like IndicateursModal)
+  const current = currentData?.stats || {
+    total: 0,
+    non_contactes: 0,
+    avec_rdv: 0,
+    sans_rdv: 0,
+    inscrits_prospect: 0,
+    inscrits_session: 0,
+    taux_conversion: 0,
+  };
+
+  const previous = prevData?.stats || {
+    total: 0,
+    non_contactes: 0,
+    avec_rdv: 0,
+    sans_rdv: 0,
+    inscrits_prospect: 0,
+    inscrits_session: 0,
+    taux_conversion: 0,
+  };
+
+  // Transform to dashboard stats format using API stats
   const stats = useMemo(() => {
-    if (!currentData?.prospects) return null;
+    if (!currentData?.stats) return null;
 
-    const prospects = currentData.prospects;
-    const total = prospects.length;
-
-    // Count by status
-    const by_status: Record<string, number> = {};
-    prospects.forEach(p => {
-      const status = p.statut_contact || 'inconnu';
-      by_status[status] = (by_status[status] || 0) + 1;
-    });
-
-    // Calculate rates
-    const nonContactes = by_status['non contacté'] || 0;
-    const avecRdv = by_status['contacté avec rdv'] || 0;
-    const inscrits = by_status['inscrit'] || 0;
+    const total = current.total;
+    const nonContactes = current.non_contactes;
+    const avecRdv = current.avec_rdv;
+    const sansRdv = current.sans_rdv;
+    const inscritsProspect = current.inscrits_prospect;
+    const inscritsSession = current.inscrits_session;
     const contactes = total - nonContactes;
 
+    // Distribution par statut (pour pie chart)
+    const by_status: Record<string, number> = {
+      'non contacté': nonContactes,
+      'contacté avec rdv': avecRdv,
+      'contacté sans rdv': sansRdv,
+      'inscrit': inscritsProspect,
+    };
+
+    // Autres statuts = total - somme des statuts connus
+    const autresStatuts = total - nonContactes - avecRdv - sansRdv - inscritsProspect;
+    if (autresStatuts > 0) {
+      by_status['autres'] = autresStatuts;
+    }
+
+    // Calculate rates
     const contact_rate = total > 0 ? Math.round((contactes / total) * 100 * 10) / 10 : 0;
     const rdv_rate = contactes > 0 ? Math.round((avecRdv / contactes) * 100 * 10) / 10 : 0;
-    const show_up_rate = avecRdv > 0 ? Math.round((inscrits / avecRdv) * 100 * 10) / 10 : 0;
-    const conversion_rate_global = total > 0 ? Math.round((inscrits / total) * 100 * 10) / 10 : 0;
-    const conversion_rate_calls = currentData.stats?.taux_conversion || 0;
+    const show_up_rate = avecRdv > 0 ? Math.round((inscritsSession / avecRdv) * 100 * 10) / 10 : 0;
+    const conversion_rate_global = total > 0 ? Math.round((inscritsProspect / total) * 100 * 10) / 10 : 0;
+    const conversion_rate_calls = current.taux_conversion || 0;
 
     const rates = {
       contact_rate,
@@ -242,7 +296,7 @@ export default function IndicateursProspects() {
       { stage: 'Total Prospects', count: total, color: '#3b82f6' },
       { stage: 'Contactés', count: contactes, color: '#8b5cf6' },
       { stage: 'Avec RDV', count: avecRdv, color: '#22c55e' },
-      { stage: 'Inscrits', count: inscrits, color: '#06b6d4' }
+      { stage: 'Inscrits Session', count: inscritsSession, color: '#06b6d4' }
     ];
 
     // Generate algorithmic recommendations
@@ -278,7 +332,7 @@ export default function IndicateursProspects() {
         title: 'Améliorer le taux de présence',
         description: 'Trop de prospects avec RDV ne se présentent pas',
         context: `Taux de show-up actuel: ${show_up_rate}% (objectif: 60%)`,
-        expectedImpact: `+${Math.round((avecRdv * 0.6 - inscrits) * 0.5)} inscriptions potentielles`,
+        expectedImpact: `+${Math.round((avecRdv * 0.6 - inscritsSession) * 0.5)} inscriptions potentielles`,
         responsable: 'Assistantes',
         timeframe: 'Rappels J-1'
       });
@@ -298,7 +352,7 @@ export default function IndicateursProspects() {
 
     // Global assessment
     let status = 'bon';
-    if (contact_rate < 50 || (inscrits === 0 && total > 10)) status = 'critique';
+    if (contact_rate < 50 || (inscritsSession === 0 && total > 10)) status = 'critique';
     else if (contact_rate < 70 || rdv_rate < 15) status = 'attention';
     else if (contact_rate >= 90 && rdv_rate >= 30 && show_up_rate >= 70) status = 'excellent';
 
@@ -312,7 +366,7 @@ export default function IndicateursProspects() {
         ? 'Performance en dessous des objectifs, ajustements nécessaires'
         : 'Performance correcte, quelques axes d\'amélioration',
       topPriority: recommendations[0]?.title || 'Maintenir la performance',
-      projection: `${inscrits} inscrits actuellement`,
+      projection: `${inscritsSession} inscrits session actuellement`,
       risk: status === 'critique' ? 'Élevé' : status === 'attention' ? 'Modéré' : 'Faible'
     };
 
@@ -327,20 +381,21 @@ export default function IndicateursProspects() {
     };
   }, [currentData]);
 
-  // Previous period stats for trends
+  // Previous period stats for trends (use API stats)
   const prevStats = useMemo(() => {
-    if (!prevData?.prospects) return null;
-    const prospects = prevData.prospects;
-    const by_status: Record<string, number> = {};
-    prospects.forEach(p => {
-      const status = p.statut_contact || 'inconnu';
-      by_status[status] = (by_status[status] || 0) + 1;
-    });
+    if (!prevData?.stats) return null;
     return {
-      total: prospects.length,
-      by_status
+      total: previous.total,
+      inscrits_prospect: previous.inscrits_prospect,
+      inscrits_session: previous.inscrits_session,
+      by_status: {
+        'non contacté': previous.non_contactes,
+        'contacté avec rdv': previous.avec_rdv,
+        'contacté sans rdv': previous.sans_rdv,
+        'inscrit': previous.inscrits_prospect,
+      }
     };
-  }, [prevData]);
+  }, [prevData, previous]);
 
   // Fetch segments and villes
   const { data: segments } = useQuery({
@@ -364,19 +419,19 @@ export default function IndicateursProspects() {
     mutationFn: async () => {
       const indicators = {
         current: {
-          total: stats?.total || 0,
-          non_contactes: stats?.by_status?.['non contacté'] || 0,
-          avec_rdv: stats?.by_status?.['contacté avec rdv'] || 0,
-          sans_rdv: stats?.by_status?.['contacté sans rdv'] || 0,
-          inscrits_prospect: stats?.by_status?.['inscrit'] || 0,
-          inscrits_session: stats?.inscrits_session || 0,
-          taux_conversion: stats?.rates?.conversion_rate_calls || 0
+          total: current.total,
+          non_contactes: current.non_contactes,
+          avec_rdv: current.avec_rdv,
+          sans_rdv: current.sans_rdv,
+          inscrits_prospect: current.inscrits_prospect,
+          inscrits_session: current.inscrits_session,
+          taux_conversion: current.taux_conversion || 0
         },
         previous: prevStats ? {
-          total: prevStats?.total || 0,
-          inscrits_prospect: prevStats?.by_status?.['inscrit'] || 0
+          total: previous.total,
+          inscrits_prospect: previous.inscrits_prospect
         } : null,
-        ecart: null
+        ecart: currentEcart || null
       };
       const res = await apiClient.post('/ai-settings/analyze', { indicators, filters });
       return res.data;
@@ -567,8 +622,8 @@ export default function IndicateursProspects() {
     };
   };
 
-  const totalTrend = getTrend(stats?.total || 0, prevStats?.total || 0);
-  const inscritsTrend = getTrend(stats?.by_status?.['inscrit'] || 0, prevStats?.by_status?.['inscrit'] || 0);
+  const totalTrend = getTrend(current.total, previous.total);
+  const inscritsTrend = getTrend(current.inscrits_prospect, previous.inscrits_prospect);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -659,15 +714,88 @@ export default function IndicateursProspects() {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* KPI Cards - Matching IndicateursModal */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
             <KPICard
               title="Total Prospects"
-              value={stats?.total || 0}
+              value={current.total}
               icon={<Users className="h-6 w-6 text-white" />}
               color="blue"
               trend={totalTrend.trend}
               trendValue={totalTrend.value}
+            />
+            <KPICard
+              title="Non Contactés"
+              value={current.non_contactes}
+              icon={<Phone className="h-6 w-6 text-white" />}
+              color="orange"
+              trend={getTrend(current.non_contactes, previous.non_contactes).trend}
+              trendValue={getTrend(current.non_contactes, previous.non_contactes).value}
+            />
+            <KPICard
+              title="Avec RDV"
+              value={current.avec_rdv}
+              icon={<Calendar className="h-6 w-6 text-white" />}
+              color="green"
+              trend={getTrend(current.avec_rdv, previous.avec_rdv).trend}
+              trendValue={getTrend(current.avec_rdv, previous.avec_rdv).value}
+            />
+            <KPICard
+              title="Sans RDV"
+              value={current.sans_rdv}
+              icon={<Calendar className="h-6 w-6 text-white" />}
+              color="purple"
+              trend={getTrend(current.sans_rdv, previous.sans_rdv).trend}
+              trendValue={getTrend(current.sans_rdv, previous.sans_rdv).value}
+            />
+          </div>
+
+          {/* Second row of KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
+            <KPICard
+              title="Taux Conversion"
+              value={current.taux_conversion?.toFixed(1) || '0'}
+              suffix="%"
+              icon={<Percent className="h-6 w-6 text-white" />}
+              color="purple"
+              trend={getTrend(current.taux_conversion || 0, previous.taux_conversion || 0).trend}
+              trendValue={getTrend(current.taux_conversion || 0, previous.taux_conversion || 0).value}
+            />
+            <KPICard
+              title="Inscrit Prospect"
+              value={current.inscrits_prospect}
+              icon={<UserCheck className="h-6 w-6 text-white" />}
+              color="cyan"
+              trend={inscritsTrend.trend}
+              trendValue={inscritsTrend.value}
+            />
+            <KPICard
+              title="Écart Session"
+              value={currentEcart?.ecart_session?.count || 0}
+              icon={<UserCheck className="h-6 w-6 text-white" />}
+              color="green"
+              trend={getTrend(currentEcart?.ecart_session?.count || 0, prevEcart?.ecart_session?.count || 0).trend}
+              trendValue={getTrend(currentEcart?.ecart_session?.count || 0, prevEcart?.ecart_session?.count || 0).value}
+            />
+            <KPICard
+              title="Écart Prospect"
+              value={currentEcart?.ecart_prospect?.count || 0}
+              icon={<UserX className="h-6 w-6 text-white" />}
+              color="orange"
+              trend={getTrend(currentEcart?.ecart_prospect?.count || 0, prevEcart?.ecart_prospect?.count || 0).trend}
+              trendValue={getTrend(currentEcart?.ecart_prospect?.count || 0, prevEcart?.ecart_prospect?.count || 0).value}
+            />
+          </div>
+
+          {/* Third row - Sessions */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <KPICard
+              title="Inscrits Session"
+              value={current.inscrits_session}
+              icon={<Target className="h-6 w-6 text-white" />}
+              color="blue"
+              trend={getTrend(current.inscrits_session, previous.inscrits_session).trend}
+              trendValue={getTrend(current.inscrits_session, previous.inscrits_session).value}
             />
             <KPICard
               title="Taux de Contact"
@@ -677,26 +805,11 @@ export default function IndicateursProspects() {
               color="purple"
             />
             <KPICard
-              title="Taux de RDV"
-              value={stats?.rates?.rdv_rate || 0}
-              suffix="%"
-              icon={<Calendar className="h-6 w-6 text-white" />}
-              color="green"
-            />
-            <KPICard
               title="Taux Show-up"
               value={stats?.rates?.show_up_rate || 0}
               suffix="%"
               icon={<Target className="h-6 w-6 text-white" />}
-              color="orange"
-            />
-            <KPICard
-              title="Inscrits"
-              value={stats?.by_status?.['inscrit'] || 0}
-              icon={<UserCheck className="h-6 w-6 text-white" />}
-              color="cyan"
-              trend={inscritsTrend.trend}
-              trendValue={inscritsTrend.value}
+              color="green"
             />
           </div>
 
