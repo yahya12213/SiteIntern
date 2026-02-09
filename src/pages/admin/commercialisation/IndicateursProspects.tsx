@@ -95,9 +95,15 @@ function KPICard({
             {icon}
           </div>
         </div>
-        {trend && trendValue && (
+        {trendValue && (
           <div className="flex items-center gap-1 mt-2 text-white/90 text-sm">
-            {trend === 'up' ? <TrendingUp className="h-4 w-4" /> : trend === 'down' ? <TrendingDown className="h-4 w-4" /> : null}
+            {trend === 'up' ? (
+              <TrendingUp className="h-4 w-4 text-green-300" />
+            ) : trend === 'down' ? (
+              <TrendingDown className="h-4 w-4 text-red-300" />
+            ) : (
+              <span className="h-4 w-4 text-center">≈</span>
+            )}
             <span>{trendValue}</span>
           </div>
         )}
@@ -627,10 +633,15 @@ export default function IndicateursProspects() {
     setSelectedDate(periodType === 'mensuel' ? subMonths(selectedDate, -1) : subYears(selectedDate, -1));
   };
 
-  // Calculate trends
-  const getTrend = (current: number, previous: number) => {
-    if (!previous) return { trend: 'stable' as const, value: '-' };
-    const change = ((current - previous) / previous) * 100;
+  // Calculate trends - always show something even when previous is 0
+  const getTrend = (currentVal: number, previousVal: number) => {
+    if (previousVal === 0 && currentVal === 0) {
+      return { trend: 'stable' as const, value: `= vs ${dateRanges.previous.label}` };
+    }
+    if (previousVal === 0) {
+      return { trend: 'up' as const, value: `+${currentVal} vs ${dateRanges.previous.label}` };
+    }
+    const change = ((currentVal - previousVal) / previousVal) * 100;
     return {
       trend: change > 0 ? 'up' as const : change < 0 ? 'down' as const : 'stable' as const,
       value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}% vs ${dateRanges.previous.label}`
