@@ -397,6 +397,21 @@ export default function IndicateursProspects() {
     };
   }, [prevData, previous]);
 
+  // Calculate previous period rates for trend comparison
+  const prevRates = useMemo(() => {
+    const prevContactes = previous.total - previous.non_contactes;
+    const prev_contact_rate = previous.total > 0
+      ? Math.round((prevContactes / previous.total) * 100 * 10) / 10
+      : 0;
+    const prev_rdv_rate = prevContactes > 0
+      ? Math.round((previous.avec_rdv / prevContactes) * 100 * 10) / 10
+      : 0;
+    const prev_show_up_rate = previous.avec_rdv > 0
+      ? Math.round((previous.inscrits_session / previous.avec_rdv) * 100 * 10) / 10
+      : 0;
+    return { prev_contact_rate, prev_rdv_rate, prev_show_up_rate };
+  }, [previous]);
+
   // Fetch segments and villes
   const { data: segments } = useQuery({
     queryKey: ['segments'],
@@ -803,6 +818,8 @@ export default function IndicateursProspects() {
               suffix="%"
               icon={<Phone className="h-6 w-6 text-white" />}
               color="purple"
+              trend={getTrend(stats?.rates?.contact_rate || 0, prevRates.prev_contact_rate).trend}
+              trendValue={getTrend(stats?.rates?.contact_rate || 0, prevRates.prev_contact_rate).value}
             />
             <KPICard
               title="Taux Show-up"
@@ -810,6 +827,8 @@ export default function IndicateursProspects() {
               suffix="%"
               icon={<Target className="h-6 w-6 text-white" />}
               color="green"
+              trend={getTrend(stats?.rates?.show_up_rate || 0, prevRates.prev_show_up_rate).trend}
+              trendValue={getTrend(stats?.rates?.show_up_rate || 0, prevRates.prev_show_up_rate).value}
             />
           </div>
 
