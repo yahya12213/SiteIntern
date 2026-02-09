@@ -35,6 +35,10 @@ if (process.env.JWT_SECRET) {
 }
 console.log('-------------------------');
 
+// Import auth validation AFTER environment logic
+import { validateJWTConfig } from './middleware/auth.js';
+validateJWTConfig();
+
 // Import database connection after dotenv
 import pool from './config/database.js';
 

@@ -20,25 +20,37 @@ if (!process.env.JWT_SECRET) {
 import jwt from 'jsonwebtoken';
 import pool from '../config/database.js';
 
-// JWT Secret - MUST be set in .env - Fail-fast if missing
-const JWT_SECRET = process.env.JWT_SECRET;
+// JWT Secret - Configured via validateJWTConfig()
+let JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
-// Security validation at module load
-if (!JWT_SECRET) {
-  console.error('❌ CRITICAL SECURITY ERROR: JWT_SECRET environment variable is not set!');
-  console.error('   Set JWT_SECRET in your .env file or Railway environment variables');
-  console.error('   Generate a secure secret with: openssl rand -base64 64');
-  process.exit(1); // Fail-fast - refuse to start without secret
-}
+/**
+ * Validates JWT configuration and provides safe fallbacks for development.
+ * This is called from index.js AFTER environment variables are fully loaded.
+ */
+export const validateJWTConfig = () => {
+  JWT_SECRET = process.env.JWT_SECRET;
 
-if (JWT_SECRET.length < 32) {
-  console.error(`❌ CRITICAL SECURITY ERROR: JWT_SECRET is too short (${JWT_SECRET.length} chars, minimum 32)`);
-  console.error('   Generate a secure secret with: openssl rand -base64 64');
-  process.exit(1);
-}
+  if (!JWT_SECRET) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('❌ CRITICAL SECURITY ERROR: JWT_SECRET environment variable is not set!');
+      console.error('   Set JWT_SECRET in your .env file or Railway environment variables');
+      console.error('   Generate a secure secret with: openssl rand -base64 64');
+      process.exit(1);
+    } else {
+      console.warn('⚠️  WARNING: JWT_SECRET is not set. Using a temporary secret for development.');
+      console.warn('   This is unsafe for production but allows the server to start.');
+      JWT_SECRET = 'dev_only_temporary_secret_placeholder_change_me_immediately';
+    }
+  }
 
-console.log('✓ JWT_SECRET validated successfully');
+  if (JWT_SECRET.length < 32 && process.env.NODE_ENV === 'production') {
+    console.error(`❌ CRITICAL SECURITY ERROR: JWT_SECRET is too short (${JWT_SECRET.length} chars, minimum 32)`);
+    process.exit(1);
+  }
+
+  console.log('✓ JWT_SECRET validation passed');
+};
 
 // ==========================================
 // PERMISSION CODE CONVERSION EN → FR
