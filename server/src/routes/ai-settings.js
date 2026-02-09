@@ -562,84 +562,190 @@ router.post('/analyze', async (req, res) => {
   }
 });
 
-// Helper function to build the analysis prompt
+// Helper function to build the analysis prompt with pre-calculated indicators
 function buildAnalysisPrompt(indicators, filters) {
   const { current, previous, ecart } = indicators;
 
-  return `Tu es un expert en analyse commerciale et CRM pour un centre de formation professionnelle au Maroc.
+  // ===== CALCULS PRÉ-TRAITÉS CÔTÉ SERVEUR =====
+  const total = current.total || 0;
+  const nonContactes = current.non_contactes || 0;
+  const totalContactes = total - nonContactes;
+  const avecRdv = current.avec_rdv || 0;
+  const inscritsProspect = current.inscrits_prospect || 0;
+  const inscritsSession = current.inscrits_session || 0;
 
-## CONTEXTE DE L'ACTIVITÉ
-- Secteur: Formation professionnelle (comptabilité, gestion, informatique)
-- Modèle commercial: Prospection téléphonique et digitale → Rendez-vous → Inscription → Formation
-- Cycle de vente: Court (1-2 semaines en moyenne)
-- Cibles: Jeunes diplômés, professionnels en reconversion, entreprises
+  // Taux calculés
+  const tauxContact = total > 0 ? ((totalContactes / total) * 100).toFixed(1) : 0;
+  const tauxRDV = totalContactes > 0 ? ((avecRdv / totalContactes) * 100).toFixed(1) : 0;
+  const tauxConversion = total > 0 ? ((inscritsProspect / total) * 100).toFixed(1) : 0;
+  const tauxShowUp = avecRdv > 0 ? ((inscritsSession / avecRdv) * 100).toFixed(1) : 0;
 
-## DONNÉES ACTUELLES (Période en cours)
-${JSON.stringify(current, null, 2)}
+  // Objectifs et écarts
+  const objectifMensuel = current.inscription_objective || null;
+  const ecartObjectif = current.inscription_gap !== undefined ? current.inscription_gap : null;
+  const joursOuvresTotal = current.total_working_days || 22;
+  const joursOuvresEcoules = current.elapsed_working_days || 0;
+  const joursRestants = joursOuvresTotal - joursOuvresEcoules;
+  const objectifQuotidien = current.daily_objective?.toFixed(1) || null;
 
-## DONNÉES PRÉCÉDENTES (Période de comparaison)
-${JSON.stringify(previous, null, 2)}
+  // Productivité
+  const productiviteActuelle = joursOuvresEcoules > 0 ? (inscritsProspect / joursOuvresEcoules).toFixed(2) : 0;
+  const projectionFinMois = joursOuvresTotal > 0 ? Math.round(productiviteActuelle * joursOuvresTotal) : 0;
 
-## ÉCARTS IDENTIFIÉS
-${JSON.stringify(ecart, null, 2)}
+  // Évolutions vs période précédente
+  const evolTotal = previous?.total ? (((total - previous.total) / previous.total) * 100).toFixed(1) : null;
+  const evolInscrits = previous?.inscrits_prospect !== undefined ? (inscritsProspect - previous.inscrits_prospect) : null;
+
+  // Détermination des statuts pour les KPIs
+  const getStatus = (value, good, warning) => {
+    const v = parseFloat(value);
+    if (v >= good) return 'good';
+    if (v >= warning) return 'warning';
+    return 'critical';
+  };
+
+  return `# ANALYSE COMMERCIALE - CENTRE DE FORMATION PROLEAN
+
+## TON RÔLE
+Tu es le **Directeur Commercial virtuel** de PROLEAN, centre de formation professionnelle au Maroc.
+Ta mission: **MAXIMISER LES INSCRIPTIONS** en analysant les données et proposant des actions concrètes.
+
+## CONTEXTE BUSINESS PROLEAN
+- **Activité**: Formation professionnelle (comptabilité, paie, RH, fiscalité, informatique)
+- **Cibles**: Jeunes diplômés, comptables en reconversion, entreprises
+- **Modèle**: Prospection téléphonique → RDV au centre → Inscription → Formation
+- **Cycle de vente**: 1-2 semaines (décision rapide)
+- **Périodes de pic**: Septembre-Octobre (rentrée), Janvier-Février (nouvelle année)
+- **Objectif principal**: Convertir un maximum de prospects en inscrits
+
+---
+
+## INDICATEURS CALCULÉS (Période actuelle)
+
+### Pipeline Commercial
+| Métrique | Valeur | Cible Recommandée | Statut |
+|----------|--------|-------------------|--------|
+| Total prospects | ${total} | - | - |
+| Non contactés | ${nonContactes} | < 20% du total | ${nonContactes/total*100 > 20 ? '⚠️ Trop élevé' : '✅ OK'} |
+| **Taux de contact** | ${tauxContact}% | > 80% | ${getStatus(tauxContact, 80, 60) === 'good' ? '✅' : getStatus(tauxContact, 80, 60) === 'warning' ? '⚠️' : '🔴'} |
+| **Taux de RDV** | ${tauxRDV}% | > 25% | ${getStatus(tauxRDV, 25, 15) === 'good' ? '✅' : getStatus(tauxRDV, 25, 15) === 'warning' ? '⚠️' : '🔴'} |
+| **Taux de conversion** | ${tauxConversion}% | > 5% | ${getStatus(tauxConversion, 5, 3) === 'good' ? '✅' : getStatus(tauxConversion, 5, 3) === 'warning' ? '⚠️' : '🔴'} |
+| **Taux de show-up** | ${tauxShowUp}% | > 60% | ${getStatus(tauxShowUp, 60, 40) === 'good' ? '✅' : getStatus(tauxShowUp, 60, 40) === 'warning' ? '⚠️' : '🔴'} |
+
+### Suivi des Objectifs d'Inscription
+| Métrique | Valeur |
+|----------|--------|
+| Objectif mensuel | ${objectifMensuel || 'Non défini'} |
+| Inscrits actuels (prospects) | ${inscritsProspect} |
+| Inscrits actuels (sessions) | ${inscritsSession} |
+| **Écart vs objectif** | ${ecartObjectif !== null ? (ecartObjectif >= 0 ? '+' + ecartObjectif : ecartObjectif) : 'N/A'} |
+| Jours ouvrés écoulés | ${joursOuvresEcoules} / ${joursOuvresTotal} |
+| Jours ouvrés restants | ${joursRestants} |
+| Objectif/jour requis | ${objectifQuotidien || 'N/A'} inscriptions/jour |
+| Productivité actuelle | ${productiviteActuelle} inscriptions/jour |
+| **Projection fin de mois** | ${projectionFinMois} inscriptions |
+
+### Comparaison Période Précédente
+| Métrique | Actuel | Précédent | Évolution |
+|----------|--------|-----------|-----------|
+| Total prospects | ${total} | ${previous?.total || '-'} | ${evolTotal ? evolTotal + '%' : '-'} |
+| Inscrits | ${inscritsProspect} | ${previous?.inscrits_prospect ?? '-'} | ${evolInscrits !== null ? (evolInscrits >= 0 ? '+' + evolInscrits : evolInscrits) : '-'} |
+
+### Écarts de Données (Qualité)
+- Inscrits en session mais pas marqués comme prospect inscrit: ${ecart?.ecart_session?.count || 0}
+- Prospects marqués "inscrit" mais pas dans session: ${ecart?.ecart_prospect?.count || 0}
+
+---
 
 ## FILTRES APPLIQUÉS
-- Segment: ${filters?.segment_id ? 'Filtré' : 'Tous les segments'}
-- Ville: ${filters?.ville_id ? 'Filtré' : 'Toutes les villes'}
+- Segment: ${filters?.segment_id ? 'Filtré sur segment #' + filters.segment_id : 'Tous les segments'}
+- Ville: ${filters?.ville_id ? 'Filtré sur ville #' + filters.ville_id : 'Toutes les villes'}
+
+---
 
 ## INSTRUCTIONS D'ANALYSE
-Analyse ces indicateurs et fournis:
 
-1. **DIAGNOSTIC** (2-3 phrases)
-   - État de santé global du pipeline commercial
-   - Points critiques nécessitant une action immédiate
+### 1. DIAGNOSTIC RAPIDE (3-4 phrases max)
+Évalue l'état de santé du pipeline et identifie LE problème principal qui bloque les inscriptions.
+Base-toi sur les indicateurs calculés ci-dessus.
 
-2. **INDICATEURS CLÉS** (format JSON pour graphiques)
-   Retourne un objet JSON avec la structure suivante pour afficher des graphiques:
-   \`\`\`json
-   {
-     "healthScore": <0-100>,
-     "kpis": [
-       {"name": "Taux de conversion", "value": <number>, "target": <number>, "unit": "%", "status": "good|warning|critical"},
-       {"name": "Taux de contact", "value": <number>, "target": <number>, "unit": "%", "status": "good|warning|critical"},
-       ...
-     ],
-     "trends": [
-       {"metric": "Inscriptions", "current": <number>, "previous": <number>, "change": <number>, "trend": "up|down|stable"}
-     ],
-     "funnelData": [
-       {"stage": "Prospects", "count": <number>},
-       {"stage": "Contactés", "count": <number>},
-       {"stage": "Intéressés", "count": <number>},
-       {"stage": "RDV", "count": <number>},
-       {"stage": "Inscrits", "count": <number>}
-     ]
-   }
-   \`\`\`
+### 2. INDICATEURS CLÉS (JSON pour graphiques)
+Retourne ce JSON avec les valeurs EXACTES calculées ci-dessus:
+\`\`\`json
+{
+  "healthScore": <0-100 basé sur: tauxContact(30%) + tauxRDV(25%) + tauxConversion(25%) + tauxShowUp(20%)>,
+  "kpis": [
+    {"name": "Taux de contact", "value": ${tauxContact}, "target": 80, "unit": "%", "status": "${getStatus(tauxContact, 80, 60)}"},
+    {"name": "Taux de RDV", "value": ${tauxRDV}, "target": 25, "unit": "%", "status": "${getStatus(tauxRDV, 25, 15)}"},
+    {"name": "Taux de conversion", "value": ${tauxConversion}, "target": 5, "unit": "%", "status": "${getStatus(tauxConversion, 5, 3)}"},
+    {"name": "Taux de show-up", "value": ${tauxShowUp}, "target": 60, "unit": "%", "status": "${getStatus(tauxShowUp, 60, 40)}"},
+    {"name": "Inscriptions", "value": ${inscritsProspect}, "target": ${objectifMensuel || inscritsProspect + 10}, "unit": "", "status": "${ecartObjectif !== null && ecartObjectif >= 0 ? 'good' : ecartObjectif !== null && ecartObjectif >= -5 ? 'warning' : 'critical'}"}
+  ],
+  "trends": [
+    {"metric": "Prospects", "current": ${total}, "previous": ${previous?.total || 0}, "change": ${evolTotal || 0}, "trend": "${evolTotal > 0 ? 'up' : evolTotal < 0 ? 'down' : 'stable'}"},
+    {"metric": "Inscriptions", "current": ${inscritsProspect}, "previous": ${previous?.inscrits_prospect || 0}, "change": ${evolInscrits || 0}, "trend": "${evolInscrits > 0 ? 'up' : evolInscrits < 0 ? 'down' : 'stable'}"}
+  ],
+  "funnelData": [
+    {"stage": "Prospects", "count": ${total}},
+    {"stage": "Contactés", "count": ${totalContactes}},
+    {"stage": "RDV obtenus", "count": ${avecRdv}},
+    {"stage": "Inscrits", "count": ${inscritsSession}}
+  ]
+}
+\`\`\`
 
-3. **RECOMMANDATIONS PRIORITAIRES** (format JSON)
-   \`\`\`json
-   {
-     "recommendations": [
-       {
-         "priority": "urgent|high|medium",
-         "title": "Titre court",
-         "description": "Description de l'action",
-         "expectedImpact": "Impact attendu",
-         "timeframe": "Cette semaine|Ce mois|Ce trimestre"
-       }
-     ]
-   }
-   \`\`\`
+### 3. RECOMMANDATIONS DÉTAILLÉES (JSON)
+Maximum 5 recommandations, ordonnées par priorité. Pour CHAQUE recommandation, explique:
+- **context**: Pourquoi cette recommandation ? Quel indicateur est problématique ?
+- **expectedImpact**: Combien d'inscriptions supplémentaires ?
+- **responsable**: Qui doit agir ?
+- **timeframe**: Quand agir ?
 
-4. **ALERTES** (si applicable)
-   Signale tout indicateur anormal ou situation critique.
+\`\`\`json
+{
+  "recommendations": [
+    {
+      "priority": "urgent|high|medium",
+      "title": "Titre action (max 50 caractères)",
+      "description": "Action concrète et précise à réaliser",
+      "context": "Basé sur [indicateur] qui est à [X%] vs cible de [Y%]. Cela signifie que...",
+      "expectedImpact": "+X inscriptions potentielles",
+      "responsable": "Assistante commerciale|Manager|Direction",
+      "timeframe": "Immédiat|Cette semaine|Ce mois",
+      "kpiToTrack": "Indicateur à surveiller pour mesurer le succès"
+    }
+  ]
+}
+\`\`\`
 
-IMPORTANT:
-- Sois concis et actionnable
-- Adapte tes recommandations au contexte marocain
-- Concentre-toi sur les actions à fort impact
-- Retourne les sections 2 et 3 en JSON valide pour permettre l'affichage de graphiques`;
+### 4. SYNTHÈSE FINALE (JSON) - TRÈS IMPORTANT
+Donne une vision globale et une recommandation finale:
+\`\`\`json
+{
+  "globalAssessment": {
+    "status": "critique|attention|bon|excellent",
+    "summary": "Résumé de la situation en 2-3 phrases. Soyez direct et factuel.",
+    "topPriority": "L'ACTION UNIQUE la plus importante à faire MAINTENANT pour augmenter les inscriptions",
+    "projection": "Avec les actions proposées: estimation de X inscriptions fin de période",
+    "risk": "Sans action: risque de X inscriptions manquées vs objectif"
+  }
+}
+\`\`\`
+
+### 5. ALERTES CRITIQUES (si applicable)
+Liste les situations nécessitant une intervention IMMÉDIATE (dans les 24-48h).
+
+---
+
+## RÈGLES IMPORTANTES
+1. **CONCRET**: Pas de conseils génériques. Actions précises avec qui/quoi/quand
+2. **CHIFFRÉ**: Quantifie l'impact de chaque recommandation
+3. **CONTEXTUALISÉ**: Explique POURQUOI chaque recommandation est faite (quel indicateur)
+4. **RÉALISTE**: Adapté au contexte marocain et aux ressources d'un centre de formation
+5. **PRIORISÉ**: Max 5 recommandations, la plus urgente en premier
+6. **ACTIONNABLE**: Chaque recommandation doit pouvoir être mise en œuvre immédiatement
+
+Tous les blocs JSON doivent être valides et parsables.`;
 }
 
 // Helper function to call Claude API
