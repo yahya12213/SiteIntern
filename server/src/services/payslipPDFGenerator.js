@@ -332,11 +332,17 @@ export class PayslipPDFGenerator {
       for (const line of earnings) {
         // Déterminer la base à afficher
         let baseDisplay = 'Forfait';
-        if (line.category === 'base_salary') {
+        const labelLower = (line.label || '').toLowerCase();
+
+        if (line.category === 'base_salary' || labelLower.includes('salaire de base')) {
+          // Salaire de base: afficher le nombre de jours CNSS
           baseDisplay = `${cnssDays.toFixed(0)} j`;
-        } else if (line.category === 'seniority' || line.category === 'anciennete') {
+        } else if (line.category === 'seniority' || line.category === 'anciennete' || labelLower.includes('ancienneté') || labelLower.includes('anciennete')) {
           // Prime d'ancienneté: base = salaire de base
           baseDisplay = this.formatAmount(payslip.base_salary);
+        } else if (labelLower.includes('rendement')) {
+          // Prime de rendement: toujours afficher 1
+          baseDisplay = '1';
         } else if (parseFloat(line.base_amount) > 0) {
           baseDisplay = this.formatAmount(line.base_amount);
         }
