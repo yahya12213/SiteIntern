@@ -330,10 +330,21 @@ export class PayslipPDFGenerator {
 
       doc.font('Helvetica').fillColor(COLORS.text);
       for (const line of earnings) {
+        // Déterminer la base à afficher
+        let baseDisplay = 'Forfait';
+        if (line.category === 'base_salary') {
+          baseDisplay = `${cnssDays.toFixed(0)} j`;
+        } else if (line.category === 'seniority' || line.category === 'anciennete') {
+          // Prime d'ancienneté: base = salaire de base
+          baseDisplay = this.formatAmount(payslip.base_salary);
+        } else if (parseFloat(line.base_amount) > 0) {
+          baseDisplay = this.formatAmount(line.base_amount);
+        }
+
         this.drawPayLine(doc, tableX, y, colWidths, {
           label: line.label,
-          base: line.category === 'base_salary' ? `${cnssDays.toFixed(0)} j` : (line.base_amount ? this.formatAmount(line.base_amount) : 'Forfait'),
-          rate: line.rate ? `${parseFloat(line.rate).toFixed(2)} %` : '',
+          base: baseDisplay,
+          rate: line.rate && parseFloat(line.rate) > 0 ? `${parseFloat(line.rate).toFixed(2)} %` : '',
           gain: this.formatAmount(line.amount),
           retenue: ''
         });
