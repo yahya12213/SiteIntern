@@ -1,24 +1,39 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 
-// Environment variables are now loaded via the first import
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Initial Load
+dotenv.config();
+
+// Robust lookup if failed
 if (!process.env.JWT_SECRET) {
-  console.warn('⚠️  JWT_SECRET is not defined after initial load. Attempting explicit reload...');
-  try {
-    const dotenv = await import('dotenv');
-    dotenv.config({ path: path.join(process.cwd(), '.env') });
-    console.log('🔄 Reloaded .env from:', path.join(process.cwd(), '.env'));
-  } catch (e) {
-    console.error('❌ Failed to explicitly reload .env:', e.message);
+  const rootEnv = path.join(process.cwd(), '.env');
+  const serverEnv = path.join(process.cwd(), 'server', '.env');
+
+  if (fs.existsSync(rootEnv)) {
+    dotenv.config({ path: rootEnv });
+    console.log('🔄 Forced reload from root .env:', rootEnv);
+  } else if (fs.existsSync(serverEnv)) {
+    dotenv.config({ path: serverEnv });
+    console.log('🔄 Forced reload from server .env:', serverEnv);
   }
 }
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+console.log('--- JWT_SECRET STATUS ---');
+console.log('JWT_SECRET defined:', !!process.env.JWT_SECRET);
+if (process.env.JWT_SECRET) {
+  console.log('JWT_SECRET length:', process.env.JWT_SECRET.length);
+} else {
+  console.log('CWD:', process.cwd());
+  console.log('Existing files in CWD:', fs.readdirSync(process.cwd()).filter(f => f.startsWith('.env')));
+}
+console.log('-------------------------');
 
 // Import database connection after dotenv
 import pool from './config/database.js';

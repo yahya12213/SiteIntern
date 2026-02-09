@@ -1,4 +1,22 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
+
+// Try standard load
+dotenv.config();
+
+// Try explicit paths if it failed (defense in depth for ESM hoisting)
+if (!process.env.JWT_SECRET) {
+  [
+    path.join(process.cwd(), '.env'),
+    path.join(process.cwd(), 'server', '.env')
+  ].forEach(envPath => {
+    if (fs.existsSync(envPath)) {
+      dotenv.config({ path: envPath });
+    }
+  });
+}
+
 import jwt from 'jsonwebtoken';
 import pool from '../config/database.js';
 
