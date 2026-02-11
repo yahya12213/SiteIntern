@@ -9,6 +9,119 @@ import { toTitleCase, formatCIN, formatEmail, formatPhone, formatAddress } from 
 const router = express.Router();
 
 /**
+ * Get pending students (registered from external website)
+ * GET /api/students/pending
+ * Protected: Requires authentication and students view permission
+ */
+router.get('/pending',
+  authenticateToken,
+  requirePermission('training.students.view_page'),
+  async (req, res) => {
+    try {
+      const result = await pool.query(`
+      SELECT 
+        s.id,
+        s.cin,
+        s.phone,
+        s.status,
+        s.created_at,
+        p.username,
+        p.email,
+        p.first_name,
+        p.last_name,
+        COUNT(DISTINCT asa.id) as activity_count,
+        MAX(asa.created_at) as last_activity
+      FROM students s
+      JOIN profiles p ON s.profile_id = p.id
+      LEFT JOIN analytics_student_activity asa ON s.id = asa.student_id
+      WHERE s.status = 'pending'
+      GROUP BY s.id, p.id
+      ORDER BY s.created_at DESC
+    `);
+
+      res.json({
+        success: true,
+        students: result.rows
+      });
+    } catch (error) {
+      console.error('Error fetching pending students:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+/**
+ * Activate student and assign formations
+ * POST /api/students/:id/activate
+ * Protected: Requires authentication and students update permission
+ */
+router.post('/:id/activate',
+  authenticateToken,
+  requirePermission('training.students.update'),
+  async (req, res) => {
+    const { session_id, city_id, formation_ids } = req.body;
+    const student_id = req.params.id;
+
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Update student status
+      await client.query(`
+      UPDATE students
+      SET status = 'active',
+          session_id = $1,
+          city_id = $2,
+          updated_at = NOW()
+      WHERE id = $3
+    `, [session_id, city_id, student_id]);
+
+      // Assign formations
+      if (formation_ids && formation_ids.length > 0) {
+        for (const formation_id of formation_ids) {
+          await client.query(`
+          INSERT INTO student_formations (student_id, formation_id, enrolled_at)
+          VALUES ($1, $2, NOW())
+          ON CONFLICT (student_id, formation_id) DO NOTHING
+        `, [student_id, formation_id]);
+        }
+      }
+
+      // Track activation in analytics
+      await client.query(`
+      INSERT INTO analytics_student_activity 
+      (student_id, activity_type, metadata, created_at)
+      VALUES ($1, 'activation', $2, NOW())
+    `, [student_id, JSON.stringify({
+        activated_by: req.user.id,
+        session_id,
+        city_id,
+        formation_count: formation_ids?.length || 0
+      })]);
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: 'Student activated successfully'
+      });
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error activating student:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    } finally {
+      client.release();
+    }
+  });
+
+/**
  * Check if student with CIN already exists
  * GET /api/students/check-cin/:cin
  * Protected: Requires authentication and students view permission
@@ -17,32 +130,32 @@ router.get('/check-cin/:cin',
   authenticateToken,
   requirePermission('training.students.view_page'),
   async (req, res) => {
-  const { cin } = req.params;
+    const { cin } = req.params;
 
-  try {
-    const result = await pool.query(
-      `SELECT id, nom, prenom, cin, email, phone, whatsapp,
+    try {
+      const result = await pool.query(
+        `SELECT id, nom, prenom, cin, email, phone, whatsapp,
               date_naissance, lieu_naissance, adresse, statut_compte, profile_image_url
        FROM students
        WHERE cin = $1`,
-      [cin]
-    );
+        [cin]
+      );
 
-    if (result.rows.length > 0) {
-      res.json({
-        exists: true,
-        student: result.rows[0],
-      });
-    } else {
-      res.json({
-        exists: false,
-      });
+      if (result.rows.length > 0) {
+        res.json({
+          exists: true,
+          student: result.rows[0],
+        });
+      } else {
+        res.json({
+          exists: false,
+        });
+      }
+    } catch (error) {
+      console.error('Error checking CIN:', error);
+      res.status(500).json({ error: 'Error checking CIN', details: error.message });
     }
-  } catch (error) {
-    console.error('Error checking CIN:', error);
-    res.status(500).json({ error: 'Error checking CIN', details: error.message });
-  }
-});
+  });
 
 /**
  * Create a new student
@@ -55,76 +168,76 @@ router.post('/',
   requirePermission('training.students.create'),
   uploadProfileImage,
   async (req, res) => {
-  // Extract and standardize input data
-  const {
-    nom: rawNom,
-    prenom: rawPrenom,
-    cin: rawCin,
-    email: rawEmail,
-    phone: rawPhone,
-    whatsapp: rawWhatsapp,
-    date_naissance,
-    lieu_naissance: rawLieuNaissance,
-    adresse: rawAdresse,
-    statut_compte,
-  } = req.body;
+    // Extract and standardize input data
+    const {
+      nom: rawNom,
+      prenom: rawPrenom,
+      cin: rawCin,
+      email: rawEmail,
+      phone: rawPhone,
+      whatsapp: rawWhatsapp,
+      date_naissance,
+      lieu_naissance: rawLieuNaissance,
+      adresse: rawAdresse,
+      statut_compte,
+    } = req.body;
 
-  // Apply standardization rules
-  const nom = toTitleCase(rawNom);                    // "DUPONT" -> "Dupont"
-  const prenom = toTitleCase(rawPrenom);              // "JEAN" -> "Jean"
-  const cin = formatCIN(rawCin);                      // "t 209876" -> "T209876"
-  const email = formatEmail(rawEmail);                // "JOHN@GMAIL.COM" -> "john@gmail.com"
-  const phone = formatPhone(rawPhone);                // "06 12 34 56 78" -> "0612345678"
-  const whatsapp = formatPhone(rawWhatsapp);          // Same for whatsapp
-  const lieu_naissance = toTitleCase(rawLieuNaissance); // "CASABLANCA" -> "Casablanca"
-  const adresse = formatAddress(rawAdresse);          // Title case for address
+    // Apply standardization rules
+    const nom = toTitleCase(rawNom);                    // "DUPONT" -> "Dupont"
+    const prenom = toTitleCase(rawPrenom);              // "JEAN" -> "Jean"
+    const cin = formatCIN(rawCin);                      // "t 209876" -> "T209876"
+    const email = formatEmail(rawEmail);                // "JOHN@GMAIL.COM" -> "john@gmail.com"
+    const phone = formatPhone(rawPhone);                // "06 12 34 56 78" -> "0612345678"
+    const whatsapp = formatPhone(rawWhatsapp);          // Same for whatsapp
+    const lieu_naissance = toTitleCase(rawLieuNaissance); // "CASABLANCA" -> "Casablanca"
+    const adresse = formatAddress(rawAdresse);          // Title case for address
 
-  try {
-    // Check if CIN already exists (use standardized CIN)
-    const existingStudent = await pool.query('SELECT id FROM students WHERE cin = $1', [cin]);
+    try {
+      // Check if CIN already exists (use standardized CIN)
+      const existingStudent = await pool.query('SELECT id FROM students WHERE cin = $1', [cin]);
 
-    if (existingStudent.rows.length > 0) {
-      return res.status(400).json({ error: 'Un étudiant avec ce CIN existe déjà' });
-    }
+      if (existingStudent.rows.length > 0) {
+        return res.status(400).json({ error: 'Un étudiant avec ce CIN existe déjà' });
+      }
 
-    // Handle profile image upload
-    let profile_image_url = null;
-    if (req.file) {
-      // Generate URL relative to server uploads directory
-      profile_image_url = `/uploads/profiles/${req.file.filename}`;
-    }
+      // Handle profile image upload
+      let profile_image_url = null;
+      if (req.file) {
+        // Generate URL relative to server uploads directory
+        profile_image_url = `/uploads/profiles/${req.file.filename}`;
+      }
 
-    const result = await pool.query(
-      `INSERT INTO students (
+      const result = await pool.query(
+        `INSERT INTO students (
         nom, prenom, cin, email, phone, whatsapp,
         date_naissance, lieu_naissance, adresse, statut_compte, profile_image_url
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
-      [
-        nom,
-        prenom,
-        cin,
-        email || null,
-        phone,
-        whatsapp || null,
-        date_naissance,
-        lieu_naissance,
-        adresse,
-        statut_compte || 'actif',
-        profile_image_url,
-      ]
-    );
+        [
+          nom,
+          prenom,
+          cin,
+          email || null,
+          phone,
+          whatsapp || null,
+          date_naissance,
+          lieu_naissance,
+          adresse,
+          statut_compte || 'actif',
+          profile_image_url,
+        ]
+      );
 
-    res.status(201).json({
-      success: true,
-      student: result.rows[0],
-      message: 'Étudiant créé avec succès',
-    });
-  } catch (error) {
-    console.error('Error creating student:', error);
-    res.status(500).json({ error: 'Erreur lors de la création de l\'étudiant', details: error.message });
-  }
-});
+      res.status(201).json({
+        success: true,
+        student: result.rows[0],
+        message: 'Étudiant créé avec succès',
+      });
+    } catch (error) {
+      console.error('Error creating student:', error);
+      res.status(500).json({ error: 'Erreur lors de la création de l\'étudiant', details: error.message });
+    }
+  });
 
 /**
  * Get all students with their session information
@@ -137,21 +250,21 @@ router.get('/with-sessions',
   requirePermission('training.students.view_page'),
   injectUserScope,
   async (req, res) => {
-  try {
-    // Build SBAC scope filter for session's segment and city
-    const scopeFilter = buildScopeFilter(req, 'sf.segment_id', 'sf.ville_id');
+    try {
+      // Build SBAC scope filter for session's segment and city
+      const scopeFilter = buildScopeFilter(req, 'sf.segment_id', 'sf.ville_id');
 
-    let whereClause = '';
-    let params = [];
+      let whereClause = '';
+      let params = [];
 
-    if (scopeFilter.hasScope) {
-      // User has scope restrictions - only show students in sessions within their scope
-      whereClause = `WHERE (${scopeFilter.conditions.join(' OR ')})`;
-      params = scopeFilter.params;
-    }
-    // If no scope (admin), show all students
+      if (scopeFilter.hasScope) {
+        // User has scope restrictions - only show students in sessions within their scope
+        whereClause = `WHERE (${scopeFilter.conditions.join(' OR ')})`;
+        params = scopeFilter.params;
+      }
+      // If no scope (admin), show all students
 
-    const result = await pool.query(`
+      const result = await pool.query(`
       SELECT
         s.id,
         s.nom,
@@ -186,12 +299,12 @@ router.get('/with-sessions',
         s.prenom
     `, params);
 
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching students with sessions:', error);
-    res.status(500).json({ error: 'Error fetching students with sessions', details: error.message });
-  }
-});
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching students with sessions:', error);
+      res.status(500).json({ error: 'Error fetching students with sessions', details: error.message });
+    }
+  });
 
 /**
  * Get all students
@@ -202,21 +315,21 @@ router.get('/',
   authenticateToken,
   requirePermission('training.students.view_page'),
   async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT id, nom, prenom, cin, email, phone, whatsapp,
+    try {
+      const result = await pool.query(
+        `SELECT id, nom, prenom, cin, email, phone, whatsapp,
               date_naissance, lieu_naissance, adresse, statut_compte, profile_image_url,
               created_at, updated_at
        FROM students
        ORDER BY created_at DESC`
-    );
+      );
 
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching students:', error);
-    res.status(500).json({ error: 'Error fetching students', details: error.message });
-  }
-});
+      res.json(result.rows);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      res.status(500).json({ error: 'Error fetching students', details: error.message });
+    }
+  });
 
 /**
  * Get current student's data (for external apps like Diray Centre)
@@ -352,28 +465,28 @@ router.get('/:id',
   authenticateToken,
   requirePermission('training.students.view_page'),
   async (req, res) => {
-  const { id } = req.params;
+    const { id } = req.params;
 
-  try {
-    const result = await pool.query(
-      `SELECT id, nom, prenom, cin, email, phone, whatsapp,
+    try {
+      const result = await pool.query(
+        `SELECT id, nom, prenom, cin, email, phone, whatsapp,
               date_naissance, lieu_naissance, adresse, statut_compte, profile_image_url,
               created_at, updated_at
        FROM students
        WHERE id = $1`,
-      [id]
-    );
+        [id]
+      );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Étudiant non trouvé' });
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Étudiant non trouvé' });
+      }
+
+      res.json(result.rows[0]);
+    } catch (error) {
+      console.error('Error fetching student:', error);
+      res.status(500).json({ error: 'Error fetching student', details: error.message });
     }
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Error fetching student:', error);
-    res.status(500).json({ error: 'Error fetching student', details: error.message });
-  }
-});
+  });
 
 /**
  * Update student by ID
@@ -386,50 +499,50 @@ router.put('/:id',
   requirePermission('training.students.update'),
   uploadProfileImage,
   async (req, res) => {
-  const { id } = req.params;
-  // Extract raw input data
-  const {
-    nom: rawNom,
-    prenom: rawPrenom,
-    cin: rawCin,
-    email: rawEmail,
-    phone: rawPhone,
-    whatsapp: rawWhatsapp,
-    date_naissance,
-    lieu_naissance: rawLieuNaissance,
-    adresse: rawAdresse,
-    statut_compte,
-  } = req.body;
+    const { id } = req.params;
+    // Extract raw input data
+    const {
+      nom: rawNom,
+      prenom: rawPrenom,
+      cin: rawCin,
+      email: rawEmail,
+      phone: rawPhone,
+      whatsapp: rawWhatsapp,
+      date_naissance,
+      lieu_naissance: rawLieuNaissance,
+      adresse: rawAdresse,
+      statut_compte,
+    } = req.body;
 
-  // Apply standardization rules (only if values are provided)
-  const nom = rawNom ? toTitleCase(rawNom) : null;
-  const prenom = rawPrenom ? toTitleCase(rawPrenom) : null;
-  const cin = rawCin ? formatCIN(rawCin) : null;
-  const email = rawEmail ? formatEmail(rawEmail) : null;
-  const phone = rawPhone ? formatPhone(rawPhone) : null;
-  const whatsapp = rawWhatsapp ? formatPhone(rawWhatsapp) : null;
-  const lieu_naissance = rawLieuNaissance ? toTitleCase(rawLieuNaissance) : null;
-  const adresse = rawAdresse ? formatAddress(rawAdresse) : null;
+    // Apply standardization rules (only if values are provided)
+    const nom = rawNom ? toTitleCase(rawNom) : null;
+    const prenom = rawPrenom ? toTitleCase(rawPrenom) : null;
+    const cin = rawCin ? formatCIN(rawCin) : null;
+    const email = rawEmail ? formatEmail(rawEmail) : null;
+    const phone = rawPhone ? formatPhone(rawPhone) : null;
+    const whatsapp = rawWhatsapp ? formatPhone(rawWhatsapp) : null;
+    const lieu_naissance = rawLieuNaissance ? toTitleCase(rawLieuNaissance) : null;
+    const adresse = rawAdresse ? formatAddress(rawAdresse) : null;
 
-  try {
-    // Check if student exists
-    const existingStudent = await pool.query('SELECT id, profile_image_url FROM students WHERE id = $1', [id]);
+    try {
+      // Check if student exists
+      const existingStudent = await pool.query('SELECT id, profile_image_url FROM students WHERE id = $1', [id]);
 
-    if (existingStudent.rows.length === 0) {
-      return res.status(404).json({ error: 'Étudiant non trouvé' });
-    }
+      if (existingStudent.rows.length === 0) {
+        return res.status(404).json({ error: 'Étudiant non trouvé' });
+      }
 
-    // Handle profile image upload
-    let profile_image_url = existingStudent.rows[0].profile_image_url;
-    if (req.file) {
-      // Generate URL relative to server uploads directory
-      profile_image_url = `/uploads/profiles/${req.file.filename}`;
+      // Handle profile image upload
+      let profile_image_url = existingStudent.rows[0].profile_image_url;
+      if (req.file) {
+        // Generate URL relative to server uploads directory
+        profile_image_url = `/uploads/profiles/${req.file.filename}`;
 
-      // TODO: Delete old profile image if exists
-    }
+        // TODO: Delete old profile image if exists
+      }
 
-    const result = await pool.query(
-      `UPDATE students SET
+      const result = await pool.query(
+        `UPDATE students SET
         nom = COALESCE($1, nom),
         prenom = COALESCE($2, prenom),
         cin = COALESCE($3, cin),
@@ -444,31 +557,31 @@ router.put('/:id',
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $12
       RETURNING *`,
-      [
-        nom,
-        prenom,
-        cin,
-        email,
-        phone,
-        whatsapp,
-        date_naissance || null,
-        lieu_naissance,
-        adresse,
-        statut_compte || null,
-        req.file ? profile_image_url : null,
-        id,
-      ]
-    );
+        [
+          nom,
+          prenom,
+          cin,
+          email,
+          phone,
+          whatsapp,
+          date_naissance || null,
+          lieu_naissance,
+          adresse,
+          statut_compte || null,
+          req.file ? profile_image_url : null,
+          id,
+        ]
+      );
 
-    res.json({
-      success: true,
-      student: result.rows[0],
-      message: 'Étudiant mis à jour avec succès',
-    });
-  } catch (error) {
-    console.error('Error updating student:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'étudiant', details: error.message });
-  }
-});
+      res.json({
+        success: true,
+        student: result.rows[0],
+        message: 'Étudiant mis à jour avec succès',
+      });
+    } catch (error) {
+      console.error('Error updating student:', error);
+      res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'étudiant', details: error.message });
+    }
+  });
 
 export default router;
