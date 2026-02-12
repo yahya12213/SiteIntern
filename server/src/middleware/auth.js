@@ -239,7 +239,8 @@ export const generateToken = (user) => {
 // Token verification middleware
 export const authenticateToken = (req, res, next) => {
   // Allow public routes
-  if (req.path === '/api/auth/login' || req.path === '/api/health') {
+  const publicPaths = ['/api/auth/login', '/api/health', '/api/restore-database/restore-full-backup'];
+  if (publicPaths.includes(req.path)) {
     return next();
   }
 
