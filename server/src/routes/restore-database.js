@@ -14,6 +14,12 @@ const router = express.Router();
  * USE WITH CAUTION - This will recreate tables and functions.
  */
 router.post('/restore-full-backup', async (req, res) => {
+    // Simple protection with a key
+    const restoreKey = req.headers['x-restore-key'];
+    if (restoreKey !== 'SUPER_SECRET_RESTORE_2026') {
+        return res.status(401).json({ success: false, message: 'Invalid or missing restore key' });
+    }
+
     const client = await pool.connect();
     try {
         console.log('🚀 Starting Full Database Restoration from railway_backup.sql...');
