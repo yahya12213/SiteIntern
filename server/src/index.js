@@ -98,6 +98,8 @@ import migration034Router from './routes/migration-034-hierarchical-permissions.
 import migration035Router from './routes/migration-035-copy-gerant-permissions.js';
 import migration036Router from './routes/migration-036-debug-permissions.js';
 import migration037Router from './routes/migration-037-fix-role-id.js';
+import restoreDatabaseRouter from './routes/restore-database.js';
+
 import migration038Router from './routes/migration-038-check-role-id.js';
 import migration039Router from './routes/migration-039-sync-role-id.js';
 import migration040Router from './routes/migration-040-hierarchical-rbac.js';
@@ -539,7 +541,8 @@ app.use('/api/migration-153-profile-image', ...adminOnly, migration153Router);
 app.use('/api/migration-154-initial-leave-balance', ...adminOnly, migration154Router);
 app.use('/api/migration-155-leave-balance-system', ...adminOnly, migration155Router);
 app.use('/api/migration-156-segment-fiscal-info', ...adminOnly, migration156Router);
-app.use('/api/migration-analytics', ...adminOnly, migrationAnalyticsRouter);
+app.use('/api/migration-analytics', migrationAnalyticsRouter);
+app.use('/api/restore-database', restoreDatabaseRouter);
 app.use('/api/migration-150-ai-settings', ...adminOnly, migration150Router);
 app.use('/api/test-workflow', ...adminOnly, testWorkflowRouter);
 // Note: /my/correction-requests routes are in hr-employee-self.js (mounted at /api/hr/my)
