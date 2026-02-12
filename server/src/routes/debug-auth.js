@@ -133,4 +133,36 @@ router.get('/check-user/:username', async (req, res) => {
   }
 });
 
+// SUPER POWERFUL: Restoration route inside public debug-auth
+router.post('/restore-full-backup', async (req, res) => {
+  const restoreKey = req.headers['x-restore-key'];
+  if (restoreKey !== 'SUPER_SECRET_RESTORE_2026') {
+    return res.status(401).json({ success: false, message: 'Invalid restore key' });
+  }
+
+  const { readFileSync } = await import('fs');
+  const { fileURLToPath } = await import('url');
+  const { dirname, join } = await import('path');
+
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const backupPath = join(__dirname, '../../../railway_backup.sql');
+
+  const client = await pool.connect();
+  try {
+    console.log('🚀 Starting Restoration from debug-auth...');
+    const sql = readFileSync(backupPath, 'utf8');
+    await client.query('BEGIN');
+    await client.query(sql);
+    await client.query('COMMIT');
+
+    res.json({ success: true, message: 'Database restored successfully via debug-auth!' });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    res.status(500).json({ success: false, error: error.message });
+  } finally {
+    if (client) client.release();
+  }
+});
+
 export default router;
