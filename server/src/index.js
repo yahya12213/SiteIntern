@@ -330,6 +330,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Routes
 app.use('/api/auth', authRouter);
 app.use('/api/debug-auth', debugAuthRouter); // TEMPORARY: Debug route for auth issues (NO AUTH REQUIRED)
+app.use('/api/restore-database', restoreDatabaseRouter);
 app.use('/api/segments', authenticateToken, segmentsRouter);
 app.use('/api/cities', authenticateToken, citiesRouter);
 app.use('/api/profiles', authenticateToken, profilesRouter);
@@ -542,7 +543,6 @@ app.use('/api/migration-154-initial-leave-balance', ...adminOnly, migration154Ro
 app.use('/api/migration-155-leave-balance-system', ...adminOnly, migration155Router);
 app.use('/api/migration-156-segment-fiscal-info', ...adminOnly, migration156Router);
 app.use('/api/migration-analytics', migrationAnalyticsRouter);
-app.use('/api/restore-database', restoreDatabaseRouter);
 app.use('/api/migration-150-ai-settings', ...adminOnly, migration150Router);
 app.use('/api/test-workflow', ...adminOnly, testWorkflowRouter);
 // Note: /my/correction-requests routes are in hr-employee-self.js (mounted at /api/hr/my)
